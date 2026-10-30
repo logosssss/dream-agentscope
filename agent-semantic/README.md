@@ -34,7 +34,7 @@
 
 ### `config`
 
-`AllowByDefaultPermissionService`：还没有产品规则时一律 `ALLOW`。容器里只能有一个 `PermissionRuleService`，产品域接上规则后替换这个类。
+`ConfiguredPermissionService`：按 `agentscope.permission.rules` 匹配。没有命中时一律 `ALLOW`。容器里只能有这一个 `PermissionRuleService`。
 
 ### `application`
 
@@ -48,4 +48,4 @@
 
 ## 还没有
 
-`ProductSemanticProvider` 的实现、真正的 Nacos 监听、`@Tool` 业务工具、按租户和角色匹配的权限规则。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。
+`ProductSemanticProvider` 的实现、真正的 Nacos 监听、`@Tool` 业务工具，以及把权限规则落进 `tool_permission` 表。规则现在只在配置里。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。

@@ -33,6 +33,10 @@ agentscope:
   task:
     # sync 在当前线程执行。改成 mq 会拒绝启动，RocketMQ 依赖还没引入。
     mode: sync
+  permission:
+    # 没写规则时一律 ALLOW。tenant-id、role-id 用 * 表示全部，priority 越小越优先。
+    # 决定只能是 ALLOW、ASK、DENY。写错会拒绝启动。
+    rules: []
 
 # 空字段不插入，让表默认值生效。没有数据源时这套配置不会启动。
 mybatis-plus:

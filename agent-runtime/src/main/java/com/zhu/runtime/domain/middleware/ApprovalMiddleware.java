@@ -43,7 +43,7 @@ public class ApprovalMiddleware implements MiddlewareBase {
     }
 
     /**
-     * 逐个工具看产品规则。ASK 的调用换成 ASKING 再交给后续中间件。
+     * 逐个工具看产品规则。ASK 的调用换成 ASKING 再交给后续中间件。DENY 的调用从这次输入里拿掉。
      * 不往 PermissionEngine 追加规则：默认上下文是 trivial，引擎规则这次判定读不到；
      * 一旦把上下文改成非 trivial，没匹配到的工具会走默认 ASK，误伤同一次调用里的其它工具。
      */
@@ -60,25 +60,33 @@ public class ApprovalMiddleware implements MiddlewareBase {
         CallIdentity identity = CallIdentity.from(context);
         List<ToolUseBlock> rewritten = new ArrayList<>(calls.size());
         for (ToolUseBlock use : calls) {
-            rewritten.add(holdIfAsk(use, identity));
+            keep(use, identity, rewritten);
         }
         return next.apply(new ActingInput(rewritten));
     }
 
-    /** 工具名为空无法匹配规则，原样放过。ASK 时记单、发事件，并把状态标成等待确认。 */
-    private ToolUseBlock holdIfAsk(ToolUseBlock use, CallIdentity identity) {
+    /**
+     * 工具名为空无法匹配规则，原样留下。DENY 不记审批，也不交给后续执行。
+     * ASK 记单、发事件，并把状态标成等待确认。
+     */
+    private void keep(ToolUseBlock use, CallIdentity identity, List<ToolUseBlock> out) {
         if (use == null || use.getName() == null || use.getName().isBlank()) {
-            return use;
+            out.add(use);
+            return;
         }
         PermissionDecision decision = permissions.decide(use.getName(), identity.tenantId(), null);
+        if (decision == PermissionDecision.DENY) {
+            return;
+        }
         if (decision != PermissionDecision.ASK) {
-            return use;
+            out.add(use);
+            return;
         }
         String approvalId = Ids.newId();
         String userId = identity.userId() == null ? "" : identity.userId();
         approvals.requested(approvalId, use.getName(), userId, identity.sessionId());
         events.publishEvent(new ApprovalRequestedEvent(
                 approvalId, use.getName(), identity.tenantId(), identity.userId()));
-        return use.withState(ToolCallState.ASKING);
+        out.add(use.withState(ToolCallState.ASKING));
     }
 }

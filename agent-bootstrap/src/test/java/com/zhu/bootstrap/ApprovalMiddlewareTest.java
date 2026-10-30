@@ -52,6 +52,35 @@ class ApprovalMiddlewareTest {
         assertThat(seen.getState()).isEqualTo(ToolCallState.ASKING);
     }
 
+    /** DENY 不记审批，也不把这次工具交给后续执行。同一次里的其它工具仍保留。 */
+    @Test
+    void denyDropsOnlyThatTool() {
+        List<ApprovalRequestedEvent> published = new ArrayList<>();
+        List<String> recorded = new ArrayList<>();
+        PermissionRuleService permissions = (toolId, tenantId, roleId) ->
+                "shell".equals(toolId) ? PermissionDecision.DENY : PermissionDecision.ALLOW;
+        ApprovalRecorder approvals = (approvalId, toolId, userId, sessionId) -> recorded.add(toolId);
+        ApplicationEventPublisher events = event -> published.add((ApprovalRequestedEvent) event);
+        ApprovalMiddleware middleware = new ApprovalMiddleware(permissions, approvals, events);
+        ToolUseBlock shell = new ToolUseBlock.Builder().id("tool-1").name("shell").input(Map.of()).build();
+        ToolUseBlock http = new ToolUseBlock.Builder().id("tool-2").name("http").input(Map.of()).build();
+        RuntimeContext context = RuntimeContext.builder()
+                .userId("user-a")
+                .sessionId("session-a")
+                .put("tenantId", "tenant-a")
+                .build();
+        AtomicReference<List<ToolUseBlock>> forwarded = new AtomicReference<>();
+        middleware.onActing(mock(Agent.class), context, new ActingInput(List.of(shell, http)), input -> {
+                    forwarded.set(input.toolCalls());
+                    return Flux.empty();
+                })
+                .blockLast();
+
+        assertThat(recorded).isEmpty();
+        assertThat(published).isEmpty();
+        assertThat(forwarded.get()).extracting(ToolUseBlock::getName).containsExactly("http");
+    }
+
     private static ToolUseBlock act(
             PermissionDecision decision,
             List<ApprovalRequestedEvent> published,
