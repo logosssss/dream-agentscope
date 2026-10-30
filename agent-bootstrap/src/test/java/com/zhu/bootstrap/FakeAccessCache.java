@@ -15,6 +15,8 @@ public class FakeAccessCache implements AccessCache {
 
     private final ConcurrentHashMap<String, Slot> slots = new ConcurrentHashMap<>();
 
+    private final ConcurrentHashMap<String, Hold> locks = new ConcurrentHashMap<>();
+
     /** 使用系统时钟。 */
     public FakeAccessCache() {
         this(Clock.systemUTC());
@@ -56,7 +58,41 @@ public class FakeAccessCache implements AccessCache {
         return won.get();
     }
 
+    /** 过期后可以重新占。未过期时第二次返回 false。 */
+    @Override
+    public boolean lock(String key, String token, Duration ttl) {
+        long now = clock.millis();
+        AtomicBoolean won = new AtomicBoolean(false);
+        locks.compute(key, (name, current) -> {
+            if (current == null || current.expiresAtMillis <= now) {
+                won.set(true);
+                return new Hold(token, now + ttl.toMillis());
+            }
+            return current;
+        });
+        return won.get();
+    }
+
+    /** 令牌不符或已经过期时留下原记录，不误删下一次的锁。 */
+    @Override
+    public void unlock(String key, String token) {
+        long now = clock.millis();
+        locks.compute(key, (name, current) -> {
+            if (current == null || current.expiresAtMillis <= now) {
+                return null;
+            }
+            if (token != null && token.equals(current.token)) {
+                return null;
+            }
+            return current;
+        });
+    }
+
     /** 计数值和绝对过期时间。过期时间不随后续增加而延长。 */
     private record Slot(long value, long expiresAtMillis) {
+    }
+
+    /** 会话短锁的令牌和绝对过期时间。 */
+    private record Hold(String token, long expiresAtMillis) {
     }
 }

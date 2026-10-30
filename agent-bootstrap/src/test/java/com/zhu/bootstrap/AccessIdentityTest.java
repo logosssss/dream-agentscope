@@ -3,6 +3,7 @@ package com.zhu.bootstrap;
 import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.access.application.ChatAppService;
 import com.zhu.access.application.QuotaGuard;
+import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.access.infrastructure.security.AccessIdentityFilter;
@@ -50,7 +51,8 @@ class AccessIdentityTest {
 
         PromptService prompts = (key, variables, fallback) -> fallback;
         QuotaGuard quota = new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC());
-        new ChatAppService(executor, prompts, quota).chat(request);
+        SessionTurnGuard turns = new SessionTurnGuard(new FakeAccessCache(), 120);
+        new ChatAppService(executor, prompts, quota, turns).chat(request);
 
         ArgumentCaptor<AgentRequest> sent = ArgumentCaptor.forClass(AgentRequest.class);
         verify(executor).execute(sent.capture());

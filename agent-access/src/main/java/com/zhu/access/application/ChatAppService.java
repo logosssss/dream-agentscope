@@ -26,10 +26,13 @@ public class ChatAppService {
 
     private final QuotaGuard quota;
 
-    public ChatAppService(AgentExecutor executor, PromptService prompts, QuotaGuard quota) {
+    private final SessionTurnGuard turns;
+
+    public ChatAppService(AgentExecutor executor, PromptService prompts, QuotaGuard quota, SessionTurnGuard turns) {
         this.executor = executor;
         this.prompts = prompts;
         this.quota = quota;
+        this.turns = turns;
     }
 
     /**
@@ -39,17 +42,28 @@ public class ChatAppService {
     public AgentResponse chat(ChatRequest request) {
         AgentRequest agentRequest = toRequest(request);
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
-        return executor.execute(agentRequest);
+        SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
+        try {
+            return executor.execute(agentRequest);
+        } finally {
+            turns.close(turn);
+        }
     }
 
     /**
      * 流式执行。身份在返回 Flux 之前就抄进 AgentRequest，避免过滤器清掉线程上下文后流才开始读。
-     * 调用方不要 block。
+     * 会话锁在流结束时释放。调用方不要 block。
      */
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
         AgentRequest agentRequest = toRequest(request);
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
-        return executor.stream(agentRequest);
+        SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
+        try {
+            return executor.stream(agentRequest).doFinally(signal -> turns.close(turn));
+        } catch (RuntimeException error) {
+            turns.close(turn);
+            throw error;
+        }
     }
 
     /** 通道只在接入层归一化，不传给运行层。 */

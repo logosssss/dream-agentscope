@@ -23,7 +23,7 @@
 | `infrastructure.security` | `AccessIdentityFilter` | `X-Tenant-Id`、`X-User-Id`、`X-Request-Id` 写入线程，请求结束清理。不拦截缺头请求 |
 | `infrastructure.cache` | `AccessCache` | 额度、幂等、限流计数。只走 Redis |
 | `application` | `ChatAppService` | 请求体身份优先，空字段用请求头。空提示词走 `PromptService`，额度通过后再调用 `AgentExecutor` |
-| `application` | `QuotaGuard` | 键为 `quota:{tenant}:{user}:{yyyyMMdd}`（48 小时）、`idem:{requestId}`（10 分钟）、`rate:{endpoint}:{user}:{分钟}` |
+| `application` | `QuotaGuard`、`SessionTurnGuard` | 额度键 `quota:{tenant}:{user}:{yyyyMMdd}`。会话短锁 `turn:{tenant}:{user}:{session}`，结束即释放 |
 
 `/api/chat` 返回 `ApiResult<AgentResponse>`。`/api/chat/stream` 的 `Content-Type` 是 `text/event-stream`，每条 `data` 是 `AgentStreamEvent`（`type`、`text`）。两条路径共用同一份请求体：
 
@@ -39,7 +39,7 @@
 
 线程上下文只是接入层副本。执行身份以 `AgentRequest` 里的字段为准。
 
-`agentscope.access.daily-limit` 和 `per-minute` 默认是 0，表示不限制。带了 `X-Request-Id` 时，十分钟内的重复提交返回冲突，不再执行第二次。Redis 不保存 Agent 状态、沙箱快照或执行锁。
+`agentscope.access.daily-limit` 和 `per-minute` 默认是 0，表示不限制。带了 `X-Request-Id` 时，十分钟内的重复提交返回冲突，不再执行第二次。同一租户、用户、会话进行中时，再来一轮也返回冲突，调用结束就释放。Redis 不保存 Agent 状态或沙箱快照。
 
 ## 还没有
 
