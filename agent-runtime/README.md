@@ -28,6 +28,14 @@ HarnessAgentFactory.build(request)   每次 new Builder，然后 build()
 agent.call(userText, context).block(timeout)
         │
         finally agent.close()
+
+AgentExecutor.stream(AgentRequest)
+        │  同样先校验并构造 RuntimeContext
+        ▼
+agent.streamEvents(userText, context)
+        │  取消、完成或失败时 close
+        ▼
+AgentStreamEvent   接入层再写成 SSE
 ```
 
 容器里只有 `AgentExecutionService` 和 `HarnessAgentFactory`。没有 `HarnessAgent` 这个 Bean。Builder 是可变的，所以不在多线程之间共享同一个 Builder 再改提示词。
@@ -41,7 +49,9 @@ agent.call(userText, context).block(timeout)
 | `api` | `AgentExecutor` | 接入层唯一入口 |
 | `api` | `AgentRequest` | 执行入参。产品语义由调用方填好 |
 | `api` | `AgentResponse` | 运行标识和文本，不泄漏框架的 `Msg` |
-| `application` | `AgentExecutionService` | 上面的生命周期 |
+| `api` | `AgentStreamEvent` | 流式事件的类型和短文本 |
+| `application` | `AgentExecutionService` | 同步 `block` 和流式 `streamEvents`，结束时关闭 Agent |
+| `application` | `AgentStreamEvents` | 框架事件收成 `AgentStreamEvent` |
 | `infrastructure.agent` | `HarnessAgentFactory` | 按请求组装 Agent |
 | `config` | `AgentRuntimeProperties` | 前缀 `agentscope.runtime` |
 | `config` | `RuntimeConfig` | 只打开配置绑定，不创建 Agent |
@@ -58,7 +68,7 @@ agent.call(userText, context).block(timeout)
 | `agentscope.runtime.name` | `product-agent` | 展示名 |
 | `agentscope.runtime.workspace` | 空 | 空则用框架默认工作区 |
 | `agentscope.runtime.max-iters` | `20` | 单次最大推理轮数 |
-| `agentscope.runtime.timeout-seconds` | `120` | `block` 的等待上限 |
+| `agentscope.runtime.timeout-seconds` | `120` | 同步 `block` 和流式 `timeout` 的上限 |
 
 系统提示词来自 `AgentRequest.systemPrompt`。为空时工厂放一个占位符 `.`，避免空提示词进入模型。真正的产品文案由产品域传入。
 
@@ -66,6 +76,6 @@ agent.call(userText, context).block(timeout)
 
 ## 还没有
 
-流式 `Flux`、按产品预构建多份 Builder、工具注册、`AgentTaskPublisher` 的同步或 MQ 实现。SSE 放在 `agent-access`，不要在本模块写控制器。
+按产品预构建多份 Builder、工具注册、`AgentTaskPublisher` 的同步或 MQ 实现。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。
 
 `ApprovalMiddleware` 在 `ASK` 时把本次工具标成 `ASKING` 并发出事件。它不改框架的 `PermissionEngine`：默认权限上下文是 trivial，临时加规则要么这次判定读不到，要么会让同一次调用里没匹配到的工具也变成询问。框架自 2.0.0 起把 `Hook` 标成删除，执行策略挂在 `Middleware` 上。

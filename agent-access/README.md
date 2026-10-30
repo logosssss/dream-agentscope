@@ -15,14 +15,14 @@
 | 包 | 类型 | 作用 |
 | --- | --- | --- |
 | `api.controller` | `LivenessController` | `GET /health/live`。只表示进程还在，不查数据库和模型 |
-| `api.controller` | `ChatController` | `POST /api/chat`。不覆盖过滤器写入的线程身份 |
+| `api.controller` | `ChatController` | `POST /api/chat` 同步 JSON；`POST /api/chat/stream` 输出 SSE。不覆盖过滤器写入的线程身份 |
 | `api.dto` | `ChatRequest` | HTTP 入参。`channel` 空则 `WEB`，不传给运行层 |
 | `domain.channel` | `AccessChannel` | `WEB` / `IM` / `API`。只描述请求从哪进来 |
 | `infrastructure.security` | `AccessIdentityFilter` | `X-Tenant-Id`、`X-User-Id` 补空字段，请求结束清理。不拦截缺头请求 |
 | `application` | `ChatAppService` | 请求体身份优先，空字段用请求头，再调用 `AgentExecutor` |
 | `application` | `ApprovalNotifyAppService` | 订阅 `ApprovalRequestedEvent`，先收进待推送列表 |
 
-`/api/chat` 目前是同步 JSON，返回 `ApiResult<AgentResponse>`。请求体字段：
+`/api/chat` 返回 `ApiResult<AgentResponse>`。`/api/chat/stream` 的 `Content-Type` 是 `text/event-stream`，每条 `data` 是 `AgentStreamEvent`（`type`、`text`）。两条路径共用同一份请求体：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
@@ -38,6 +38,6 @@
 
 ## 还没有
 
-登录和令牌、SSE、额度扣减、IM/API 通道适配，以及把待推送审批真正送到前端。通道枚举已经在接入层，不要挪到运行层。
+登录和令牌、额度扣减、IM/API 通道适配，以及把待推送审批真正送到前端。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。通道枚举已经在接入层，不要挪到运行层。
 
 存活检查故意不看 MySQL。依赖不可用应该影响就绪检查，而不是把进程判死。
