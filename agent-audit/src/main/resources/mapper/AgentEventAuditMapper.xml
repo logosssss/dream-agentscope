@@ -16,4 +16,12 @@
         <result column="created_at" property="createdAt"/>
     </resultMap>
 
+    <!-- 管理端最近审计。LIMIT 用占位符，避免把条数拼进 SQL。 -->
+    <select id="recent" resultMap="BaseResultMap">
+        SELECT id, event_id, event_type, user_id, session_id, run_id, source, payload, created_at
+        FROM agent_event_audit
+        ORDER BY id DESC
+        LIMIT #{limit}
+    </select>
+
 </mapper>

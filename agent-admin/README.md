@@ -6,7 +6,7 @@
 
 ## 依赖
 
-只依赖 `agent-common` 和 Web。不依赖 `agent-runtime`、`agent-access`，也不依赖 Harness。
+依赖 `agent-common`、`agent-audit` 和 Web。用审计模块的查询接口读库。不依赖 `agent-runtime`、`agent-access`，也不依赖 Harness。
 
 `agent-bootstrap` 不依赖本模块。用户进程扫描 `com.zhu` 时，classpath 上没有这些类，管理接口不会混进对话进程。
 
@@ -25,10 +25,12 @@ mvn -pl agent-admin -am spring-boot:run
 | 路径 | 作用 |
 | --- | --- |
 | `GET /health/live` | 只表示管理进程还在，不查用户进程、数据库或模型 |
-| `GET /api/admin/info` | 角色为 `admin`，并说明看不到用户进程内存里的审计和待审批 |
+| `GET /api/admin/info` | 角色为 `admin`。说明查询读的是 MySQL，关闭时列表为空 |
+| `GET /api/admin/audits` | 最近审计，默认 50 条，最多 100 条。MySQL 关闭时为空数组 |
+| `GET /api/admin/approvals` | 决定为 `PENDING` 的审批，条数规则同上 |
 
-审计记录和待审批列表现在在用户进程的内存里。换一个 JVM 会是另一份空数据，所以这里不提供查询。等它们落库以后，管理进程再读同一份 MySQL。
+扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery` 和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`ApprovalRecorder`。写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
 
 ## 还没有
 
-登录、审计查询、审批处理、模型配置修改。本进程不提供聊天接口。
+登录、审批通过或拒绝、模型配置修改。本进程不提供聊天接口。

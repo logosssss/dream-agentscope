@@ -6,18 +6,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理面自述。不查用户进程里的内存审计和待审批，避免把另一份空列表当成真实数据。
+ * 管理面自述。查询接口读的是数据库，不是用户进程内存。
  */
 @RestController
 public class AdminInfoController {
 
     /**
-     * 返回进程角色。审计和审批目前在用户进程内存里，这个 JVM 读不到。
+     * 返回进程角色。MySQL 关闭时查询接口是空列表，不把内存记录当成共享数据。
      */
     @GetMapping("/api/admin/info")
     public ApiResult<AdminInfo> info() {
         return ApiResult.ok(new AdminInfo(
                 "admin",
-                "管理进程与用户进程不是同一个 JVM，看不到用户进程内存里的审计记录和待审批列表。共享查询要等这些数据落库。"));
+                "审计和审批查询读的是 MySQL。开关关闭时列表为空，看不到用户进程内存里的记录。"));
     }
 }

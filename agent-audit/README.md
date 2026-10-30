@@ -16,6 +16,7 @@
 | --- | --- | --- |
 | `api` | `AuditRecorder` | 记一条操作。`detail` 不放密钥和全文提示词 |
 | `api` | `ApprovalRecorder` | 记下一次待审批 |
+| `api` | `AuditQuery` | 最近审计和待审批的只读查询。MySQL 关闭时返回空列表 |
 | `domain.event` | `ApprovalRequestedEvent` | ASK 时的跨模块事件 |
 | `application` | `MemoryAuditRecorder`、`MemoryApprovalRecorder` | MySQL 关闭时的进程内实现 |
 | `infrastructure.persistence` | `MybatisAuditRecorder`、`MybatisApprovalRecorder` | MySQL 打开时的写入。审批新单为 `PENDING`，审计来源为 `EXECUTOR` |
@@ -28,4 +29,4 @@
 
 ## 还没有
 
-审批通过、拒绝和执行结果回写。管理进程还没有查询这两张表的接口。MySQL 关闭时记录仍在本进程内存里，重启会丢。
+审批通过、拒绝和执行结果回写。MySQL 关闭时写入仍在本进程内存里，重启会丢；查询接口这时返回空列表。

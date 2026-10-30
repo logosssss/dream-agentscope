@@ -23,4 +23,14 @@
         <result column="created_at" property="createdAt"/>
     </resultMap>
 
+    <!-- 管理端待审批。决定写死 PENDING，条数用占位符。 -->
+    <select id="pending" resultMap="BaseResultMap">
+        SELECT id, approval_id, user_id, session_id, run_id, tool_name, action, decision,
+               approver, channel, reason, requested_at, decided_at, executed_at, result, created_at
+        FROM approval_record
+        WHERE decision = 'PENDING'
+        ORDER BY id DESC
+        LIMIT #{limit}
+    </select>
+
 </mapper>

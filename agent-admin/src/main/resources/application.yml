@@ -1,9 +1,15 @@
 server:
   port: 8100
 
-# 管理进程默认不连数据库。审计落库以后再打开数据源。
+# 管理进程默认不连数据库。打开查询前再去掉数据源排除，并配置与用户进程相同的库。
 spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
       - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+
+agentscope:
+  distributed:
+    mysql:
+      # 关闭时查询接口返回空列表，不读取另一份 JVM 的内存。
+      enabled: false
