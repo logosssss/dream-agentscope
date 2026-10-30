@@ -1,0 +1,9 @@
+server:
+  port: 8100
+
+# 管理进程默认不连数据库。审计落库以后再打开数据源。
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration

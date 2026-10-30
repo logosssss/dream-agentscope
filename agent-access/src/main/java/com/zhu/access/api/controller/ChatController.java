@@ -2,8 +2,6 @@ package com.zhu.access.api.controller;
 
 import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.access.application.ChatAppService;
-import com.zhu.common.context.TenantContext;
-import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.runtime.api.AgentResponse;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,21 +21,10 @@ public class ChatController {
     }
 
     /**
-     * 执行一次对话。线程上的租户和用户在返回前清掉，避免线程池串话。
+     * 执行一次对话。线程上下文由 AccessIdentityFilter 写入和清理，这里不再覆盖，避免空请求体冲掉请求头。
      */
     @PostMapping("/api/chat")
     public ApiResult<AgentResponse> chat(@RequestBody ChatRequest request) {
-        try {
-            if (request.tenantId() != null) {
-                TenantContext.set(request.tenantId());
-            }
-            if (request.userId() != null) {
-                UserContext.set(request.userId());
-            }
-            return ApiResult.ok(chats.chat(request));
-        } finally {
-            TenantContext.clear();
-            UserContext.clear();
-        }
+        return ApiResult.ok(chats.chat(request));
     }
 }

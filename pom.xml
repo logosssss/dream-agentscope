@@ -24,6 +24,7 @@
         <module>agent-runtime</module>
         <module>agent-audit</module>
         <module>agent-access</module>
+        <module>agent-admin</module>
         <module>agent-bootstrap</module>
     </modules>
 
@@ -63,6 +64,11 @@
             <dependency>
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-access</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-admin</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
