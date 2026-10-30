@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zhu</groupId>
+        <artifactId>dream-agentscope</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>agent-runtime</artifactId>
+    <name>agent-runtime</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-semantic</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-state</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-audit</artifactId>
+        </dependency>
+    </dependencies>
+</project>
