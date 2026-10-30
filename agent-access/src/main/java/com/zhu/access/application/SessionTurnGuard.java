@@ -35,7 +35,7 @@ public class SessionTurnGuard {
 
     /**
      * 占住这次会话。用户或会话为空时直接拒绝，不占锁。
-     * 已经有一轮在进行时抛 CONFLICT。
+     * 已经有一轮在进行时抛 CONFLICT。Redis 不可用时抛 UNAVAILABLE，不放行。
      */
     public Turn open(String tenantId, String userId, String sessionId) {
         if (userId == null || userId.isBlank() || sessionId == null || sessionId.isBlank()) {
@@ -49,9 +49,18 @@ public class SessionTurnGuard {
         return new Turn(key, token);
     }
 
-    /** 用占锁时的令牌释放。重复释放没有副作用。 */
+    /**
+     * 用占锁时的令牌释放。重复释放没有副作用。
+     * Redis 不可用时吞掉：锁会过期，不能把已经完成的回复盖成失败。
+     */
     public void close(Turn turn) {
-        cache.unlock(turn.key, turn.token);
+        try {
+            cache.unlock(turn.key, turn.token);
+        } catch (BusinessException error) {
+            if (error.errorCode() != ErrorCode.UNAVAILABLE) {
+                throw error;
+            }
+        }
     }
 
     /** 键的分段里不留冒号，避免租户标识把四段拆乱。 */

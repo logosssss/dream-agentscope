@@ -14,6 +14,8 @@ public enum ErrorCode {
     CONFLICT,
     /** 当日额度或限流窗口已满。 */
     QUOTA_EXCEEDED,
+    /** 依赖暂时不可用。接入层用 HTTP 503 表示，不降级到别的存储。 */
+    UNAVAILABLE,
     /** 未分类的内部失败。 */
     INTERNAL
 }

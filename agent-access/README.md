@@ -39,7 +39,7 @@
 
 线程上下文只是接入层副本。执行身份以 `AgentRequest` 里的字段为准。
 
-`agentscope.access.daily-limit` 和 `per-minute` 默认是 0，表示不限制。带了 `X-Request-Id` 时，十分钟内的重复提交返回冲突，不再执行第二次。同一租户、用户、会话进行中时，再来一轮也返回冲突，调用结束就释放。Redis 不保存 Agent 状态或沙箱快照。
+`agentscope.access.daily-limit` 和 `per-minute` 默认是 0，表示不限制。带了 `X-Request-Id` 时，十分钟内的重复提交返回冲突，不再执行第二次。同一租户、用户、会话进行中时，再来一轮也返回冲突，调用结束就释放。Redis 不保存 Agent 状态或沙箱快照。Redis 在额度、幂等、限流或占锁时失败，请求返回 HTTP 503，错误码 `UNAVAILABLE`，不执行对话，也不改查 MySQL 或内存。释放锁失败不改变已经生成的回复，锁靠过期时间放开。
 
 ## 还没有
 
