@@ -45,6 +45,8 @@ agent.call(userText, context).block(timeout)
 | `infrastructure.agent` | `HarnessAgentFactory` | 按请求组装 Agent |
 | `config` | `AgentRuntimeProperties` | 前缀 `agentscope.runtime` |
 | `config` | `RuntimeConfig` | 只打开配置绑定，不创建 Agent |
+| `domain` | `CallIdentity` | 从这次 `RuntimeContext` 读租户、用户、会话，不用 ThreadLocal |
+| `domain.middleware` | `AuditMiddleware`、`ApprovalMiddleware` | 执行策略。ASK 时发布审批事件，不调用接入层。不用已标删除的 Hook |
 | `task` | `AgentTask`、`AgentTaskPublisher` | 异步任务的形状。还没有同步实现，也没有 RocketMQ |
 
 ## 配置
@@ -64,4 +66,6 @@ agent.call(userText, context).block(timeout)
 
 ## 还没有
 
-流式 `Flux`、按产品预构建多份 Builder、工具注册、Hook、`AgentTaskPublisher` 的同步或 MQ 实现。SSE 放在 `agent-access`，不要在本模块写控制器。
+流式 `Flux`、按产品预构建多份 Builder、工具注册、`AgentTaskPublisher` 的同步或 MQ 实现。SSE 放在 `agent-access`，不要在本模块写控制器。
+
+`ApprovalMiddleware` 在 `ASK` 时把本次工具标成 `ASKING` 并发出事件。它不改框架的 `PermissionEngine`：默认权限上下文是 trivial，临时加规则要么这次判定读不到，要么会让同一次调用里没匹配到的工具也变成询问。框架自 2.0.0 起把 `Hook` 标成删除，执行策略挂在 `Middleware` 上。

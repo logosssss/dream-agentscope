@@ -18,6 +18,7 @@
 | `api.controller` | `ChatController` | `POST /api/chat`。写入并在 `finally` 清理 `TenantContext`、`UserContext` |
 | `api.dto` | `ChatRequest` | HTTP 入参，与运行层的 `AgentRequest` 分开 |
 | `application` | `ChatAppService` | 把 `ChatRequest` 译成 `AgentRequest`，再调用 `AgentExecutor` |
+| `application` | `ApprovalNotifyAppService` | 订阅 `ApprovalRequestedEvent`，先收进待推送列表 |
 
 `/api/chat` 目前是同步 JSON，返回 `ApiResult<AgentResponse>`。请求体字段：
 
@@ -34,6 +35,6 @@
 
 ## 还没有
 
-登录和令牌、SSE、额度扣减、Channel、对 `ApprovalRequestedEvent` 的订阅。这些仍属于接入层，不要挪到运行层。
+登录和令牌、SSE、额度扣减、Channel，以及把待推送审批真正送到 IM 或前端。订阅已经在接入层，不要挪到运行层。
 
 存活检查故意不看 MySQL。依赖不可用应该影响就绪检查，而不是把进程判死。

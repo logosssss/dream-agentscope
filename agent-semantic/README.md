@@ -6,7 +6,7 @@
 
 ## 依赖
 
-只依赖 `agent-common`。
+依赖 `agent-common`。默认权限实现用到 Spring Boot 的条件装配。
 
 不能依赖 `agent-runtime`、`agent-access`。否则产品语义会被执行流程和 HTTP 细节污染。
 
@@ -20,6 +20,7 @@
 | `ToolDescriptor` | 一条工具描述。运行层不认识具体业务工具类 |
 | `CompletionCriteria` | 何时停止，目前只有最大推理轮数 |
 | `PermissionDecision` | `ALLOW` / `ASK` / `DENY` |
+| `PermissionRuleService` | 按工具、租户、角色给出决定。运行层审批 Hook 用这个契约 |
 
 `agentId()` 是状态命名空间，不是展示名。改展示名不能改这个值，否则旧会话会对到空状态。
 
@@ -29,7 +30,10 @@
 | --- | --- |
 | `PromptService` | 按 key 取提示词。外部配置失败时必须退回调用方传入的 fallback，不能返回空串 |
 | `ToolCatalogService` | 当前启用的工具，不含停用项 |
-| `PermissionRuleService` | 按工具、租户、角色给出权限决定 |
+
+### `config`
+
+`AllowByDefaultPermissionService`：还没有产品规则时一律 `ALLOW`。容器里只能有一个 `PermissionRuleService`，产品域接上规则后替换这个类。
 
 ### `application` 与 `infrastructure`
 
@@ -37,4 +41,4 @@
 
 ## 还没有
 
-`ProductSemanticProvider` 的实现、Nacos 提示词、`@Tool` 业务工具、权限规则的匹配实现。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。
+`ProductSemanticProvider` 的实现、Nacos 提示词、`@Tool` 业务工具、按租户和角色匹配的权限规则。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。

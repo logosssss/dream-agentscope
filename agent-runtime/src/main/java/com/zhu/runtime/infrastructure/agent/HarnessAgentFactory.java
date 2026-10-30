@@ -2,6 +2,8 @@ package com.zhu.runtime.infrastructure.agent;
 
 import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.config.AgentRuntimeProperties;
+import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
+import com.zhu.runtime.domain.middleware.AuditMiddleware;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import org.springframework.beans.factory.ObjectProvider;
@@ -17,9 +19,19 @@ public class HarnessAgentFactory {
 
     private final ObjectProvider<DistributedStore> stores;
 
-    public HarnessAgentFactory(AgentRuntimeProperties properties, ObjectProvider<DistributedStore> stores) {
+    private final AuditMiddleware auditMiddleware;
+
+    private final ApprovalMiddleware approvalMiddleware;
+
+    public HarnessAgentFactory(
+            AgentRuntimeProperties properties,
+            ObjectProvider<DistributedStore> stores,
+            AuditMiddleware auditMiddleware,
+            ApprovalMiddleware approvalMiddleware) {
         this.properties = properties;
         this.stores = stores;
+        this.auditMiddleware = auditMiddleware;
+        this.approvalMiddleware = approvalMiddleware;
     }
 
     /**
@@ -37,6 +49,9 @@ public class HarnessAgentFactory {
         if (!blank(properties.getWorkspace())) {
             builder.workspace(properties.getWorkspace());
         }
+        // 审计和审批走 Middleware。Hook 自 2.0.0 起标成删除，不再挂到 Builder 上。
+        builder.middleware(auditMiddleware);
+        builder.middleware(approvalMiddleware);
         DistributedStore store = stores.getIfAvailable();
         if (store != null) {
             builder.distributedStore(store);
