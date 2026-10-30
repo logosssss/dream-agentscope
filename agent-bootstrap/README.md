@@ -22,7 +22,7 @@ mvn -pl agent-bootstrap -am spring-boot:run
 
 默认配置在 `src/main/resources/application.yml`：
 
-- 数据源、Redis 主机和 Milvus 地址来自环境变量。没配或连不上就退出。本进程执行 Flyway。
+- 数据源、Redis 主机和 Milvus 地址来自环境变量。没配或连不上就退出。本进程执行 Flyway。连接池最大 20、最小空闲 5。
 - `agentscope.distributed.mysql.enabled=true`，`create-if-not-exist` 保持 `false`。
 - 模型默认 `dashscope:qwen-plus`，可用环境变量 `AGENTSCOPE_MODEL` 覆盖。密钥不要写进这个文件。
 

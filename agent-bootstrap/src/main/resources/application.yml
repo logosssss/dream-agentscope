@@ -11,6 +11,10 @@ spring:
     url: ${SPRING_DATASOURCE_URL:}
     username: ${SPRING_DATASOURCE_USERNAME:}
     password: ${SPRING_DATASOURCE_PASSWORD:}
+    hikari:
+      # 本进程最多 20 个连接。管理进程另有一份同样大小的池。MySQL max_connections 必须盖住这两份，再留运维连接。
+      maximum-pool-size: 20
+      minimum-idle: 5
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration

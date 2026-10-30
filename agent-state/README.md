@@ -35,7 +35,7 @@
 - `JdbcSnapshotSpec`：沙箱快照
 - `JdbcSandboxExecutionGuard`：执行锁
 
-`create-if-not-exist` 必须保持 `false`。框架自带的一行工厂会默认建表，这里按配置关掉，表结构只由 Flyway 管理。
+`create-if-not-exist` 必须保持 `false`。框架自带的一行工厂会默认建表，这里按配置关掉，表结构只由 Flyway 管理。用户进程和管理进程的连接池各自最大 20。
 
 ## 表
 

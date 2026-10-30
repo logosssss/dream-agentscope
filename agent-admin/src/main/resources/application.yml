@@ -11,6 +11,10 @@ spring:
     url: ${SPRING_DATASOURCE_URL:}
     username: ${SPRING_DATASOURCE_USERNAME:}
     password: ${SPRING_DATASOURCE_PASSWORD:}
+    hikari:
+      # 与用户进程相同。两边同时在线时，MySQL max_connections 至少要盖住 40 再加运维连接。
+      maximum-pool-size: 20
+      minimum-idle: 5
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
