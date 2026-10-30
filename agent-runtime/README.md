@@ -61,7 +61,7 @@ AgentStreamEvent   接入层再写成 SSE
 | `domain.middleware` | `AuditMiddleware`、`ApprovalMiddleware`、`FileWriteLimitMiddleware` | 执行策略。ASK 时发布审批事件。写文件超过 `max-write-bytes` 时丢掉，不调用接入层。不用已标删除的 Hook |
 | `task` | `AgentTask`、`AgentTaskPublisher` | 任务消息体和发布口。业务层调用，工厂和 Middleware 不感知 |
 | `task` | `SyncTaskPublisher`、`SyncAgentTaskHandler` | `mode=sync` 时当前线程执行，只记审计，不调用模型 |
-| `task` | `MqTaskModeGuard` | `mode=mq` 时启动失败。RocketMQ 依赖还没引入 |
+| `task` | `RocketMqTaskPublisher` | `mode=mq` 时的占位。启动即失败，topic 预留为 `agentscope-tasks`，不引入 RocketMQ 依赖 |
 
 ## 配置
 
@@ -82,8 +82,14 @@ AgentStreamEvent   接入层再写成 SSE
 
 一次调用结束且回复带 token 用量时，`AuditUsageMeter` 写一条动作名为 `model.usage` 的审计。明细只有模型名、输入 token、输出 token 和耗时，不放提示词。没有用量就不记。审计写失败不改变已经生成的回复。还没有独立计费表，也没有接 OpenTelemetry。
 
+切到 `agentscope.task.mode=mq` 之前要先做完这三步，否则 `RocketMqTaskPublisher` 会让进程起不来：
+
+1. 在 `agent-runtime` 引入 `rocketmq-spring-boot-starter`。现在不要加。
+2. 配置 `rocketmq.name-server`，地址只来自环境变量。不要把地址写进仓库。
+3. 增加消费者，监听 topic `agentscope-tasks`，收到消息后调用现有的 `AgentTaskHandler.handle`。消息 key 用 `taskId`。不要再注册第二个 `AgentTaskHandler`。
+
 ## 还没有
 
-按产品预构建多份 Builder、工具注册、RocketMQ 发布。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。产品任务替换 `SyncAgentTaskHandler`，不要再注册第二个 `AgentTaskHandler`。
+按产品预构建多份 Builder、工具注册。RocketMQ 客户端和消费者还没接。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。产品任务替换 `SyncAgentTaskHandler`，不要再注册第二个 `AgentTaskHandler`。
 
 `ApprovalMiddleware` 在 `ASK` 时把本次工具标成 `ASKING` 并发出事件，在 `DENY` 时把这次工具从后续执行里拿掉。它不改框架的 `PermissionEngine`：默认权限上下文是 trivial，临时加规则要么这次判定读不到，要么会让同一次调用里没匹配到的工具也变成询问。框架自 2.0.0 起把 `Hook` 标成删除，执行策略挂在 `Middleware` 上。
