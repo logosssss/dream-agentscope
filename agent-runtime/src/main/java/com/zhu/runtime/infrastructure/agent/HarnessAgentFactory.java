@@ -42,7 +42,8 @@ public class HarnessAgentFactory {
 
     /**
      * 创建一个尚未执行的 Agent。调用方必须在结束时关闭它。
-     * 有 DistributedStore 时挂上，没有时仍可构建，状态只留在本进程。
+     * 有 DistributedStore 时同时挂远程文件系统，工作区进 MySQL。
+     * 没有 Store 时不挂远程文件系统，只留给测试。
      */
     public HarnessAgent build(AgentRequest request) {
         String agentId = blank(request.agentId()) ? properties.getAgentId() : request.agentId();
@@ -62,6 +63,7 @@ public class HarnessAgentFactory {
         DistributedStore store = stores.getIfAvailable();
         if (store != null) {
             builder.distributedStore(store);
+            builder.filesystem(WorkspaceFilesystem.sessionScoped());
         }
         return builder.build();
     }

@@ -51,4 +51,4 @@
 
 ## 还没有
 
-仓库接口的实现、Redis 缓存、对象存储。Redis 以后只做额度、幂等和限流，不拿来存 Agent 状态。
+仓库接口的实现、对象存储。工作区文件在挂上 `DistributedStore` 后走远程文件系统，进 `agentscope_store`。Redis 只做额度、幂等和限流，不存 Agent 状态。
