@@ -7,9 +7,11 @@ import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentResponse;
 import com.zhu.runtime.api.AgentStreamEvent;
+import com.zhu.runtime.api.UsageMeter;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import io.agentscope.core.agent.RuntimeContext;
+import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.harness.agent.HarnessAgent;
 import java.time.Duration;
@@ -26,9 +28,12 @@ public class AgentExecutionService implements AgentExecutor {
 
     private final AgentRuntimeProperties properties;
 
-    public AgentExecutionService(HarnessAgentFactory factory, AgentRuntimeProperties properties) {
+    private final UsageMeter usages;
+
+    public AgentExecutionService(HarnessAgentFactory factory, AgentRuntimeProperties properties, UsageMeter usages) {
         this.factory = factory;
         this.properties = properties;
+        this.usages = usages;
     }
 
     /**
@@ -38,8 +43,10 @@ public class AgentExecutionService implements AgentExecutor {
     public AgentResponse execute(AgentRequest request) {
         require(request);
         try (HarnessAgent agent = factory.build(request)) {
+            long started = System.nanoTime();
             Msg reply = agent.call(request.userText(), context(request))
                     .block(Duration.ofSeconds(properties.getTimeoutSeconds()));
+            ModelCallUsage.record(usages, request.userId(), properties.getModel(), reply, started);
             String text = reply == null || reply.getTextContent() == null ? "" : reply.getTextContent();
             String runId = reply == null || reply.getId() == null ? Ids.newId() : reply.getId();
             return new AgentResponse(runId, text);
@@ -54,8 +61,14 @@ public class AgentExecutionService implements AgentExecutor {
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
         require(request);
         HarnessAgent agent = factory.build(request);
+        long started = System.nanoTime();
         try {
             return agent.streamEvents(request.userText(), context(request))
+                    .doOnNext(event -> {
+                        if (event instanceof AgentResultEvent result) {
+                            ModelCallUsage.record(usages, request.userId(), properties.getModel(), result.getResult(), started);
+                        }
+                    })
                     .map(AgentStreamEvents::from)
                     .timeout(Duration.ofSeconds(properties.getTimeoutSeconds()))
                     .doFinally(signal -> close(agent));

@@ -28,6 +28,8 @@
 
 `approval_record.tenant_id` 由 `V3__approval_tenant.sql` 补上。没有租户时写成空串。
 
+模型调用的 token 用量也记在这张表里，动作名是 `model.usage`。
+
 ## 还没有
 
-批准后的执行时间与结果回写。
+批准后的执行时间与结果回写。独立计费表还没有。

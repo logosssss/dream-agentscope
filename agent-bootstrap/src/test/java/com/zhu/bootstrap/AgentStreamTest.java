@@ -47,7 +47,8 @@ class AgentStreamTest {
     @Test
     void streamRejectsBlankIdentityBeforeBuild() {
         HarnessAgentFactory factory = mock(HarnessAgentFactory.class);
-        AgentExecutionService service = new AgentExecutionService(factory, new AgentRuntimeProperties());
+        AgentExecutionService service = new AgentExecutionService(factory, new AgentRuntimeProperties(), (user, model, input, output, latency) -> {
+        });
 
         assertThatThrownBy(() -> service.stream(new AgentRequest(null, null, " ", "session-a", null, "hi")))
                 .isInstanceOf(BusinessException.class);

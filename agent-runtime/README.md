@@ -80,6 +80,8 @@ AgentStreamEvent   接入层再写成 SSE
 
 `userId`、`sessionId`、`userText` 缺任何一个，抛 `BusinessException(BAD_REQUEST)`。
 
+一次调用结束且回复带 token 用量时，`AuditUsageMeter` 写一条动作名为 `model.usage` 的审计。明细只有模型名、输入 token、输出 token 和耗时，不放提示词。没有用量就不记。审计写失败不改变已经生成的回复。还没有独立计费表，也没有接 OpenTelemetry。
+
 ## 还没有
 
 按产品预构建多份 Builder、工具注册、RocketMQ 发布。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。产品任务替换 `SyncAgentTaskHandler`，不要再注册第二个 `AgentTaskHandler`。
