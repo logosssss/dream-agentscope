@@ -18,6 +18,7 @@
 | `api` | `ApprovalRecorder` | 记下一次待审批 |
 | `api` | `AuditQuery` | 最近审计和待审批的只读查询。MySQL 关闭时返回空列表 |
 | `api` | `ApprovalDecider` | 把 PENDING 改成 APPROVED 或 REJECTED。不写执行结果 |
+| `application` | `MysqlReadiness` | 开关打开时校验数据库连接。关闭时跳过，不跑业务 SQL |
 | `domain.event` | `ApprovalRequestedEvent` | ASK 时的跨模块事件 |
 | `application` | `MemoryAuditRecorder`、`MemoryApprovalRecorder` | MySQL 关闭时的进程内实现 |
 | `infrastructure.persistence` | `MybatisAuditRecorder`、`MybatisApprovalRecorder` | MySQL 打开时的写入。审批新单为 `PENDING`，审计来源为 `EXECUTOR` |

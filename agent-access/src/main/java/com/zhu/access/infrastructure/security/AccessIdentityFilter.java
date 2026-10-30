@@ -29,7 +29,7 @@ public class AccessIdentityFilter extends OncePerRequestFilter {
 
     /**
      * 头有非空值才写入上下文。请求结束必须清掉，避免线程池串话。
-     * 不按路径拒绝，所以 /health/live 没有头也能过。
+     * 不按路径拒绝，所以 /health/live 和 /health/ready 没有头也能过。
      */
     @Override
     protected void doFilterInternal(

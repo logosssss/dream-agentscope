@@ -16,6 +16,7 @@
 | `dto` | `ApiResult`、`PageQuery`、`PageResult` | 接入层统一响应和分页。页码从 1 开始 |
 | `context` | `TenantContext`、`UserContext`、`RequestIdContext` | 当前线程的租户、用户和幂等标识。请求结束必须 `clear()`，避免线程池串话 |
 | `util` | `Ids` | 还没有框架返回值时生成无连字符的随机 ID |
+| `health` | `ReadinessSnapshot` | 就绪检查的总状态和各项结果。不负责真正连库 |
 
 ## 使用约定
 

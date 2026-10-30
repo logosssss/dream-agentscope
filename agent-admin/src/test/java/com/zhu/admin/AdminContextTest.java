@@ -47,6 +47,10 @@ class AdminContextTest {
         mvc.perform(get("/health/live"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));
+        mvc.perform(get("/health/ready"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.mysql").value("SKIPPED"));
         mvc.perform(get("/api/admin/info"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.role").value("admin"))

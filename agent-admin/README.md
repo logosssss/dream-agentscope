@@ -25,6 +25,7 @@ mvn -pl agent-admin -am spring-boot:run
 | 路径 | 作用 |
 | --- | --- |
 | `GET /health/live` | 只表示管理进程还在，不查用户进程、数据库或模型 |
+| `GET /health/ready` | MySQL 关闭时为 UP，该项 SKIPPED。开关打开但库不可用时 HTTP 503 |
 | `GET /api/admin/info` | 角色为 `admin`。说明查询读的是 MySQL，关闭时列表为空 |
 | `GET /api/admin/audits` | 最近审计，默认 50 条，最多 100 条。MySQL 关闭时为空数组 |
 | `GET /api/admin/approvals` | 决定为 `PENDING` 的审批，条数规则同上 |

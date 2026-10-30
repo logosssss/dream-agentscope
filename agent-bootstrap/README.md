@@ -35,7 +35,7 @@ mvn -pl agent-bootstrap -am spring-boot:run
 | 测试 | 断言 |
 | --- | --- |
 | `ArchitectureTest` | 语义不依赖运行层和接入层；运行层不碰语义实现包；状态层不碰语义、运行层和接入层；接入层不引用 harness；控制器不访问持久化包。导入的类必须包含各模块的代表类型，避免规则空过 |
-| `BootstrapContextTest` | 上下文能起来；恰好一个 `AgentExecutor`；没有 `HarnessAgent` Bean；没有 `DistributedStore` Bean；`GET /health/live` 返回 UP |
+| `BootstrapContextTest` | 上下文能起来；恰好一个 `AgentExecutor`；没有 `HarnessAgent` Bean；没有 `DistributedStore` Bean；`GET /health/live` 返回 UP；默认 `GET /health/ready` 跳过 MySQL 和 Redis |
 
 ## 不放这里的东西
 

@@ -30,7 +30,7 @@ class BootstrapContextTest {
 
     /**
      * 执行入口只有一个 AgentExecutor。Agent 按请求创建，不注册成 Bean。
-     * 存活检查不依赖 MySQL。
+     * 存活检查不依赖 MySQL。默认开关关闭时就绪检查跳过 MySQL 和 Redis。
      */
     @Test
     void startsWithoutHarnessSingleton() throws Exception {
@@ -40,5 +40,10 @@ class BootstrapContextTest {
         mvc.perform(get("/health/live"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));
+        mvc.perform(get("/health/ready"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.mysql").value("SKIPPED"))
+                .andExpect(jsonPath("$.redis").value("SKIPPED"));
     }
 }
