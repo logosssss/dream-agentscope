@@ -58,7 +58,11 @@ public class MybatisAuditQuery implements AuditQuery {
                     row.getSessionId(),
                     row.getToolName(),
                     row.getDecision(),
-                    row.getRequestedAt()));
+                    row.getRequestedAt(),
+                    row.getApprover(),
+                    row.getChannel(),
+                    row.getReason(),
+                    row.getDecidedAt()));
         }
         return result;
     }

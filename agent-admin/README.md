@@ -28,9 +28,10 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /api/admin/info` | 角色为 `admin`。说明查询读的是 MySQL，关闭时列表为空 |
 | `GET /api/admin/audits` | 最近审计，默认 50 条，最多 100 条。MySQL 关闭时为空数组 |
 | `GET /api/admin/approvals` | 决定为 `PENDING` 的审批，条数规则同上 |
+| `POST /api/admin/approvals/{approvalId}/decision` | 把该单改成 `APPROVED` 或 `REJECTED`。通道固定为 `CONSOLE`。不执行工具。MySQL 关闭时返回找不到 |
 
-扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery` 和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`ApprovalRecorder`。写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
+扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery`、`ApprovalDecider` 和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`ApprovalRecorder`。申请单的写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
 
 ## 还没有
 
-登录、审批通过或拒绝、模型配置修改。本进程不提供聊天接口。
+登录、模型配置修改。本进程不提供聊天接口，也不在批准后执行工具。

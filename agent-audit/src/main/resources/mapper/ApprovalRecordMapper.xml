@@ -33,4 +33,23 @@
         LIMIT #{limit}
     </select>
 
+    <select id="findByApprovalId" resultMap="BaseResultMap">
+        SELECT id, approval_id, user_id, session_id, run_id, tool_name, action, decision,
+               approver, channel, reason, requested_at, decided_at, executed_at, result, created_at
+        FROM approval_record
+        WHERE approval_id = #{approvalId}
+    </select>
+
+    <!-- 条件写在 WHERE 里，已决定的单据不会被覆盖。不改执行时间和结果。 -->
+    <update id="decidePending">
+        UPDATE approval_record
+        SET decision = #{decision},
+            approver = #{approver},
+            channel = #{channel},
+            reason = #{reason},
+            decided_at = #{decidedAt}
+        WHERE approval_id = #{approvalId}
+          AND decision = 'PENDING'
+    </update>
+
 </mapper>

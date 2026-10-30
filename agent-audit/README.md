@@ -17,11 +17,12 @@
 | `api` | `AuditRecorder` | 记一条操作。`detail` 不放密钥和全文提示词 |
 | `api` | `ApprovalRecorder` | 记下一次待审批 |
 | `api` | `AuditQuery` | 最近审计和待审批的只读查询。MySQL 关闭时返回空列表 |
+| `api` | `ApprovalDecider` | 把 PENDING 改成 APPROVED 或 REJECTED。不写执行结果 |
 | `domain.event` | `ApprovalRequestedEvent` | ASK 时的跨模块事件 |
 | `application` | `MemoryAuditRecorder`、`MemoryApprovalRecorder` | MySQL 关闭时的进程内实现 |
 | `infrastructure.persistence` | `MybatisAuditRecorder`、`MybatisApprovalRecorder` | MySQL 打开时的写入。审批新单为 `PENDING`，审计来源为 `EXECUTOR` |
 | `infrastructure.persistence` | `AgentEventAuditMapper`、`ApprovalRecordMapper` | 继承 `BaseMapper`。简单插入不写 SQL |
-| `resources/mapper` | 同名 XML | 只放 `resultMap`。条件查询和更新以后加在这里，不把同一条 `INSERT` 再写一遍 |
+| `resources/mapper` | 同名 XML | `resultMap`、条件查询和决定更新。不把同一条 `INSERT` 再写一遍 |
 
 事件放在发布相关的领域包，不放进 `agent-common`。`agent-common` 不承载业务事件。
 
@@ -29,4 +30,4 @@
 
 ## 还没有
 
-审批通过、拒绝和执行结果回写。MySQL 关闭时写入仍在本进程内存里，重启会丢；查询接口这时返回空列表。
+批准后的执行时间与结果回写。MySQL 关闭时写入仍在本进程内存里，重启会丢；查询返回空列表，决定接口返回找不到。
