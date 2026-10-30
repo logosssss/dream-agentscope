@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-state`、`spring-boot-starter-web`。
+依赖 `agent-common`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-state`、`spring-boot-starter-web`、`spring-boot-starter-data-redis`。Redis 自动配置在启动模块里排除，避免没配地址时去连本机。
 
 架构测试禁止 `com.zhu.access` 引用 `..harness..`。控制器也不能依赖 `..infrastructure.persistence..`。
 
@@ -18,8 +18,10 @@
 | `api.controller` | `ChatController` | `POST /api/chat` 同步 JSON；`POST /api/chat/stream` 输出 SSE。不覆盖过滤器写入的线程身份 |
 | `api.dto` | `ChatRequest` | HTTP 入参。`channel` 空则 `WEB`，不传给运行层 |
 | `domain.channel` | `AccessChannel` | `WEB` / `IM` / `API`。只描述请求从哪进来 |
-| `infrastructure.security` | `AccessIdentityFilter` | `X-Tenant-Id`、`X-User-Id` 补空字段，请求结束清理。不拦截缺头请求 |
-| `application` | `ChatAppService` | 请求体身份优先，空字段用请求头，再调用 `AgentExecutor` |
+| `infrastructure.security` | `AccessIdentityFilter` | `X-Tenant-Id`、`X-User-Id`、`X-Request-Id` 写入线程，请求结束清理。不拦截缺头请求 |
+| `infrastructure.cache` | `AccessCache` | 额度、幂等、限流计数。默认进程内；`agentscope.cache.redis.enabled=true` 且配置了 host 后改走 Redis |
+| `application` | `ChatAppService` | 请求体身份优先，空字段用请求头。空提示词走 `PromptService`，额度通过后再调用 `AgentExecutor` |
+| `application` | `QuotaGuard` | 键为 `quota:{tenant}:{user}:{yyyyMMdd}`（48 小时）、`idem:{requestId}`（10 分钟）、`rate:{endpoint}:{user}:{分钟}` |
 | `application` | `ApprovalNotifyAppService` | 订阅 `ApprovalRequestedEvent`，先收进待推送列表 |
 
 `/api/chat` 返回 `ApiResult<AgentResponse>`。`/api/chat/stream` 的 `Content-Type` 是 `text/event-stream`，每条 `data` 是 `AgentStreamEvent`（`type`、`text`）。两条路径共用同一份请求体：
@@ -32,12 +34,14 @@
 | `tenantId` | 否 | 有值以请求体为准；空则用 `X-Tenant-Id` |
 | `channel` | 否 | 空则 `WEB`。不传给运行层 |
 | `agentId` | 否 | 空则用 `agentscope.runtime.agent-id` |
-| `systemPrompt` | 否 | 空则运行层使用占位符 |
+| `systemPrompt` | 否 | 有值以请求体为准。空则按 `prompt.platform.system` 读取，读不到用 `.` |
 
 线程上下文只是接入层副本。执行身份以 `AgentRequest` 里的字段为准。
 
+`agentscope.access.daily-limit` 和 `per-minute` 默认是 0，表示不限制。带了 `X-Request-Id` 时，十分钟内的重复提交返回冲突，不再执行第二次。Redis 不保存 Agent 状态、沙箱快照或执行锁。
+
 ## 还没有
 
-登录和令牌、额度扣减、IM/API 通道适配，以及把待推送审批真正送到前端。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。通道枚举已经在接入层，不要挪到运行层。
+登录和令牌、会话列表缓存、IM/API 通道适配，以及把待推送审批真正送到前端。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。通道枚举已经在接入层，不要挪到运行层。
 
 存活检查故意不看 MySQL。依赖不可用应该影响就绪检查，而不是把进程判死。

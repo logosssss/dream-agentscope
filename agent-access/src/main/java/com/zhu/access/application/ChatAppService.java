@@ -1,12 +1,16 @@
 package com.zhu.access.application;
 
 import com.zhu.access.api.dto.ChatRequest;
+import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
+import com.zhu.semantic.api.PlatformPrompt;
+import com.zhu.semantic.api.PromptService;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentResponse;
 import com.zhu.runtime.api.AgentStreamEvent;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -18,8 +22,14 @@ public class ChatAppService {
 
     private final AgentExecutor executor;
 
-    public ChatAppService(AgentExecutor executor) {
+    private final PromptService prompts;
+
+    private final QuotaGuard quota;
+
+    public ChatAppService(AgentExecutor executor, PromptService prompts, QuotaGuard quota) {
         this.executor = executor;
+        this.prompts = prompts;
+        this.quota = quota;
     }
 
     /**
@@ -27,7 +37,9 @@ public class ChatAppService {
      * 请求体里的租户和用户优先；空字段才用过滤器放进线程的请求头。通道留在接入层，不放进 AgentRequest。
      */
     public AgentResponse chat(ChatRequest request) {
-        return executor.execute(toRequest(request));
+        AgentRequest agentRequest = toRequest(request);
+        quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
+        return executor.execute(agentRequest);
     }
 
     /**
@@ -35,7 +47,9 @@ public class ChatAppService {
      * 调用方不要 block。
      */
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
-        return executor.stream(toRequest(request));
+        AgentRequest agentRequest = toRequest(request);
+        quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
+        return executor.stream(agentRequest);
     }
 
     /** 通道只在接入层归一化，不传给运行层。 */
@@ -46,8 +60,18 @@ public class ChatAppService {
                 firstNonBlank(request.tenantId(), TenantContext.get()),
                 firstNonBlank(request.userId(), UserContext.get()),
                 request.sessionId(),
-                request.systemPrompt(),
+                systemPrompt(request),
                 request.text());
+    }
+
+    /**
+     * 请求体里的提示词优先。空则按键读取，读不到用平台兜底，避免空串进入模型。
+     */
+    private String systemPrompt(ChatRequest request) {
+        if (request.systemPrompt() != null && !request.systemPrompt().isBlank()) {
+            return request.systemPrompt();
+        }
+        return prompts.get(PlatformPrompt.SYSTEM_KEY, Map.of(), PlatformPrompt.SYSTEM_FALLBACK);
     }
 
     /** 空白不算有效身份，否则空字符串会挡住请求头。 */

@@ -14,12 +14,12 @@
 | --- | --- | --- |
 | `exception` | `ErrorCode`、`BusinessException` | 可预期失败用稳定错误码，不靠异常文案做分支 |
 | `dto` | `ApiResult`、`PageQuery`、`PageResult` | 接入层统一响应和分页。页码从 1 开始 |
-| `context` | `TenantContext`、`UserContext` | 当前线程的租户和用户。请求结束必须 `clear()`，避免线程池串话 |
+| `context` | `TenantContext`、`UserContext`、`RequestIdContext` | 当前线程的租户、用户和幂等标识。请求结束必须 `clear()`，避免线程池串话 |
 | `util` | `Ids` | 还没有框架返回值时生成无连字符的随机 ID |
 
 ## 使用约定
 
-- 身份以方法参数和 `RuntimeContext` 为准。`TenantContext` / `UserContext` 只是接入层的线程副本，不能当作跨层传递的唯一来源。
+- 身份以方法参数和 `RuntimeContext` 为准。`TenantContext` / `UserContext` / `RequestIdContext` 只是接入层的线程副本，不能当作跨层传递的唯一来源。
 - `ApiResult` 成功时 `code` 为 `OK`，失败时为 `ErrorCode` 的名称。
 - 不要在本模块加 `@Service`、控制器或数据库访问。
 

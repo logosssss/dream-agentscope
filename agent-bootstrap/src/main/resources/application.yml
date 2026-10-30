@@ -4,6 +4,8 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
       - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
 agentscope:
   runtime:
@@ -20,3 +22,11 @@ agentscope:
       enabled: false
       # 表由 Flyway 创建，不允许框架启动时建表。
       create-if-not-exist: false
+  access:
+    # 0 表示不限制。打开后按租户用户计当日次数和每分钟次数。
+    daily-limit: 0
+    per-minute: 0
+  cache:
+    redis:
+      # 关闭时额度留在本进程。打开后必须另配 host，这里不写地址。
+      enabled: false

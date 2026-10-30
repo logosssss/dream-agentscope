@@ -12,6 +12,8 @@ public enum ErrorCode {
     NOT_FOUND,
     /** 与当前状态冲突，例如重复提交。 */
     CONFLICT,
+    /** 当日额度或限流窗口已满。 */
+    QUOTA_EXCEEDED,
     /** 未分类的内部失败。 */
     INTERNAL
 }

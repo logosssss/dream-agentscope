@@ -29,16 +29,23 @@
 | 类型 | 作用 |
 | --- | --- |
 | `PromptService` | 按 key 取提示词。外部配置失败时必须退回调用方传入的 fallback，不能返回空串 |
+| `PlatformPrompt` | 请求没带系统提示词时的键和兜底。产品话术不放这里 |
 | `ToolCatalogService` | 当前启用的工具，不含停用项 |
 
 ### `config`
 
 `AllowByDefaultPermissionService`：还没有产品规则时一律 `ALLOW`。容器里只能有一个 `PermissionRuleService`，产品域接上规则后替换这个类。
 
-### `application` 与 `infrastructure`
+### `application`
 
-现在只有 `package-info`，用来占住边界。运行层的架构测试禁止依赖这两个包。业务工具、Nacos 监听和 Mapper 以后放 `infrastructure`，不要放进 `agent-runtime`。
+`PromptAppService` 实现 `PromptService`。外部模板用 `{{变量}}` 替换。来源缺失、空白或抛错时返回 fallback，并打一条只含 key 的警告。fallback 为空则拒绝。容器里只能有一个 `PromptService`。
+
+### `infrastructure.nacos`
+
+`PromptSource` 是外部原文的缝。`AbsentPromptSource` 在没有 Nacos 地址时始终返回 null，不访问网络。配上服务端地址后再换成监听器，不要同时注册两个来源。当前不引入 Nacos 客户端，避免写死 namespace 和 server 地址。
+
+运行层的架构测试禁止依赖 `application` 和 `infrastructure`。业务工具和 Mapper 以后放 `infrastructure`，不要放进 `agent-runtime`。
 
 ## 还没有
 
-`ProductSemanticProvider` 的实现、Nacos 提示词、`@Tool` 业务工具、按租户和角色匹配的权限规则。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。
+`ProductSemanticProvider` 的实现、真正的 Nacos 监听、`@Tool` 业务工具、按租户和角色匹配的权限规则。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。
