@@ -84,7 +84,8 @@ public class ApprovalMiddleware implements MiddlewareBase {
         }
         String approvalId = Ids.newId();
         String userId = identity.userId() == null ? "" : identity.userId();
-        approvals.requested(approvalId, use.getName(), userId, identity.sessionId());
+        String tenantId = identity.tenantId() == null ? "" : identity.tenantId();
+        approvals.requested(approvalId, use.getName(), userId, identity.sessionId(), tenantId);
         events.publishEvent(new ApprovalRequestedEvent(
                 approvalId, use.getName(), identity.tenantId(), identity.userId()));
         out.add(use.withState(ToolCallState.ASKING));

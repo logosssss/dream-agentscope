@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common`、Spring 和 `mybatis-plus-spring-boot3-starter`。`agentscope.distributed.mysql.enabled=false` 时用进程内实现，也不会创建 SqlSession。打开后用 `BaseMapper.insert` 写入 `agent_event_audit` 和 `approval_record`。表在 `db/migration/V2__audit_tables.sql`，由 Flyway 执行。MyBatis-Plus 不建表。
+依赖 `agent-common`、Spring 和 `mybatis-plus-spring-boot3-starter`。正式配置打开 MySQL 后，用 `BaseMapper.insert` 写入 `agent_event_audit` 和 `approval_record`。表在 `db/migration`，由用户进程的 Flyway 执行。MyBatis-Plus 不建表。测试关掉开关，不创建 SqlSession。
 
 不能依赖 `agent-runtime`、`agent-access`、`agent-semantic`。运行层需要记审批时调用本模块的接口，或发布本模块定义的事件。
 
@@ -16,19 +16,18 @@
 | --- | --- | --- |
 | `api` | `AuditRecorder` | 记一条操作。`detail` 不放密钥和全文提示词 |
 | `api` | `ApprovalRecorder` | 记下一次待审批 |
-| `api` | `AuditQuery` | 最近审计和待审批的只读查询。MySQL 关闭时返回空列表 |
+| `api` | `AuditQuery` | 最近审计、全部待审批，以及按租户和用户查待确认 |
 | `api` | `ApprovalDecider` | 把 PENDING 改成 APPROVED 或 REJECTED。不写执行结果 |
-| `application` | `MysqlReadiness` | 开关打开时校验数据库连接。关闭时跳过，不跑业务 SQL |
-| `domain.event` | `ApprovalRequestedEvent` | ASK 时的跨模块事件 |
-| `application` | `MemoryAuditRecorder`、`MemoryApprovalRecorder` | MySQL 关闭时的进程内实现 |
+| `application` | `MysqlReadiness` | 校验数据库连接。关闭时跳过，不跑业务 SQL |
+| `domain.event` | `ApprovalRequestedEvent` | ASK 时的跨模块事件。待确认列表不靠订阅它 |
 | `infrastructure.persistence` | `MybatisAuditRecorder`、`MybatisApprovalRecorder` | MySQL 打开时的写入。审批新单为 `PENDING`，审计来源为 `EXECUTOR` |
 | `infrastructure.persistence` | `AgentEventAuditMapper`、`ApprovalRecordMapper` | 继承 `BaseMapper`。简单插入不写 SQL |
 | `resources/mapper` | 同名 XML | `resultMap`、条件查询和决定更新。不把同一条 `INSERT` 再写一遍 |
 
 事件放在发布相关的领域包，不放进 `agent-common`。`agent-common` 不承载业务事件。
 
-打破循环的方式：运行层的 `ApprovalMiddleware` 发布 `ApprovalRequestedEvent`，接入层订阅后再推送。运行层因此不需要依赖 `agent-access`。
+`approval_record.tenant_id` 由 `V3__approval_tenant.sql` 补上。没有租户时写成空串。
 
 ## 还没有
 
-批准后的执行时间与结果回写。MySQL 关闭时写入仍在本进程内存里，重启会丢；查询返回空列表，决定接口返回找不到。
+批准后的执行时间与结果回写。

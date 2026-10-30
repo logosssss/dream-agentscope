@@ -7,6 +7,7 @@
     <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.ApprovalRecord">
         <id column="id" property="id"/>
         <result column="approval_id" property="approvalId"/>
+        <result column="tenant_id" property="tenantId"/>
         <result column="user_id" property="userId"/>
         <result column="session_id" property="sessionId"/>
         <result column="run_id" property="runId"/>
@@ -25,7 +26,7 @@
 
     <!-- 管理端待审批。决定写死 PENDING，条数用占位符。 -->
     <select id="pending" resultMap="BaseResultMap">
-        SELECT id, approval_id, user_id, session_id, run_id, tool_name, action, decision,
+        SELECT id, approval_id, tenant_id, user_id, session_id, run_id, tool_name, action, decision,
                approver, channel, reason, requested_at, decided_at, executed_at, result, created_at
         FROM approval_record
         WHERE decision = 'PENDING'
@@ -33,8 +34,20 @@
         LIMIT #{limit}
     </select>
 
+    <!-- 用户进程只看自己的待确认。租户空串和库里的空串对齐。 -->
+    <select id="pendingFor" resultMap="BaseResultMap">
+        SELECT id, approval_id, tenant_id, user_id, session_id, run_id, tool_name, action, decision,
+               approver, channel, reason, requested_at, decided_at, executed_at, result, created_at
+        FROM approval_record
+        WHERE decision = 'PENDING'
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+        ORDER BY id DESC
+        LIMIT #{limit}
+    </select>
+
     <select id="findByApprovalId" resultMap="BaseResultMap">
-        SELECT id, approval_id, user_id, session_id, run_id, tool_name, action, decision,
+        SELECT id, approval_id, tenant_id, user_id, session_id, run_id, tool_name, action, decision,
                approver, channel, reason, requested_at, decided_at, executed_at, result, created_at
         FROM approval_record
         WHERE approval_id = #{approvalId}

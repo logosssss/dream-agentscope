@@ -26,7 +26,7 @@
 
 ## 装配
 
-`agentscope.distributed.mysql.enabled=false`（默认）时没有 `DistributedStore` Bean，进程可以不连数据库启动。
+正式配置打开 `agentscope.distributed.mysql.enabled`。开关关闭时没有 `DistributedStore` Bean，只留给测试。
 
 打开后，`DistributedStoreConfig` 用同一个 `DataSource` 接上四块：
 

@@ -1,9 +1,12 @@
-# 默认不连数据库，没有 MySQL 也能启动。打开 DistributedStore 时再去掉这两项排除并配置数据源。
+# 正式启动必须连上 MySQL、Redis、Milvus。地址和账号只从环境变量来，仓库里不写死。
+# Flyway 在本进程执行。Redis 自动配置排除，改由 agentscope.cache.redis 创建连接。
 spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:}
+    username: ${SPRING_DATASOURCE_USERNAME:}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
@@ -16,11 +19,16 @@ agentscope:
     name: product-agent
     max-iters: 20
     timeout-seconds: 120
+    # 单次写文件的 UTF-8 字节上限。超过的 write_file / write_text_file / insert_text_file 不会执行。
+    max-write-bytes: 5242880
+  startup:
+    dependencies:
+      # 正式启动探测三个依赖。测试配置把它关掉。
+      enabled: true
   distributed:
     mysql:
-      # 关闭时不创建 DistributedStore，审计也留在本进程。
-      enabled: false
-      # 表由 Flyway 创建。MyBatis-Plus 不建表、不改表。
+      # 必须打开。没有进程内审计。表由 Flyway 创建，MyBatis-Plus 不建表。
+      enabled: true
       create-if-not-exist: false
   access:
     # 0 表示不限制。打开后按租户用户计当日次数和每分钟次数。
@@ -28,8 +36,13 @@ agentscope:
     per-minute: 0
   cache:
     redis:
-      # 关闭时额度留在本进程。打开后必须另配 host，这里不写地址。
-      enabled: false
+      # 必须打开。主机来自环境变量，为空则拒绝启动。
+      enabled: true
+      host: ${AGENTSCOPE_REDIS_HOST:}
+      port: ${AGENTSCOPE_REDIS_PORT:6379}
+  milvus:
+    # 只探测这个地址能否连通。不建集合，不做检索。环境变量没配时为空，启动失败。
+    uri: ${MILVUS_URI:}
   task:
     # sync 在当前线程执行。改成 mq 会拒绝启动，RocketMQ 依赖还没引入。
     mode: sync

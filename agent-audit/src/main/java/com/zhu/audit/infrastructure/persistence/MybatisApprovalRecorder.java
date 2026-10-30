@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * 用 BaseMapper 写审批单。只在 MySQL 打开时创建，和进程内实现互斥。
+ * 用 BaseMapper 写审批单。只在 MySQL 打开时创建。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -19,13 +19,14 @@ public class MybatisApprovalRecorder implements ApprovalRecorder {
     }
 
     /**
-     * 新单的决定固定为 PENDING。会话为空时写成空串，满足非空列。
+     * 新单的决定固定为 PENDING。会话和租户为空时写成空串，满足非空列。
      * 工具参数不入库。
      */
     @Override
-    public void requested(String approvalId, String toolId, String userId, String sessionId) {
+    public void requested(String approvalId, String toolId, String userId, String sessionId, String tenantId) {
         ApprovalRecord row = new ApprovalRecord();
         row.setApprovalId(approvalId);
+        row.setTenantId(tenantId == null || tenantId.isBlank() ? "" : tenantId);
         row.setUserId(userId == null ? "" : userId);
         row.setSessionId(sessionId == null ? "" : sessionId);
         row.setToolName(toolId);

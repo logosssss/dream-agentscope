@@ -1,15 +1,41 @@
 server:
   port: 8100
 
-# 管理进程默认不连数据库。打开查询前再去掉数据源排除，并配置与用户进程相同的库。
+# 管理进程必须连上同一套 MySQL、Redis、Milvus。不跑 Flyway，避免和用户进程同时改表。
 spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:}
+    username: ${SPRING_DATASOURCE_USERNAME:}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
       - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
 agentscope:
+  startup:
+    dependencies:
+      enabled: true
   distributed:
     mysql:
-      # 关闭时查询接口返回空列表，不读取另一份 JVM 的内存。
-      enabled: false
+      # 打开后才创建查询和决定的 Mapper。本进程不建表。
+      enabled: true
+  cache:
+    redis:
+      enabled: true
+      host: ${AGENTSCOPE_REDIS_HOST:}
+      port: ${AGENTSCOPE_REDIS_PORT:6379}
+  milvus:
+    uri: ${MILVUS_URI:}
+
+# 空字段不插入。表结构只由用户进程的 Flyway 变更。
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      insert-strategy: not_null
+  configuration:
+    map-underscore-to-camel-case: true

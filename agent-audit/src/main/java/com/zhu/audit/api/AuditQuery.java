@@ -20,4 +20,11 @@ public interface AuditQuery {
      * @param limit 条数。小于 1 时按 50，大于 100 时截断到 100
      */
     List<ApprovalRow> pendingApprovals(int limit);
+
+    /**
+     * 这个租户和用户仍待处理的审批。租户为空串表示单据上没有租户。
+     *
+     * @param limit 条数。小于 1 时按 50，大于 100 时截断到 100
+     */
+    List<ApprovalRow> pendingFor(String tenantId, String userId, int limit);
 }

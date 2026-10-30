@@ -22,11 +22,11 @@ mvn -pl agent-bootstrap -am spring-boot:run
 
 默认配置在 `src/main/resources/application.yml`：
 
-- 排除数据源和 Flyway 自动配置，没有 MySQL 也能启动。
-- `agentscope.distributed.mysql.enabled=false`。
+- 数据源、Redis 主机和 Milvus 地址来自环境变量。没配或连不上就退出。本进程执行 Flyway。
+- `agentscope.distributed.mysql.enabled=true`，`create-if-not-exist` 保持 `false`。
 - 模型默认 `dashscope:qwen-plus`，可用环境变量 `AGENTSCOPE_MODEL` 覆盖。密钥不要写进这个文件。
 
-要启用 MySQL 状态时，同时做三件事：去掉上面的自动配置排除、配置 `spring.datasource`、把 `agentscope.distributed.mysql.enabled` 设为 `true`，并保持 `create-if-not-exist: false`。
+`SPRING_DATASOURCE_URL`、`SPRING_DATASOURCE_USERNAME`、`AGENTSCOPE_REDIS_HOST`、`MILVUS_URI` 必须在环境里提供。密码用 `SPRING_DATASOURCE_PASSWORD`，可以为空。
 
 ## 测试
 
@@ -35,7 +35,7 @@ mvn -pl agent-bootstrap -am spring-boot:run
 | 测试 | 断言 |
 | --- | --- |
 | `ArchitectureTest` | 语义不依赖运行层和接入层；运行层不碰语义实现包；状态层不碰语义、运行层和接入层；接入层不引用 harness；控制器不访问持久化包。导入的类必须包含各模块的代表类型，避免规则空过 |
-| `BootstrapContextTest` | 上下文能起来；恰好一个 `AgentExecutor`；没有 `HarnessAgent` Bean；没有 `DistributedStore` Bean；`GET /health/live` 返回 UP；默认 `GET /health/ready` 跳过 MySQL 和 Redis |
+| `BootstrapContextTest` | 上下文能起来；恰好一个 `AgentExecutor`；没有 `HarnessAgent` Bean；没有 `DistributedStore` Bean；`GET /health/live` 返回 UP；测试配置下 `GET /health/ready` 跳过 MySQL、Redis 和 Milvus |
 
 ## 不放这里的东西
 

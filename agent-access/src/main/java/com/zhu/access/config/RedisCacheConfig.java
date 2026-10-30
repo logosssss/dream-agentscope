@@ -38,7 +38,7 @@ public class RedisCacheConfig {
         return new StringRedisTemplate(accessRedisConnectionFactory);
     }
 
-    /** 替换进程内计数。和 MemoryAccessCache 的条件互斥，容器里只有一个 AccessCache。 */
+    /** 额度计数只走 Redis。测试关掉开关后由测试替身提供 AccessCache。 */
     @Bean
     public AccessCache redisAccessCache(StringRedisTemplate accessRedisTemplate) {
         return new RedisAccessCache(accessRedisTemplate);

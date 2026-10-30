@@ -20,6 +20,14 @@ public interface ApprovalRecordMapper extends BaseMapper<ApprovalRecord> {
     List<ApprovalRecord> pending(@Param("limit") int limit);
 
     /**
+     * 只取这个租户和用户的 PENDING。条数由调用方收口后再传入。
+     */
+    List<ApprovalRecord> pendingFor(
+            @Param("tenantId") String tenantId,
+            @Param("userId") String userId,
+            @Param("limit") int limit);
+
+    /**
      * 按业务单号取一行。没有时返回 null。
      */
     ApprovalRecord findByApprovalId(@Param("approvalId") String approvalId);

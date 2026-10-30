@@ -4,6 +4,7 @@ import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
 import com.zhu.runtime.domain.middleware.AuditMiddleware;
+import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import org.springframework.beans.factory.ObjectProvider;
@@ -23,15 +24,20 @@ public class HarnessAgentFactory {
 
     private final ApprovalMiddleware approvalMiddleware;
 
+    private final FileWriteLimitMiddleware fileWriteLimit;
+
+    /** 写文件限制和审批都挂上。体积检查的顺序更靠前，超限内容不会进入审批。 */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,
             ObjectProvider<DistributedStore> stores,
             AuditMiddleware auditMiddleware,
-            ApprovalMiddleware approvalMiddleware) {
+            ApprovalMiddleware approvalMiddleware,
+            FileWriteLimitMiddleware fileWriteLimit) {
         this.properties = properties;
         this.stores = stores;
         this.auditMiddleware = auditMiddleware;
         this.approvalMiddleware = approvalMiddleware;
+        this.fileWriteLimit = fileWriteLimit;
     }
 
     /**
@@ -49,8 +55,9 @@ public class HarnessAgentFactory {
         if (!blank(properties.getWorkspace())) {
             builder.workspace(properties.getWorkspace());
         }
-        // 审计和审批走 Middleware。Hook 自 2.0.0 起标成删除，不再挂到 Builder 上。
+        // 审计、写文件上限和审批走 Middleware。Hook 自 2.0.0 起标成删除，不再挂到 Builder 上。
         builder.middleware(auditMiddleware);
+        builder.middleware(fileWriteLimit);
         builder.middleware(approvalMiddleware);
         DistributedStore store = stores.getIfAvailable();
         if (store != null) {

@@ -2,6 +2,7 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.application.RedisReadiness;
 import com.zhu.audit.application.MysqlReadiness;
+import com.zhu.common.health.MilvusProbe;
 import com.zhu.common.health.ReadinessSnapshot;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -56,6 +57,14 @@ class ReadinessProbeTest {
 
         when(connection.ping()).thenReturn("LOADING");
         assertThat(RedisReadiness.status(true, factory)).isEqualTo(ReadinessSnapshot.DOWN);
+    }
+
+    /** 空地址或连不上都是不可达。不创建集合。 */
+    @Test
+    void milvusBlankOrClosedPortIsDown() {
+        assertThat(MilvusProbe.reachable(null, 200)).isFalse();
+        assertThat(MilvusProbe.reachable("  ", 200)).isFalse();
+        assertThat(MilvusProbe.reachable("http://127.0.0.1:1", 200)).isFalse();
     }
 
     /** 有一项 DOWN 时总状态为 DOWN，HTTP 层据此返回 503。 */

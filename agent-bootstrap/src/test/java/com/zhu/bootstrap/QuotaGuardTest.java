@@ -2,7 +2,6 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.access.infrastructure.cache.MemoryAccessCache;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;
@@ -53,7 +52,7 @@ class QuotaGuardTest {
 
     /** 计数和判断用同一只时钟，拨分钟时两边一起动。 */
     private static QuotaGuard guard(AccessLimitProperties limits, Clock clock) {
-        return new QuotaGuard(new MemoryAccessCache(clock), limits, clock);
+        return new QuotaGuard(new FakeAccessCache(clock), limits, clock);
     }
 
     /** 取出业务异常，方便断言错误码。 */

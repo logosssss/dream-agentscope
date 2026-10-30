@@ -13,7 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * 从 MySQL 读审计和待审批。只在存储开关打开时创建，和空查询互斥。
+ * 从 MySQL 读审计和待审批。只在存储开关打开时创建。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -52,18 +52,36 @@ public class MybatisAuditQuery implements AuditQuery {
         List<ApprovalRecord> rows = approvals.pending(AuditQueryLimits.normalize(limit));
         List<ApprovalRow> result = new ArrayList<>(rows.size());
         for (ApprovalRecord row : rows) {
-            result.add(new ApprovalRow(
-                    row.getApprovalId(),
-                    row.getUserId(),
-                    row.getSessionId(),
-                    row.getToolName(),
-                    row.getDecision(),
-                    row.getRequestedAt(),
-                    row.getApprover(),
-                    row.getChannel(),
-                    row.getReason(),
-                    row.getDecidedAt()));
+            result.add(toRow(row));
         }
         return result;
+    }
+
+    /** 只取当前租户和用户的待确认。 */
+    @Override
+    public List<ApprovalRow> pendingFor(String tenantId, String userId, int limit) {
+        String tenant = tenantId == null ? "" : tenantId;
+        String user = userId == null ? "" : userId;
+        List<ApprovalRecord> rows = approvals.pendingFor(tenant, user, AuditQueryLimits.normalize(limit));
+        List<ApprovalRow> result = new ArrayList<>(rows.size());
+        for (ApprovalRecord row : rows) {
+            result.add(toRow(row));
+        }
+        return result;
+    }
+
+    /** 查询行转成给管理端和用户端共用的记录。 */
+    private static ApprovalRow toRow(ApprovalRecord row) {
+        return new ApprovalRow(
+                row.getApprovalId(),
+                row.getUserId(),
+                row.getSessionId(),
+                row.getToolName(),
+                row.getDecision(),
+                row.getRequestedAt(),
+                row.getApprover(),
+                row.getChannel(),
+                row.getReason(),
+                row.getDecidedAt());
     }
 }

@@ -18,7 +18,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 进程能在没有数据库的情况下启动，并且容器里没有 HarnessAgent 单例。
  */
-@SpringBootTest
+@SpringBootTest(properties = {
+        "agentscope.startup.dependencies.enabled=false",
+        "agentscope.distributed.mysql.enabled=false",
+        "agentscope.cache.redis.enabled=false",
+        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration"
+})
 @AutoConfigureMockMvc
 class BootstrapContextTest {
 
@@ -44,6 +49,7 @@ class BootstrapContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.mysql").value("SKIPPED"))
-                .andExpect(jsonPath("$.redis").value("SKIPPED"));
+                .andExpect(jsonPath("$.redis").value("SKIPPED"))
+                .andExpect(jsonPath("$.milvus").value("SKIPPED"));
     }
 }

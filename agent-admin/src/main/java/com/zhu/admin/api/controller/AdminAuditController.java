@@ -42,7 +42,7 @@ public class AdminAuditController {
     }
 
     /**
-     * 待处理审批。MySQL 关闭时为空列表。条数默认 50，上限 100。
+     * 待处理审批。条数默认 50，上限 100。
      */
     @GetMapping("/api/admin/approvals")
     public ApiResult<List<ApprovalRow>> approvals(@RequestParam(defaultValue = "50") int limit) {
@@ -51,7 +51,7 @@ public class AdminAuditController {
 
     /**
      * 把一张待审批改成通过或拒绝。不触发工具执行。
-     * MySQL 关闭时没有共享单据，返回找不到。
+     * 单据不存在或已经决定过时，由决定口返回失败。
      */
     @PostMapping("/api/admin/approvals/{approvalId}/decision")
     public ApiResult<ApprovalRow> decide(

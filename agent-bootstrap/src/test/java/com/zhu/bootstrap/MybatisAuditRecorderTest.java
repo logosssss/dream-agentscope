@@ -37,11 +37,12 @@ class MybatisAuditRecorderTest {
     @Test
     void approvalInsertsPendingRow() {
         ApprovalRecordMapper approvals = mock(ApprovalRecordMapper.class);
-        new MybatisApprovalRecorder(approvals).requested("ap-1", "shell", "user-a", null);
+        new MybatisApprovalRecorder(approvals).requested("ap-1", "shell", "user-a", null, "tenant-a");
 
         ArgumentCaptor<ApprovalRecord> row = ArgumentCaptor.forClass(ApprovalRecord.class);
         verify(approvals).insert(row.capture());
         assertThat(row.getValue().getApprovalId()).isEqualTo("ap-1");
+        assertThat(row.getValue().getTenantId()).isEqualTo("tenant-a");
         assertThat(row.getValue().getUserId()).isEqualTo("user-a");
         assertThat(row.getValue().getSessionId()).isEmpty();
         assertThat(row.getValue().getToolName()).isEqualTo("shell");

@@ -1,69 +1,61 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.ApprovalNotifyAppService;
-import com.zhu.audit.domain.event.ApprovalRequestedEvent;
-import org.junit.jupiter.api.BeforeEach;
+import com.zhu.access.api.controller.ApprovalController;
+import com.zhu.access.api.dto.PendingApproval;
+import com.zhu.audit.api.ApprovalRow;
+import com.zhu.audit.api.AuditQuery;
+import com.zhu.common.context.TenantContext;
+import com.zhu.common.context.UserContext;
+import com.zhu.common.dto.ApiResult;
+import com.zhu.common.exception.BusinessException;
+import java.time.LocalDateTime;
+import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * 接入层订阅审批事件，并只把当前用户的通知交到接口。
+ * 待确认从 MySQL 按当前用户读取。没有用户标识时拒绝。
  */
-@SpringBootTest
-@AutoConfigureMockMvc
 class ApprovalNotifyTest {
 
-    @Autowired
-    private ApplicationEventPublisher events;
-
-    @Autowired
-    private ApprovalNotifyAppService notifications;
-
-    @Autowired
-    private MockMvc mvc;
-
-    /** 通知列表是进程内单例，每条用例先清掉，避免串到下一条。 */
-    @BeforeEach
-    void resetNotifications() {
-        notifications.clear();
+    /** 线程身份用完就清，避免串到下一条。 */
+    @AfterEach
+    void clearIdentity() {
+        UserContext.clear();
+        TenantContext.clear();
     }
 
-    /** 事件到达后能被接入层看到，不要求运行层知道推送实现。 */
+    /** 只把这个租户和用户的单据交给接口。 */
     @Test
-    void storesApprovalForLaterPush() {
-        events.publishEvent(new ApprovalRequestedEvent("approval-1", "shell", "tenant-a", "user-a"));
+    void pendingReadsCurrentUser() {
+        AuditQuery audits = mock(AuditQuery.class);
+        when(audits.pendingFor("tenant-a", "user-a", 50)).thenReturn(List.of(row("a-1", "shell")));
+        ApprovalController controller = new ApprovalController(audits);
+        TenantContext.set("tenant-a");
+        UserContext.set("user-a");
 
-        assertThat(notifications.pending())
-                .extracting(ApprovalRequestedEvent::approvalId)
-                .contains("approval-1");
+        ApiResult<List<PendingApproval>> result = controller.pending();
+
+        assertThat(result.data()).containsExactly(new PendingApproval("a-1", "shell"));
+        verify(audits).pendingFor("tenant-a", "user-a", 50);
     }
 
-    /** 接口只返回请求头对应的用户和租户。缺用户时拒绝，不把整份列表交出去。 */
+    /** 没有用户时不查库。 */
     @Test
-    void pendingEndpointShowsOnlyCaller() throws Exception {
-        events.publishEvent(new ApprovalRequestedEvent("a-1", "shell", "tenant-a", "user-a"));
-        events.publishEvent(new ApprovalRequestedEvent("a-2", "shell", "tenant-b", "user-a"));
-        events.publishEvent(new ApprovalRequestedEvent("a-3", "http", "tenant-a", "user-b"));
+    void missingUserIsRejected() {
+        ApprovalController controller = new ApprovalController(mock(AuditQuery.class));
+        assertThatThrownBy(controller::pending).isInstanceOf(BusinessException.class);
+    }
 
-        mvc.perform(get("/api/approvals/pending")
-                        .header("X-Tenant-Id", "tenant-a")
-                        .header("X-User-Id", "user-a"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].approvalId").value("a-1"))
-                .andExpect(jsonPath("$.data[0].toolId").value("shell"));
-        mvc.perform(get("/api/approvals/pending"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(false))
-                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    /** 构造一条待确认。其余字段接口不返回。 */
+    private static ApprovalRow row(String approvalId, String toolName) {
+        return new ApprovalRow(approvalId, "user-a", "session-a", toolName, "PENDING",
+                LocalDateTime.now(), null, null, null, null);
     }
 }

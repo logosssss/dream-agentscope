@@ -15,16 +15,15 @@
 | 包 | 类型 | 作用 |
 | --- | --- | --- |
 | `api.controller` | `LivenessController` | `GET /health/live`。只表示进程还在，不查数据库和模型 |
-| `api.controller` | `ReadinessController` | `GET /health/ready`。MySQL、Redis 关闭时跳过；打开但不可用时 HTTP 503 |
+| `api.controller` | `ReadinessController` | `GET /health/ready`。生产探测 MySQL、Redis、Milvus，任一项失败 HTTP 503 |
 | `api.controller` | `ChatController` | `POST /api/chat` 同步 JSON；`POST /api/chat/stream` 输出 SSE。不覆盖过滤器写入的线程身份 |
 | `api.controller` | `ApprovalController` | `GET /api/approvals/pending`。只返回当前请求头用户和租户的待确认，不带工具参数 |
 | `api.dto` | `ChatRequest` | HTTP 入参。`channel` 空则 `WEB`，不传给运行层 |
 | `domain.channel` | `AccessChannel` | `WEB` / `IM` / `API`。只描述请求从哪进来 |
 | `infrastructure.security` | `AccessIdentityFilter` | `X-Tenant-Id`、`X-User-Id`、`X-Request-Id` 写入线程，请求结束清理。不拦截缺头请求 |
-| `infrastructure.cache` | `AccessCache` | 额度、幂等、限流计数。默认进程内；`agentscope.cache.redis.enabled=true` 且配置了 host 后改走 Redis |
+| `infrastructure.cache` | `AccessCache` | 额度、幂等、限流计数。只走 Redis |
 | `application` | `ChatAppService` | 请求体身份优先，空字段用请求头。空提示词走 `PromptService`，额度通过后再调用 `AgentExecutor` |
 | `application` | `QuotaGuard` | 键为 `quota:{tenant}:{user}:{yyyyMMdd}`（48 小时）、`idem:{requestId}`（10 分钟）、`rate:{endpoint}:{user}:{分钟}` |
-| `application` | `ApprovalNotifyAppService` | 订阅 `ApprovalRequestedEvent`。按用户交到 `/api/approvals/pending`，列表只在本进程内存 |
 
 `/api/chat` 返回 `ApiResult<AgentResponse>`。`/api/chat/stream` 的 `Content-Type` 是 `text/event-stream`，每条 `data` 是 `AgentStreamEvent`（`type`、`text`）。两条路径共用同一份请求体：
 
@@ -44,4 +43,4 @@
 
 ## 还没有
 
-登录和令牌、会话列表缓存、IM/API 通道适配。待确认通知只在用户进程内存里，重启会丢，也不等于管理进程读到的 MySQL 单据。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。通道枚举已经在接入层，不要挪到运行层。向量库还没有接入，就绪检查不探测它。
+登录和令牌、会话列表缓存、IM/API 通道适配。待确认按当前用户读 `approval_record`。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。通道枚举已经在接入层，不要挪到运行层。Milvus 这次只探测地址，不建集合。

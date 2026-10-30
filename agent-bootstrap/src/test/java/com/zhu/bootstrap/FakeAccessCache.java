@@ -1,33 +1,27 @@
-package com.zhu.access.infrastructure.cache;
+package com.zhu.bootstrap;
 
+import com.zhu.access.infrastructure.cache.AccessCache;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 
 /**
- * 单进程计数。Redis 没打开时用它，多副本之间不共享。
- * 过期键在下次读写时丢掉，不单独扫。
+ * 测试用的计数。只在测试源码里，生产进程没有这份实现。
  */
-@Component
-@ConditionalOnProperty(prefix = "agentscope.cache.redis", name = "enabled", havingValue = "false", matchIfMissing = true)
-public class MemoryAccessCache implements AccessCache {
+public class FakeAccessCache implements AccessCache {
 
     private final Clock clock;
 
     private final ConcurrentHashMap<String, Slot> slots = new ConcurrentHashMap<>();
 
-    /** Spring 使用系统时钟。另一个构造留给测试拨时钟。 */
-    @Autowired
-    public MemoryAccessCache() {
+    /** 使用系统时钟。 */
+    public FakeAccessCache() {
         this(Clock.systemUTC());
     }
 
     /** 测试可以拨动时钟，验证过期后计数重新从 1 开始。 */
-    public MemoryAccessCache(Clock clock) {
+    public FakeAccessCache(Clock clock) {
         this.clock = clock;
     }
 

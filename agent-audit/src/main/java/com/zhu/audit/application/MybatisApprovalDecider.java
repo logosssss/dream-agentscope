@@ -12,7 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * 把 PENDING 更新成通过或拒绝。只在 MySQL 打开时创建，和空实现互斥。
+ * 把 PENDING 更新成通过或拒绝。只在 MySQL 打开时创建。
  * 不写 executed_at 和 result，执行回写留给内核。
  */
 @Service

@@ -40,7 +40,7 @@ AgentStreamEvent   接入层再写成 SSE
 
 容器里只有 `AgentExecutionService` 和 `HarnessAgentFactory`。没有 `HarnessAgent` 这个 Bean。Builder 是可变的，所以不在多线程之间共享同一个 Builder 再改提示词。
 
-`DistributedStore` 存在时挂到这次构建上。MySQL 开关关闭时没有这个 Bean，Agent 仍能构建，状态只留在本进程。
+正式启动会挂上 `DistributedStore`。开关关闭时没有这个 Bean，只留给测试。
 
 ## 包
 
@@ -56,7 +56,7 @@ AgentStreamEvent   接入层再写成 SSE
 | `config` | `AgentRuntimeProperties` | 前缀 `agentscope.runtime` |
 | `config` | `RuntimeConfig` | 只打开配置绑定，不创建 Agent |
 | `domain` | `CallIdentity` | 从这次 `RuntimeContext` 读租户、用户、会话，不用 ThreadLocal |
-| `domain.middleware` | `AuditMiddleware`、`ApprovalMiddleware` | 执行策略。ASK 时发布审批事件，不调用接入层。不用已标删除的 Hook |
+| `domain.middleware` | `AuditMiddleware`、`ApprovalMiddleware`、`FileWriteLimitMiddleware` | 执行策略。ASK 时发布审批事件。写文件超过 `max-write-bytes` 时丢掉，不调用接入层。不用已标删除的 Hook |
 | `task` | `AgentTask`、`AgentTaskPublisher` | 任务消息体和发布口。业务层调用，工厂和 Middleware 不感知 |
 | `task` | `SyncTaskPublisher`、`SyncAgentTaskHandler` | `mode=sync` 时当前线程执行，只记审计，不调用模型 |
 | `task` | `MqTaskModeGuard` | `mode=mq` 时启动失败。RocketMQ 依赖还没引入 |
@@ -70,6 +70,7 @@ AgentStreamEvent   接入层再写成 SSE
 | `agentscope.runtime.name` | `product-agent` | 展示名 |
 | `agentscope.runtime.workspace` | 空 | 空则用框架默认工作区 |
 | `agentscope.runtime.max-iters` | `20` | 单次最大推理轮数 |
+| `agentscope.runtime.max-write-bytes` | `5242880` | 单次写文件内容上限，5MB。小于 1 时仍按 5MB |
 | `agentscope.runtime.timeout-seconds` | `120` | 同步 `block` 和流式 `timeout` 的上限 |
 | `agentscope.task.mode` | `sync` | 当前线程执行任务。`mq` 会拒绝启动 |
 

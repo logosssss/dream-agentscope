@@ -12,6 +12,7 @@ public interface ApprovalRecorder {
      * @param toolId     待执行的工具
      * @param userId     发起人
      * @param sessionId  会话。没有会话时传空，落库写成空串
+     * @param tenantId   租户。没有租户时传空，落库写成空串
      */
-    void requested(String approvalId, String toolId, String userId, String sessionId);
+    void requested(String approvalId, String toolId, String userId, String sessionId, String tenantId);
 }

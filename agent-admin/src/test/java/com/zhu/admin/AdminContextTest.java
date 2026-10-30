@@ -22,7 +22,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 管理进程能单独起来，并且 classpath 上没有执行内核。
  */
-@SpringBootTest
+@SpringBootTest(properties = {
+        "agentscope.startup.dependencies.enabled=false",
+        "agentscope.distributed.mysql.enabled=false",
+        "agentscope.cache.redis.enabled=false",
+        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration"
+})
 @AutoConfigureMockMvc
 class AdminContextTest {
 
@@ -50,7 +55,9 @@ class AdminContextTest {
         mvc.perform(get("/health/ready"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
-                .andExpect(jsonPath("$.mysql").value("SKIPPED"));
+                .andExpect(jsonPath("$.mysql").value("SKIPPED"))
+                .andExpect(jsonPath("$.redis").value("SKIPPED"))
+                .andExpect(jsonPath("$.milvus").value("SKIPPED"));
         mvc.perform(get("/api/admin/info"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.role").value("admin"))

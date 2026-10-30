@@ -18,6 +18,9 @@ public class ApprovalRecord {
     /** 审批单标识，业务侧生成。 */
     private String approvalId;
 
+    /** 租户。没有租户时写空串。 */
+    private String tenantId;
+
     /** 发起人。表上非空。 */
     private String userId;
 
@@ -78,6 +81,16 @@ public class ApprovalRecord {
     /** 写入审批单标识。 */
     public void setApprovalId(String approvalId) {
         this.approvalId = approvalId;
+    }
+
+    /** 租户。 */
+    public String getTenantId() {
+        return tenantId;
+    }
+
+    /** 写入租户。 */
+    public void setTenantId(String tenantId) {
+        this.tenantId = tenantId;
     }
 
     /** 发起人。 */
