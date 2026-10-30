@@ -1,3 +1,4 @@
+# 默认不连数据库，没有 MySQL 也能启动。打开 DistributedStore 时再去掉这两项排除并配置数据源。
 spring:
   autoconfigure:
     exclude:
@@ -5,7 +6,17 @@ spring:
       - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 
 agentscope:
+  runtime:
+    # 模型坐标。密钥走环境变量，不写进仓库。
+    model: ${AGENTSCOPE_MODEL:dashscope:qwen-plus}
+    # 状态命名空间。和下面的展示名分开，改名不会把会话指到空库。
+    agent-id: product-agent
+    name: product-agent
+    max-iters: 20
+    timeout-seconds: 120
   distributed:
     mysql:
+      # 关闭时不创建 DistributedStore Bean。
       enabled: false
+      # 表由 Flyway 创建，不允许框架启动时建表。
       create-if-not-exist: false

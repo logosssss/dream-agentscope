@@ -9,33 +9,42 @@ import org.junit.jupiter.api.Test;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * 把模块依赖方向做成可执行检查。导入时必须看到各模块的类，避免规则因为扫不到代码而空过。
+ */
 class ArchitectureTest {
 
+    /** 产品语义不能反向依赖执行层或接入层。 */
     private static final ArchRule SEMANTIC_MUST_NOT_DEPEND_ON_RUNTIME_OR_ACCESS =
             noClasses().that().resideInAPackage("..semantic..")
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..runtime..", "..access..");
 
+    /** 运行层只能碰语义契约，不能碰语义的实现包。 */
     private static final ArchRule RUNTIME_ONLY_DEPENDS_ON_SEMANTIC_CONTRACT =
             noClasses().that().resideInAPackage("..runtime..")
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..semantic.application..", "..semantic.infrastructure..");
 
+    /** 状态层不认识产品语义、执行和接入。 */
     private static final ArchRule STATE_MUST_NOT_DEPEND_ON_BUSINESS =
             noClasses().that().resideInAPackage("..state..")
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..semantic..", "..runtime..", "..access..");
 
+    /** 接入层不能直接引用 Harness 类型。 */
     private static final ArchRule ACCESS_MUST_NOT_TOUCH_HARNESS =
             noClasses().that().resideInAPackage("..access..")
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..harness..");
 
+    /** 控制器不能直接访问持久化包。 */
     private static final ArchRule CONTROLLERS_MUST_NOT_ACCESS_REPOSITORIES =
             noClasses().that().resideInAPackage("..access.api.controller..")
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..infrastructure.persistence..");
 
+    /** 确认规则作用在真实类上，并且五条边界都成立。 */
     @Test
     void moduleBoundariesHold() {
         JavaClasses classes = new ClassFileImporter().importPackages("com.zhu");

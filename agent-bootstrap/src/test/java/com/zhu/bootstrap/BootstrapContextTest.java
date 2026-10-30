@@ -2,7 +2,7 @@ package com.zhu.bootstrap;
 
 import com.zhu.runtime.api.AgentExecutor;
 import io.agentscope.harness.agent.DistributedStore;
-import java.util.Locale;
+import io.agentscope.harness.agent.HarnessAgent;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -15,6 +15,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * 进程能在没有数据库的情况下启动，并且容器里没有 HarnessAgent 单例。
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 class BootstrapContextTest {
@@ -25,12 +28,15 @@ class BootstrapContextTest {
     @Autowired
     private MockMvc mvc;
 
+    /**
+     * 执行入口只有一个 AgentExecutor。Agent 按请求创建，不注册成 Bean。
+     * 存活检查不依赖 MySQL。
+     */
     @Test
-    void startsWithoutAgent() throws Exception {
-        assertThat(context.getBeanNamesForType(AgentExecutor.class)).isEmpty();
+    void startsWithoutHarnessSingleton() throws Exception {
+        assertThat(context.getBeansOfType(AgentExecutor.class)).hasSize(1);
+        assertThat(context.getBeansOfType(HarnessAgent.class)).isEmpty();
         assertThat(context.getBeansOfType(DistributedStore.class)).isEmpty();
-        assertThat(context.getBeanDefinitionNames())
-                .noneMatch(name -> name.toLowerCase(Locale.ROOT).contains("harnessagent"));
         mvc.perform(get("/health/live"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));
