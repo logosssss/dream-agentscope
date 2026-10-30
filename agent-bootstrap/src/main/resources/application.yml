@@ -18,9 +18,9 @@ agentscope:
     timeout-seconds: 120
   distributed:
     mysql:
-      # 关闭时不创建 DistributedStore Bean。
+      # 关闭时不创建 DistributedStore，审计也留在本进程。
       enabled: false
-      # 表由 Flyway 创建，不允许框架启动时建表。
+      # 表由 Flyway 创建。MyBatis-Plus 不建表、不改表。
       create-if-not-exist: false
   access:
     # 0 表示不限制。打开后按租户用户计当日次数和每分钟次数。
@@ -33,3 +33,14 @@ agentscope:
   task:
     # sync 在当前线程执行。改成 mq 会拒绝启动，RocketMQ 依赖还没引入。
     mode: sync
+
+# 空字段不插入，让表默认值生效。没有数据源时这套配置不会启动。
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      insert-strategy: not_null
+  configuration:
+    map-underscore-to-camel-case: true

@@ -58,7 +58,7 @@ class ApprovalMiddlewareTest {
             List<String> recorded,
             String toolName) {
         PermissionRuleService permissions = (toolId, tenantId, roleId) -> decision;
-        ApprovalRecorder approvals = (approvalId, toolId, userId) -> recorded.add(toolId);
+        ApprovalRecorder approvals = (approvalId, toolId, userId, sessionId) -> recorded.add(toolId);
         ApplicationEventPublisher events = event -> published.add((ApprovalRequestedEvent) event);
         ApprovalMiddleware middleware = new ApprovalMiddleware(permissions, approvals, events);
         ToolUseBlock use = new ToolUseBlock.Builder().id("tool-1").name(toolName).input(Map.of()).build();

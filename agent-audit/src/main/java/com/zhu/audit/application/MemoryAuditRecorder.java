@@ -3,12 +3,14 @@ package com.zhu.audit.application;
 import com.zhu.audit.api.AuditRecorder;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * 审计的进程内实现。表还没建，先把记录留在内存里，让 Hook 有可注入的 Bean。
+ * 审计的进程内实现。MySQL 关闭时使用，进程重启后记录消失。
  */
 @Service
+@ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "false", matchIfMissing = true)
 public class MemoryAuditRecorder implements AuditRecorder {
 
     private final List<String> records = new CopyOnWriteArrayList<>();

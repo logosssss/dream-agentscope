@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.ApprovalRecordMapper">
+
+    <!-- 查询时的列映射。插入走 BaseMapper.insert，不在这里重复写 INSERT。 -->
+    <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.ApprovalRecord">
+        <id column="id" property="id"/>
+        <result column="approval_id" property="approvalId"/>
+        <result column="user_id" property="userId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="run_id" property="runId"/>
+        <result column="tool_name" property="toolName"/>
+        <result column="action" property="action"/>
+        <result column="decision" property="decision"/>
+        <result column="approver" property="approver"/>
+        <result column="channel" property="channel"/>
+        <result column="reason" property="reason"/>
+        <result column="requested_at" property="requestedAt"/>
+        <result column="decided_at" property="decidedAt"/>
+        <result column="executed_at" property="executedAt"/>
+        <result column="result" property="result"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+</mapper>

@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common` 和 Spring。实现类是进程内记录，还没有数据库。
+依赖 `agent-common`、Spring 和 `mybatis-plus-spring-boot3-starter`。`agentscope.distributed.mysql.enabled=false` 时用进程内实现，也不会创建 SqlSession。打开后用 `BaseMapper.insert` 写入 `agent_event_audit` 和 `approval_record`。表在 `db/migration/V2__audit_tables.sql`，由 Flyway 执行。MyBatis-Plus 不建表。
 
 不能依赖 `agent-runtime`、`agent-access`、`agent-semantic`。运行层需要记审批时调用本模块的接口，或发布本模块定义的事件。
 
@@ -17,7 +17,10 @@
 | `api` | `AuditRecorder` | 记一条操作。`detail` 不放密钥和全文提示词 |
 | `api` | `ApprovalRecorder` | 记下一次待审批 |
 | `domain.event` | `ApprovalRequestedEvent` | ASK 时的跨模块事件 |
-| `application` | `MemoryAuditRecorder`、`MemoryApprovalRecorder` | 接口的进程内实现。表建好之前先让 Hook 能注入 |
+| `application` | `MemoryAuditRecorder`、`MemoryApprovalRecorder` | MySQL 关闭时的进程内实现 |
+| `infrastructure.persistence` | `MybatisAuditRecorder`、`MybatisApprovalRecorder` | MySQL 打开时的写入。审批新单为 `PENDING`，审计来源为 `EXECUTOR` |
+| `infrastructure.persistence` | `AgentEventAuditMapper`、`ApprovalRecordMapper` | 继承 `BaseMapper`。简单插入不写 SQL |
+| `resources/mapper` | 同名 XML | 只放 `resultMap`。条件查询和更新以后加在这里，不把同一条 `INSERT` 再写一遍 |
 
 事件放在发布相关的领域包，不放进 `agent-common`。`agent-common` 不承载业务事件。
 
@@ -25,4 +28,4 @@
 
 ## 还没有
 
-Mapper、`agent_event_audit` / `approval_record` 表。进程重启后内存里的记录会丢。
+审批通过、拒绝和执行结果回写。管理进程还没有查询这两张表的接口。MySQL 关闭时记录仍在本进程内存里，重启会丢。
