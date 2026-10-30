@@ -30,3 +30,6 @@ agentscope:
     redis:
       # 关闭时额度留在本进程。打开后必须另配 host，这里不写地址。
       enabled: false
+  task:
+    # sync 在当前线程执行。改成 mq 会拒绝启动，RocketMQ 依赖还没引入。
+    mode: sync

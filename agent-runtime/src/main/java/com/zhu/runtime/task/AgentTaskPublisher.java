@@ -5,6 +5,8 @@ package com.zhu.runtime.task;
  */
 public interface AgentTaskPublisher {
 
-    /** 发布一条任务。当前没有同步或 MQ 实现。 */
+    /**
+     * 发布一条任务。mode=sync 时在当前线程执行；mode=mq 当前会拒绝启动。
+     */
     void publish(AgentTask task);
 }
