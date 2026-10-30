@@ -1,8 +1,12 @@
 server:
   port: 8100
+  shutdown: graceful
 
 # 管理进程必须连上同一套 MySQL、Redis、Milvus。不跑 Flyway，避免和用户进程同时改表。
+# 停机时先不再接新 HTTP。本进程没有长对话，等待短于用户进程。
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
     url: ${SPRING_DATASOURCE_URL:}
     username: ${SPRING_DATASOURCE_USERNAME:}

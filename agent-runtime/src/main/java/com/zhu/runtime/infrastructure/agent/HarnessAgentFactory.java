@@ -26,18 +26,22 @@ public class HarnessAgentFactory {
 
     private final FileWriteLimitMiddleware fileWriteLimit;
 
+    private final AgentShutdown shutdown;
+
     /** 写文件限制和审批都挂上。体积检查的顺序更靠前，超限内容不会进入审批。 */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,
             ObjectProvider<DistributedStore> stores,
             AuditMiddleware auditMiddleware,
             ApprovalMiddleware approvalMiddleware,
-            FileWriteLimitMiddleware fileWriteLimit) {
+            FileWriteLimitMiddleware fileWriteLimit,
+            AgentShutdown shutdown) {
         this.properties = properties;
         this.stores = stores;
         this.auditMiddleware = auditMiddleware;
         this.approvalMiddleware = approvalMiddleware;
         this.fileWriteLimit = fileWriteLimit;
+        this.shutdown = shutdown;
     }
 
     /**
@@ -60,6 +64,7 @@ public class HarnessAgentFactory {
         builder.middleware(auditMiddleware);
         builder.middleware(fileWriteLimit);
         builder.middleware(approvalMiddleware);
+        builder.middleware(shutdown.middleware());
         DistributedStore store = stores.getIfAvailable();
         if (store != null) {
             builder.distributedStore(store);

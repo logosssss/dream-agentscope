@@ -1,5 +1,11 @@
 # 测试不连 Redis、MySQL、Milvus。下面的值只覆盖正式配置，不是生产开关。
+# 测试立刻停机，避免上下文关闭时按正式的 120 秒等待。
+server:
+  shutdown: immediate
+
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 1s
   datasource:
     url: jdbc:mysql://127.0.0.1:1/unused
     username: test

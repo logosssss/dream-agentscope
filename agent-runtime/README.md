@@ -42,6 +42,8 @@ AgentStreamEvent   接入层再写成 SSE
 
 正式启动会挂上 `DistributedStore`，并把工作区设成 `RemoteFilesystemSpec`，隔离粒度固定 `SESSION`。文件进 MySQL 的 `agentscope_store`，不落在本机盘。开关关闭时没有这个 Bean，只留给测试。
 
+停机时 `AgentShutdown` 让进程不再接新的 Agent 调用，并按 `timeout-seconds` 等待已经开始的调用。Web 容器使用 `server.shutdown=graceful`。容器的终止宽限不要短于这个等待时间。
+
 ## 包
 
 | 包 | 类型 | 作用 |
@@ -52,7 +54,7 @@ AgentStreamEvent   接入层再写成 SSE
 | `api` | `AgentStreamEvent` | 流式事件的类型和短文本 |
 | `application` | `AgentExecutionService` | 同步 `block` 和流式 `streamEvents`，结束时关闭 Agent |
 | `application` | `AgentStreamEvents` | 框架事件收成 `AgentStreamEvent` |
-| `infrastructure.agent` | `HarnessAgentFactory`、`WorkspaceFilesystem` | 按请求组装 Agent。有状态库时工作区按对话隔离 |
+| `infrastructure.agent` | `HarnessAgentFactory`、`WorkspaceFilesystem`、`AgentShutdown` | 按请求组装 Agent。有状态库时工作区按对话隔离。停机时等待在途调用 |
 | `config` | `AgentRuntimeProperties` | 前缀 `agentscope.runtime` |
 | `config` | `RuntimeConfig` | 只打开配置绑定，不创建 Agent |
 | `domain` | `CallIdentity` | 从这次 `RuntimeContext` 读租户、用户、会话，不用 ThreadLocal |

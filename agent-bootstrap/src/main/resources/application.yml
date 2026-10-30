@@ -1,6 +1,12 @@
 # 正式启动必须连上 MySQL、Redis、Milvus。地址和账号只从环境变量来，仓库里不写死。
 # Flyway 在本进程执行。Redis 自动配置排除，改由 agentscope.cache.redis 创建连接。
+# 停机时先不再接新 HTTP，等待时间与单次调用超时对齐。容器的终止宽限不要短于这个时间。
+server:
+  shutdown: graceful
+
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 120s
   datasource:
     url: ${SPRING_DATASOURCE_URL:}
     username: ${SPRING_DATASOURCE_USERNAME:}

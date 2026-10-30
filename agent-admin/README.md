@@ -18,7 +18,7 @@
 mvn -pl agent-admin -am spring-boot:run
 ```
 
-`src/main/resources/application.yml` 把端口固定为 `8100`。本进程排除 Flyway，不改表。MySQL、Redis、Milvus 没配或连不上就退出。
+`src/main/resources/application.yml` 把端口固定为 `8100`。本进程排除 Flyway，不改表。MySQL、Redis、Milvus 没配或连不上就退出。停机时先不再接新 HTTP，最多再等 30 秒。
 
 ## 接口
 
