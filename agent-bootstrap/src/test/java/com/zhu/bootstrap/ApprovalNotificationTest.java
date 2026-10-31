@@ -2,6 +2,7 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.application.ApprovalNotificationListener;
 import com.zhu.audit.api.ApprovalNotifier;
+import com.zhu.audit.api.UserTodoCatalog;
 import com.zhu.audit.application.MysqlApprovalNotifier;
 import com.zhu.audit.domain.event.ApprovalRequestedEvent;
 import com.zhu.audit.infrastructure.persistence.ApprovalNotificationMapper;
@@ -63,6 +64,9 @@ class ApprovalNotificationTest {
         @SuppressWarnings("unchecked")
         ObjectProvider<ApprovalNotifier> providers = mock(ObjectProvider.class);
         when(providers.getIfAvailable()).thenReturn(notifier);
-        return new ApprovalNotificationListener(providers);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<UserTodoCatalog> todos = mock(ObjectProvider.class);
+        when(todos.getIfAvailable()).thenReturn(null);
+        return new ApprovalNotificationListener(providers, todos);
     }
 }

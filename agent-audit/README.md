@@ -35,6 +35,8 @@
 
 待确认事件再写 `approval_notification`。接收人是发起用户，通道是 `WEB`，状态是 `PENDING`。没有接收人时不写。不发送，也不把状态改成已发送。写失败不改变这次询问。管理进程不查询这张表。
 
+同一事件再写 `user_todo`。类型是 `APPROVAL`，状态是 `OPEN`，关联审批单，标题是工具名。同一用户和审批单再开一次不再插一行。`GET /api/todos` 只列出这个用户还开着的审批待办。批准或拒绝还不关待办。确认和任务待办还不写。
+
 `POST /api/admin/billing/drafts` 按租户和区间生成 `billing_record`。区间最长 366 天，起点含、终点不含。没有用量也是一张 0 金额的草稿。同一区间再生成一次返回冲突。区间里有两种币种时拒绝。`POST /api/admin/billing/confirmations` 把这张草稿改成 `CONFIRMED`，不重算金额。已经确认过再确认一次返回冲突。`POST /api/admin/billing/invoices` 只把已确认的账单改成 `INVOICED`，草稿不能直接开票。`POST /api/admin/billing/payments` 只把已开票的账单改成 `PAID`，不重算金额。已确认但还没开票的不能直接付款。
 
 `POST /api/admin/model-prices` 再插入一行 `model_price`。不改旧行。生效开始为空时用 UTC 现在。仓库不放单价。
