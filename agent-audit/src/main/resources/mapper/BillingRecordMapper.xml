@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.BillingRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.BillingRecord">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="period_start" property="periodStart"/>
+        <result column="period_end" property="periodEnd"/>
+        <result column="token_total" property="tokenTotal"/>
+        <result column="cost_amount" property="costAmount"/>
+        <result column="currency" property="currency"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 区间是唯一键。确认时不再重算用量。 -->
+    <select id="findByPeriod" resultMap="BaseResultMap">
+        SELECT id, tenant_id, period_start, period_end, token_total, cost_amount, currency, status
+        FROM billing_record
+        WHERE tenant_id = #{tenantId}
+          AND period_start = #{periodStart}
+          AND period_end = #{periodEnd}
+    </select>
+
+    <!-- 已经确认或开票的行不会被这次更新覆盖。 -->
+    <update id="confirmDraft">
+        UPDATE billing_record
+        SET status = 'CONFIRMED'
+        WHERE tenant_id = #{tenantId}
+          AND period_start = #{periodStart}
+          AND period_end = #{periodEnd}
+          AND status = 'DRAFT'
+    </update>
+</mapper>

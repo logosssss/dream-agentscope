@@ -33,10 +33,10 @@
 
 已批准且还没执行的单据，由用户进程在下一次同名工具调用时占上并放行。结束后把 `result` 写成 `{"status":"SUCCEEDED"}`、`FAILED` 或 `CANCELLED`，不存工具输出。管理进程的决定接口仍不执行工具。
 
-`POST /api/admin/billing/drafts` 按租户和区间生成 `billing_record`。区间最长 366 天，起点含、终点不含。没有用量也是一张 0 金额的草稿。同一区间再生成一次返回冲突。区间里有两种币种时拒绝。确认和开票还没有。
+`POST /api/admin/billing/drafts` 按租户和区间生成 `billing_record`。区间最长 366 天，起点含、终点不含。没有用量也是一张 0 金额的草稿。同一区间再生成一次返回冲突。区间里有两种币种时拒绝。`POST /api/admin/billing/confirmations` 把这张草稿改成 `CONFIRMED`，不重算金额。已经确认过再确认一次返回冲突。开票和付款还没有。
 
 `POST /api/admin/model-prices` 再插入一行 `model_price`。不改旧行。生效开始为空时用 UTC 现在。仓库不放单价。
 
 ## 还没有
 
-账单的确认、开票和付款。
+账单的开票和付款。

@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * billing_record 的一行。只在生成草稿时插入，不在这里改状态。
+ * billing_record 的一行。草稿可以确认，开票和付款还不在这里改。
  */
 @TableName("billing_record")
 public class BillingRecord {
@@ -34,7 +34,7 @@ public class BillingRecord {
     /** 币种。 */
     private String currency;
 
-    /** 草稿状态。当前只写 DRAFT。 */
+    /** DRAFT 或 CONFIRMED。 */
     private String status;
 
     /** 主键。 */

@@ -17,6 +17,7 @@ import org.springframework.dao.DuplicateKeyException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -84,5 +85,43 @@ class BillingRollupTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
+    }
+
+    /** 确认不重算，金额保持草稿上的数。 */
+    @Test
+    void confirmKeepsDraftAmounts() {
+        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        BillingRecordMapper bills = mock(BillingRecordMapper.class);
+        LocalDateTime start = LocalDateTime.parse("2026-10-01T00:00:00");
+        LocalDateTime end = LocalDateTime.parse("2026-10-02T00:00:00");
+        BillingRecord draft = new BillingRecord();
+        draft.setStatus("DRAFT");
+        draft.setTokenTotal(8L);
+        draft.setCostAmount(new BigDecimal("1.250000"));
+        draft.setCurrency("USD");
+        when(bills.findByPeriod("t", start, end)).thenReturn(draft);
+        when(bills.confirmDraft("t", start, end)).thenReturn(1);
+
+        BillingSummary summary = new MysqlBillingRollup(usages, bills).confirm("t", start, end);
+
+        assertThat(summary.status()).isEqualTo("CONFIRMED");
+        assertThat(summary.tokenTotal()).isEqualTo(8L);
+        assertThat(summary.costAmount()).isEqualByComparingTo("1.250000");
+        assertThat(summary.currency()).isEqualTo("USD");
+        verify(usages, never()).sumForPeriod(eq("t"), eq(start), eq(end));
+    }
+
+    /** 没有账单时不更新。 */
+    @Test
+    void missingBillIsNotFound() {
+        BillingRecordMapper bills = mock(BillingRecordMapper.class);
+        LocalDateTime start = LocalDateTime.parse("2026-10-01T00:00:00");
+        LocalDateTime end = LocalDateTime.parse("2026-10-02T00:00:00");
+
+        assertThatThrownBy(() -> new MysqlBillingRollup(mock(TokenUsageMapper.class), bills).confirm("t", start, end))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(bills, never()).confirmDraft(any(), any(), any());
     }
 }

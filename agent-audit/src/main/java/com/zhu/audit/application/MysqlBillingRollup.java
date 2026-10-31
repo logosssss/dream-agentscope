@@ -24,6 +24,8 @@ public class MysqlBillingRollup implements BillingRollup {
 
     private static final String DRAFT = "DRAFT";
 
+    private static final String CONFIRMED = "CONFIRMED";
+
     private final TokenUsageMapper usages;
 
     private final BillingRecordMapper bills;
@@ -70,5 +72,31 @@ public class MysqlBillingRollup implements BillingRollup {
             throw new BusinessException(ErrorCode.CONFLICT, "billing period already exists");
         }
         return new BillingSummary(tenantId, periodStart, periodEnd, tokens, cost, currency, DRAFT);
+    }
+
+    /**
+     * 租户或区间为空时拒绝。确认只改状态，金额保持草稿当时的合计。
+     * 读到草稿但更新没抢到行，按冲突处理，避免覆盖别人刚改过的状态。
+     */
+    @Override
+    public BillingSummary confirm(String tenantId, LocalDateTime periodStart, LocalDateTime periodEnd) {
+        if (tenantId == null || tenantId.isBlank() || periodStart == null || periodEnd == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "billing period is invalid");
+        }
+        BillingRecord existing = bills.findByPeriod(tenantId, periodStart, periodEnd);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "billing record not found");
+        }
+        if (!DRAFT.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "billing record is not a draft");
+        }
+        int updated = bills.confirmDraft(tenantId, periodStart, periodEnd);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "billing record is not a draft");
+        }
+        long tokens = existing.getTokenTotal() == null ? 0L : existing.getTokenTotal();
+        BigDecimal cost = existing.getCostAmount() == null ? BigDecimal.ZERO : existing.getCostAmount();
+        String currency = existing.getCurrency() == null || existing.getCurrency().isBlank() ? "CNY" : existing.getCurrency();
+        return new BillingSummary(tenantId, periodStart, periodEnd, tokens, cost, currency, CONFIRMED);
     }
 }
