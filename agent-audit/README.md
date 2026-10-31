@@ -41,7 +41,7 @@
 
 `POST /api/admin/tenant-quotas` 登记 `tenant_quota` 的每日请求上限。类型是 `REQUESTS`，周期是 `DAILY`。上限 0 表示不限额。同一租户再登记一次返回冲突，不覆盖旧值。已用量仍在 Redis。按 token、费用或并发的上限还不写。
 
-当日计数通过后追加 `quota_usage_log`。数量是 1，不填 `run_id`，因为运行还没开始。不限额时不写。写失败不改变这次请求。负数回补还不写，管理进程也不查询这张表。
+当日计数通过后追加 `quota_usage_log`。数量是 1，不填 `run_id`，因为运行还没开始。不限额时不写。写失败不改变这次请求。`GET /api/admin/quota-usage` 按租户看最近的流水，默认 50 条，最多 100 条。负数回补还不写。
 
 ## 还没有
 

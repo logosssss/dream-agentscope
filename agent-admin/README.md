@@ -36,6 +36,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/billing/payments` | 把已开票的账单改成已付款，不重算金额。还没开票的不能付 |
 | `POST /api/admin/tenants` | 登记一个可用租户，套餐固定 `standard`。不建用户。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenant-quotas` | 登记每日请求上限，类型固定 `REQUESTS`，周期固定 `DAILY`。不改已有行。MySQL 关闭时返回不可用 |
+| `GET /api/admin/quota-usage` | 某个租户最近的每日请求流水，默认 50 条，最多 100 条。不回补。MySQL 关闭时返回不可用 |
 | `GET /api/admin/model-prices` | 最近的模型价格，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `POST /api/admin/model-prices` | 再插入一行价格。不改旧行。取价时用生效开始最晚且仍有效的一行 |
 
@@ -45,4 +46,4 @@ mvn -pl agent-admin -am spring-boot:run
 
 ## 还没有
 
-用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不停用租户，也不改已有的每日请求上限，也不查询配额消耗。仓库不放模型单价，也不放调用方令牌。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不停用租户，也不改已有的每日请求上限。仓库不放模型单价，也不放调用方令牌。

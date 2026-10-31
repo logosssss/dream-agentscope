@@ -3,6 +3,7 @@ package com.zhu.audit.infrastructure.persistence.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.time.LocalDateTime;
 
 /**
  * quota_usage_log 的一行。只表示一次已通过的每日请求，不表示运行已经开始。
@@ -10,7 +11,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 @TableName("quota_usage_log")
 public class QuotaUsageLog {
 
-    /** 自增主键。对外不返回。 */
+    /** 自增主键。列表返回这一列，插入时由库生成。 */
     @TableId(type = IdType.AUTO)
     private Long id;
 
@@ -28,6 +29,9 @@ public class QuotaUsageLog {
 
     /** 入口名。超长时截到列宽。 */
     private String reason;
+
+    /** 写入时间。插入时不填，用库的默认值。 */
+    private LocalDateTime createdAt;
 
     /** 主键。 */
     public Long getId() {
@@ -87,5 +91,15 @@ public class QuotaUsageLog {
     /** 写入原因。 */
     public void setReason(String reason) {
         this.reason = reason;
+    }
+
+    /** 写入时间。 */
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    /** 查询映射时填上这一列。插入路径不调用。 */
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }
