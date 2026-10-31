@@ -38,7 +38,7 @@
 
 ### `application`
 
-`PromptAppService` 实现 `PromptService`。外部模板用 `{{变量}}` 替换。来源缺失、空白或抛错时返回 fallback，并打一条只含 key 的警告。fallback 为空则拒绝。容器里只能有一个 `PromptService`。
+`PromptAppService` 实现 `PromptService`。外部模板用 `{{变量}}` 替换。来源缺失、空白、抛错，或替换后仍有占位符时返回 fallback，并打一条只含 key 的警告。不把 `{{name}}` 原文交给模型。fallback 为空则拒绝。容器里只能有一个 `PromptService`。
 
 ### `infrastructure.nacos`
 

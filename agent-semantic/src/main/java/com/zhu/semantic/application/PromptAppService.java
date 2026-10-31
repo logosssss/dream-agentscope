@@ -6,6 +6,7 @@ import com.zhu.semantic.api.PromptService;
 import com.zhu.semantic.infrastructure.nacos.PromptSource;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
 /**
@@ -17,6 +18,9 @@ public class PromptAppService implements PromptService {
 
     private static final Logger log = Logger.getLogger(PromptAppService.class.getName());
 
+    /** 模板变量写成 {{name}}。单括号留给正文，不当成占位符。 */
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\{[^{}]+}}");
+
     private final PromptSource source;
 
     public PromptAppService(PromptSource source) {
@@ -25,7 +29,7 @@ public class PromptAppService implements PromptService {
 
     /**
      * 先取外部模板再替换 {{变量}}。Nacos 抖动不能让调用失败，也不能把空串交给模型。
-     * fallback 本身为空直接拒绝，避免用空提示词冒充兜底。
+     * 替换后仍有占位符时退回 fallback。fallback 本身为空直接拒绝，避免用空提示词冒充兜底。
      */
     @Override
     public String get(String key, Map<String, String> variables, String fallback) {
@@ -40,6 +44,10 @@ public class PromptAppService implements PromptService {
             if (rendered == null || rendered.isBlank()) {
                 return fallback;
             }
+            if (PLACEHOLDER.matcher(rendered).find()) {
+                log.warning("prompt placeholders incomplete, key=" + key + ", using fallback");
+                return fallback;
+            }
             return rendered;
         } catch (Exception error) {
             log.warning("prompt fetch failed, key=" + key + ", using fallback");
@@ -47,7 +55,10 @@ public class PromptAppService implements PromptService {
         }
     }
 
-    /** 只替换调用方给出的变量。没写到的占位符留着，方便发现模板和参数对不上。 */
+    /**
+     * 只替换调用方给出的变量。剩下的 {{name}} 由调用方改回 fallback。
+     * 把占位符原文交给模型，比退回兜底更危险。
+     */
     private static String render(String template, Map<String, String> variables) {
         if (template == null || variables == null || variables.isEmpty()) {
             return template;
