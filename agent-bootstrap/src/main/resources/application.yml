@@ -44,6 +44,9 @@ agentscope:
     # 0 表示不限制。打开后按租户用户计当日次数和每分钟次数。
     daily-limit: 0
     per-minute: 0
+  caller:
+    # 调用方令牌。空则除存活和就绪外全部拒绝。不是用户登录，仓库不放值。
+    token: ${AGENTSCOPE_CALLER_TOKEN:}
   cache:
     redis:
       # 必须打开。主机来自环境变量，为空则拒绝启动。

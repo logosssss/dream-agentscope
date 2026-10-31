@@ -1,5 +1,6 @@
 package com.zhu.bootstrap;
 
+import com.zhu.common.security.CallerTokens;
 import com.zhu.runtime.api.AgentExecutor;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
@@ -51,5 +52,11 @@ class BootstrapContextTest {
                 .andExpect(jsonPath("$.mysql").value("SKIPPED"))
                 .andExpect(jsonPath("$.redis").value("SKIPPED"))
                 .andExpect(jsonPath("$.milvus").value("SKIPPED"));
+        mvc.perform(get("/api/sessions"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mvc.perform(get("/api/sessions").header(CallerTokens.HEADER, "test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
     }
 }

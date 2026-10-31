@@ -4,6 +4,7 @@ import com.zhu.audit.api.ApprovalDecider;
 import com.zhu.audit.api.ApprovalRecorder;
 import com.zhu.audit.api.AuditQuery;
 import com.zhu.audit.api.AuditRecorder;
+import com.zhu.common.security.CallerTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -59,38 +60,45 @@ class AdminContextTest {
                 .andExpect(jsonPath("$.redis").value("SKIPPED"))
                 .andExpect(jsonPath("$.milvus").value("SKIPPED"));
         mvc.perform(get("/api/admin/info"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mvc.perform(get("/api/admin/info").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.role").value("admin"))
                 .andExpect(jsonPath("$.data.note").exists());
-        mvc.perform(get("/api/admin/audits"))
+        mvc.perform(get("/api/admin/audits").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isEmpty());
-        mvc.perform(get("/api/admin/approvals"))
+        mvc.perform(get("/api/admin/approvals").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isEmpty());
         mvc.perform(post("/api/admin/approvals/ap-1/decision")
+                        .header(CallerTokens.HEADER, "test-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"decision\":\"PENDING\",\"approver\":\"ops\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
-        mvc.perform(get("/api/admin/model-prices"))
+        mvc.perform(get("/api/admin/model-prices").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/admin/billing/confirmations")
+                        .header(CallerTokens.HEADER, "test-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"tenantId\":\"t\",\"periodStart\":\"2026-10-01T00:00:00\",\"periodEnd\":\"2026-10-02T00:00:00\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/admin/billing/drafts")
+                        .header(CallerTokens.HEADER, "test-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"tenantId\":\"t\",\"periodStart\":\"2026-10-01T00:00:00\",\"periodEnd\":\"2026-10-02T00:00:00\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/admin/approvals/ap-1/decision")
+                        .header(CallerTokens.HEADER, "test-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"decision\":\"APPROVED\",\"approver\":\"ops\",\"reason\":\"ok\"}"))
                 .andExpect(status().isOk())

@@ -35,8 +35,10 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /api/admin/model-prices` | 最近的模型价格，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `POST /api/admin/model-prices` | 再插入一行价格。不改旧行。取价时用生效开始最晚且仍有效的一行 |
 
+业务接口要带 `X-Caller-Token`，值来自 `AGENTSCOPE_ADMIN_TOKEN`，和用户进程的令牌分开。没配或对不上时 HTTP 401。存活和就绪不校验。这不是用户登录。
+
 扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery`、`ApprovalDecider` 和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`ApprovalRecorder`。申请单的写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
 
 ## 还没有
 
-登录。本进程不提供聊天接口，也不在批准后执行工具。账单开票和付款还没有。仓库不放模型单价。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具。账单开票和付款还没有。仓库不放模型单价，也不放调用方令牌。

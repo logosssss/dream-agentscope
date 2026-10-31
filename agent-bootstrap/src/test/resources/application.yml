@@ -33,3 +33,6 @@ agentscope:
   otel:
     # 测试不导出 span，即使本机配了采集器地址。
     endpoint: ""
+  caller:
+    # 只给测试请求带上。正式配置为空，不把这个值当成生产令牌。
+    token: test-token

@@ -36,6 +36,9 @@ agentscope:
       port: ${AGENTSCOPE_REDIS_PORT:6379}
   milvus:
     uri: ${MILVUS_URI:}
+  caller:
+    # 管理进程自己的调用方令牌，和用户进程分开。空则除存活和就绪外全部拒绝。
+    token: ${AGENTSCOPE_ADMIN_TOKEN:}
 
 # 空字段不插入。表结构只由用户进程的 Flyway 变更。
 mybatis-plus:
