@@ -41,6 +41,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/model-prices` | 再插入一行价格。不改旧行。取价时用生效开始最晚且仍有效的一行 |
 | `POST /api/admin/eval-datasets` | 登记一个评测数据集，版本固定 `1.0.0`。不执行。MySQL 关闭时返回不可用 |
 | `POST /api/admin/eval-datasets/{datasetId}/cases` | 给该数据集的 `1.0.0` 追加一条用例。数据集不存在时返回找不到。不执行 |
+| `POST /api/admin/eval-runs` | 为该数据集的 `1.0.0` 登记一次执行，记下用例条数。状态停在 `RUNNING`。不调用模型，也不打分 |
 
 业务接口要带 `X-Caller-Token`，值来自 `AGENTSCOPE_ADMIN_TOKEN`，和用户进程的令牌分开。没配或对不上时 HTTP 401。存活和就绪不校验。这不是用户登录。
 
@@ -48,4 +49,4 @@ mvn -pl agent-admin -am spring-boot:run
 
 ## 还没有
 
-用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不停用租户，也不改已有的每日请求上限，也不跑评测。仓库不放模型单价，也不放调用方令牌。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不停用租户，也不改已有的每日请求上限，也不给评测打分。仓库不放模型单价，也不放调用方令牌。
