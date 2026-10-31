@@ -49,7 +49,7 @@
 
 `POST /api/admin/retention-policies` 登记 `data_retention_policy`。类型只接受 `SESSION` / `MESSAGE` / `EVENT` / `ATTACHMENT`。空白范围按全局，空白动作按 `ARCHIVE`。天数从 1 起。同一类型和范围再登记一次返回冲突。不跑清理任务，也不改已有数据。
 
-`POST /api/deletion-requests` 追加 `data_deletion_request`。状态是 `PENDING`。类型只接受 `SESSION` / `ATTACHMENT` / `ALL`。原因最长 1024 字。不批准，也不执行删除，也不写删除结果。
+`POST /api/deletion-requests` 追加 `data_deletion_request`。状态是 `PENDING`。类型只接受 `SESSION` / `ATTACHMENT` / `ALL`。原因最长 1024 字。不执行删除，也不写删除结果。`POST /api/admin/deletion-requests/{requestId}/decision` 把待处理改成 `APPROVED` 或 `REJECTED`。已经决定过再决定一次返回冲突。批准后仍不执行删除。
 
 `POST /api/admin/operation-audits` 追加 `operation_audit`。空白租户按空串。不写前后快照、IP 和 UA。其它管理接口还不自动记这一行。
 

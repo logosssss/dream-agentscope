@@ -7,7 +7,7 @@ package com.zhu.audit.api;
  * @param userId    发起人
  * @param tenantId  租户，没有时是空串
  * @param dataType  SESSION / ATTACHMENT / ALL
- * @param status    这次是 PENDING
+ * @param status    PENDING / APPROVED / REJECTED
  * @param reason    原因，没有时为空
  */
 public record DeletionRequestSummary(
