@@ -4,12 +4,14 @@ import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.semantic.contract.CompletionCriteria;
 import com.zhu.semantic.contract.ProductSemanticProvider;
+import com.zhu.semantic.contract.ProductTool;
 import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
 import com.zhu.runtime.domain.middleware.AuditMiddleware;
 import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
 import io.agentscope.core.tracing.OtelTracingMiddleware;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
+import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -33,8 +35,13 @@ public class HarnessAgentFactory {
 
     private final AgentShutdown shutdown;
 
+    private final List<ProductTool> productTools;
+
     /** 每个 Agent 共用这一份。构造函数只注册一次 Reactor 上下文传播，不连接采集器。 */
     private final OtelTracingMiddleware tracing = new OtelTracingMiddleware();
+
+    /** 按目录挑选业务工具。目录为空时不注册。 */
+    private final CatalogToolRegistrar toolRegistrar = new CatalogToolRegistrar();
 
     /** 写文件限制和审批都挂上。体积检查的顺序更靠前，超限内容不会进入审批。 */
     public HarnessAgentFactory(
@@ -44,7 +51,8 @@ public class HarnessAgentFactory {
             AuditMiddleware auditMiddleware,
             ApprovalMiddleware approvalMiddleware,
             FileWriteLimitMiddleware fileWriteLimit,
-            AgentShutdown shutdown) {
+            AgentShutdown shutdown,
+            List<ProductTool> productTools) {
         this.properties = properties;
         this.semantics = semantics;
         this.stores = stores;
@@ -52,6 +60,7 @@ public class HarnessAgentFactory {
         this.approvalMiddleware = approvalMiddleware;
         this.fileWriteLimit = fileWriteLimit;
         this.shutdown = shutdown;
+        this.productTools = productTools == null ? List.of() : List.copyOf(productTools);
     }
 
     /**
@@ -85,7 +94,10 @@ public class HarnessAgentFactory {
             builder.distributedStore(store);
             builder.filesystem(WorkspaceFilesystem.sessionScoped());
         }
-        return builder.build();
+        HarnessAgent agent = builder.build();
+        // 加在这次 Agent 自己的 Toolkit 上。目录里没有的业务工具不会出现。
+        toolRegistrar.register(agent.getToolkit(), semantics.tools(), productTools);
+        return agent;
     }
 
     /** 产品域没给出有效轮数时按 20，避免 0 轮直接结束。 */

@@ -17,7 +17,8 @@
 | 类型 | 作用 |
 | --- | --- |
 | `ProductSemanticProvider` | 运行层能看见的产品语义：Agent 标识、工具、停止条件、提示词兜底 |
-| `ToolDescriptor` | 一条工具描述。运行层不认识具体业务工具类 |
+| `ToolDescriptor` | 一条工具描述。运行层用它决定哪些实现可以注册 |
+| `ProductTool` | 业务工具实例。`toolId` 必须和 `@Tool` 的 name、目录标识一致 |
 | `CompletionCriteria` | 何时停止，目前只有最大推理轮数 |
 | `PermissionDecision` | `ALLOW` / `ASK` / `DENY` |
 | `PermissionRuleService` | 按工具、租户、角色给出决定。运行层审批 Hook 用这个契约 |
@@ -38,6 +39,10 @@
 
 `StoredPermissionService`：MySQL 打开时改为读 `tool_permission`。配置里的规则不再参与。表由用户进程的 Flyway `V4__tool_permission.sql` 创建。`conditions` 非空的行先跳过。命中的 `decision` 写错时这次调用失败，不当成允许。容器里两种实现不会同时存在。
 
+`NoToolCatalog`：MySQL 关闭时目录为空。
+
+`StoredToolCatalog`：MySQL 打开时读 `tool_registry` 的启用行，表由 `V6__tool_registry.sql` 创建。空白标识跳过。表是空的则目录为空。参数结构只保存在表里，不参与注册。没有对应 `ProductTool` 时运行层仍不把名字交给模型。
+
 ### `application`
 
 `PromptAppService` 实现 `PromptService`。外部模板用 `{{变量}}` 替换。来源缺失、空白、抛错，或替换后仍有占位符时返回 fallback，并打一条只含 key 的警告。不把 `{{name}}` 原文交给模型。fallback 为空则拒绝。容器里只能有一个 `PromptService`。
@@ -48,8 +53,8 @@
 
 运行层的架构测试禁止依赖 `application` 和 `infrastructure`。业务工具和 Mapper 以后放 `infrastructure`，不要放进 `agent-runtime`。
 
-`PlatformSemanticProvider` 是 `ProductSemanticProvider` 的默认实现。Agent 标识和最大轮数读 `agentscope.runtime` 的同名配置，无效时分别用 `product-agent` 和 `20`。提示词兜底是 `.`。`NoToolCatalog` 目前不返回工具。
+`PlatformSemanticProvider` 是 `ProductSemanticProvider` 的默认实现。Agent 标识和最大轮数读 `agentscope.runtime` 的同名配置，无效时分别用 `product-agent` 和 `20`。提示词兜底是 `.`。MySQL 关闭时目录为空；打开时目录来自 `tool_registry`。
 
 ## 还没有
 
-真正的 Nacos 监听、`@Tool` 业务工具，以及把目录里的工具注册进运行层。`conditions` 还不能解释。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。
+真正的 Nacos 监听和 `@Tool` 业务工具。目录里出现且有对应实现的工具，由运行层注册进这次 Agent 的 Toolkit。`conditions` 还不能解释。`param_schema` 只保存。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。

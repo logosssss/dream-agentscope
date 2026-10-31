@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * 平台默认的产品语义。运行层只依赖契约，具体数值在这里收口。
- * 还没有业务工具，工具列表来自目录，目前为空。
+ * 工具列表来自目录。MySQL 打开时目录读 tool_registry，关闭时目录为空。
  */
 @Service
 public class PlatformSemanticProvider implements ProductSemanticProvider {

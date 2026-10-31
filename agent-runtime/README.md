@@ -54,7 +54,7 @@ AgentStreamEvent   接入层再写成 SSE
 | `api` | `AgentStreamEvent` | 流式事件的类型和短文本 |
 | `application` | `AgentExecutionService` | 同步 `block` 和流式 `streamEvents`，结束时关闭 Agent |
 | `application` | `AgentStreamEvents` | 框架事件收成 `AgentStreamEvent` |
-| `infrastructure.agent` | `HarnessAgentFactory`、`WorkspaceFilesystem`、`AgentShutdown` | 按请求组装 Agent。有状态库时工作区按对话隔离。停机时等待在途调用 |
+| `infrastructure.agent` | `HarnessAgentFactory`、`CatalogToolRegistrar`、`WorkspaceFilesystem`、`AgentShutdown` | 按请求组装 Agent，并把目录里的业务工具挂到这次 Toolkit。有状态库时工作区按对话隔离。停机时等待在途调用 |
 | `config` | `AgentRuntimeProperties` | 前缀 `agentscope.runtime` |
 | `config` | `RuntimeConfig` | 只打开配置绑定，不创建 Agent |
 | `domain` | `CallIdentity` | 从这次 `RuntimeContext` 读租户、用户、会话，不用 ThreadLocal |
@@ -78,6 +78,8 @@ AgentStreamEvent   接入层再写成 SSE
 
 系统提示词来自 `AgentRequest.systemPrompt`。为空时工厂放一个占位符 `.`，避免空提示词进入模型。真正的产品文案由产品域传入。
 
+业务工具实现 `ProductTool`，放在产品域。`toolId` 必须和 `@Tool` 的 name、目录里的标识一致。MySQL 打开时目录来自 `tool_registry` 的启用行。工厂在 `build` 之后把目录点名且有实现的工具注册到这次 Agent 自己的 Toolkit。目录为空，或实现不在目录里时，不注册。当前没有业务工具。
+
 `userId`、`sessionId`、`userText` 缺任何一个，抛 `BusinessException(BAD_REQUEST)`。
 
 一次调用结束且回复带 token 用量时，`AuditUsageMeter` 写一条动作名为 `model.usage` 的审计。明细只有模型名、输入 token、输出 token 和耗时，不放提示词。没有用量就不记。审计写失败不改变已经生成的回复。还没有独立计费表。
@@ -92,6 +94,6 @@ AgentStreamEvent   接入层再写成 SSE
 
 ## 还没有
 
-按产品预构建多份 Builder、工具注册。RocketMQ 客户端和消费者还没接。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。产品任务替换 `SyncAgentTaskHandler`，不要再注册第二个 `AgentTaskHandler`。
+按产品预构建多份 Builder。RocketMQ 客户端和消费者还没接。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。产品任务替换 `SyncAgentTaskHandler`，不要再注册第二个 `AgentTaskHandler`。
 
 `ApprovalMiddleware` 在 `ASK` 时把本次工具标成 `ASKING` 并发出事件，在 `DENY` 时把这次工具从后续执行里拿掉。它不改框架的 `PermissionEngine`：默认权限上下文是 trivial，临时加规则要么这次判定读不到，要么会让同一次调用里没匹配到的工具也变成询问。框架自 2.0.0 起把 `Hook` 标成删除，执行策略挂在 `Middleware` 上。
