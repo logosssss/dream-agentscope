@@ -41,6 +41,16 @@ class PromptReleaseTest {
         assertThat(published).containsExactly("prompt.platform.system=你好");
     }
 
+    /** 危机话术通过校验，但不交给发布端。 */
+    @Test
+    void crisisPromptIsNotPublished(@TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("prompt.companion.system.md"), "搭子");
+        Files.writeString(directory.resolve("prompt.safety.crisis.md"), "危机");
+        List<String> published = new ArrayList<>();
+        PromptRelease.publish(directory, (key, body) -> published.add(key + "=" + body));
+        assertThat(published).containsExactly("prompt.companion.system=搭子");
+    }
+
     /** 发布打到草稿、提交、上线三步。模板出现在草稿里，不出现在失败信息里。 */
     @Test
     void publishPostsDraftSubmitAndRelease(@TempDir Path directory) throws IOException {

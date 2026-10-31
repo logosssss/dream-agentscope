@@ -1,9 +1,11 @@
 package com.zhu.semantic.api;
 
+import com.zhu.semantic.contract.CrisisPrompt;
 import java.util.Set;
 
 /**
- * 平台级提示词键。产品自己的话术不放这里，由调用方传入 key 和 fallback。
+ * 平台级提示词键。搭子主对话和危机话术的变量约定登记在这里。
+ * 危机键只给校验用，不发布到 Nacos。
  */
 public final class PlatformPrompt {
 
@@ -16,6 +18,9 @@ public final class PlatformPrompt {
     public static final String SYSTEM_FALLBACK =
             "你是用户的智能搭子，不是工具助手，也不是恋人。语气自然、克制、不卖惨。不替用户做决定。不讨论自伤或危险方法。关系从相识开始，不由你自己升级。";
 
+    /** 危机话术键。和 {@link CrisisPrompt#KEY} 同一条，不走外部配置。 */
+    public static final String CRISIS_KEY = CrisisPrompt.KEY;
+
     private PlatformPrompt() {
     }
 
@@ -24,9 +29,16 @@ public final class PlatformPrompt {
      * 没有登记的键返回 null，仓库里的模板因此不能单独加变量。
      */
     public static Set<String> allowedVariables(String key) {
-        if (SYSTEM_KEY.equals(key) || "prompt.platform.system".equals(key)) {
+        if (SYSTEM_KEY.equals(key) || CRISIS_KEY.equals(key) || "prompt.platform.system".equals(key)) {
             return Set.of();
         }
         return null;
+    }
+
+    /**
+     * 危机话术只留在仓库，发布端不能把它推到 Nacos。
+     */
+    public static boolean publishable(String key) {
+        return !CRISIS_KEY.equals(key);
     }
 }

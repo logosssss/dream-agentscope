@@ -8,6 +8,7 @@ import com.zhu.semantic.contract.ProductTool;
 import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
 import com.zhu.runtime.domain.middleware.AuditMiddleware;
 import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
+import com.zhu.runtime.domain.middleware.SafetyGateMiddleware;
 import io.agentscope.core.tracing.OtelTracingMiddleware;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
@@ -33,6 +34,8 @@ public class HarnessAgentFactory {
 
     private final FileWriteLimitMiddleware fileWriteLimit;
 
+    private final SafetyGateMiddleware safetyGate;
+
     private final AgentShutdown shutdown;
 
     private final List<ProductTool> productTools;
@@ -43,7 +46,7 @@ public class HarnessAgentFactory {
     /** 按目录挑选业务工具。目录为空时不注册。 */
     private final CatalogToolRegistrar toolRegistrar = new CatalogToolRegistrar();
 
-    /** 写文件限制和审批都挂上。体积检查的顺序更靠前，超限内容不会进入审批。 */
+    /** 写文件限制、审批和安全门都挂上。体积检查更靠前，危机换话术发生在模型调用之前。 */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,
             ProductSemanticProvider semantics,
@@ -51,6 +54,7 @@ public class HarnessAgentFactory {
             AuditMiddleware auditMiddleware,
             ApprovalMiddleware approvalMiddleware,
             FileWriteLimitMiddleware fileWriteLimit,
+            SafetyGateMiddleware safetyGate,
             AgentShutdown shutdown,
             List<ProductTool> productTools) {
         this.properties = properties;
@@ -59,6 +63,7 @@ public class HarnessAgentFactory {
         this.auditMiddleware = auditMiddleware;
         this.approvalMiddleware = approvalMiddleware;
         this.fileWriteLimit = fileWriteLimit;
+        this.safetyGate = safetyGate;
         this.shutdown = shutdown;
         this.productTools = productTools == null ? List.of() : List.copyOf(productTools);
     }
@@ -82,12 +87,13 @@ public class HarnessAgentFactory {
         if (!blank(properties.getWorkspace())) {
             builder.workspace(properties.getWorkspace());
         }
-        // 审计、写文件上限和审批走 Middleware。Hook 自 2.0.0 起标成删除，不再挂到 Builder 上。
+        // 审计、写文件上限、审批和安全门走 Middleware。Hook 自 2.0.0 起标成删除，不再挂到 Builder 上。
         // 追踪放在同顺序中间件的前面。没配导出地址时 span 被丢掉。
         builder.middleware(tracing);
         builder.middleware(auditMiddleware);
         builder.middleware(fileWriteLimit);
         builder.middleware(approvalMiddleware);
+        builder.middleware(safetyGate);
         builder.middleware(shutdown.middleware());
         DistributedStore store = stores.getIfAvailable();
         if (store != null) {

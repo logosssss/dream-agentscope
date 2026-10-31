@@ -1,5 +1,6 @@
 package com.zhu.semantic.infrastructure.prompt;
 
+import com.zhu.semantic.api.PlatformPrompt;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -8,7 +9,8 @@ import java.util.stream.Stream;
 
 /**
  * 把目录里的提示词先校验，再交给发布端。目录不存在就跳过。
- * 不在进程启动时调用，也不连接 Nacos。校验失败时发布端不会收到任何一条。
+ * 危机话术会校验，但不发布。不在进程启动时调用，也不连接 Nacos。
+ * 校验失败时发布端不会收到任何一条。
  */
 public final class PromptRelease {
 
@@ -30,6 +32,9 @@ public final class PromptRelease {
         try (Stream<Path> files = Files.list(directory)) {
             for (Path file : files.filter(Files::isRegularFile).sorted().toList()) {
                 String key = PromptTemplateCheck.fileKey(file.getFileName().toString());
+                if (!PlatformPrompt.publishable(key)) {
+                    continue;
+                }
                 String body = Files.readString(file, StandardCharsets.UTF_8);
                 sink.publish(key, body);
             }
