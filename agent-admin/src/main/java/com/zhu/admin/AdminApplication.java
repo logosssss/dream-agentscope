@@ -1,6 +1,7 @@
 package com.zhu.admin;
 
 import com.zhu.audit.application.MysqlBillingRollup;
+import com.zhu.audit.application.MysqlEvalDatasetCatalog;
 import com.zhu.audit.application.MysqlModelPriceCatalog;
 import com.zhu.audit.application.MysqlQuotaUsageQuery;
 import com.zhu.audit.application.MysqlTenantDirectory;
@@ -25,6 +26,7 @@ import org.springframework.context.annotation.Import;
         MysqlTenantDirectory.class,
         MysqlTenantQuota.class,
         MysqlQuotaUsageQuery.class,
+        MysqlEvalDatasetCatalog.class,
         AuditMapperConfig.class
 })
 public class AdminApplication {
