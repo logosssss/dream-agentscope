@@ -14,7 +14,7 @@ public class CompanionPersona implements PersonaContract {
     /** 人格版本。不要写成 companion-v1:{userId}。 */
     public static final String AGENT_ID = "companion-v1";
 
-    /** 关系从相识开始。用户模型表还没有，这里不能读库。 */
+    /** 关系从相识开始。画像表已经有了，这里仍不读。 */
     public static final String STAGE = "ACQUAINTANCE";
 
     /** 状态命名空间。 */
