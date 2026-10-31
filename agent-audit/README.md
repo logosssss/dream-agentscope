@@ -47,6 +47,8 @@
 
 `POST /api/admin/model-configs` 登记 `model_config`，版本固定 `1.0.0`。空白租户范围按全局。同一标识再登记这个版本返回冲突。不写参数 JSON，也不让对话改用这条配置。提示词仍走 Nacos，不在这里落 `prompt_template`。
 
+`POST /api/admin/retention-policies` 登记 `data_retention_policy`。类型只接受 `SESSION` / `MESSAGE` / `EVENT` / `ATTACHMENT`。空白范围按全局，空白动作按 `ARCHIVE`。天数从 1 起。同一类型和范围再登记一次返回冲突。不跑清理任务，也不改已有数据。
+
 `POST /api/admin/tenants` 登记 `tenant`。状态是 `ACTIVE`，套餐是 `standard`。同一标识再登记一次返回冲突。用户进程在 MySQL 打开时只允许这个状态的租户对话。停用还不在这里改。
 
 `POST /api/admin/tenant-quotas` 登记 `tenant_quota` 的每日请求上限。类型是 `REQUESTS`，周期是 `DAILY`。上限 0 表示不限额。同一租户再登记一次返回冲突，不覆盖旧值。已用量仍在 Redis。按 token、费用或并发的上限还不写。

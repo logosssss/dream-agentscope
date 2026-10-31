@@ -5,6 +5,7 @@ import com.zhu.audit.application.MysqlEvalCaseCatalog;
 import com.zhu.audit.application.MysqlEvalRunCatalog;
 import com.zhu.audit.application.MysqlEvalDatasetCatalog;
 import com.zhu.audit.application.MysqlModelConfigCatalog;
+import com.zhu.audit.application.MysqlRetentionPolicyCatalog;
 import com.zhu.audit.application.MysqlModelPriceCatalog;
 import com.zhu.audit.application.MysqlQuotaUsageQuery;
 import com.zhu.audit.application.MysqlTenantDirectory;
@@ -27,6 +28,7 @@ import org.springframework.context.annotation.Import;
         MysqlBillingRollup.class,
         MysqlModelPriceCatalog.class,
         MysqlModelConfigCatalog.class,
+        MysqlRetentionPolicyCatalog.class,
         MysqlTenantDirectory.class,
         MysqlTenantQuota.class,
         MysqlQuotaUsageQuery.class,

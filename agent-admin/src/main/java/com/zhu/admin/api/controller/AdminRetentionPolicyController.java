@@ -1,0 +1,41 @@
+package com.zhu.admin.api.controller;
+
+import com.zhu.admin.api.dto.RetentionPolicyRequest;
+import com.zhu.audit.api.RetentionPolicyCatalog;
+import com.zhu.audit.api.RetentionPolicySummary;
+import com.zhu.common.dto.ApiResult;
+import com.zhu.common.exception.BusinessException;
+import com.zhu.common.exception.ErrorCode;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 管理进程登记数据保留策略。不执行清理，也不改已有数据。
+ */
+@RestController
+public class AdminRetentionPolicyController {
+
+    private final ObjectProvider<RetentionPolicyCatalog> catalogs;
+
+    /** MySQL 关闭时没有目录。接口仍在，调用会返回不可用。 */
+    public AdminRetentionPolicyController(ObjectProvider<RetentionPolicyCatalog> catalogs) {
+        this.catalogs = catalogs;
+    }
+
+    /**
+     * 新增一条。同一数据类型和范围再提交一次由目录返回冲突。
+     */
+    @PostMapping("/api/admin/retention-policies")
+    public ApiResult<RetentionPolicySummary> register(@RequestBody RetentionPolicyRequest request) {
+        RetentionPolicyCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "retention policy is unavailable");
+        }
+        RetentionPolicyRequest body = request == null
+                ? new RetentionPolicyRequest(null, null, null, null)
+                : request;
+        return ApiResult.ok(catalog.register(body.dataType(), body.scope(), body.retainDays(), body.action()));
+    }
+}
