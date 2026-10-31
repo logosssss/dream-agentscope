@@ -39,7 +39,7 @@
 
 `POST /api/feedback` 追加 `user_feedback`。评分是 1 到 5，说明最长 1000 字。不存标签，也不要求这次运行已经在 `agent_run` 里。附件还不收，文件没有对象存储。
 
-`POST /api/admin/eval-datasets` 登记 `eval_dataset`，版本固定 `1.0.0`。同一标识再登记这个版本返回冲突。用例和评测执行还不写。
+`POST /api/admin/eval-datasets` 登记 `eval_dataset`，版本固定 `1.0.0`。同一标识再登记这个版本返回冲突。`POST /api/admin/eval-datasets/{datasetId}/cases` 给这个版本追加 `eval_case`。序号从 1 起，输入和期望输出最长 4000 字。数据集还没登记时拒绝。同一序号再写一次返回冲突。不存标签，也不执行评测。
 
 `POST /api/admin/billing/drafts` 按租户和区间生成 `billing_record`。区间最长 366 天，起点含、终点不含。没有用量也是一张 0 金额的草稿。同一区间再生成一次返回冲突。区间里有两种币种时拒绝。`POST /api/admin/billing/confirmations` 把这张草稿改成 `CONFIRMED`，不重算金额。已经确认过再确认一次返回冲突。`POST /api/admin/billing/invoices` 只把已确认的账单改成 `INVOICED`，草稿不能直接开票。`POST /api/admin/billing/payments` 只把已开票的账单改成 `PAID`，不重算金额。已确认但还没开票的不能直接付款。
 

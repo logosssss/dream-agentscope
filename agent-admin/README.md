@@ -39,7 +39,8 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /api/admin/quota-usage` | 某个租户最近的每日请求流水，默认 50 条，最多 100 条。不回补。MySQL 关闭时返回不可用 |
 | `GET /api/admin/model-prices` | 最近的模型价格，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `POST /api/admin/model-prices` | 再插入一行价格。不改旧行。取价时用生效开始最晚且仍有效的一行 |
-| `POST /api/admin/eval-datasets` | 登记一个评测数据集，版本固定 `1.0.0`。不写用例，也不执行。MySQL 关闭时返回不可用 |
+| `POST /api/admin/eval-datasets` | 登记一个评测数据集，版本固定 `1.0.0`。不执行。MySQL 关闭时返回不可用 |
+| `POST /api/admin/eval-datasets/{datasetId}/cases` | 给该数据集的 `1.0.0` 追加一条用例。数据集不存在时返回找不到。不执行 |
 
 业务接口要带 `X-Caller-Token`，值来自 `AGENTSCOPE_ADMIN_TOKEN`，和用户进程的令牌分开。没配或对不上时 HTTP 401。存活和就绪不校验。这不是用户登录。
 

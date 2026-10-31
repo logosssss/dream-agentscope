@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.EvalDatasetMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.EvalDataset">
+        <id column="id" property="id"/>
+        <result column="dataset_id" property="datasetId"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <!-- 追加用例前确认这个版本已经登记。 -->
+    <select id="findVersion" resultMap="BaseResultMap">
+        SELECT id, dataset_id, version
+        FROM eval_dataset
+        WHERE dataset_id = #{datasetId}
+          AND version = #{version}
+    </select>
+</mapper>
