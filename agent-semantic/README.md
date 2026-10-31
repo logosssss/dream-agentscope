@@ -51,7 +51,7 @@
 
 `PromptSource` 是外部原文的缝。`agentscope.nacos.server-addr` 为空时用 `AbsentPromptSource`，始终返回 null，不访问网络。配了地址才注册 `NacosPromptSource`，两者不要同时存在。监听器建不起来或拉取失败时，`PromptService` 仍用 fallback。不做动态配置、服务发现和 MCP。地址、命名空间和账号只来自环境变量。
 
-`src/main/resources/prompts` 里的 `.md` 和 `.json` 由 `PromptTemplateCheck` 在测试中校验。键必须是 `prompt.{agent}.{purpose}`，占位符必须在 `PlatformPrompt` 里登记。`.json` 把 `{{变量}}` 换成 `sample` 后必须能解析。这里不把文件推到 Nacos。
+`src/main/resources/prompts` 里的 `.md` 和 `.json` 由 `PromptTemplateCheck` 在测试中校验。键必须是 `prompt.{agent}.{purpose}`，占位符必须在 `PlatformPrompt` 里登记。`.json` 把 `{{变量}}` 换成 `sample` 后必须能解析。`PromptRelease` 在校验通过后才把原文交给发布端。`NacosPromptPublisher` 向管理接口新建一个版本并发布，进程启动时不调用它。地址没配或对方拒绝时这次发布失败，不影响已经在跑的监听。
 
 运行层的架构测试禁止依赖 `application` 和 `infrastructure`。业务工具和 Mapper 以后放 `infrastructure`，不要放进 `agent-runtime`。
 
@@ -59,4 +59,4 @@
 
 ## 还没有
 
-`@Tool` 业务工具。目录里出现且有对应实现的工具，由运行层注册进这次 Agent 的 Toolkit。`conditions` 还不能解释。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词文件还不会推送到 Nacos。工具名、JSON 结构和安全护栏留在代码里。
+`@Tool` 业务工具。目录里出现且有对应实现的工具，由运行层注册进这次 Agent 的 Toolkit。`conditions` 还不能解释。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词发布不在进程启动时发生，仓库里也还没有产品话术文件。工具名、JSON 结构和安全护栏留在代码里。

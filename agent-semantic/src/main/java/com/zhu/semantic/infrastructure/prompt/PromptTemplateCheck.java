@@ -75,6 +75,12 @@ public final class PromptTemplateCheck {
         }
     }
 
+    /** 发布和校验共用。文件名必须是键再加一种后缀。 */
+    static String fileKey(String filename) {
+        boolean json = filename.endsWith(".json");
+        return keyOf(filename, json);
+    }
+
     /** 文件名必须是键再加一种后缀。其它后缀拒绝，避免漏检。 */
     private static String keyOf(String filename, boolean json) {
         if (json) {
