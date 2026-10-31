@@ -22,7 +22,7 @@
 | `config` | `MysqlStoreProperties` | 前缀 `agentscope.distributed.mysql` |
 | `config` | `DistributedStoreConfig` | 仅在开关打开时装配 `DistributedStore` |
 
-三个仓库接口是给运行层以后调用的缝。当前真正装配的是框架的 `DistributedStore`，不要在旁边再写一套绕过它的 SQL。
+三个仓库接口是给运行层以后调用的缝。当前真正装配的是框架的 `DistributedStore`，不要在旁边再写一套绕过它的 SQL。不标过时，也不先写实现。自定义查询出现再实现。
 
 ## 装配
 

@@ -3,7 +3,8 @@ package com.zhu.state.api;
 import java.util.Optional;
 
 /**
- * 会话状态的读写缝。持久化由 MySQL DistributedStore 承担，本接口不暴露框架类型。
+ * 会话状态的读写缝。当前走 DistributedStore，本接口不暴露框架类型。
+ * 自定义查询出现再实现，不要在旁边再写一套 SQL。
  */
 public interface AgentStateRepository {
 

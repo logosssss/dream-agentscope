@@ -1,7 +1,8 @@
 package com.zhu.state.api;
 
 /**
- * 沙箱执行锁。多副本下同一 slot 不能并发操作，锁的实现落在状态层。
+ * 沙箱执行锁。当前走 DistributedStore 的沙箱守卫，本接口还没有实现。
+ * 自定义查询出现再实现，不要在旁边再写一套 SQL。
  */
 public interface ExecutionLockService {
 

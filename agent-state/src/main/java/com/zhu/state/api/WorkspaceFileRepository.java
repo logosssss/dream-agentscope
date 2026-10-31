@@ -3,7 +3,8 @@ package com.zhu.state.api;
 import java.util.Optional;
 
 /**
- * 工作区文件的读写缝。对应 DistributedStore 的 BaseStore，例如 MEMORY.md 和 skills。
+ * 工作区文件的读写缝。当前走 DistributedStore 的 BaseStore，例如 MEMORY.md 和 skills。
+ * 自定义查询出现再实现，不要在旁边再写一套 SQL。
  */
 public interface WorkspaceFileRepository {
 
