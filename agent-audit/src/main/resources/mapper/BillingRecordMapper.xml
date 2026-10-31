@@ -23,7 +23,7 @@
           AND period_end = #{periodEnd}
     </select>
 
-    <!-- 已经确认或开票的行不会被这次更新覆盖。 -->
+    <!-- 已经确认或开票的行不会被确认更新覆盖。 -->
     <update id="confirmDraft">
         UPDATE billing_record
         SET status = 'CONFIRMED'
@@ -31,5 +31,15 @@
           AND period_start = #{periodStart}
           AND period_end = #{periodEnd}
           AND status = 'DRAFT'
+    </update>
+
+    <!-- 草稿和已付款的行不会被开票更新覆盖。 -->
+    <update id="invoiceConfirmed">
+        UPDATE billing_record
+        SET status = 'INVOICED'
+        WHERE tenant_id = #{tenantId}
+          AND period_start = #{periodStart}
+          AND period_end = #{periodEnd}
+          AND status = 'CONFIRMED'
     </update>
 </mapper>

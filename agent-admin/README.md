@@ -30,8 +30,9 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /api/admin/audits` | 最近审计，默认 50 条，最多 100 条 |
 | `GET /api/admin/approvals` | 决定为 `PENDING` 的审批，条数规则同上 |
 | `POST /api/admin/approvals/{approvalId}/decision` | 把该单改成 `APPROVED` 或 `REJECTED`。通道固定为 `CONSOLE`。不执行工具。单据不存在时返回找不到 |
-| `POST /api/admin/billing/drafts` | 按租户和区间生成一张草稿账单。MySQL 关闭时返回不可用。不开票 |
+| `POST /api/admin/billing/drafts` | 按租户和区间生成一张草稿账单。MySQL 关闭时返回不可用 |
 | `POST /api/admin/billing/confirmations` | 把对应草稿改成已确认，不重算金额。没有账单时返回找不到 |
+| `POST /api/admin/billing/invoices` | 把已确认的账单改成已开票，不重算金额。草稿要先确认 |
 | `GET /api/admin/model-prices` | 最近的模型价格，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `POST /api/admin/model-prices` | 再插入一行价格。不改旧行。取价时用生效开始最晚且仍有效的一行 |
 
@@ -41,4 +42,4 @@ mvn -pl agent-admin -am spring-boot:run
 
 ## 还没有
 
-用户账号登录。本进程不提供聊天接口，也不在批准后执行工具。账单开票和付款还没有。仓库不放模型单价，也不放调用方令牌。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具。账单付款还没有。仓库不放模型单价，也不放调用方令牌。

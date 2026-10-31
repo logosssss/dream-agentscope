@@ -26,6 +26,8 @@ public class MysqlBillingRollup implements BillingRollup {
 
     private static final String CONFIRMED = "CONFIRMED";
 
+    private static final String INVOICED = "INVOICED";
+
     private final TokenUsageMapper usages;
 
     private final BillingRecordMapper bills;
@@ -94,9 +96,42 @@ public class MysqlBillingRollup implements BillingRollup {
         if (updated != 1) {
             throw new BusinessException(ErrorCode.CONFLICT, "billing record is not a draft");
         }
+        return summary(tenantId, periodStart, periodEnd, existing, CONFIRMED);
+    }
+
+    /**
+     * 租户或区间为空时拒绝。只有已确认的账单能开票，草稿要先确认。
+     * 不重算金额。更新没抢到行时按冲突处理。
+     */
+    @Override
+    public BillingSummary invoice(String tenantId, LocalDateTime periodStart, LocalDateTime periodEnd) {
+        if (tenantId == null || tenantId.isBlank() || periodStart == null || periodEnd == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "billing period is invalid");
+        }
+        BillingRecord existing = bills.findByPeriod(tenantId, periodStart, periodEnd);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "billing record not found");
+        }
+        if (!CONFIRMED.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "billing record is not confirmed");
+        }
+        int updated = bills.invoiceConfirmed(tenantId, periodStart, periodEnd);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "billing record is not confirmed");
+        }
+        return summary(tenantId, periodStart, periodEnd, existing, INVOICED);
+    }
+
+    /** 金额保持原行。空金额记 0，空币种记 CNY。 */
+    private static BillingSummary summary(
+            String tenantId,
+            LocalDateTime periodStart,
+            LocalDateTime periodEnd,
+            BillingRecord existing,
+            String status) {
         long tokens = existing.getTokenTotal() == null ? 0L : existing.getTokenTotal();
         BigDecimal cost = existing.getCostAmount() == null ? BigDecimal.ZERO : existing.getCostAmount();
         String currency = existing.getCurrency() == null || existing.getCurrency().isBlank() ? "CNY" : existing.getCurrency();
-        return new BillingSummary(tenantId, periodStart, periodEnd, tokens, cost, currency, CONFIRMED);
+        return new BillingSummary(tenantId, periodStart, periodEnd, tokens, cost, currency, status);
     }
 }

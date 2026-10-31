@@ -124,4 +124,42 @@ class BillingRollupTest {
                 .isEqualTo(ErrorCode.NOT_FOUND);
         verify(bills, never()).confirmDraft(any(), any(), any());
     }
+
+    /** 已确认的账单开票后金额不变。 */
+    @Test
+    void invoiceKeepsConfirmedAmounts() {
+        BillingRecordMapper bills = mock(BillingRecordMapper.class);
+        LocalDateTime start = LocalDateTime.parse("2026-10-01T00:00:00");
+        LocalDateTime end = LocalDateTime.parse("2026-10-02T00:00:00");
+        BillingRecord confirmed = new BillingRecord();
+        confirmed.setStatus("CONFIRMED");
+        confirmed.setTokenTotal(8L);
+        confirmed.setCostAmount(new BigDecimal("1.250000"));
+        confirmed.setCurrency("USD");
+        when(bills.findByPeriod("t", start, end)).thenReturn(confirmed);
+        when(bills.invoiceConfirmed("t", start, end)).thenReturn(1);
+
+        BillingSummary summary = new MysqlBillingRollup(mock(TokenUsageMapper.class), bills).invoice("t", start, end);
+
+        assertThat(summary.status()).isEqualTo("INVOICED");
+        assertThat(summary.costAmount()).isEqualByComparingTo("1.250000");
+        verify(bills, never()).confirmDraft(any(), any(), any());
+    }
+
+    /** 草稿不能直接开票。 */
+    @Test
+    void draftCannotBeInvoiced() {
+        BillingRecordMapper bills = mock(BillingRecordMapper.class);
+        LocalDateTime start = LocalDateTime.parse("2026-10-01T00:00:00");
+        LocalDateTime end = LocalDateTime.parse("2026-10-02T00:00:00");
+        BillingRecord draft = new BillingRecord();
+        draft.setStatus("DRAFT");
+        when(bills.findByPeriod("t", start, end)).thenReturn(draft);
+
+        assertThatThrownBy(() -> new MysqlBillingRollup(mock(TokenUsageMapper.class), bills).invoice("t", start, end))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+        verify(bills, never()).invoiceConfirmed(any(), any(), any());
+    }
 }

@@ -25,4 +25,12 @@ public interface BillingRecordMapper extends BaseMapper<BillingRecord> {
             @Param("tenantId") String tenantId,
             @Param("periodStart") LocalDateTime periodStart,
             @Param("periodEnd") LocalDateTime periodEnd);
+
+    /**
+     * 只把仍为 CONFIRMED 的账单改成 INVOICED。返回实际更新行数。
+     */
+    int invoiceConfirmed(
+            @Param("tenantId") String tenantId,
+            @Param("periodStart") LocalDateTime periodStart,
+            @Param("periodEnd") LocalDateTime periodEnd);
 }

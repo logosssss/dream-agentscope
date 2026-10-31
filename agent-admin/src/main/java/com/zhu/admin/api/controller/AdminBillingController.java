@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程上的计费汇总。草稿可以确认。不开票，不改价格，也不执行工具。
+ * 管理进程上的计费汇总。草稿可以确认，已确认的可以开票。不付款，不改价格，也不执行工具。
  */
 @RestController
 public class AdminBillingController {
@@ -52,5 +52,20 @@ public class AdminBillingController {
                 ? new BillingDraftRequest(null, null, null)
                 : request;
         return ApiResult.ok(rollup.confirm(body.tenantId(), body.periodStart(), body.periodEnd()));
+    }
+
+    /**
+     * 把一张已确认的账单改成已开票。不重算金额。草稿要先确认。
+     */
+    @PostMapping("/api/admin/billing/invoices")
+    public ApiResult<BillingSummary> invoice(@RequestBody BillingDraftRequest request) {
+        BillingRollup rollup = rollups.getIfAvailable();
+        if (rollup == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "billing is unavailable");
+        }
+        BillingDraftRequest body = request == null
+                ? new BillingDraftRequest(null, null, null)
+                : request;
+        return ApiResult.ok(rollup.invoice(body.tenantId(), body.periodStart(), body.periodEnd()));
     }
 }
