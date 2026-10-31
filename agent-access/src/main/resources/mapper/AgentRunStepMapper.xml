@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.access.infrastructure.persistence.AgentRunStepMapper">
+
+    <!-- 摘要列和异常列留空。工具参数不进这张表。 -->
+    <insert id="insertSteps">
+        INSERT INTO agent_run_step (run_id, step_no, step_type, tool_id, status)
+        VALUES
+        <foreach collection="steps" item="step" separator=",">
+            (#{runId}, #{step.stepNo}, #{step.stepType}, #{step.toolId}, #{step.status})
+        </foreach>
+    </insert>
+</mapper>

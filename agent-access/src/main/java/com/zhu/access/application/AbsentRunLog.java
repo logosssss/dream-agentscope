@@ -1,5 +1,6 @@
 package com.zhu.access.application;
 
+import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,7 @@ public class AbsentRunLog implements RunLog {
             String inputSummary,
             String outputSummary,
             String errorCode,
+            List<RunStep> steps,
             long startedNanos) {
     }
 }

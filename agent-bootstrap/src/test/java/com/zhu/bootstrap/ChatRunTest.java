@@ -4,6 +4,7 @@ import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.access.application.ChatAppService;
 import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.application.RunLog;
+import com.zhu.access.application.RunStep;
 import com.zhu.access.application.SessionIndex;
 import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
@@ -12,6 +13,7 @@ import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentResponse;
 import com.zhu.runtime.api.AgentStreamEvent;
 import java.time.Clock;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
@@ -46,6 +48,7 @@ class ChatRunTest {
         assertThat(captured.output).hasSize(40);
         assertThat(captured.errorCode).isNull();
         assertThat(attached.get()).isEqualTo("run-1");
+        assertThat(captured.steps).containsExactly(new RunStep(RunStep.REASONING, null, RunLog.SUCCEEDED));
     }
 
     /** 失败只留异常类型。异常原文里的输入不会进记录，异常仍向外抛。 */
@@ -61,6 +64,7 @@ class ChatRunTest {
         assertThat(captured.status).isEqualTo(RunLog.FAILED);
         assertThat(captured.errorCode).isEqualTo("IllegalStateException");
         assertThat(captured.output).isEmpty();
+        assertThat(captured.steps).containsExactly(new RunStep(RunStep.REASONING, null, RunLog.FAILED));
     }
 
     /** 记录抛错时回复仍然返回。 */
@@ -68,7 +72,7 @@ class ChatRunTest {
     void recordFailureDoesNotHideReply() {
         AgentExecutor executor = mock(AgentExecutor.class);
         when(executor.execute(any())).thenReturn(new AgentResponse("run-2", "ok"));
-        RunLog runs = (tenant, user, session, trigger, status, runId, input, output, error, started) -> {
+        RunLog runs = (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
             throw new IllegalStateException("db down");
         };
         ChatAppService chats = service(executor, runs, (tenant, user, session, channel, text) -> {
@@ -85,6 +89,8 @@ class ChatRunTest {
         AgentExecutor executor = mock(AgentExecutor.class);
         when(executor.stream(any())).thenReturn(Flux.just(
                 new AgentStreamEvent("text_block_delta", "片段"),
+                new AgentStreamEvent("tool_call_start", "shell"),
+                new AgentStreamEvent("require_user_confirm", "shell, http"),
                 new AgentStreamEvent("agent_result", "z".repeat(50))));
         ChatAppService chats = chats(executor, captured, attached);
 
@@ -94,6 +100,11 @@ class ChatRunTest {
         assertThat(captured.output).hasSize(40);
         assertThat(captured.errorCode).isNull();
         assertThat(attached.get()).isEqualTo(captured.runId);
+        assertThat(captured.steps).containsExactly(
+                new RunStep(RunStep.TOOL, "shell", RunLog.SUCCEEDED),
+                new RunStep(RunStep.APPROVAL, "shell", RunLog.SUCCEEDED),
+                new RunStep(RunStep.APPROVAL, "http", RunLog.SUCCEEDED),
+                new RunStep(RunStep.REASONING, null, RunLog.SUCCEEDED));
     }
 
     /** 流报错记失败，异常类型来自错误对象，不来自原文。 */
@@ -108,6 +119,7 @@ class ChatRunTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(captured.status).isEqualTo(RunLog.FAILED);
         assertThat(captured.errorCode).isEqualTo("IllegalArgumentException");
+        assertThat(captured.steps).containsExactly(new RunStep(RunStep.REASONING, null, RunLog.FAILED));
     }
 
     /** 拼一个不查库的对话服务。额度不限制。 */
@@ -159,6 +171,8 @@ class ChatRunTest {
 
         private String errorCode;
 
+        private List<RunStep> steps = List.of();
+
         /** 保存调用参数。测试结束后再断言。 */
         @Override
         public void complete(
@@ -171,6 +185,7 @@ class ChatRunTest {
                 String inputSummary,
                 String outputSummary,
                 String errorCode,
+                List<RunStep> steps,
                 long startedNanos) {
             this.trigger = trigger;
             this.status = status;
@@ -178,6 +193,7 @@ class ChatRunTest {
             this.input = inputSummary;
             this.output = outputSummary;
             this.errorCode = errorCode;
+            this.steps = steps == null ? List.of() : List.copyOf(steps);
         }
     }
 }

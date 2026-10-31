@@ -1,11 +1,15 @@
 package com.zhu.access.infrastructure.persistence;
 
-import com.zhu.access.infrastructure.persistence.entity.AgentRun;
 import com.zhu.access.application.RunLog;
+import com.zhu.access.application.RunStep;
+import com.zhu.access.infrastructure.persistence.entity.AgentRun;
+import com.zhu.access.infrastructure.persistence.entity.AgentRunStep;
 import com.zhu.common.util.Ids;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -20,19 +24,25 @@ public class MysqlRunLog implements RunLog {
 
     private static final int ERROR_LIMIT = 64;
 
+    private static final int TOOL_LIMIT = 128;
+
     private final AgentRunMapper runs;
+
+    private final AgentRunStepMapper steps;
 
     private final AgentRuntimeProperties properties;
 
     /** MySQL 打开时由 Mapper 扫描提供实现。模型名来自运行配置。 */
-    public MysqlRunLog(AgentRunMapper runs, AgentRuntimeProperties properties) {
+    public MysqlRunLog(AgentRunMapper runs, AgentRunStepMapper steps, AgentRuntimeProperties properties) {
         this.runs = runs;
+        this.steps = steps;
         this.properties = properties;
     }
 
     /**
      * 结束时间取当前 UTC。开始时间按耗时回推。标识为空时现生成一个。
      * 用户或会话为空时不写，避免违反非空约束。
+     * 步骤在运行行之后写入。没有步骤时不插第二张表。
      */
     @Override
     public void complete(
@@ -45,6 +55,7 @@ public class MysqlRunLog implements RunLog {
             String inputSummary,
             String outputSummary,
             String errorCode,
+            List<RunStep> recorded,
             long startedNanos) {
         if (userId == null || userId.isBlank() || sessionId == null || sessionId.isBlank()) {
             return;
@@ -66,6 +77,31 @@ public class MysqlRunLog implements RunLog {
         row.setStartedAt(finished.minusNanos(duration * 1_000_000L));
         row.setDurationMs(duration);
         runs.insertFinished(row);
+        List<AgentRunStep> rows = numbered(recorded);
+        if (!rows.isEmpty()) {
+            steps.insertSteps(row.getRunId(), rows);
+        }
+    }
+
+    /** 丢掉没有类型的步骤。序号按留下的顺序从 1 递增。工具名超长则截断。 */
+    private static List<AgentRunStep> numbered(List<RunStep> recorded) {
+        if (recorded == null || recorded.isEmpty()) {
+            return List.of();
+        }
+        List<AgentRunStep> rows = new ArrayList<>();
+        int number = 1;
+        for (RunStep step : recorded) {
+            if (step == null || step.stepType() == null || step.stepType().isBlank()) {
+                continue;
+            }
+            AgentRunStep row = new AgentRunStep();
+            row.setStepNo(number++);
+            row.setStepType(step.stepType());
+            row.setToolId(limit(step.toolId(), TOOL_LIMIT));
+            row.setStatus(step.status() == null || step.status().isBlank() ? SUCCEEDED : step.status());
+            rows.add(row);
+        }
+        return rows;
     }
 
     /** 超长时截断。空白变成 null，让表里留空。 */

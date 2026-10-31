@@ -45,7 +45,7 @@ class RedisUnavailableTest {
                 new SessionTurnGuard(cache, 120),
                 (tenant, user, session, channel, text) -> {
                 },
-                (tenant, user, session, trigger, status, runId, input, output, error, started) -> {
+                (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
                 });
 
         assertThatThrownBy(() -> chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null)))

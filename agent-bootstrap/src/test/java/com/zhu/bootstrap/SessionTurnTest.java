@@ -42,7 +42,7 @@ class SessionTurnTest {
                 turns,
                 (tenant, user, session, channel, text) -> {
                 },
-                (tenant, user, session, trigger, status, runId, input, output, error, started) -> {
+                (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
                 });
 
         chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null));
