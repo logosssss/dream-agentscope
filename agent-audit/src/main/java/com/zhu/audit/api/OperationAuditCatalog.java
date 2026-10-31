@@ -1,7 +1,9 @@
 package com.zhu.audit.api;
 
+import java.util.List;
+
 /**
- * 登记后台操作审计。不改业务结果，也不写前后快照。
+ * 登记和查看后台操作审计。不改业务结果，也不写前后快照。
  */
 public interface OperationAuditCatalog {
 
@@ -14,4 +16,9 @@ public interface OperationAuditCatalog {
             String operation,
             String objectType,
             String objectId);
+
+    /**
+     * 最近的操作。条数默认由调用方给出，实现侧再压到上限。
+     */
+    List<OperationAuditSummary> recent(int limit);
 }

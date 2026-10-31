@@ -96,6 +96,10 @@ class AdminContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(get("/api/admin/operation-audits").header(CallerTokens.HEADER, "test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/admin/deletion-requests/req-a/decision")
                         .header(CallerTokens.HEADER, "test-token")
                         .contentType(MediaType.APPLICATION_JSON)

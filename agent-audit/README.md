@@ -51,7 +51,7 @@
 
 `POST /api/deletion-requests` 追加 `data_deletion_request`。状态是 `PENDING`。类型只接受 `SESSION` / `ATTACHMENT` / `ALL`。原因最长 1024 字。不执行删除，也不写删除结果。`POST /api/admin/deletion-requests/{requestId}/decision` 把待处理改成 `APPROVED` 或 `REJECTED`。已经决定过再决定一次返回冲突。批准后仍不执行删除。
 
-`POST /api/admin/operation-audits` 追加 `operation_audit`。空白租户按空串。不写前后快照、IP 和 UA。其它管理接口还不自动记这一行。
+`POST /api/admin/operation-audits` 追加 `operation_audit`。空白租户按空串。不写前后快照、IP 和 UA。`GET /api/admin/operation-audits` 看最近的操作，默认 50 条，最多 100 条。其它管理接口还不自动记这一行。
 
 `POST /api/admin/tenants` 登记 `tenant`。状态是 `ACTIVE`，套餐是 `standard`。同一标识再登记一次返回冲突。用户进程在 MySQL 打开时只允许这个状态的租户对话。停用还不在这里改。
 

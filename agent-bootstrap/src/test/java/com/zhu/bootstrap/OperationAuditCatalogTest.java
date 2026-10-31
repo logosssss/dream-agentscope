@@ -8,17 +8,20 @@ import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * 后台操作审计只登记目录。不连接 MySQL，也不改业务表。
+ * 后台操作审计只登记和列出目录。不连接 MySQL，也不改业务表。
  */
 class OperationAuditCatalogTest {
 
-    /** 空白租户按空串。空白对象标识留空。缺操作人时拒绝。 */
+    /** 空白租户按空串。空白对象标识留空。缺操作人时拒绝。空列表原样返回。 */
     @Test
     void recordInsertsWithoutSnapshots() {
         OperationAuditMapper audits = mock(OperationAuditMapper.class);
@@ -38,5 +41,8 @@ class OperationAuditCatalogTest {
         verify(audits).insert(saved.capture());
         assertThat(saved.getValue().getTenantId()).isEmpty();
         assertThat(saved.getValue().getObjectId()).isNull();
+
+        when(audits.recent(50)).thenReturn(List.of());
+        assertThat(catalog.recent(50)).isEmpty();
     }
 }

@@ -6,11 +6,13 @@ import com.zhu.audit.infrastructure.persistence.OperationAuditMapper;
 import com.zhu.audit.infrastructure.persistence.entity.OperationAudit;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记后台操作审计。只在存储开关打开时创建。不写前后快照。
+ * 登记和查看后台操作审计。只在存储开关打开时创建。不写前后快照。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -28,7 +30,7 @@ public class MysqlOperationAuditCatalog implements OperationAuditCatalog {
 
     private final OperationAuditMapper audits;
 
-    /** 插入用 Mapper。校验失败不写库。 */
+    /** 插入和列表共用 Mapper。校验失败不写库。 */
     public MysqlOperationAuditCatalog(OperationAuditMapper audits) {
         this.audits = audits;
     }
@@ -61,5 +63,24 @@ public class MysqlOperationAuditCatalog implements OperationAuditCatalog {
         row.setObjectId(savedObject);
         audits.insert(row);
         return new OperationAuditSummary(operatorId, savedTenant, operation, objectType, savedObject);
+    }
+
+    /** 条数和审计查询用同一套上限。空结果返回空列表。 */
+    @Override
+    public List<OperationAuditSummary> recent(int limit) {
+        List<OperationAudit> rows = audits.recent(AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        List<OperationAuditSummary> entries = new ArrayList<>(rows.size());
+        for (OperationAudit row : rows) {
+            entries.add(new OperationAuditSummary(
+                    row.getOperatorId(),
+                    row.getTenantId(),
+                    row.getOperation(),
+                    row.getObjectType(),
+                    row.getObjectId()));
+        }
+        return List.copyOf(entries);
     }
 }

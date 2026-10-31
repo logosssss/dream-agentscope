@@ -41,6 +41,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/model-prices` | 再插入一行价格。不改旧行。取价时用生效开始最晚且仍有效的一行 |
 | `POST /api/admin/model-configs` | 登记一条模型配置，版本固定 `1.0.0`。不接到对话，也不解析参数。MySQL 关闭时返回不可用 |
 | `POST /api/admin/retention-policies` | 登记一条数据保留策略。不执行清理。MySQL 关闭时返回不可用 |
+| `GET /api/admin/operation-audits` | 最近的后台操作，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `POST /api/admin/operation-audits` | 登记一条后台操作。不写前后快照，也不改业务结果。MySQL 关闭时返回不可用 |
 | `POST /api/admin/deletion-requests/{requestId}/decision` | 把待处理的删除请求改成 `APPROVED` 或 `REJECTED`。不执行删除 |
 | `POST /api/admin/eval-datasets` | 登记一个评测数据集，版本固定 `1.0.0`。不执行。MySQL 关闭时返回不可用 |
