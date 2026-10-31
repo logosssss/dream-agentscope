@@ -1,12 +1,14 @@
 package com.zhu.semantic.infrastructure.nacos;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 
 /**
- * 还没有 Nacos 地址时的提示词来源。每次都表示未配置，让 PromptService 走 fallback。
- * 容器里只能有一个 PromptSource。配上服务端地址后再换成监听器，不要两个一起注册。
+ * 没有 Nacos 地址时的提示词来源。每次都表示未配置，让 PromptService 走 fallback。
+ * 和监听器互斥。地址一旦配上，就只注册监听器。
  */
 @Component
+@ConditionalOnExpression("!T(org.springframework.util.StringUtils).hasText('${agentscope.nacos.server-addr:}')")
 public class AbsentPromptSource implements PromptSource {
 
     /**

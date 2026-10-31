@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-state`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-access`。测试依赖 `spring-boot-starter-test` 和 ArchUnit。
+依赖 `agent-common`、`agent-state`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-access`、`milvus-sdk-java`。测试依赖 `spring-boot-starter-test` 和 ArchUnit。管理进程不带这个客户端。
 
 `@SpringBootApplication(scanBasePackages = "com.zhu")` 会扫到兄弟包。如果只扫 `com.zhu.bootstrap`，接入层控制器和状态配置都不会生效。
 
@@ -22,9 +22,10 @@ mvn -pl agent-bootstrap -am spring-boot:run
 
 默认配置在 `src/main/resources/application.yml`：
 
-- 数据源、Redis 主机和 Milvus 地址来自环境变量。没配或连不上就退出。本进程执行 Flyway。连接池最大 20、最小空闲 5。
+- 数据源、Redis 主机和 Milvus 地址来自环境变量。没配或连不上就退出。连通后创建 `knowledge` 集合，字段含 `user_id` 和 `agent_id`，向量维度默认 1024。不写入、不检索。换嵌入模型要先删旧集合。本进程执行 Flyway。连接池最大 20、最小空闲 5。
 - `agentscope.distributed.mysql.enabled=true`，`create-if-not-exist` 保持 `false`。
 - 模型默认 `dashscope:qwen-plus`，可用环境变量 `AGENTSCOPE_MODEL` 覆盖。密钥不要写进这个文件。
+- `NACOS_ADDR` 为空时不建提示词客户端。配了也只监听提示词，拉失败用兜底，不让进程退出。
 
 `SPRING_DATASOURCE_URL`、`SPRING_DATASOURCE_USERNAME`、`AGENTSCOPE_REDIS_HOST`、`MILVUS_URI` 必须在环境里提供。密码用 `SPRING_DATASOURCE_PASSWORD`，可以为空。
 

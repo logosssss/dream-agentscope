@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common`。默认权限实现用到 Spring Boot 的条件装配。
+依赖 `agent-common` 和 `agentscope-extensions-nacos-prompt`。默认权限实现用到 Spring Boot 的条件装配。管理进程不依赖本模块，所以不带这个客户端。
 
 不能依赖 `agent-runtime`、`agent-access`。否则产品语义会被执行流程和 HTTP 细节污染。
 
@@ -49,7 +49,7 @@
 
 ### `infrastructure.nacos`
 
-`PromptSource` 是外部原文的缝。`AbsentPromptSource` 在没有 Nacos 地址时始终返回 null，不访问网络。配上服务端地址后再换成监听器，不要同时注册两个来源。当前不引入 Nacos 客户端，避免写死 namespace 和 server 地址。
+`PromptSource` 是外部原文的缝。`agentscope.nacos.server-addr` 为空时用 `AbsentPromptSource`，始终返回 null，不访问网络。配了地址才注册 `NacosPromptSource`，两者不要同时存在。监听器建不起来或拉取失败时，`PromptService` 仍用 fallback。不做动态配置、服务发现和 MCP。地址、命名空间和账号只来自环境变量。
 
 运行层的架构测试禁止依赖 `application` 和 `infrastructure`。业务工具和 Mapper 以后放 `infrastructure`，不要放进 `agent-runtime`。
 
@@ -57,4 +57,4 @@
 
 ## 还没有
 
-真正的 Nacos 监听和 `@Tool` 业务工具。目录里出现且有对应实现的工具，由运行层注册进这次 Agent 的 Toolkit。`conditions` 还不能解释。`param_schema` 只保存。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。
+`@Tool` 业务工具。目录里出现且有对应实现的工具，由运行层注册进这次 Agent 的 Toolkit。`conditions` 还不能解释。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。工具名、JSON 结构和安全护栏留在代码里。

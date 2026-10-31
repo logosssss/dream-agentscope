@@ -6,7 +6,7 @@ import java.net.URI;
 import java.util.logging.Logger;
 
 /**
- * Milvus 是否可达。这次只探测地址，不建集合，也不做检索。
+ * Milvus 是否可达。只探测地址。建集合在用户进程，不在这里做。
  */
 public final class MilvusProbe {
 

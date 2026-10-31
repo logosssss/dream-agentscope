@@ -30,6 +30,9 @@ agentscope:
       host: ""
   milvus:
     uri: ""
+  nacos:
+    # 测试不连 Nacos，即使本机配了地址。
+    server-addr: ""
   otel:
     # 测试不导出 span，即使本机配了采集器地址。
     endpoint: ""

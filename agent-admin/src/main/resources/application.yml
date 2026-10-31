@@ -35,6 +35,7 @@ agentscope:
       host: ${AGENTSCOPE_REDIS_HOST:}
       port: ${AGENTSCOPE_REDIS_PORT:6379}
   milvus:
+    # 管理进程只探测地址，不建集合。
     uri: ${MILVUS_URI:}
   caller:
     # 管理进程自己的调用方令牌，和用户进程分开。空则除存活和就绪外全部拒绝。

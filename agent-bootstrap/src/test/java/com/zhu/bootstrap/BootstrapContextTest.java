@@ -2,6 +2,8 @@ package com.zhu.bootstrap;
 
 import com.zhu.common.security.CallerTokens;
 import com.zhu.runtime.api.AgentExecutor;
+import com.zhu.semantic.infrastructure.nacos.AbsentPromptSource;
+import com.zhu.semantic.infrastructure.nacos.PromptSource;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import org.junit.jupiter.api.Test;
@@ -43,6 +45,8 @@ class BootstrapContextTest {
         assertThat(context.getBeansOfType(AgentExecutor.class)).hasSize(1);
         assertThat(context.getBeansOfType(HarnessAgent.class)).isEmpty();
         assertThat(context.getBeansOfType(DistributedStore.class)).isEmpty();
+        assertThat(context.getBeansOfType(PromptSource.class)).hasSize(1);
+        assertThat(context.getBean(PromptSource.class)).isInstanceOf(AbsentPromptSource.class);
         mvc.perform(get("/health/live"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));
