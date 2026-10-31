@@ -148,7 +148,9 @@ class ChatRunTest {
                 new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
                 new SessionTurnGuard(new FakeAccessCache(), 120),
                 sessions,
-                runs);
+                runs,
+                tenantId -> {
+                });
     }
 
     /** 最小请求。通道空则按页面。 */

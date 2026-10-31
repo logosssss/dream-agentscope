@@ -46,6 +46,8 @@ class RedisUnavailableTest {
                 (tenant, user, session, channel, text) -> {
                 },
                 (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
+                },
+                tenantId -> {
                 });
 
         assertThatThrownBy(() -> chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null)))

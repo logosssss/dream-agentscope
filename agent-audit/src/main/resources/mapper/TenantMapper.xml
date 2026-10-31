@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.TenantMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.TenantRecord">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="name" property="name"/>
+        <result column="plan" property="plan"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 标识唯一。对话只接受查到的这一行。 -->
+    <select id="findByTenantId" resultMap="BaseResultMap">
+        SELECT id, tenant_id, name, plan, status
+        FROM tenant
+        WHERE tenant_id = #{tenantId}
+    </select>
+</mapper>

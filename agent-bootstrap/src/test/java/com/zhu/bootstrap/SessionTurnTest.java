@@ -43,6 +43,8 @@ class SessionTurnTest {
                 (tenant, user, session, channel, text) -> {
                 },
                 (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
+                },
+                tenantId -> {
                 });
 
         chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null));

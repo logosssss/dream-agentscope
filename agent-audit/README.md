@@ -37,6 +37,8 @@
 
 `POST /api/admin/model-prices` 再插入一行 `model_price`。不改旧行。生效开始为空时用 UTC 现在。仓库不放单价。
 
+`POST /api/admin/tenants` 登记 `tenant`。状态是 `ACTIVE`，套餐是 `standard`。同一标识再登记一次返回冲突。用户进程在 MySQL 打开时只允许这个状态的租户对话。停用还不在这里改。
+
 ## 还没有
 
 退款不在这张表上做。付款只改状态。

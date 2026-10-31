@@ -34,6 +34,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/billing/confirmations` | 把对应草稿改成已确认，不重算金额。没有账单时返回找不到 |
 | `POST /api/admin/billing/invoices` | 把已确认的账单改成已开票，不重算金额。草稿要先确认 |
 | `POST /api/admin/billing/payments` | 把已开票的账单改成已付款，不重算金额。还没开票的不能付 |
+| `POST /api/admin/tenants` | 登记一个可用租户，套餐固定 `standard`。不建用户。MySQL 关闭时返回不可用 |
 | `GET /api/admin/model-prices` | 最近的模型价格，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `POST /api/admin/model-prices` | 再插入一行价格。不改旧行。取价时用生效开始最晚且仍有效的一行 |
 
@@ -43,4 +44,4 @@ mvn -pl agent-admin -am spring-boot:run
 
 ## 还没有
 
-用户账号登录。本进程不提供聊天接口，也不在批准后执行工具。仓库不放模型单价，也不放调用方令牌。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不停用租户。仓库不放模型单价，也不放调用方令牌。

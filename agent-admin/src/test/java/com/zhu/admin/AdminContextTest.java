@@ -83,6 +83,13 @@ class AdminContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/admin/tenants")
+                        .header(CallerTokens.HEADER, "test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tenantId\":\"t\",\"name\":\"示例\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/admin/billing/payments")
                         .header(CallerTokens.HEADER, "test-token")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -54,6 +54,7 @@ class AccessIdentityTest {
         SessionTurnGuard turns = new SessionTurnGuard(new FakeAccessCache(), 120);
         new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, turns, (tenant, user, session, channel, text) -> {
         }, (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
+        }, tenantId -> {
         }).chat(request);
 
         ArgumentCaptor<AgentRequest> sent = ArgumentCaptor.forClass(AgentRequest.class);

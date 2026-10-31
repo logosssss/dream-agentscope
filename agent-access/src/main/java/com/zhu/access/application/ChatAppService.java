@@ -1,6 +1,7 @@
 package com.zhu.access.application;
 
 import com.zhu.access.api.dto.ChatRequest;
+import com.zhu.audit.api.TenantGate;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
@@ -45,6 +46,11 @@ public class ChatAppService {
 
     private final RunLog runs;
 
+    private final TenantGate tenants;
+
+    /**
+     * 租户检查在额度和占锁之前。MySQL 关闭时检查放行。
+     */
     public ChatAppService(
             AgentExecutor executor,
             PromptService prompts,
@@ -52,7 +58,8 @@ public class ChatAppService {
             QuotaGuard quota,
             SessionTurnGuard turns,
             SessionIndex sessions,
-            RunLog runs) {
+            RunLog runs,
+            TenantGate tenants) {
         this.executor = executor;
         this.prompts = prompts;
         this.semantics = semantics;
@@ -60,6 +67,7 @@ public class ChatAppService {
         this.turns = turns;
         this.sessions = sessions;
         this.runs = runs;
+        this.tenants = tenants;
     }
 
     /**
@@ -68,6 +76,7 @@ public class ChatAppService {
      */
     public AgentResponse chat(ChatRequest request) {
         AgentRequest agentRequest = toRequest(request);
+        tenants.requireActive(agentRequest.tenantId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
         SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         long started = System.nanoTime();
@@ -90,6 +99,7 @@ public class ChatAppService {
      */
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
         AgentRequest agentRequest = toRequest(request);
+        tenants.requireActive(agentRequest.tenantId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
         SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         long started = System.nanoTime();
