@@ -5,6 +5,7 @@ import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
 import com.zhu.runtime.domain.middleware.AuditMiddleware;
 import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
+import io.agentscope.core.tracing.OtelTracingMiddleware;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import org.springframework.beans.factory.ObjectProvider;
@@ -27,6 +28,9 @@ public class HarnessAgentFactory {
     private final FileWriteLimitMiddleware fileWriteLimit;
 
     private final AgentShutdown shutdown;
+
+    /** 每个 Agent 共用这一份。构造函数只注册一次 Reactor 上下文传播，不连接采集器。 */
+    private final OtelTracingMiddleware tracing = new OtelTracingMiddleware();
 
     /** 写文件限制和审批都挂上。体积检查的顺序更靠前，超限内容不会进入审批。 */
     public HarnessAgentFactory(
@@ -61,6 +65,8 @@ public class HarnessAgentFactory {
             builder.workspace(properties.getWorkspace());
         }
         // 审计、写文件上限和审批走 Middleware。Hook 自 2.0.0 起标成删除，不再挂到 Builder 上。
+        // 追踪放在同顺序中间件的前面。没配导出地址时 span 被丢掉。
+        builder.middleware(tracing);
         builder.middleware(auditMiddleware);
         builder.middleware(fileWriteLimit);
         builder.middleware(approvalMiddleware);

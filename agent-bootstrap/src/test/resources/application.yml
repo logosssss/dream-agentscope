@@ -30,3 +30,6 @@ agentscope:
       host: ""
   milvus:
     uri: ""
+  otel:
+    # 测试不导出 span，即使本机配了采集器地址。
+    endpoint: ""
