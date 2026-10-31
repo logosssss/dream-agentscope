@@ -1,7 +1,7 @@
 package com.zhu.audit.api;
 
 /**
- * 审批记录口。ASK 决定落库走这里，推送由接入层订阅事件完成。
+ * 审批记录口。ASK 决定落库走这里。接入层另订阅事件，只记未发送通知。
  */
 public interface ApprovalRecorder {
 
