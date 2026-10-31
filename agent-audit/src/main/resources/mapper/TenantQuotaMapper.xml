@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.TenantQuotaMapper">
+
+    <!-- 只取启用的每日请求上限。已用量不读这张表。 -->
+    <select id="findDailyRequestLimit" resultType="java.lang.Long">
+        SELECT limit_value
+        FROM tenant_quota
+        WHERE tenant_id = #{tenantId}
+          AND quota_type = 'REQUESTS'
+          AND period = 'DAILY'
+          AND enabled = 1
+    </select>
+</mapper>

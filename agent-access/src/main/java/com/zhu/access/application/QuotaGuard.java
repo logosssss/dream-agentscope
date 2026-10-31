@@ -2,12 +2,14 @@ package com.zhu.access.application;
 
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.audit.api.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -36,21 +38,33 @@ public class QuotaGuard {
 
     private final Clock clock;
 
-    /** 运行时用系统时钟。带时钟的构造留给测试。 */
+    /** MySQL 关闭时为空，当日上限只用进程配置。 */
+    private final TenantQuotaLookup quotas;
+
+    /**
+     * 运行时用系统时钟。MySQL 打开时带上租户上限，没有这个 bean 就只用进程配置。
+     */
     @Autowired
-    public QuotaGuard(AccessCache cache, AccessLimitProperties limits) {
-        this(cache, limits, Clock.systemUTC());
+    public QuotaGuard(AccessCache cache, AccessLimitProperties limits, ObjectProvider<TenantQuotaLookup> quotas) {
+        this(cache, limits, Clock.systemUTC(), quotas.getIfAvailable());
     }
 
-    /** 测试注入时钟，方便把窗口拨到下一分钟。Spring 不用这个构造。 */
+    /** 测试注入时钟，方便把窗口拨到下一分钟。不查租户上限。 */
     public QuotaGuard(AccessCache cache, AccessLimitProperties limits, Clock clock) {
+        this(cache, limits, clock, null);
+    }
+
+    /** 测试同时注入时钟和租户上限。Spring 不用这个构造。 */
+    public QuotaGuard(AccessCache cache, AccessLimitProperties limits, Clock clock, TenantQuotaLookup quotas) {
         this.cache = cache;
         this.limits = limits;
         this.clock = clock;
+        this.quotas = quotas;
     }
 
     /**
      * 限额为 0 的项目跳过。没有请求标识就不做幂等。
+     * 租户有每日请求上限时用那一行，否则用进程配置。计数仍在 Redis。
      * 超限抛 QUOTA_EXCEEDED，重复标识抛 CONFLICT。
      */
     public void check(String tenantId, String userId, String endpoint, String requestId) {
@@ -61,7 +75,13 @@ public class QuotaGuard {
         }
         String user = segment(userId);
         String tenant = segment(tenantId);
-        int dailyLimit = limits.getDailyLimit();
+        long dailyLimit = limits.getDailyLimit();
+        if (quotas != null) {
+            Long override = quotas.dailyRequestLimit(tenantId);
+            if (override != null) {
+                dailyLimit = override;
+            }
+        }
         if (dailyLimit > 0) {
             String day = DAY.format(clock.instant());
             long used = cache.increment("quota:" + tenant + ":" + user + ":" + day, QUOTA_TTL);
