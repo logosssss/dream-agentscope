@@ -9,6 +9,7 @@ import com.zhu.runtime.api.AgentResponse;
 import com.zhu.runtime.api.AgentStreamEvent;
 import com.zhu.runtime.api.UsageMeter;
 import com.zhu.runtime.config.AgentRuntimeProperties;
+import com.zhu.runtime.domain.ModelTextGuard;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentResultEvent;
@@ -46,7 +47,7 @@ public class AgentExecutionService implements AgentExecutor {
             long started = System.nanoTime();
             Msg reply = agent.call(request.userText(), context(request))
                     .block(Duration.ofSeconds(properties.getTimeoutSeconds()));
-            String text = reply == null || reply.getTextContent() == null ? "" : reply.getTextContent();
+            String text = ModelTextGuard.outbound(reply == null ? null : reply.getTextContent());
             String runId = reply == null || reply.getId() == null ? Ids.newId() : reply.getId();
             ModelCallUsage.record(
                     usages,
@@ -114,14 +115,15 @@ public class AgentExecutionService implements AgentExecutor {
         }
     }
 
-    /** 用户、会话和输入缺一不可，否则状态无法隔离。 */
-    private static void require(AgentRequest request) {
+    /** 用户、会话和输入缺一不可。过长的输入和未替换的系统提示词不能进模型。 */
+    private void require(AgentRequest request) {
         if (request == null
                 || blank(request.userId())
                 || blank(request.sessionId())
                 || blank(request.userText())) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "userId, sessionId and userText are required");
         }
+        ModelTextGuard.beforeCall(request.systemPrompt(), request.userText(), properties.getMaxUserChars());
     }
 
     private static boolean blank(String value) {

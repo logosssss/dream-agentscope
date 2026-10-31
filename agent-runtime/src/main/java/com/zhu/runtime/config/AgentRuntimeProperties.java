@@ -26,6 +26,9 @@ public class AgentRuntimeProperties {
     /** 等待模型返回的最长时间，单位秒。 */
     private int timeoutSeconds = 120;
 
+    /** 用户输入的字符上限。小于 1 时按 32768，避免配成 0 后不再限制。 */
+    private int maxUserChars = 32768;
+
     /** 模型坐标。 */
     public String getModel() {
         return model;
@@ -78,5 +81,14 @@ public class AgentRuntimeProperties {
 
     public void setTimeoutSeconds(int timeoutSeconds) {
         this.timeoutSeconds = timeoutSeconds;
+    }
+
+    /** 用户输入字符上限。 */
+    public int getMaxUserChars() {
+        return maxUserChars;
+    }
+
+    public void setMaxUserChars(int maxUserChars) {
+        this.maxUserChars = maxUserChars;
     }
 }

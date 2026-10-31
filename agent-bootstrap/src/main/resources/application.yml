@@ -31,6 +31,8 @@ agentscope:
     timeout-seconds: 120
     # 单次写文件的 UTF-8 字节上限。超过的 write_file / write_text_file / insert_text_file 不会执行。
     max-write-bytes: 5242880
+    # 用户输入的字符上限。系统提示词里的 {{变量}} 未替换时拒绝进入模型。
+    max-user-chars: 32768
   startup:
     dependencies:
       # 正式启动探测三个依赖。测试配置把它关掉。

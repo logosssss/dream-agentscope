@@ -1,6 +1,7 @@
 package com.zhu.runtime.application;
 
 import com.zhu.runtime.api.AgentStreamEvent;
+import com.zhu.runtime.domain.ModelTextGuard;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.event.RequireUserConfirmEvent;
@@ -45,7 +46,7 @@ public final class AgentStreamEvents {
             if (message == null || message.getTextContent() == null) {
                 return "";
             }
-            return message.getTextContent();
+            return ModelTextGuard.outbound(message.getTextContent());
         }
         return "";
     }
