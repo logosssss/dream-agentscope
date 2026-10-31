@@ -2,6 +2,7 @@ package com.zhu.access.application;
 
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.audit.api.QuotaUsageWriter;
 import com.zhu.audit.api.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
@@ -9,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class QuotaGuard {
+
+    private static final Logger log = Logger.getLogger(QuotaGuard.class.getName());
 
     /** 当日额度保留两天，跨日查询还能看到昨天的计数。 */
     static final Duration QUOTA_TTL = Duration.ofHours(48);
@@ -41,30 +45,49 @@ public class QuotaGuard {
     /** MySQL 关闭时为空，当日上限只用进程配置。 */
     private final TenantQuotaLookup quotas;
 
+    /** MySQL 关闭时为空。不限额的请求不写流水。 */
+    private final QuotaUsageWriter usage;
+
     /**
-     * 运行时用系统时钟。MySQL 打开时带上租户上限，没有这个 bean 就只用进程配置。
+     * 运行时用系统时钟。MySQL 打开时带上租户上限和流水，没有对应 bean 就跳过那一项。
      */
     @Autowired
-    public QuotaGuard(AccessCache cache, AccessLimitProperties limits, ObjectProvider<TenantQuotaLookup> quotas) {
-        this(cache, limits, Clock.systemUTC(), quotas.getIfAvailable());
+    public QuotaGuard(
+            AccessCache cache,
+            AccessLimitProperties limits,
+            ObjectProvider<TenantQuotaLookup> quotas,
+            ObjectProvider<QuotaUsageWriter> usage) {
+        this(cache, limits, Clock.systemUTC(), quotas.getIfAvailable(), usage.getIfAvailable());
     }
 
-    /** 测试注入时钟，方便把窗口拨到下一分钟。不查租户上限。 */
+    /** 测试注入时钟，方便把窗口拨到下一分钟。不查租户上限，也不写流水。 */
     public QuotaGuard(AccessCache cache, AccessLimitProperties limits, Clock clock) {
-        this(cache, limits, clock, null);
+        this(cache, limits, clock, null, null);
     }
 
-    /** 测试同时注入时钟和租户上限。Spring 不用这个构造。 */
+    /** 测试注入租户上限。不写流水。 */
     public QuotaGuard(AccessCache cache, AccessLimitProperties limits, Clock clock, TenantQuotaLookup quotas) {
+        this(cache, limits, clock, quotas, null);
+    }
+
+    /** 测试同时注入时钟、租户上限和流水。Spring 不用这个构造。 */
+    public QuotaGuard(
+            AccessCache cache,
+            AccessLimitProperties limits,
+            Clock clock,
+            TenantQuotaLookup quotas,
+            QuotaUsageWriter usage) {
         this.cache = cache;
         this.limits = limits;
         this.clock = clock;
         this.quotas = quotas;
+        this.usage = usage;
     }
 
     /**
      * 限额为 0 的项目跳过。没有请求标识就不做幂等。
      * 租户有每日请求上限时用那一行，否则用进程配置。计数仍在 Redis。
+     * 当日计数通过后才记流水。流水写失败不改变这次请求。超限的那一次不记。
      * 超限抛 QUOTA_EXCEEDED，重复标识抛 CONFLICT。
      */
     public void check(String tenantId, String userId, String endpoint, String requestId) {
@@ -88,6 +111,7 @@ public class QuotaGuard {
             if (used > dailyLimit) {
                 throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "daily quota exceeded");
             }
+            recordDailyRequest(tenantId, userId, endpoint);
         }
         int perMinute = limits.getPerMinute();
         if (perMinute > 0) {
@@ -96,6 +120,20 @@ public class QuotaGuard {
             if (used > perMinute) {
                 throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "rate limit exceeded");
             }
+        }
+    }
+
+    /**
+     * 流水失败只记一条警告。计数已经在 Redis 里，不能再把这次请求打成失败。
+     */
+    private void recordDailyRequest(String tenantId, String userId, String endpoint) {
+        if (usage == null) {
+            return;
+        }
+        try {
+            usage.recordDailyRequest(tenantId, userId, endpoint);
+        } catch (RuntimeException ex) {
+            log.warning("quota usage record failed");
         }
     }
 
