@@ -11,11 +11,11 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 用量只在回复带 token 时记录，明细不含提示词。
+ * 用量只在回复带 token 时记录，明细不含提示词。用量表失败不改变回复。
  */
 class UsageMeterTest {
 
-    /** 有用量时带上模型名和输入输出 token。 */
+    /** 有用量时带上身份、模型名和输入输出 token。 */
     @Test
     void recordsTokensWhenReplyHasUsage() {
         Msg reply = Msg.builder()
@@ -25,9 +25,13 @@ class UsageMeterTest {
                 .build();
         Captured captured = new Captured();
 
-        ModelCallUsage.record(captured, "user-a", "dashscope:qwen-plus", reply, System.nanoTime());
+        ModelCallUsage.record(captured, "tenant-a", "user-a", "session-a", "run-1", "dashscope:qwen-plus", reply, System.nanoTime());
 
+        assertThat(captured.called).isTrue();
+        assertThat(captured.tenantId).isEqualTo("tenant-a");
         assertThat(captured.userId).isEqualTo("user-a");
+        assertThat(captured.sessionId).isEqualTo("session-a");
+        assertThat(captured.runId).isEqualTo("run-1");
         assertThat(captured.model).isEqualTo("dashscope:qwen-plus");
         assertThat(captured.inputTokens).isEqualTo(3);
         assertThat(captured.outputTokens).isEqualTo(5);
@@ -40,31 +44,52 @@ class UsageMeterTest {
         Msg reply = Msg.builder().role(MsgRole.ASSISTANT).textContent("hi").build();
         Captured captured = new Captured();
 
-        ModelCallUsage.record(captured, "user-a", "m", reply, System.nanoTime());
+        ModelCallUsage.record(captured, "t", "user-a", "s", "run-1", "m", reply, System.nanoTime());
 
         assertThat(captured.called).isFalse();
     }
 
-    /** 审计明细只有模型和数字。模型名里的换行会被换成空格。 */
+    /** 审计明细只有模型和数字。模型名里的换行会被换成空格。用量表同时收到 token。 */
     @Test
     void detailOmitsReplyText() {
         String[] detail = new String[1];
-        UsageMeter meter = new AuditUsageMeter((action, actorId, text) -> detail[0] = text);
+        long[] tokens = new long[2];
+        UsageMeter meter = new AuditUsageMeter((action, actorId, text) -> detail[0] = text, (tenant, user, session, run, model, input, output) -> {
+            tokens[0] = input;
+            tokens[1] = output;
+        });
 
-        meter.onCall("user-a", "dashscope:qwen-plus\nextra", 3, 5, 12);
+        meter.onCall("t", "user-a", "s", "run-1", "dashscope:qwen-plus\nextra", 3, 5, 12);
 
         assertThat(detail[0]).isEqualTo("model=dashscope:qwen-plus extra inputTokens=3 outputTokens=5 latencyMillis=12");
         assertThat(detail[0]).doesNotContain("回复");
+        assertThat(tokens).containsExactly(3L, 5L);
     }
 
-    /** 审计写失败时不向外抛，调用方仍可返回回复。 */
+    /** 审计写失败时不向外抛，用量表仍然会记。 */
     @Test
     void auditFailureDoesNotEscape() {
+        boolean[] wrote = new boolean[1];
         UsageMeter meter = new AuditUsageMeter((action, actorId, detail) -> {
+            throw new IllegalStateException("db down");
+        }, (tenant, user, session, run, model, input, output) -> wrote[0] = true);
+
+        meter.onCall("t", "user-a", "s", "run-1", "m", 1, 2, 3);
+
+        assertThat(wrote[0]).isTrue();
+    }
+
+    /** 用量表写失败时不向外抛，审计仍然会记。 */
+    @Test
+    void tokenTableFailureDoesNotEscape() {
+        String[] action = new String[1];
+        UsageMeter meter = new AuditUsageMeter((name, actorId, detail) -> action[0] = name, (tenant, user, session, run, model, input, output) -> {
             throw new IllegalStateException("db down");
         });
 
-        meter.onCall("user-a", "m", 1, 2, 3);
+        meter.onCall("t", "user-a", "s", "run-1", "m", 1, 2, 3);
+
+        assertThat(action[0]).isEqualTo("model.usage");
     }
 
     /** 测试里记下最后一次调用。 */
@@ -72,7 +97,13 @@ class UsageMeterTest {
 
         private boolean called;
 
+        private String tenantId;
+
         private String userId;
+
+        private String sessionId;
+
+        private String runId;
 
         private String model;
 
@@ -82,10 +113,22 @@ class UsageMeterTest {
 
         private long latencyMillis;
 
+        /** 保存调用参数。 */
         @Override
-        public void onCall(String userId, String model, int inputTokens, int outputTokens, long latencyMillis) {
+        public void onCall(
+                String tenantId,
+                String userId,
+                String sessionId,
+                String runId,
+                String model,
+                int inputTokens,
+                int outputTokens,
+                long latencyMillis) {
             this.called = true;
+            this.tenantId = tenantId;
             this.userId = userId;
+            this.sessionId = sessionId;
+            this.runId = runId;
             this.model = model;
             this.inputTokens = inputTokens;
             this.outputTokens = outputTokens;

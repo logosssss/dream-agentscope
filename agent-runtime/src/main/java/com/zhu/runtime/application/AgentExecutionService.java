@@ -46,9 +46,17 @@ public class AgentExecutionService implements AgentExecutor {
             long started = System.nanoTime();
             Msg reply = agent.call(request.userText(), context(request))
                     .block(Duration.ofSeconds(properties.getTimeoutSeconds()));
-            ModelCallUsage.record(usages, request.userId(), properties.getModel(), reply, started);
             String text = reply == null || reply.getTextContent() == null ? "" : reply.getTextContent();
             String runId = reply == null || reply.getId() == null ? Ids.newId() : reply.getId();
+            ModelCallUsage.record(
+                    usages,
+                    request.tenantId(),
+                    request.userId(),
+                    request.sessionId(),
+                    runId,
+                    properties.getModel(),
+                    reply,
+                    started);
             return new AgentResponse(runId, text);
         }
     }
@@ -66,7 +74,17 @@ public class AgentExecutionService implements AgentExecutor {
             return agent.streamEvents(request.userText(), context(request))
                     .doOnNext(event -> {
                         if (event instanceof AgentResultEvent result) {
-                            ModelCallUsage.record(usages, request.userId(), properties.getModel(), result.getResult(), started);
+                            Msg message = result.getResult();
+                            String runId = message == null || message.getId() == null ? Ids.newId() : message.getId();
+                            ModelCallUsage.record(
+                                    usages,
+                                    request.tenantId(),
+                                    request.userId(),
+                                    request.sessionId(),
+                                    runId,
+                                    properties.getModel(),
+                                    message,
+                                    started);
                         }
                     })
                     .map(AgentStreamEvents::from)
