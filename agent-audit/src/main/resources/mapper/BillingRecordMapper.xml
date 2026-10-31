@@ -42,4 +42,14 @@
           AND period_end = #{periodEnd}
           AND status = 'CONFIRMED'
     </update>
+
+    <!-- 草稿和已确认的行不会被付款更新覆盖。 -->
+    <update id="payInvoiced">
+        UPDATE billing_record
+        SET status = 'PAID'
+        WHERE tenant_id = #{tenantId}
+          AND period_start = #{periodStart}
+          AND period_end = #{periodEnd}
+          AND status = 'INVOICED'
+    </update>
 </mapper>

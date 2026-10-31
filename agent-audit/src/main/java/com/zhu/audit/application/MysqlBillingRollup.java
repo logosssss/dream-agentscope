@@ -28,6 +28,8 @@ public class MysqlBillingRollup implements BillingRollup {
 
     private static final String INVOICED = "INVOICED";
 
+    private static final String PAID = "PAID";
+
     private final TokenUsageMapper usages;
 
     private final BillingRecordMapper bills;
@@ -120,6 +122,29 @@ public class MysqlBillingRollup implements BillingRollup {
             throw new BusinessException(ErrorCode.CONFLICT, "billing record is not confirmed");
         }
         return summary(tenantId, periodStart, periodEnd, existing, INVOICED);
+    }
+
+    /**
+     * 租户或区间为空时拒绝。只有已开票的账单能付款，不重算金额。
+     * 更新没抢到行时按冲突处理。
+     */
+    @Override
+    public BillingSummary pay(String tenantId, LocalDateTime periodStart, LocalDateTime periodEnd) {
+        if (tenantId == null || tenantId.isBlank() || periodStart == null || periodEnd == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "billing period is invalid");
+        }
+        BillingRecord existing = bills.findByPeriod(tenantId, periodStart, periodEnd);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "billing record not found");
+        }
+        if (!INVOICED.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "billing record is not invoiced");
+        }
+        int updated = bills.payInvoiced(tenantId, periodStart, periodEnd);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "billing record is not invoiced");
+        }
+        return summary(tenantId, periodStart, periodEnd, existing, PAID);
     }
 
     /** 金额保持原行。空金额记 0，空币种记 CNY。 */

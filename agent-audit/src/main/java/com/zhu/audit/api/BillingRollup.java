@@ -3,7 +3,7 @@ package com.zhu.audit.api;
 import java.time.LocalDateTime;
 
 /**
- * 把一个租户在一段时间内的 token 用量收成账单。付款不在这里。
+ * 把一个租户在一段时间内的 token 用量收成账单。确认、开票和付款都不重算金额。
  */
 public interface BillingRollup {
 
@@ -24,4 +24,10 @@ public interface BillingRollup {
      * 草稿不能直接开票。没有这张账单时按找不到处理。已经不是已确认时按冲突处理。
      */
     BillingSummary invoice(String tenantId, LocalDateTime periodStart, LocalDateTime periodEnd);
+
+    /**
+     * 把已开票的账单改成 PAID。不重算 token 和金额。
+     * 草稿和已确认的不能直接付款。没有这张账单时按找不到处理。已经不是已开票时按冲突处理。
+     */
+    BillingSummary pay(String tenantId, LocalDateTime periodStart, LocalDateTime periodEnd);
 }
