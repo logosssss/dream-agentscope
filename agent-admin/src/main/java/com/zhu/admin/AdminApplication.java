@@ -4,6 +4,7 @@ import com.zhu.audit.application.MysqlBillingRollup;
 import com.zhu.audit.application.MysqlEvalCaseCatalog;
 import com.zhu.audit.application.MysqlEvalRunCatalog;
 import com.zhu.audit.application.MysqlEvalDatasetCatalog;
+import com.zhu.audit.application.MysqlModelConfigCatalog;
 import com.zhu.audit.application.MysqlModelPriceCatalog;
 import com.zhu.audit.application.MysqlQuotaUsageQuery;
 import com.zhu.audit.application.MysqlTenantDirectory;
@@ -25,6 +26,7 @@ import org.springframework.context.annotation.Import;
         MybatisApprovalDecider.class,
         MysqlBillingRollup.class,
         MysqlModelPriceCatalog.class,
+        MysqlModelConfigCatalog.class,
         MysqlTenantDirectory.class,
         MysqlTenantQuota.class,
         MysqlQuotaUsageQuery.class,
