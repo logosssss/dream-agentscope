@@ -7,6 +7,7 @@ import com.zhu.audit.application.MysqlEvalDatasetCatalog;
 import com.zhu.audit.application.MysqlModelConfigCatalog;
 import com.zhu.audit.application.MysqlDeletionRequestDecider;
 import com.zhu.audit.application.MysqlOperationAuditCatalog;
+import com.zhu.audit.application.MysqlSafetyInterventionCatalog;
 import com.zhu.audit.application.MysqlRetentionPolicyCatalog;
 import com.zhu.audit.application.MysqlModelPriceCatalog;
 import com.zhu.audit.application.MysqlQuotaUsageQuery;
@@ -22,6 +23,7 @@ import org.springframework.context.annotation.Import;
 /**
  * 管理进程入口。只扫 com.zhu.admin。
  * 审计只引入查询和决定实现，不扫描写入用的 Recorder，避免在 8100 上再挂一套记录器。
+ * 安全干预只引入目录，不引入 SafetyInterventionRecorder。
  */
 @SpringBootApplication(scanBasePackages = "com.zhu.admin")
 @Import({
@@ -32,6 +34,7 @@ import org.springframework.context.annotation.Import;
         MysqlModelConfigCatalog.class,
         MysqlRetentionPolicyCatalog.class,
         MysqlOperationAuditCatalog.class,
+        MysqlSafetyInterventionCatalog.class,
         MysqlDeletionRequestDecider.class,
         MysqlTenantDirectory.class,
         MysqlTenantQuota.class,

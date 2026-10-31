@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.SafetyInterventionMapper">
+
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.SafetyIntervention">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="user_id" property="userId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="source" property="source"/>
+        <result column="summary" property="summary"/>
+    </resultMap>
+
+    <!-- 不带用户原文。创建时间只用于排序。 -->
+    <select id="recent" resultMap="ListResultMap">
+        SELECT id, tenant_id, user_id, session_id, risk_level, source, summary
+        FROM safety_intervention
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

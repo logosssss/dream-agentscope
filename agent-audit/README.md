@@ -20,6 +20,7 @@
 | `api` | `ApprovalDecider` | 把 PENDING 改成 APPROVED 或 REJECTED。不写执行结果 |
 | `api` | `BillingRollup` | 按租户和区间把 `token_usage` 收成一张 `DRAFT` |
 | `api` | `SafetyInterventionRecorder` | 记下一次安全干预。只写升高和危机，摘要不含用户原文 |
+| `api` | `SafetyInterventionCatalog` | 最近的安全干预。不含用户原文 |
 | `application` | `MysqlReadiness` | 校验数据库连接。关闭时跳过，不跑业务 SQL |
 | `domain.event` | `ApprovalRequestedEvent` | ASK 时的跨模块事件。待确认列表不靠订阅它 |
 | `infrastructure.persistence` | `MybatisAuditRecorder`、`MybatisApprovalRecorder` | MySQL 打开时的写入。审批新单为 `PENDING`，审计来源为 `EXECUTOR` |
@@ -60,8 +61,8 @@
 
 当日计数通过后追加 `quota_usage_log`。数量是 1，不填 `run_id`，因为运行还没开始。不限额时不写。写失败不改变这次请求。`GET /api/admin/quota-usage` 按租户看最近的流水，默认 50 条，最多 100 条。负数回补还不写。
 
-安全门在升高或危机时追加 `safety_intervention`。来源是 `KEYWORD` / `SEMANTIC` / `JUDGE_FAILED`。摘要是固定短句，不含用户原文。写失败不改变已经选出的话术。MySQL 关闭时不写。管理列表还没有。
+安全门在升高或危机时追加 `safety_intervention`。来源是 `KEYWORD` / `SEMANTIC` / `JUDGE_FAILED`。摘要是固定短句，不含用户原文。写失败不改变已经选出的话术。MySQL 关闭时不写。`GET /api/admin/safety-interventions` 看最近的干预，默认 50 条，最多 100 条。管理进程只引目录，不引记录器。
 
 ## 还没有
 
-退款不在这张表上做。付款只改状态。租户、额度、账单、单价、模型配置、评测、保留和删除目录以后才抽到 `agent-ops`，现在仍放本模块。`agent-audit` 以后只留事件审计、审批、通知、待办和后台操作审计。现在不拆。`GET /api/admin/safety-interventions` 还没有。
+退款不在这张表上做。付款只改状态。租户、额度、账单、单价、模型配置、评测、保留和删除目录以后才抽到 `agent-ops`，现在仍放本模块。`agent-audit` 以后只留事件审计、审批、通知、待办和后台操作审计。现在不拆。

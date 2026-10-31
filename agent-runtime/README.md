@@ -96,6 +96,6 @@ AgentStreamEvent   接入层再写成 SSE
 
 ## 还没有
 
-按产品预构建多份 Builder。进出模型仍检查长度和未替换的 `{{变量}}`。关键词命中 `CRITICAL` 时换成危机话术，不再问语义判定。语义判定失败按 `ELEVATED`。干预写失败不改变话术。管理端干预列表还没有。RocketMQ 客户端和消费者还没接。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。产品任务替换 `SyncAgentTaskHandler`，不要再注册第二个 `AgentTaskHandler`。
+按产品预构建多份 Builder。进出模型仍检查长度和未替换的 `{{变量}}`。关键词命中 `CRITICAL` 时换成危机话术，不再问语义判定。语义判定失败按 `ELEVATED`。干预写失败不改变话术。管理列表在 `agent-admin`。RocketMQ 客户端和消费者还没接。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。产品任务替换 `SyncAgentTaskHandler`，不要再注册第二个 `AgentTaskHandler`。
 
 `ApprovalMiddleware` 在 `ASK` 时把本次工具标成 `ASKING` 并发出事件，在 `DENY` 时把这次工具从后续执行里拿掉。同一用户、会话和工具已有未执行的批准单时，这次调用放行，结束后回写执行状态，不存工具输出。它不改框架的 `PermissionEngine`：默认权限上下文是 trivial，临时加规则要么这次判定读不到，要么会让同一次调用里没匹配到的工具也变成询问。框架自 2.0.0 起把 `Hook` 标成删除，执行策略挂在 `Middleware` 上。

@@ -4,6 +4,7 @@ import com.zhu.audit.api.ApprovalDecider;
 import com.zhu.audit.api.ApprovalRecorder;
 import com.zhu.audit.api.AuditQuery;
 import com.zhu.audit.api.AuditRecorder;
+import com.zhu.audit.api.SafetyInterventionRecorder;
 import com.zhu.common.security.CallerTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,7 @@ class AdminContextTest {
         assertThat(context.getBeansOfType(ApprovalDecider.class)).hasSize(1);
         assertThat(context.getBeansOfType(AuditRecorder.class)).isEmpty();
         assertThat(context.getBeansOfType(ApprovalRecorder.class)).isEmpty();
+        assertThat(context.getBeansOfType(SafetyInterventionRecorder.class)).isEmpty();
         mvc.perform(get("/health/live"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));
@@ -97,6 +99,10 @@ class AdminContextTest {
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(get("/api/admin/operation-audits").header(CallerTokens.HEADER, "test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(get("/api/admin/safety-interventions").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));

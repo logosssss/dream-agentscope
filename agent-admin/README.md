@@ -42,6 +42,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/model-configs` | 登记一条模型配置，版本固定 `1.0.0`。不接到对话，也不解析参数。MySQL 关闭时返回不可用 |
 | `POST /api/admin/retention-policies` | 登记一条数据保留策略。不执行清理。MySQL 关闭时返回不可用 |
 | `GET /api/admin/operation-audits` | 最近的后台操作，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
+| `GET /api/admin/safety-interventions` | 最近的安全干预，默认 50 条，最多 100 条。不含用户原文。MySQL 关闭时返回不可用 |
 | `POST /api/admin/operation-audits` | 登记一条后台操作。不写前后快照，也不改业务结果。MySQL 关闭时返回不可用 |
 | `POST /api/admin/deletion-requests/{requestId}/decision` | 把待处理的删除请求改成 `APPROVED` 或 `REJECTED`。不执行删除 |
 | `POST /api/admin/eval-datasets` | 登记一个评测数据集，版本固定 `1.0.0`。不执行。MySQL 关闭时返回不可用 |
@@ -50,7 +51,7 @@ mvn -pl agent-admin -am spring-boot:run
 
 业务接口要带 `X-Caller-Token`，值来自 `AGENTSCOPE_ADMIN_TOKEN`，和用户进程的令牌分开。没配或对不上时 HTTP 401。存活和就绪不校验。这不是用户登录。
 
-扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery`、`ApprovalDecider` 和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`ApprovalRecorder`。申请单的写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
+扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery`、`ApprovalDecider` 和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`ApprovalRecorder`、`SafetyInterventionRecorder`。申请单和干预写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
 
 ## 还没有
 
