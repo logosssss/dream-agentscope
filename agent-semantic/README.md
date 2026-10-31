@@ -48,6 +48,8 @@
 
 运行层的架构测试禁止依赖 `application` 和 `infrastructure`。业务工具和 Mapper 以后放 `infrastructure`，不要放进 `agent-runtime`。
 
+`PlatformSemanticProvider` 是 `ProductSemanticProvider` 的默认实现。Agent 标识和最大轮数读 `agentscope.runtime` 的同名配置，无效时分别用 `product-agent` 和 `20`。提示词兜底是 `.`。`NoToolCatalog` 目前不返回工具。
+
 ## 还没有
 
-`ProductSemanticProvider` 的实现、真正的 Nacos 监听、`@Tool` 业务工具。`conditions` 还不能解释。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。
+真正的 Nacos 监听、`@Tool` 业务工具，以及把目录里的工具注册进运行层。`conditions` 还不能解释。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。

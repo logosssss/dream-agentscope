@@ -6,6 +6,7 @@ import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.semantic.api.PlatformPrompt;
 import com.zhu.semantic.api.PromptService;
+import com.zhu.semantic.contract.ProductSemanticProvider;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentResponse;
@@ -24,13 +25,21 @@ public class ChatAppService {
 
     private final PromptService prompts;
 
+    private final ProductSemanticProvider semantics;
+
     private final QuotaGuard quota;
 
     private final SessionTurnGuard turns;
 
-    public ChatAppService(AgentExecutor executor, PromptService prompts, QuotaGuard quota, SessionTurnGuard turns) {
+    public ChatAppService(
+            AgentExecutor executor,
+            PromptService prompts,
+            ProductSemanticProvider semantics,
+            QuotaGuard quota,
+            SessionTurnGuard turns) {
         this.executor = executor;
         this.prompts = prompts;
+        this.semantics = semantics;
         this.quota = quota;
         this.turns = turns;
     }
@@ -85,7 +94,7 @@ public class ChatAppService {
         if (request.systemPrompt() != null && !request.systemPrompt().isBlank()) {
             return request.systemPrompt();
         }
-        return prompts.get(PlatformPrompt.SYSTEM_KEY, Map.of(), PlatformPrompt.SYSTEM_FALLBACK);
+        return prompts.get(PlatformPrompt.SYSTEM_KEY, Map.of(), semantics.promptFallback(PlatformPrompt.SYSTEM_KEY));
     }
 
     /** 空白不算有效身份，否则空字符串会挡住请求头。 */

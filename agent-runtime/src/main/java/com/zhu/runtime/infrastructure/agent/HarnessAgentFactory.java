@@ -2,6 +2,8 @@ package com.zhu.runtime.infrastructure.agent;
 
 import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.config.AgentRuntimeProperties;
+import com.zhu.semantic.contract.CompletionCriteria;
+import com.zhu.semantic.contract.ProductSemanticProvider;
 import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
 import com.zhu.runtime.domain.middleware.AuditMiddleware;
 import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
@@ -19,6 +21,8 @@ public class HarnessAgentFactory {
 
     private final AgentRuntimeProperties properties;
 
+    private final ProductSemanticProvider semantics;
+
     private final ObjectProvider<DistributedStore> stores;
 
     private final AuditMiddleware auditMiddleware;
@@ -35,12 +39,14 @@ public class HarnessAgentFactory {
     /** 写文件限制和审批都挂上。体积检查的顺序更靠前，超限内容不会进入审批。 */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,
+            ProductSemanticProvider semantics,
             ObjectProvider<DistributedStore> stores,
             AuditMiddleware auditMiddleware,
             ApprovalMiddleware approvalMiddleware,
             FileWriteLimitMiddleware fileWriteLimit,
             AgentShutdown shutdown) {
         this.properties = properties;
+        this.semantics = semantics;
         this.stores = stores;
         this.auditMiddleware = auditMiddleware;
         this.approvalMiddleware = approvalMiddleware;
@@ -54,13 +60,16 @@ public class HarnessAgentFactory {
      * 没有 Store 时不挂远程文件系统，只留给测试。
      */
     public HarnessAgent build(AgentRequest request) {
-        String agentId = blank(request.agentId()) ? properties.getAgentId() : request.agentId();
+        String agentId = blank(request.agentId()) ? semantics.agentId() : request.agentId();
+        if (blank(agentId)) {
+            agentId = "product-agent";
+        }
         HarnessAgent.Builder builder = HarnessAgent.builder()
                 .name(properties.getName())
                 .agentId(agentId)
                 .model(properties.getModel())
-                .sysPrompt(blank(request.systemPrompt()) ? "." : request.systemPrompt())
-                .maxIters(properties.getMaxIters());
+                .sysPrompt(blank(request.systemPrompt()) ? semantics.promptFallback(null) : request.systemPrompt())
+                .maxIters(maxIterations());
         if (!blank(properties.getWorkspace())) {
             builder.workspace(properties.getWorkspace());
         }
@@ -77,6 +86,15 @@ public class HarnessAgentFactory {
             builder.filesystem(WorkspaceFilesystem.sessionScoped());
         }
         return builder.build();
+    }
+
+    /** 产品域没给出有效轮数时按 20，避免 0 轮直接结束。 */
+    private int maxIterations() {
+        CompletionCriteria completion = semantics.completion();
+        if (completion == null || completion.maxIterations() < 1) {
+            return 20;
+        }
+        return completion.maxIterations();
     }
 
     private static boolean blank(String value) {

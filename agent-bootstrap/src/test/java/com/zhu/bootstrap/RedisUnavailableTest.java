@@ -40,6 +40,7 @@ class RedisUnavailableTest {
         ChatAppService chats = new ChatAppService(
                 executor,
                 (key, variables, fallback) -> fallback,
+                new TestSemanticProvider(),
                 new QuotaGuard(cache, limits, Clock.systemUTC()),
                 new SessionTurnGuard(cache, 120));
 

@@ -68,10 +68,10 @@ AgentStreamEvent   接入层再写成 SSE
 | 项 | 默认 | 说明 |
 | --- | --- | --- |
 | `agentscope.runtime.model` | `dashscope:qwen-plus`，可用 `AGENTSCOPE_MODEL` 覆盖 | 模型坐标。密钥用环境变量，不写进仓库 |
-| `agentscope.runtime.agent-id` | `product-agent` | 状态命名空间。请求里的 `agentId` 非空时以请求为准 |
+| `agentscope.runtime.agent-id` | `product-agent` | 状态命名空间。由产品语义提供。请求里的 `agentId` 非空时以请求为准 |
 | `agentscope.runtime.name` | `product-agent` | 展示名 |
 | `agentscope.runtime.workspace` | 空 | 空则用框架默认工作区 |
-| `agentscope.runtime.max-iters` | `20` | 单次最大推理轮数 |
+| `agentscope.runtime.max-iters` | `20` | 单次最大推理轮数。由产品语义提供，小于 1 时仍按 20 |
 | `agentscope.runtime.max-write-bytes` | `5242880` | 单次写文件内容上限，5MB。小于 1 时仍按 5MB |
 | `agentscope.runtime.timeout-seconds` | `120` | 同步 `block` 和流式 `timeout` 的上限 |
 | `agentscope.task.mode` | `sync` | 当前线程执行任务。`mq` 会拒绝启动 |

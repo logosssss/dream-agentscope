@@ -37,6 +37,7 @@ class SessionTurnTest {
         ChatAppService chats = new ChatAppService(
                 executor,
                 (key, variables, fallback) -> fallback,
+                new TestSemanticProvider(),
                 new QuotaGuard(cache, new AccessLimitProperties(), Clock.systemUTC()),
                 turns);
 
