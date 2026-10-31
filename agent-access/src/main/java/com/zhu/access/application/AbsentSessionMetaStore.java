@@ -26,4 +26,9 @@ public class AbsentSessionMetaStore implements SessionMetaStore {
     public List<SessionSummary> list(String tenantId, String userId) {
         return List.of();
     }
+
+    /** 没有表可更新，直接跳过。 */
+    @Override
+    public void attachRun(String tenantId, String userId, String sessionId, String runId) {
+    }
 }

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.access.infrastructure.persistence.AgentRunMapper">
+
+    <!-- 只在结束时插入。error_message 留空，不把异常原文写进表。 -->
+    <insert id="insertFinished">
+        INSERT INTO agent_run
+            (run_id, tenant_id, user_id, session_id, trigger_type, status, model,
+             input_summary, output_summary, error_code, started_at, finished_at, duration_ms)
+        VALUES
+            (#{runId}, #{tenantId}, #{userId}, #{sessionId}, #{triggerType}, #{status}, #{model},
+             #{inputSummary}, #{outputSummary}, #{errorCode}, #{startedAt}, #{finishedAt}, #{durationMs})
+    </insert>
+</mapper>

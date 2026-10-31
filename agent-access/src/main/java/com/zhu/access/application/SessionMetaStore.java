@@ -17,4 +17,9 @@ public interface SessionMetaStore {
      * 当前租户和用户的活动会话，按最近活动倒序，最多 50 条。
      */
     List<SessionSummary> list(String tenantId, String userId);
+
+    /**
+     * 记下最近一次运行。会话行还不存在时什么都不做。
+     */
+    void attachRun(String tenantId, String userId, String sessionId, String runId);
 }

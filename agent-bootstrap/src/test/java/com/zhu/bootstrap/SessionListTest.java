@@ -99,6 +99,11 @@ class SessionListTest {
             lists++;
             return List.copyOf(rows);
         }
+
+        /** 运行标识不在这次测试里。 */
+        @Override
+        public void attachRun(String tenantId, String userId, String sessionId, String runId) {
+        }
     }
 
     /** 会话缓存的读写都视为 Redis 不可用。 */

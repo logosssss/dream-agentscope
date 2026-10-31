@@ -25,4 +25,12 @@
         ORDER BY last_active_at DESC
         LIMIT 50
     </select>
+
+    <update id="attachRun">
+        UPDATE agent_session_meta
+        SET last_run_id = #{runId}
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND session_id = #{sessionId}
+    </update>
 </mapper>

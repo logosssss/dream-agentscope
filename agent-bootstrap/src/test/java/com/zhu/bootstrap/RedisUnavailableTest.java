@@ -44,6 +44,8 @@ class RedisUnavailableTest {
                 new QuotaGuard(cache, limits, Clock.systemUTC()),
                 new SessionTurnGuard(cache, 120),
                 (tenant, user, session, channel, text) -> {
+                },
+                (tenant, user, session, trigger, status, runId, input, output, error, started) -> {
                 });
 
         assertThatThrownBy(() -> chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null)))

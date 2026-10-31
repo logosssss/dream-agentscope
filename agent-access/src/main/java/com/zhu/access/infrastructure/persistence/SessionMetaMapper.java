@@ -19,4 +19,13 @@ public interface SessionMetaMapper extends BaseMapper<SessionMeta> {
      * 当前租户和用户的活动会话，最多 50 条。
      */
     List<SessionMeta> listActive(@Param("tenantId") String tenantId, @Param("userId") String userId);
+
+    /**
+     * 把最近一次运行标识写到已有会话上。没有这行时不插入。
+     */
+    int attachRun(
+            @Param("tenantId") String tenantId,
+            @Param("userId") String userId,
+            @Param("sessionId") String sessionId,
+            @Param("runId") String runId);
 }

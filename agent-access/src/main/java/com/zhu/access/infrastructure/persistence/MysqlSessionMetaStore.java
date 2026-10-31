@@ -56,4 +56,14 @@ public class MysqlSessionMetaStore implements SessionMetaStore {
         }
         return result;
     }
+
+    /** 只更新已有会话。运行标识为空时不写。 */
+    @Override
+    public void attachRun(String tenantId, String userId, String sessionId, String runId) {
+        if (userId == null || userId.isBlank() || sessionId == null || sessionId.isBlank() || runId == null || runId.isBlank()) {
+            return;
+        }
+        String tenant = tenantId == null ? "" : tenantId;
+        sessions.attachRun(tenant, userId, sessionId, runId);
+    }
 }

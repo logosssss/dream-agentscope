@@ -55,6 +55,16 @@ public class SessionListService implements SessionIndex {
         }
     }
 
+    /** 运行标识为空时跳过。列表响应不含这个字段，不必清缓存。 */
+    @Override
+    public void attachRun(String tenantId, String userId, String sessionId, String runId) {
+        if (runId == null || runId.isBlank()) {
+            return;
+        }
+        String tenant = tenantId == null ? "" : tenantId;
+        store.attachRun(tenant, userId, sessionId, runId);
+    }
+
     /**
      * 先读缓存。没有、损坏，或 Redis 不可用时查库。查库之后尽量回填，回填失败仍返回库里的结果。
      */
