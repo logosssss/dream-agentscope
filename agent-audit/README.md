@@ -37,6 +37,8 @@
 
 同一事件再写 `user_todo`。类型是 `APPROVAL`，状态是 `OPEN`，关联审批单，标题是工具名。同一用户和审批单再开一次不再插一行。`GET /api/todos` 只列出这个用户还开着的审批待办。批准或拒绝还不关待办。确认和任务待办还不写。
 
+`POST /api/feedback` 追加 `user_feedback`。评分是 1 到 5，说明最长 1000 字。不存标签，也不要求这次运行已经在 `agent_run` 里。附件还不收，文件没有对象存储。
+
 `POST /api/admin/billing/drafts` 按租户和区间生成 `billing_record`。区间最长 366 天，起点含、终点不含。没有用量也是一张 0 金额的草稿。同一区间再生成一次返回冲突。区间里有两种币种时拒绝。`POST /api/admin/billing/confirmations` 把这张草稿改成 `CONFIRMED`，不重算金额。已经确认过再确认一次返回冲突。`POST /api/admin/billing/invoices` 只把已确认的账单改成 `INVOICED`，草稿不能直接开票。`POST /api/admin/billing/payments` 只把已开票的账单改成 `PAID`，不重算金额。已确认但还没开票的不能直接付款。
 
 `POST /api/admin/model-prices` 再插入一行 `model_price`。不改旧行。生效开始为空时用 UTC 现在。仓库不放单价。

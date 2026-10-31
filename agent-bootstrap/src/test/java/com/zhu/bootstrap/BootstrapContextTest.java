@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,6 +64,11 @@ class BootstrapContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
         mvc.perform(get("/api/todos").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/feedback").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
+                        .contentType("application/json")
+                        .content("{\"rating\":5}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
     }
