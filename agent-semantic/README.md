@@ -34,7 +34,9 @@
 
 ### `config`
 
-`ConfiguredPermissionService`：按 `agentscope.permission.rules` 匹配。没有命中时一律 `ALLOW`。容器里只能有这一个 `PermissionRuleService`。
+`ConfiguredPermissionService`：MySQL 关闭时按 `agentscope.permission.rules` 匹配。没有命中时一律 `ALLOW`。
+
+`StoredPermissionService`：MySQL 打开时改为读 `tool_permission`。配置里的规则不再参与。表由用户进程的 Flyway `V4__tool_permission.sql` 创建。`conditions` 非空的行先跳过。命中的 `decision` 写错时这次调用失败，不当成允许。容器里两种实现不会同时存在。
 
 ### `application`
 
@@ -48,4 +50,4 @@
 
 ## 还没有
 
-`ProductSemanticProvider` 的实现、真正的 Nacos 监听、`@Tool` 业务工具，以及把权限规则落进 `tool_permission` 表。规则现在只在配置里。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。
+`ProductSemanticProvider` 的实现、真正的 Nacos 监听、`@Tool` 业务工具。`conditions` 还不能解释。提示词的自然语言可以以后外置；工具名、JSON 结构和安全护栏留在代码里。

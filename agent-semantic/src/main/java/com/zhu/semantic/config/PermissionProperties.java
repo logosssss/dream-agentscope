@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 工具权限规则。来源是配置，不是数据库。没写规则时列表为空，调用方按允许处理。
+ * 工具权限规则。MySQL 关闭时用这份配置。MySQL 打开后改读 tool_permission，这里的列表不参与判定。
  */
 @ConfigurationProperties(prefix = "agentscope.permission")
 public class PermissionProperties {

@@ -2,26 +2,28 @@ package com.zhu.semantic.config;
 
 import com.zhu.semantic.contract.PermissionDecision;
 import com.zhu.semantic.contract.PermissionRuleService;
+import com.zhu.semantic.domain.PermissionMatcher;
+import com.zhu.semantic.domain.PermissionRule;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * 按配置匹配工具权限。没有命中的规则时返回 ALLOW。
- * 容器里只能有这一个 PermissionRuleService。
+ * 按配置匹配工具权限。MySQL 关闭或没写开关时使用，测试走这条。
+ * MySQL 打开后由数据表实现接管，容器里仍然只有一个 PermissionRuleService。
  */
 @Service
+@ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "false", matchIfMissing = true)
 public class ConfiguredPermissionService implements PermissionRuleService {
 
-    private static final String ANY = "*";
-
-    private final List<CompiledRule> rules;
+    private final List<PermissionRule> rules;
 
     /**
      * 装配时检查每条规则。决定写错、工具名为空、租户或角色为空，都拒绝启动。
      */
     public ConfiguredPermissionService(PermissionProperties properties) {
-        List<CompiledRule> compiled = new ArrayList<>();
+        List<PermissionRule> compiled = new ArrayList<>();
         List<PermissionProperties.Rule> source = properties.getRules();
         for (int i = 0; i < source.size(); i++) {
             compiled.add(compile(i, source.get(i)));
@@ -30,39 +32,25 @@ public class ConfiguredPermissionService implements PermissionRuleService {
     }
 
     /**
-     * 先按工具、租户、角色筛选。多条同时命中时，priority 更小的赢。
-     * priority 相同则写明租户或角色的更具体。还相同则 DENY 高于 ASK，ASK 高于 ALLOW。
+     * 比较交给 {@link PermissionMatcher}，和数据表使用同一套顺序。
      */
     @Override
     public PermissionDecision decide(String toolId, String tenantId, String roleId) {
-        if (toolId == null || toolId.isBlank()) {
-            return PermissionDecision.ALLOW;
-        }
-        CompiledRule winner = null;
-        for (CompiledRule rule : rules) {
-            if (!rule.matches(toolId, tenantId, roleId)) {
-                continue;
-            }
-            if (winner == null || rule.outranks(winner)) {
-                winner = rule;
-            }
-        }
-        return winner == null ? PermissionDecision.ALLOW : winner.decision;
+        return PermissionMatcher.decide(rules, toolId, tenantId, roleId);
     }
 
     /** 把一条配置收成不可变规则。下标只用于报错，方便看出是第几条。 */
-    private static CompiledRule compile(int index, PermissionProperties.Rule rule) {
+    private static PermissionRule compile(int index, PermissionProperties.Rule rule) {
         if (rule == null || rule.getToolId() == null || rule.getToolId().isBlank()) {
             throw new IllegalStateException("permission rule " + index + " requires tool-id");
         }
         String tenantId = requiredScope(index, "tenant-id", rule.getTenantId());
         String roleId = requiredScope(index, "role-id", rule.getRoleId());
-        PermissionDecision decision = decision(index, rule.getDecision());
-        return new CompiledRule(
+        return new PermissionRule(
                 rule.getToolId(),
                 tenantId,
                 roleId,
-                decision,
+                decision(index, rule.getDecision()),
                 rule.getPriority(),
                 rule.isEnabled());
     }
@@ -85,88 +73,5 @@ public class ConfiguredPermissionService implements PermissionRuleService {
         } catch (IllegalArgumentException ex) {
             throw new IllegalStateException("permission rule " + index + " has unknown decision");
         }
-    }
-
-    /**
-     * 一条已经校验过的规则。
-     */
-    private static final class CompiledRule {
-
-        private final String toolId;
-
-        private final String tenantId;
-
-        private final String roleId;
-
-        private final PermissionDecision decision;
-
-        private final int priority;
-
-        private final boolean enabled;
-
-        private CompiledRule(
-                String toolId,
-                String tenantId,
-                String roleId,
-                PermissionDecision decision,
-                int priority,
-                boolean enabled) {
-            this.toolId = toolId;
-            this.tenantId = tenantId;
-            this.roleId = roleId;
-            this.decision = decision;
-            this.priority = priority;
-            this.enabled = enabled;
-        }
-
-        /** 工具名精确匹配。* 只放行对应维度，不匹配别的工具。 */
-        private boolean matches(String tool, String tenant, String role) {
-            if (!enabled || !toolId.equals(tool)) {
-                return false;
-            }
-            return scopeMatches(tenantId, tenant) && scopeMatches(roleId, role);
-        }
-
-        /** priority 更小，或同样优先但更具体、更严。 */
-        private boolean outranks(CompiledRule other) {
-            if (priority != other.priority) {
-                return priority < other.priority;
-            }
-            if (specificity() != other.specificity()) {
-                return specificity() > other.specificity();
-            }
-            return strictness(decision) > strictness(other.decision);
-        }
-
-        /** 写明租户和角色各算一分。* 不加分。 */
-        private int specificity() {
-            int score = 0;
-            if (!ANY.equals(tenantId)) {
-                score++;
-            }
-            if (!ANY.equals(roleId)) {
-                score++;
-            }
-            return score;
-        }
-    }
-
-    /** * 匹配任意值，包括调用方没带租户或角色。 */
-    private static boolean scopeMatches(String ruleScope, String actual) {
-        if (ANY.equals(ruleScope)) {
-            return true;
-        }
-        return ruleScope.equals(actual);
-    }
-
-    /** 冲突时拒绝比询问更严，询问比允许更严。 */
-    private static int strictness(PermissionDecision decision) {
-        if (decision == PermissionDecision.DENY) {
-            return 2;
-        }
-        if (decision == PermissionDecision.ASK) {
-            return 1;
-        }
-        return 0;
     }
 }
