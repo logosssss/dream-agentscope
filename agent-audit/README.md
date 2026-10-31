@@ -51,6 +51,8 @@
 
 `POST /api/deletion-requests` 追加 `data_deletion_request`。状态是 `PENDING`。类型只接受 `SESSION` / `ATTACHMENT` / `ALL`。原因最长 1024 字。不批准，也不执行删除，也不写删除结果。
 
+`POST /api/admin/operation-audits` 追加 `operation_audit`。空白租户按空串。不写前后快照、IP 和 UA。其它管理接口还不自动记这一行。
+
 `POST /api/admin/tenants` 登记 `tenant`。状态是 `ACTIVE`，套餐是 `standard`。同一标识再登记一次返回冲突。用户进程在 MySQL 打开时只允许这个状态的租户对话。停用还不在这里改。
 
 `POST /api/admin/tenant-quotas` 登记 `tenant_quota` 的每日请求上限。类型是 `REQUESTS`，周期是 `DAILY`。上限 0 表示不限额。同一租户再登记一次返回冲突，不覆盖旧值。已用量仍在 Redis。按 token、费用或并发的上限还不写。
