@@ -7,7 +7,7 @@ public interface TokenUsageWriter {
 
     /**
      * 记下这次的 token。用户或模型为空时跳过。
-     * 金额由实现决定。当前没有价格表时记 0，不在这里抛计价错误。
+     * 有当前价格时按每千 token 计价。没有命中的价格时金额记 0。
      */
     void record(
             String tenantId,
