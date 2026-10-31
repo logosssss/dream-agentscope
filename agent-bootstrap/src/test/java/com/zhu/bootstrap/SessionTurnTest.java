@@ -39,7 +39,9 @@ class SessionTurnTest {
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
                 new QuotaGuard(cache, new AccessLimitProperties(), Clock.systemUTC()),
-                turns);
+                turns,
+                (tenant, user, session, channel, text) -> {
+                });
 
         chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null));
 

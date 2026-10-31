@@ -42,7 +42,9 @@ class RedisUnavailableTest {
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
                 new QuotaGuard(cache, limits, Clock.systemUTC()),
-                new SessionTurnGuard(cache, 120));
+                new SessionTurnGuard(cache, 120),
+                (tenant, user, session, channel, text) -> {
+                });
 
         assertThatThrownBy(() -> chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null)))
                 .isInstanceOf(BusinessException.class)
@@ -118,6 +120,21 @@ class RedisUnavailableTest {
 
         @Override
         public void unlock(String key, String token) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
+        }
+
+        @Override
+        public String get(String key) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
+        }
+
+        @Override
+        public void put(String key, String value, Duration ttl) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
+        }
+
+        @Override
+        public void delete(String key) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
         }
     }

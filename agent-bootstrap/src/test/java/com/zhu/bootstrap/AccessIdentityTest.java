@@ -52,7 +52,8 @@ class AccessIdentityTest {
         PromptService prompts = (key, variables, fallback) -> fallback;
         QuotaGuard quota = new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC());
         SessionTurnGuard turns = new SessionTurnGuard(new FakeAccessCache(), 120);
-        new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, turns).chat(request);
+        new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, turns, (tenant, user, session, channel, text) -> {
+        }).chat(request);
 
         ArgumentCaptor<AgentRequest> sent = ArgumentCaptor.forClass(AgentRequest.class);
         verify(executor).execute(sent.capture());

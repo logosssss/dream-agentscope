@@ -33,9 +33,9 @@ public class FakeAccessCache implements AccessCache {
         long now = clock.millis();
         Slot slot = slots.compute(key, (name, current) -> {
             if (current == null || current.expiresAtMillis <= now) {
-                return new Slot(1, now + ttl.toMillis());
+                return new Slot(1, now + ttl.toMillis(), null);
             }
-            return new Slot(current.value + 1, current.expiresAtMillis);
+            return new Slot(current.value + 1, current.expiresAtMillis, current.text);
         });
         return slot.value;
     }
@@ -51,7 +51,7 @@ public class FakeAccessCache implements AccessCache {
         slots.compute(key, (name, current) -> {
             if (current == null || current.expiresAtMillis <= now) {
                 won.set(true);
-                return new Slot(1, now + ttl.toMillis());
+                return new Slot(1, now + ttl.toMillis(), null);
             }
             return current;
         });
@@ -88,8 +88,32 @@ public class FakeAccessCache implements AccessCache {
         });
     }
 
-    /** 计数值和绝对过期时间。过期时间不随后续增加而延长。 */
-    private record Slot(long value, long expiresAtMillis) {
+    /** 过期后视为没有这个键。 */
+    @Override
+    public String get(String key) {
+        long now = clock.millis();
+        Slot slot = slots.get(key);
+        if (slot == null || slot.expiresAtMillis <= now || slot.text == null) {
+            return null;
+        }
+        return slot.text;
+    }
+
+    /** 覆盖文本并按这次的过期时间计算。 */
+    @Override
+    public void put(String key, String value, Duration ttl) {
+        long now = clock.millis();
+        slots.put(key, new Slot(0, now + ttl.toMillis(), value));
+    }
+
+    /** 只删文本缓存，不动会话短锁。 */
+    @Override
+    public void delete(String key) {
+        slots.remove(key);
+    }
+
+    /** 计数值和绝对过期时间。过期时间不随后续增加而延长。文本缓存和计数分开用。 */
+    private record Slot(long value, long expiresAtMillis, String text) {
     }
 
     /** 会话短锁的令牌和绝对过期时间。 */

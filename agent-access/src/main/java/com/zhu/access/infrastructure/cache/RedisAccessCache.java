@@ -12,7 +12,7 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 
 /**
- * Redis 计数和会话短锁。不写入 AgentScope 的状态或快照。
+ * Redis 计数、会话短锁和会话列表缓存。不写入 AgentScope 的状态或快照。
  */
 public class RedisAccessCache implements AccessCache {
 
@@ -60,6 +60,30 @@ public class RedisAccessCache implements AccessCache {
     @Override
     public void unlock(String key, String token) {
         call(() -> redis.execute(UNLOCK, List.of(key), token));
+    }
+
+    /** 没有这个键时返回 null。 */
+    @Override
+    public String get(String key) {
+        return call(() -> redis.opsForValue().get(key));
+    }
+
+    /** 覆盖写入并重新计算过期。 */
+    @Override
+    public void put(String key, String value, Duration ttl) {
+        call(() -> {
+            redis.opsForValue().set(key, value, ttl);
+            return null;
+        });
+    }
+
+    /** 删除失败会抛 UNAVAILABLE。会话列表的调用方可以改去查库。 */
+    @Override
+    public void delete(String key) {
+        call(() -> {
+            redis.delete(key);
+            return null;
+        });
     }
 
     /**

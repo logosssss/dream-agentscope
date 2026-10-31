@@ -31,17 +31,21 @@ public class ChatAppService {
 
     private final SessionTurnGuard turns;
 
+    private final SessionIndex sessions;
+
     public ChatAppService(
             AgentExecutor executor,
             PromptService prompts,
             ProductSemanticProvider semantics,
             QuotaGuard quota,
-            SessionTurnGuard turns) {
+            SessionTurnGuard turns,
+            SessionIndex sessions) {
         this.executor = executor;
         this.prompts = prompts;
         this.semantics = semantics;
         this.quota = quota;
         this.turns = turns;
+        this.sessions = sessions;
     }
 
     /**
@@ -53,6 +57,7 @@ public class ChatAppService {
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
         SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         try {
+            remember(request, agentRequest);
             return executor.execute(agentRequest);
         } finally {
             turns.close(turn);
@@ -68,11 +73,25 @@ public class ChatAppService {
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
         SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         try {
+            remember(request, agentRequest);
             return executor.stream(agentRequest).doFinally(signal -> turns.close(turn));
         } catch (RuntimeException error) {
             turns.close(turn);
             throw error;
         }
+    }
+
+    /**
+     * 额度通过并占锁之后才记会话。记失败会释放锁并让这次对话失败。
+     * 通道留在列表里，不放进 AgentRequest。
+     */
+    private void remember(ChatRequest request, AgentRequest agentRequest) {
+        sessions.record(
+                agentRequest.tenantId(),
+                agentRequest.userId(),
+                agentRequest.sessionId(),
+                request.channelOrDefault().name(),
+                request.text());
     }
 
     /** 通道只在接入层归一化，不传给运行层。 */
