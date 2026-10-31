@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.TokenUsageMapper">
+
+    <!-- 没有行时 SUM 得到 NULL，这里收成 0。币种个数用来拒绝混加。 -->
+    <select id="sumForPeriod" resultType="com.zhu.audit.infrastructure.persistence.UsagePeriodTotal">
+        SELECT COALESCE(SUM(total_tokens), 0) AS tokenTotal,
+               COALESCE(SUM(cost_amount), 0) AS costAmount,
+               COUNT(DISTINCT currency) AS currencyCount,
+               MIN(currency) AS currency
+        FROM token_usage
+        WHERE tenant_id = #{tenantId}
+          AND created_at &gt;= #{periodStart}
+          AND created_at &lt; #{periodEnd}
+    </select>
+</mapper>

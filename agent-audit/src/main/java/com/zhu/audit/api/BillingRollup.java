@@ -1,0 +1,15 @@
+package com.zhu.audit.api;
+
+import java.time.LocalDateTime;
+
+/**
+ * 把一个租户在一段时间内的 token 用量收成草稿账单。确认和开票不在这里。
+ */
+public interface BillingRollup {
+
+    /**
+     * 生成一张 DRAFT。同一租户和同一区间只能有一张。
+     * 区间按 token_usage.created_at 比较，最长 366 天。多种币种时拒绝，避免把不同币种加在一起。
+     */
+    BillingSummary draft(String tenantId, LocalDateTime periodStart, LocalDateTime periodEnd);
+}

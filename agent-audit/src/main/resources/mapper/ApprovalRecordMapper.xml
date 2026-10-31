@@ -53,6 +53,38 @@
         WHERE approval_id = #{approvalId}
     </select>
 
+    <!-- 同一工具有多张已批准的单时，先占决定时间最早的一张。 -->
+    <select id="findApprovedUnused" resultMap="BaseResultMap">
+        SELECT id, approval_id, tenant_id, user_id, session_id, run_id, tool_name, action, decision,
+               approver, channel, reason, requested_at, decided_at, executed_at, result, created_at
+        FROM approval_record
+        WHERE decision = 'APPROVED'
+          AND executed_at IS NULL
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND session_id = #{sessionId}
+          AND tool_name = #{toolName}
+        ORDER BY decided_at ASC, id ASC
+        LIMIT 1
+    </select>
+
+    <!-- 只占仍未执行的已批准单据。返回 0 表示被别人先占了。 -->
+    <update id="claimExecution">
+        UPDATE approval_record
+        SET executed_at = #{executedAt}
+        WHERE approval_id = #{approvalId}
+          AND decision = 'APPROVED'
+          AND executed_at IS NULL
+    </update>
+
+    <!-- 结果只写一次。内容是状态 JSON，不是工具输出。 -->
+    <update id="writeExecutionResult">
+        UPDATE approval_record
+        SET result = #{result}
+        WHERE approval_id = #{approvalId}
+          AND result IS NULL
+    </update>
+
     <!-- 条件写在 WHERE 里，已决定的单据不会被覆盖。不改执行时间和结果。 -->
     <update id="decidePending">
         UPDATE approval_record

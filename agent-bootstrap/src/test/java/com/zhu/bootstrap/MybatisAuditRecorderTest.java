@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * 简单插入把字段放进实体交给 BaseMapper。不连接真实 MySQL，也不在测试里拼 SQL。
@@ -47,5 +48,22 @@ class MybatisAuditRecorderTest {
         assertThat(row.getValue().getSessionId()).isEmpty();
         assertThat(row.getValue().getToolName()).isEqualTo("shell");
         assertThat(row.getValue().getDecision()).isEqualTo("PENDING");
+    }
+
+    /** 占到已批准的单后，结果只写成状态 JSON。 */
+    @Test
+    void claimWritesExecutionStatus() {
+        ApprovalRecordMapper approvals = mock(ApprovalRecordMapper.class);
+        ApprovalRecord pending = new ApprovalRecord();
+        pending.setApprovalId("ap-9");
+        when(approvals.findApprovedUnused("", "user-a", "", "shell")).thenReturn(pending);
+        when(approvals.claimExecution(org.mockito.ArgumentMatchers.eq("ap-9"), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(1);
+
+        String claimed = new MybatisApprovalRecorder(approvals).claimApproved(null, "user-a", null, "shell");
+        new MybatisApprovalRecorder(approvals).executed(claimed, "SUCCEEDED");
+
+        assertThat(claimed).isEqualTo("ap-9");
+        verify(approvals).writeExecutionResult("ap-9", "{\"status\":\"SUCCEEDED\"}");
     }
 }

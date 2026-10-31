@@ -2,7 +2,10 @@ package com.zhu.bootstrap;
 
 import com.zhu.audit.api.AuditRecorder;
 import com.zhu.common.exception.BusinessException;
+import com.zhu.runtime.task.AbsentAgentTaskLog;
 import com.zhu.runtime.task.AgentTask;
+import com.zhu.runtime.task.AgentTaskHandler;
+import com.zhu.runtime.task.AgentTaskLog;
 import com.zhu.runtime.task.SyncAgentTaskHandler;
 import com.zhu.runtime.task.SyncTaskPublisher;
 import java.time.Instant;
@@ -24,7 +27,7 @@ class SyncTaskPublisherTest {
     void publishRecordsTaskWithoutPayload() {
         List<String> records = new ArrayList<>();
         AuditRecorder audit = (action, actorId, detail) -> records.add(action + "|" + actorId + "|" + detail);
-        SyncTaskPublisher publisher = new SyncTaskPublisher(new SyncAgentTaskHandler(audit));
+        SyncTaskPublisher publisher = new SyncTaskPublisher(new SyncAgentTaskHandler(audit), new AbsentAgentTaskLog());
 
         publisher.publish(new AgentTask(
                 "task-1",
@@ -44,7 +47,7 @@ class SyncTaskPublisherTest {
     void blankTaskIdIsRejected() {
         List<String> records = new ArrayList<>();
         AuditRecorder audit = (action, actorId, detail) -> records.add(action);
-        SyncTaskPublisher publisher = new SyncTaskPublisher(new SyncAgentTaskHandler(audit));
+        SyncTaskPublisher publisher = new SyncTaskPublisher(new SyncAgentTaskHandler(audit), new AbsentAgentTaskLog());
 
         assertThatThrownBy(() -> publisher.publish(new AgentTask(
                         " ",
@@ -57,5 +60,53 @@ class SyncTaskPublisherTest {
                         Instant.EPOCH)))
                 .isInstanceOf(BusinessException.class);
         assertThat(records).isEmpty();
+    }
+
+    /** 开始记录失败时不执行任务。 */
+    @Test
+    void beginFailureSkipsHandler() {
+        boolean[] handled = new boolean[1];
+        AgentTaskHandler handler = task -> handled[0] = true;
+        AgentTaskLog tasks = new AgentTaskLog() {
+            /** 模拟落库失败。 */
+            @Override
+            public void begin(AgentTask task) {
+                throw new IllegalStateException("db down");
+            }
+
+            /** 不会走到结束。 */
+            @Override
+            public void finish(String taskId, String status, String errorCode) {
+            }
+        };
+
+        assertThatThrownBy(() -> new SyncTaskPublisher(handler, tasks).publish(sample()))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(handled[0]).isFalse();
+    }
+
+    /** 结束记录失败不掩盖已经成功的任务。 */
+    @Test
+    void finishFailureDoesNotHideSuccess() {
+        AgentTaskLog tasks = new AgentTaskLog() {
+            /** 开始记录成功。 */
+            @Override
+            public void begin(AgentTask task) {
+            }
+
+            /** 结束记录失败。 */
+            @Override
+            public void finish(String taskId, String status, String errorCode) {
+                throw new IllegalStateException("db down");
+            }
+        };
+
+        new SyncTaskPublisher(task -> {
+        }, tasks).publish(sample());
+    }
+
+    /** 测试用的合法任务。参数里的正文不会被断言。 */
+    private static AgentTask sample() {
+        return new AgentTask("task-1", "doc-ingest", "tenant-a", "user-a", "product-agent", "session-a", Map.of(), Instant.EPOCH);
     }
 }

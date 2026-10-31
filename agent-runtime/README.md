@@ -86,6 +86,8 @@ AgentStreamEvent   接入层再写成 SSE
 
 每个 Agent 挂 `OtelTracingMiddleware`。`agentscope.otel.endpoint` 为空时不导出，默认对应环境变量 `OTEL_EXPORTER_OTLP_ENDPOINT`。配了才按 OTLP 上报 trace，服务名用 `OTEL_SERVICE_NAME`，缺省是 `agentscope-user`。度量和日志不导出。导出装不上时对话继续。
 
+`mode=sync` 时，`SyncTaskPublisher` 先写 `agent_task` 再执行。MySQL 关闭时不落库。任务参数不入库。
+
 切到 `agentscope.task.mode=mq` 之前要先做完这三步，否则 `RocketMqTaskPublisher` 会让进程起不来：
 
 1. 在 `agent-runtime` 引入 `rocketmq-spring-boot-starter`。现在不要加。
@@ -96,4 +98,4 @@ AgentStreamEvent   接入层再写成 SSE
 
 按产品预构建多份 Builder。RocketMQ 客户端和消费者还没接。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。产品任务替换 `SyncAgentTaskHandler`，不要再注册第二个 `AgentTaskHandler`。
 
-`ApprovalMiddleware` 在 `ASK` 时把本次工具标成 `ASKING` 并发出事件，在 `DENY` 时把这次工具从后续执行里拿掉。它不改框架的 `PermissionEngine`：默认权限上下文是 trivial，临时加规则要么这次判定读不到，要么会让同一次调用里没匹配到的工具也变成询问。框架自 2.0.0 起把 `Hook` 标成删除，执行策略挂在 `Middleware` 上。
+`ApprovalMiddleware` 在 `ASK` 时把本次工具标成 `ASKING` 并发出事件，在 `DENY` 时把这次工具从后续执行里拿掉。同一用户、会话和工具已有未执行的批准单时，这次调用放行，结束后回写执行状态，不存工具输出。它不改框架的 `PermissionEngine`：默认权限上下文是 trivial，临时加规则要么这次判定读不到，要么会让同一次调用里没匹配到的工具也变成询问。框架自 2.0.0 起把 `Hook` 标成删除，执行策略挂在 `Middleware` 上。

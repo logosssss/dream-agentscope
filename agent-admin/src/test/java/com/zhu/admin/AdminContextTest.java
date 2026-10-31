@@ -74,6 +74,12 @@ class AdminContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+        mvc.perform(post("/api/admin/billing/drafts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tenantId\":\"t\",\"periodStart\":\"2026-10-01T00:00:00\",\"periodEnd\":\"2026-10-02T00:00:00\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/admin/approvals/ap-1/decision")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"decision\":\"APPROVED\",\"approver\":\"ops\",\"reason\":\"ok\"}"))

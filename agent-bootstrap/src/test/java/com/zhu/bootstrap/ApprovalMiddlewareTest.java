@@ -52,6 +52,50 @@ class ApprovalMiddlewareTest {
         assertThat(seen.getState()).isEqualTo(ToolCallState.ASKING);
     }
 
+    /** 已批准的单放行同名工具，结束后回写成功，不再记一张新单。 */
+    @Test
+    void approvedClaimRunsToolAndRecordsSuccess() {
+        String[] written = new String[2];
+        PermissionRuleService permissions = (toolId, tenantId, roleId) -> PermissionDecision.ASK;
+        ApprovalRecorder approvals = new ApprovalRecorder() {
+            /** 这条路径不该再申请。 */
+            @Override
+            public void requested(String approvalId, String toolId, String userId, String sessionId, String tenantId) {
+                throw new IllegalStateException("should not request");
+            }
+
+            /** 返回已有的批准单。 */
+            @Override
+            public String claimApproved(String tenantId, String userId, String sessionId, String toolId) {
+                return "ap-9";
+            }
+
+            /** 记下回写的状态。 */
+            @Override
+            public void executed(String approvalId, String status) {
+                written[0] = approvalId;
+                written[1] = status;
+            }
+        };
+        ApprovalMiddleware middleware = new ApprovalMiddleware(permissions, approvals, event -> {
+        });
+        ToolUseBlock use = new ToolUseBlock.Builder().id("tool-1").name("shell").input(Map.of()).build();
+        RuntimeContext context = RuntimeContext.builder()
+                .userId("user-a")
+                .sessionId("session-a")
+                .put("tenantId", "tenant-a")
+                .build();
+        AtomicReference<ToolUseBlock> forwarded = new AtomicReference<>();
+        middleware.onActing(mock(Agent.class), context, new ActingInput(List.of(use)), input -> {
+                    forwarded.set(input.toolCalls().get(0));
+                    return Flux.empty();
+                })
+                .blockLast();
+
+        assertThat(forwarded.get().getState()).isNotEqualTo(ToolCallState.ASKING);
+        assertThat(written).containsExactly("ap-9", "SUCCEEDED");
+    }
+
     /** DENY 不记审批，也不把这次工具交给后续执行。同一次里的其它工具仍保留。 */
     @Test
     void denyDropsOnlyThatTool() {

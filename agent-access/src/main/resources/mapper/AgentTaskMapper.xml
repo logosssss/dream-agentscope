@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.access.infrastructure.persistence.AgentTaskMapper">
+
+    <!-- 成功时 error_message 写成空。不改 payload。 -->
+    <update id="finish">
+        UPDATE agent_task
+        SET status = #{status},
+            error_message = #{errorMessage},
+            finished_at = #{finishedAt}
+        WHERE task_id = #{taskId}
+    </update>
+</mapper>

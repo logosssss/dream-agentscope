@@ -15,4 +15,19 @@ public interface ApprovalRecorder {
      * @param tenantId   租户。没有租户时传空，落库写成空串
      */
     void requested(String approvalId, String toolId, String userId, String sessionId, String tenantId);
+
+    /**
+     * 占一张已批准、还没执行的单据，并写上执行时间。没有可占的单时返回 null。
+     * 默认不占。测试里的空实现因此不会把工具放行。
+     */
+    default String claimApproved(String tenantId, String userId, String sessionId, String toolId) {
+        return null;
+    }
+
+    /**
+     * 回写执行结果。只接受 SUCCEEDED、FAILED、CANCELLED，不存工具输出。
+     * 默认空操作。写库失败由调用方接住，不能把已经结束的工具调用改成失败。
+     */
+    default void executed(String approvalId, String status) {
+    }
 }
