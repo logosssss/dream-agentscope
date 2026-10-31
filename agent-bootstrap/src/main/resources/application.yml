@@ -25,8 +25,8 @@ agentscope:
     # 模型坐标。密钥走环境变量，不写进仓库。
     model: ${AGENTSCOPE_MODEL:dashscope:qwen-plus}
     # 状态命名空间。和下面的展示名分开，改名不会把会话指到空库。
-    agent-id: product-agent
-    name: product-agent
+    agent-id: companion-v1
+    name: companion
     max-iters: 20
     timeout-seconds: 120
     # 单次写文件的 UTF-8 字节上限。超过的 write_file / write_text_file / insert_text_file 不会执行。

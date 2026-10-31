@@ -34,18 +34,18 @@
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
 | `text` | 是 | 用户输入，对应 `userText` |
-| `userId` | 是 | 请求体和 `X-User-Id` 都空时，运行层拒绝 |
+| `userId` | 是 | 请求体和 `X-User-Id` 都空时拒绝。搭子按用户切开 |
 | `sessionId` | 是 | 缺了由运行层拒绝 |
 | `tenantId` | 否 | 有值以请求体为准；空则用 `X-Tenant-Id` |
 | `channel` | 否 | 空则 `WEB`。不传给运行层 |
 | `agentId` | 否 | 空则用 `agentscope.runtime.agent-id` |
-| `systemPrompt` | 否 | 有值以请求体为准。空则按 `prompt.platform.system` 读取，读不到用 `.` |
+| `systemPrompt` | 否 | 已忽略。人设按 `prompt.companion.system` 读取，读不到用仓库兜底 |
 
 线程上下文只是接入层副本。执行身份以 `AgentRequest` 里的字段为准。
 
 `agentscope.access.daily-limit` 和 `per-minute` 默认是 0，表示不限制。MySQL 打开且该租户有启用的 `REQUESTS` / `DAILY` 行时，当日请求用这一行的上限，0 仍表示不限额；没有行时用进程配置。分钟限流仍是进程配置。计数仍在 Redis，不把已用量写回这张表。查这行失败返回 `UNAVAILABLE`，不改用进程配置。当日计数通过后写 `quota_usage_log`，数量是 1，不填运行标识。不限额时不写。流水写失败不改变这次请求，超限的那一次不记。带了 `X-Request-Id` 时，十分钟内的重复提交返回冲突，不再执行第二次。同一租户、用户、会话进行中时，再来一轮也返回冲突，调用结束就释放。Redis 不保存 Agent 状态或沙箱快照。Redis 在额度、幂等、限流或占锁时失败，请求返回 HTTP 503，错误码 `UNAVAILABLE`，不执行对话，也不改查 MySQL 或内存。释放锁失败不改变已经生成的回复，锁靠过期时间放开。
 
-会话列表是另一条路。`agent_session_meta` 由用户进程的 Flyway 建立，标题最多 40 个字符，不存正文。`GET /api/sessions` 先读 Redis，没有或 Redis 不可用时查这张表。对话在占锁成功后写入；删缓存失败不改变已经开始的对话。MySQL 关闭时不写列表，这只出现在测试里。
+会话列表是另一条路。`agent_session_meta` 由用户进程的 Flyway 建立，标题最多 40 个字符，不存正文。`GET /api/sessions` 先读 Redis，没有或 Redis 不可用时查这张表。对话在占锁成功后写入；删缓存失败不改变已经开始的对话。MySQL 打开时，同一租户下的 `sessionId` 已被其他用户占用则返回冲突。MySQL 关闭时不查归属，这只出现在测试里。
 
 同一次对话结束时写 `agent_run`。同步路径用回复上的运行标识；流式路径由接入层生成，因为事件里没有标识。输入和输出只留 40 个字符的摘要，异常只留类型名。写失败不改变回复。成功、失败或取消后，把这个标识填进会话的 `last_run_id`。`API` 通道的触发类型是 `API`，页面和即时通讯是 `USER`。
 

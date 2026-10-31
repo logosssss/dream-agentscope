@@ -47,7 +47,7 @@ class AccessIdentityTest {
         when(executor.execute(any())).thenReturn(new AgentResponse("run-1", "ok"));
         TenantContext.set("header-tenant");
         UserContext.set("header-user");
-        ChatRequest request = new ChatRequest(null, "body-tenant", null, "session-1", null, "hi", null);
+        ChatRequest request = new ChatRequest(null, "body-tenant", null, "session-1", "客户端人设", "hi", null);
 
         PromptService prompts = (key, variables, fallback) -> fallback;
         QuotaGuard quota = new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC());
@@ -55,6 +55,7 @@ class AccessIdentityTest {
         new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, turns, (tenant, user, session, channel, text) -> {
         }, (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
         }, tenantId -> {
+        }, (tenantId, userId, sessionId) -> {
         }).chat(request);
 
         ArgumentCaptor<AgentRequest> sent = ArgumentCaptor.forClass(AgentRequest.class);

@@ -55,8 +55,8 @@
 
 运行层的架构测试禁止依赖 `application` 和 `infrastructure`。业务工具和 Mapper 以后放 `infrastructure`，不要放进 `agent-runtime`。
 
-`PlatformSemanticProvider` 是 `ProductSemanticProvider` 的默认实现。Agent 标识和最大轮数读 `agentscope.runtime` 的同名配置，无效时分别用 `product-agent` 和 `20`。提示词兜底是 `.`。MySQL 关闭时目录为空；打开时目录来自 `tool_registry`。
+`PlatformSemanticProvider` 是 `ProductSemanticProvider` 的默认实现。Agent 标识和最大轮数读 `agentscope.runtime` 的同名配置，无效时分别用 `companion-v1` 和 `20`。`PersonaContract` 由 `CompanionPersona` 提供锁定身份。主对话键是 `prompt.companion.system`。改核心身份必须升 `agentId`，不要把 userId 拼进去。MySQL 关闭时目录为空；打开时目录来自 `tool_registry`。
 
 ## 还没有
 
-`@Tool` 业务工具。目录里出现且有对应实现的工具，由运行层注册进这次 Agent 的 Toolkit。`conditions` 还不能解释。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词发布不在进程启动时发生，仓库里也还没有产品话术文件。工具名、JSON 结构和安全护栏留在代码里。
+`@Tool` 业务工具。目录里出现且有对应实现的工具，由运行层注册进这次 Agent 的 Toolkit。`conditions` 还不能解释。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词发布不在进程启动时发生。主对话话术在 `prompts/prompt.companion.system.md`。危机话术还没有。工具名、JSON 结构和安全护栏留在代码里。

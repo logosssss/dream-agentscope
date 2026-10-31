@@ -71,7 +71,7 @@ public class HarnessAgentFactory {
     public HarnessAgent build(AgentRequest request) {
         String agentId = blank(request.agentId()) ? semantics.agentId() : request.agentId();
         if (blank(agentId)) {
-            agentId = "product-agent";
+            agentId = "companion-v1";
         }
         HarnessAgent.Builder builder = HarnessAgent.builder()
                 .name(properties.getName())

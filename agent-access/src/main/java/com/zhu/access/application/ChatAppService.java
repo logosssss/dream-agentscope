@@ -6,6 +6,8 @@ import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
+import com.zhu.common.exception.BusinessException;
+import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
 import com.zhu.semantic.api.PlatformPrompt;
 import com.zhu.semantic.api.PromptService;
@@ -48,8 +50,10 @@ public class ChatAppService {
 
     private final TenantGate tenants;
 
+    private final SessionOwnerGate owners;
+
     /**
-     * 租户检查在额度和占锁之前。MySQL 关闭时检查放行。
+     * 租户和会话归属在额度和占锁之前。MySQL 关闭时这两项放行。
      */
     public ChatAppService(
             AgentExecutor executor,
@@ -59,7 +63,8 @@ public class ChatAppService {
             SessionTurnGuard turns,
             SessionIndex sessions,
             RunLog runs,
-            TenantGate tenants) {
+            TenantGate tenants,
+            SessionOwnerGate owners) {
         this.executor = executor;
         this.prompts = prompts;
         this.semantics = semantics;
@@ -68,6 +73,7 @@ public class ChatAppService {
         this.sessions = sessions;
         this.runs = runs;
         this.tenants = tenants;
+        this.owners = owners;
     }
 
     /**
@@ -76,7 +82,9 @@ public class ChatAppService {
      */
     public AgentResponse chat(ChatRequest request) {
         AgentRequest agentRequest = toRequest(request);
+        requireUser(agentRequest.userId());
         tenants.requireActive(agentRequest.tenantId());
+        owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
         SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         long started = System.nanoTime();
@@ -99,7 +107,9 @@ public class ChatAppService {
      */
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
         AgentRequest agentRequest = toRequest(request);
+        requireUser(agentRequest.userId());
         tenants.requireActive(agentRequest.tenantId());
+        owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
         SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         long started = System.nanoTime();
@@ -259,13 +269,17 @@ public class ChatAppService {
                 request.text());
     }
 
+    /** 没有用户时拒绝。搭子按用户切开，不能匿名进模型。 */
+    private static void requireUser(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "userId is required");
+        }
+    }
+
     /**
-     * 请求体里的提示词优先。空则按键读取，读不到用平台兜底，避免空串进入模型。
+     * 人设只来自产品提示词。请求体里的 systemPrompt 丢掉，避免人格被客户端改掉。
      */
     private String systemPrompt(ChatRequest request) {
-        if (request.systemPrompt() != null && !request.systemPrompt().isBlank()) {
-            return request.systemPrompt();
-        }
         return prompts.get(PlatformPrompt.SYSTEM_KEY, Map.of(), semantics.promptFallback(PlatformPrompt.SYSTEM_KEY));
     }
 

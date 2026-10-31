@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class PlatformSemanticProvider implements ProductSemanticProvider {
 
-    private static final String DEFAULT_AGENT_ID = "product-agent";
+    private static final String DEFAULT_AGENT_ID = CompanionPersona.AGENT_ID;
 
     private static final int DEFAULT_MAX_ITERATIONS = 20;
 
@@ -31,7 +31,7 @@ public class PlatformSemanticProvider implements ProductSemanticProvider {
      * 标识或轮数没配、配成无效值时用缺省，避免空标识把会话写进无名状态。
      */
     public PlatformSemanticProvider(
-            @Value("${agentscope.runtime.agent-id:product-agent}") String agentId,
+            @Value("${agentscope.runtime.agent-id:companion-v1}") String agentId,
             @Value("${agentscope.runtime.max-iters:20}") int maxIterations,
             ToolCatalogService catalog) {
         this.agentId = agentId == null || agentId.isBlank() ? DEFAULT_AGENT_ID : agentId;

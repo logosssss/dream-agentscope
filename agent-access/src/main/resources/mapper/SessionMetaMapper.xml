@@ -26,6 +26,16 @@
         LIMIT 50
     </select>
 
+    <!-- 只找别人。自己继续聊同一会话必须放行。 -->
+    <select id="otherUser" resultType="string">
+        SELECT user_id
+        FROM agent_session_meta
+        WHERE tenant_id = #{tenantId}
+          AND session_id = #{sessionId}
+          AND user_id != #{userId}
+        LIMIT 1
+    </select>
+
     <update id="attachRun">
         UPDATE agent_session_meta
         SET last_run_id = #{runId}

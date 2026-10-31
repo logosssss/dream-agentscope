@@ -9,7 +9,7 @@ import com.zhu.access.domain.channel.AccessChannel;
  * @param tenantId     租户。空则用请求头 X-Tenant-Id
  * @param userId       用户。空则用请求头 X-User-Id
  * @param sessionId    会话
- * @param systemPrompt 本次系统提示词
+ * @param systemPrompt 已忽略。人设只来自产品提示词
  * @param text         用户输入
  * @param channel      接入通道。空则按 WEB，不传给运行层
  */

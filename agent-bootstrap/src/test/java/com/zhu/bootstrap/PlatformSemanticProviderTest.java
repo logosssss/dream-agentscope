@@ -19,11 +19,11 @@ class PlatformSemanticProviderTest {
     void blanksUseDefaults() {
         PlatformSemanticProvider provider = new PlatformSemanticProvider(" ", 0, new NoToolCatalog());
 
-        assertThat(provider.agentId()).isEqualTo("product-agent");
+        assertThat(provider.agentId()).isEqualTo("companion-v1");
         assertThat(provider.completion().maxIterations()).isEqualTo(20);
         assertThat(provider.tools()).isEmpty();
-        assertThat(provider.promptFallback(PlatformPrompt.SYSTEM_KEY)).isEqualTo(".");
-        assertThat(provider.promptFallback(null)).isEqualTo(".");
+        assertThat(provider.promptFallback(PlatformPrompt.SYSTEM_KEY)).isEqualTo(PlatformPrompt.SYSTEM_FALLBACK);
+        assertThat(provider.promptFallback(null)).isEqualTo(PlatformPrompt.SYSTEM_FALLBACK);
     }
 
     /** 目录里的工具原样交出，不在这里执行。 */

@@ -28,4 +28,12 @@ public interface SessionMetaMapper extends BaseMapper<SessionMeta> {
             @Param("userId") String userId,
             @Param("sessionId") String sessionId,
             @Param("runId") String runId);
+
+    /**
+     * 同一租户和会话上是否已有其他用户。没有时返回 null。
+     */
+    String otherUser(
+            @Param("tenantId") String tenantId,
+            @Param("sessionId") String sessionId,
+            @Param("userId") String userId);
 }

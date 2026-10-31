@@ -11,11 +11,11 @@ public class AgentRuntimeProperties {
     /** 模型坐标，例如 dashscope:qwen-plus。 */
     private String model = "dashscope:qwen-plus";
 
-    /** 默认状态命名空间。改展示名不能改这个值，否则会指到空状态。 */
-    private String agentId = "product-agent";
+    /** 默认状态命名空间。改核心身份时升版本，不要把 userId 拼进来。 */
+    private String agentId = "companion-v1";
 
     /** 展示名，工作区按它分桶。 */
-    private String name = "product-agent";
+    private String name = "companion";
 
     /** 工作区路径。空则用框架默认目录。 */
     private String workspace = "";

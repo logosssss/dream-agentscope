@@ -7,13 +7,14 @@ import java.util.Set;
  */
 public final class PlatformPrompt {
 
-    /** 请求没带系统提示词时使用的键，命名遵循 prompt.{agent}.{purpose}。 */
-    public static final String SYSTEM_KEY = "prompt.platform.system";
+    /** 搭子主对话提示词。请求体不能改这条。 */
+    public static final String SYSTEM_KEY = "prompt.companion.system";
 
     /**
-     * 外部配置没有这条键时的兜底。不能是空串，空提示词比占位符更危险。
+     * 外部配置没有这条键时的兜底。和仓库里的模板一致，不能是空串。
      */
-    public static final String SYSTEM_FALLBACK = ".";
+    public static final String SYSTEM_FALLBACK =
+            "你是用户的智能搭子，不是工具助手，也不是恋人。语气自然、克制、不卖惨。不替用户做决定。不讨论自伤或危险方法。关系从相识开始，不由你自己升级。";
 
     private PlatformPrompt() {
     }
@@ -23,7 +24,7 @@ public final class PlatformPrompt {
      * 没有登记的键返回 null，仓库里的模板因此不能单独加变量。
      */
     public static Set<String> allowedVariables(String key) {
-        if (SYSTEM_KEY.equals(key)) {
+        if (SYSTEM_KEY.equals(key) || "prompt.platform.system".equals(key)) {
             return Set.of();
         }
         return null;

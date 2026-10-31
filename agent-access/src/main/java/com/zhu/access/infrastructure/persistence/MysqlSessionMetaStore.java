@@ -66,4 +66,13 @@ public class MysqlSessionMetaStore implements SessionMetaStore {
         String tenant = tenantId == null ? "" : tenantId;
         sessions.attachRun(tenant, userId, sessionId, runId);
     }
+
+    /** 只看别人。自己的行不算占用。 */
+    @Override
+    public String otherUser(String tenantId, String sessionId, String userId) {
+        if (sessionId == null || sessionId.isBlank() || userId == null || userId.isBlank()) {
+            return null;
+        }
+        return sessions.otherUser(tenantId == null ? "" : tenantId, sessionId, userId);
+    }
 }

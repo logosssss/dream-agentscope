@@ -31,4 +31,10 @@ public class AbsentSessionMetaStore implements SessionMetaStore {
     @Override
     public void attachRun(String tenantId, String userId, String sessionId, String runId) {
     }
+
+    /** 没有表可查，当成还没有主人。 */
+    @Override
+    public String otherUser(String tenantId, String sessionId, String userId) {
+        return null;
+    }
 }

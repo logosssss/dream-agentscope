@@ -68,15 +68,15 @@ AgentStreamEvent   接入层再写成 SSE
 | 项 | 默认 | 说明 |
 | --- | --- | --- |
 | `agentscope.runtime.model` | `dashscope:qwen-plus`，可用 `AGENTSCOPE_MODEL` 覆盖 | 模型坐标。密钥用环境变量，不写进仓库 |
-| `agentscope.runtime.agent-id` | `product-agent` | 状态命名空间。由产品语义提供。请求里的 `agentId` 非空时以请求为准 |
-| `agentscope.runtime.name` | `product-agent` | 展示名 |
+| `agentscope.runtime.agent-id` | `companion-v1` | 人格版本。不要把 userId 拼进来。请求里的 `agentId` 非空时以请求为准 |
+| `agentscope.runtime.name` | `companion` | 展示名 |
 | `agentscope.runtime.workspace` | 空 | 空则用框架默认工作区 |
 | `agentscope.runtime.max-iters` | `20` | 单次最大推理轮数。由产品语义提供，小于 1 时仍按 20 |
 | `agentscope.runtime.max-write-bytes` | `5242880` | 单次写文件内容上限，5MB。小于 1 时仍按 5MB |
 | `agentscope.runtime.timeout-seconds` | `120` | 同步 `block` 和流式 `timeout` 的上限 |
 | `agentscope.task.mode` | `sync` | 当前线程执行任务。`mq` 会拒绝启动 |
 
-系统提示词来自 `AgentRequest.systemPrompt`。为空时工厂放一个占位符 `.`，避免空提示词进入模型。真正的产品文案由产品域传入。
+系统提示词来自接入层填好的 `AgentRequest.systemPrompt`。接入层丢掉请求体人设，按 `prompt.companion.system` 取值。工厂在空值时用产品兜底，避免空提示词进入模型。
 
 业务工具实现 `ProductTool`，放在产品域。`toolId` 必须和 `@Tool` 的 name、目录里的标识一致。MySQL 打开时目录来自 `tool_registry` 的启用行。工厂在 `build` 之后把目录点名且有实现的工具注册到这次 Agent 自己的 Toolkit。目录为空，或实现不在目录里时，不注册。当前没有业务工具。
 

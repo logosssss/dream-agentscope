@@ -22,4 +22,12 @@ public interface SessionMetaStore {
      * 记下最近一次运行。会话行还不存在时什么都不做。
      */
     void attachRun(String tenantId, String userId, String sessionId, String runId);
+
+    /**
+     * 同一租户下这个会话是否已属于别人。没有别人时为空。
+     * 缺省不查，测试替身不用再写一遍。
+     */
+    default String otherUser(String tenantId, String sessionId, String userId) {
+        return null;
+    }
 }
