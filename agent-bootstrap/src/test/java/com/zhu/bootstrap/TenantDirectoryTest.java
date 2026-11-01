@@ -14,11 +14,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 租户登记、停用和对话前检查。不连接 MySQL，也不建用户。
+ * 租户登记、停用、关闭和对话前检查。不连接 MySQL，也不建用户。
  */
 class TenantDirectoryTest {
 
@@ -96,5 +97,49 @@ class TenantDirectoryTest {
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
         verify(tenants).suspendActive("t");
+    }
+
+    /** 可用和停用都能关。没有或已经关闭按找不到或冲突。 */
+    @Test
+    void closeUpdatesOpenOnly() {
+        TenantMapper tenants = mock(TenantMapper.class);
+        MysqlTenantDirectory directory = new MysqlTenantDirectory(tenants);
+
+        assertThatThrownBy(() -> directory.close("t"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(tenants, never()).closeNotClosed("t");
+
+        TenantRecord active = new TenantRecord();
+        active.setTenantId("t");
+        active.setName("示例");
+        active.setPlan("standard");
+        active.setStatus("ACTIVE");
+        when(tenants.findByTenantId("t")).thenReturn(active);
+        when(tenants.closeNotClosed("t")).thenReturn(1);
+        assertThat(directory.close("t")).satisfies(saved -> {
+            assertThat(saved.tenantId()).isEqualTo("t");
+            assertThat(saved.name()).isEqualTo("示例");
+            assertThat(saved.status()).isEqualTo("CLOSED");
+        });
+
+        TenantRecord suspended = new TenantRecord();
+        suspended.setTenantId("t");
+        suspended.setName("示例");
+        suspended.setPlan("standard");
+        suspended.setStatus("SUSPENDED");
+        when(tenants.findByTenantId("t")).thenReturn(suspended);
+        when(tenants.closeNotClosed("t")).thenReturn(1);
+        assertThat(directory.close("t").status()).isEqualTo("CLOSED");
+
+        TenantRecord closed = new TenantRecord();
+        closed.setStatus("CLOSED");
+        when(tenants.findByTenantId("t")).thenReturn(closed);
+        assertThatThrownBy(() -> directory.close("t"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+        verify(tenants, times(2)).closeNotClosed("t");
     }
 }

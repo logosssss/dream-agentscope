@@ -25,4 +25,12 @@
         WHERE tenant_id = #{tenantId}
           AND status = 'ACTIVE'
     </update>
+
+    <!-- 可用和停用都能关。不删行，也不恢复。 -->
+    <update id="closeNotClosed">
+        UPDATE tenant
+        SET status = 'CLOSED'
+        WHERE tenant_id = #{tenantId}
+          AND status IN ('ACTIVE', 'SUSPENDED')
+    </update>
 </mapper>

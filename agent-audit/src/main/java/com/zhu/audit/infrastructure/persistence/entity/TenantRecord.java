@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 /**
- * tenant 的一行。登记后默认可用。停用只改状态，不删行。
+ * tenant 的一行。登记后默认可用。停用和关闭只改状态，不删行。
  */
 @TableName("tenant")
 public class TenantRecord {
