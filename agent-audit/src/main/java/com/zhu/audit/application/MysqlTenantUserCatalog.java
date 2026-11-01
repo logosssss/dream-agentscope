@@ -68,7 +68,7 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
     }
 
     /**
-     * 空标识、查不到，或状态不是 ACTIVE，都不能开始对话。
+     * 空标识、查不到，或状态不是 ACTIVE，都不能继续这次请求。
      * 不把停用分成另一种错误，调用方只需要知道现在不能用。
      */
     @Override

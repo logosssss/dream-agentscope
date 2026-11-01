@@ -28,6 +28,7 @@
 | `application` | `ChatAppService` | 请求体身份优先，空字段用请求头。空提示词走 `PromptService`，额度通过并占锁后记下会话，再调用 `AgentExecutor` |
 | `application` | `SessionListService` | 列表键 `session-list:{tenant}:{user}`，五分钟。写入后删键。Redis 失败改查 MySQL |
 | `application` | `QuotaGuard`、`SessionTurnGuard` | 额度键 `quota:{tenant}:{user}:{yyyyMMdd}`。会话短锁 `turn:{tenant}:{user}:{session}`，结束即释放 |
+| `application` | `AccessAccountGate` | 对话以外的接口先过租户和用户门。MySQL 关闭时放行 |
 | `application` | `OpenTenantUserGate` | MySQL 关闭时不查 `tenant_user`。打开时改走目录 |
 | `infrastructure.persistence` | `MysqlSessionTurnCount` | MySQL 打开时数 `agent_run` 的成功行。人设检查用，不占锁 |
 
@@ -47,7 +48,7 @@
 
 `agentscope.access.daily-limit` 和 `per-minute` 默认是 0，表示不限制。MySQL 打开且该租户有启用的 `REQUESTS` / `DAILY` 行时，当日请求用这一行的上限，0 仍表示不限额；没有行时用进程配置。分钟限流仍是进程配置。计数仍在 Redis，不把已用量写回这张表。查这行失败返回 `UNAVAILABLE`，不改用进程配置。当日计数通过后写 `quota_usage_log`，数量是 1，不填运行标识。不限额时不写。流水写失败不改变这次请求，超限的那一次不记。带了 `X-Request-Id` 时，十分钟内的重复提交返回冲突，不再执行第二次。同一租户、用户、会话进行中时，再来一轮也返回冲突，调用结束就释放。Redis 不保存 Agent 状态或沙箱快照。Redis 在额度、幂等、限流或占锁时失败，请求返回 HTTP 503，错误码 `UNAVAILABLE`，不执行对话，也不改查 MySQL 或内存。释放锁失败不改变已经生成的回复，锁靠过期时间放开。
 
-会话列表是另一条路。`agent_session_meta` 由用户进程的 Flyway 建立，标题最多 40 个字符，不存正文。`GET /api/sessions` 先读 Redis，没有或 Redis 不可用时查这张表。对话在占锁成功后写入；删缓存失败不改变已经开始的对话。MySQL 打开时，同一租户下的 `sessionId` 已被其他用户占用则返回冲突。MySQL 关闭时不查归属，这只出现在测试里。
+会话列表是另一条路。`agent_session_meta` 由用户进程的 Flyway 建立，标题最多 40 个字符，不存正文。`GET /api/sessions` 先过账号门，再读 Redis，没有或 Redis 不可用时查这张表。对话在占锁成功后写入；删缓存失败不改变已经开始的对话。MySQL 打开时，同一租户下的 `sessionId` 已被其他用户占用则返回冲突。MySQL 关闭时不查归属，这只出现在测试里。
 
 同一次对话结束时写 `agent_run`。同步路径用回复上的运行标识；流式路径由接入层生成，因为事件里没有标识。输入和输出只留 40 个字符的摘要，异常只留类型名。写失败不改变回复。成功、失败或取消后，把这个标识填进会话的 `last_run_id`。`API` 通道的触发类型是 `API`，页面和即时通讯是 `USER`。
 
@@ -59,4 +60,4 @@
 
 ## 还没有
 
-用户登录、IM/API 通道适配。调用方令牌已经校验，租户和用户仍来自请求头或请求体。MySQL 打开时，对话还要求这个租户已登记且状态是 `ACTIVE`，并且这个用户已挂到该租户且状态是 `ACTIVE`。停用走管理接口。对话同时选用启用的 `model_config`，没有行再用进程配置。MySQL 关闭时不查。待确认按当前用户读 `approval_record`。同一事件再记一条 `approval_notification`，通道是 `WEB`，状态是 `PENDING`。不发 IM、邮件或短信。通知写失败不改变这次询问。MySQL 关闭时不记。同一事件再给发起人开一条 `user_todo`，类型是 `APPROVAL`，状态是 `OPEN`，标题是工具名。`POST /api/todos` 再给当前用户开确认或任务待办，只接受 `CONFIRM` / `TASK`。不核运行或任务是否存在。`GET /api/todos` 返回当前用户还开着的待办，含审批、确认和任务。审批通过后改 `DONE`，拒绝后改 `CANCELLED`。确认和任务这次不关。MySQL 关闭时这些接口返回不可用。`POST /api/feedback` 记下当前用户对一次运行的评分，只接受 1 到 5。不核对运行是否存在，也不接收文件。MySQL 关闭时返回不可用。`POST /api/attachments` 记下当前用户的附件元数据，不收文件内容。空白存储类型按 `LOCAL`。`POST /api/attachments/{attachmentId}/refs` 把该附件挂到一条消息或一次运行上，附件必须属于当前用户。不核对话或运行是否存在。MySQL 关闭时返回不可用。`POST /api/deletion-requests` 记下当前用户的数据删除请求，状态是 `PENDING`。只接受 `SESSION` / `ATTACHMENT` / `ALL`。不批准，也不真正删除。MySQL 关闭时返回不可用。会话列表已经按当前用户读 `agent_session_meta`。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。危机档和第 21 轮起的人设检查可能先没有文本增量，结束事件带检查后的全文。通道枚举已经在接入层，不要挪到运行层。就绪检查只探测 Milvus 地址。集合由用户进程创建，管理进程不建。
+用户登录、IM/API 通道适配。调用方令牌已经校验，租户和用户仍来自请求头或请求体。MySQL 打开时，对话、会话列表、待确认、待办、反馈、附件和删除请求都要求这个租户已登记且状态是 `ACTIVE`，并且这个用户已挂到该租户且状态是 `ACTIVE`。停用走管理接口。对话同时选用启用的 `model_config`，没有行再用进程配置。MySQL 关闭时不查。待确认按当前用户读 `approval_record`。同一事件再记一条 `approval_notification`，通道是 `WEB`，状态是 `PENDING`。不发 IM、邮件或短信。通知写失败不改变这次询问。MySQL 关闭时不记。同一事件再给发起人开一条 `user_todo`，类型是 `APPROVAL`，状态是 `OPEN`，标题是工具名。`POST /api/todos` 再给当前用户开确认或任务待办，只接受 `CONFIRM` / `TASK`。不核运行或任务是否存在。`GET /api/todos` 返回当前用户还开着的待办，含审批、确认和任务。审批通过后改 `DONE`，拒绝后改 `CANCELLED`。确认和任务这次不关。MySQL 关闭时这些接口返回不可用。`POST /api/feedback` 记下当前用户对一次运行的评分，只接受 1 到 5。不核对运行是否存在，也不接收文件。MySQL 关闭时返回不可用。`POST /api/attachments` 记下当前用户的附件元数据，不收文件内容。空白存储类型按 `LOCAL`。`POST /api/attachments/{attachmentId}/refs` 把该附件挂到一条消息或一次运行上，附件必须属于当前用户。不核对话或运行是否存在。MySQL 关闭时返回不可用。`POST /api/deletion-requests` 记下当前用户的数据删除请求，状态是 `PENDING`。只接受 `SESSION` / `ATTACHMENT` / `ALL`。不批准，也不真正删除。MySQL 关闭时返回不可用。会话列表已经按当前用户读 `agent_session_meta`。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。危机档和第 21 轮起的人设检查可能先没有文本增量，结束事件带检查后的全文。通道枚举已经在接入层，不要挪到运行层。就绪检查只探测 Milvus 地址。集合由用户进程创建，管理进程不建。

@@ -1,6 +1,7 @@
 package com.zhu.access.api.controller;
 
 import com.zhu.access.api.dto.TodoRequest;
+import com.zhu.access.application.AccessAccountGate;
 import com.zhu.audit.api.UserTodoCatalog;
 import com.zhu.audit.api.UserTodoRow;
 import com.zhu.common.context.UserContext;
@@ -23,25 +24,25 @@ public class TodoController {
 
     private final ObjectProvider<UserTodoCatalog> catalogs;
 
+    private final AccessAccountGate accounts;
+
     /** MySQL 关闭时没有目录。接口仍在，调用会返回不可用。 */
-    public TodoController(ObjectProvider<UserTodoCatalog> catalogs) {
+    public TodoController(ObjectProvider<UserTodoCatalog> catalogs, AccessAccountGate accounts) {
         this.catalogs = catalogs;
+        this.accounts = accounts;
     }
 
     /**
-     * 只返回这次请求头里的用户。没有用户时拒绝。条数默认 50，最多 100。
+     * 只返回这次请求头里的用户。没有用户或账号不可用时拒绝。条数默认 50，最多 100。
      */
     @GetMapping("/api/todos")
     public ApiResult<List<UserTodoRow>> open(@RequestParam(defaultValue = "50") int limit) {
-        String userId = UserContext.get();
-        if (userId == null || userId.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "userId is required");
-        }
+        accounts.requireActive();
         UserTodoCatalog catalog = catalogs.getIfAvailable();
         if (catalog == null) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "todo catalog is unavailable");
         }
-        return ApiResult.ok(catalog.openApprovals(userId, limit));
+        return ApiResult.ok(catalog.openApprovals(UserContext.get(), limit));
     }
 
     /**
@@ -49,15 +50,12 @@ public class TodoController {
      */
     @PostMapping("/api/todos")
     public ApiResult<UserTodoRow> register(@RequestBody TodoRequest request) {
-        String userId = UserContext.get();
-        if (userId == null || userId.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "userId is required");
-        }
+        accounts.requireActive();
         UserTodoCatalog catalog = catalogs.getIfAvailable();
         if (catalog == null) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "todo catalog is unavailable");
         }
         TodoRequest body = request == null ? new TodoRequest(null, null, null) : request;
-        return ApiResult.ok(catalog.open(userId, body.todoType(), body.refId(), body.title()));
+        return ApiResult.ok(catalog.open(UserContext.get(), body.todoType(), body.refId(), body.title()));
     }
 }

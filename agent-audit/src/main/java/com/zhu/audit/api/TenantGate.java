@@ -1,7 +1,7 @@
 package com.zhu.audit.api;
 
 /**
- * 对话前的租户检查。MySQL 关闭时放行，打开时只接受仍在使用的租户。
+ * 接入前的租户检查。MySQL 关闭时放行，打开时只接受仍在使用的租户。
  * 这里不校验用户账号。
  */
 public interface TenantGate {

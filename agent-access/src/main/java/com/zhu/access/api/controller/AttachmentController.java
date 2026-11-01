@@ -2,6 +2,7 @@ package com.zhu.access.api.controller;
 
 import com.zhu.access.api.dto.AttachmentRefRequest;
 import com.zhu.access.api.dto.AttachmentRequest;
+import com.zhu.access.application.AccessAccountGate;
 import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.audit.api.AttachmentRefSummary;
 import com.zhu.audit.api.AttachmentSummary;
@@ -24,20 +25,20 @@ public class AttachmentController {
 
     private final ObjectProvider<AttachmentCatalog> catalogs;
 
+    private final AccessAccountGate accounts;
+
     /** MySQL 关闭时没有目录。接口仍在，调用会返回不可用。 */
-    public AttachmentController(ObjectProvider<AttachmentCatalog> catalogs) {
+    public AttachmentController(ObjectProvider<AttachmentCatalog> catalogs, AccessAccountGate accounts) {
         this.catalogs = catalogs;
+        this.accounts = accounts;
     }
 
     /**
-     * 用户取请求头。没有用户时拒绝。租户没有时按空串登记。
+     * 用户取请求头。没有用户或账号不可用时拒绝。租户没有时按空串登记。
      */
     @PostMapping("/api/attachments")
     public ApiResult<AttachmentSummary> register(@RequestBody AttachmentRequest request) {
-        String userId = UserContext.get();
-        if (userId == null || userId.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "userId is required");
-        }
+        accounts.requireActive();
         AttachmentCatalog catalog = catalogs.getIfAvailable();
         if (catalog == null) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "attachment catalog is unavailable");
@@ -46,7 +47,7 @@ public class AttachmentController {
                 ? new AttachmentRequest(null, null, null, null, null, null, null)
                 : request;
         return ApiResult.ok(catalog.register(
-                userId,
+                UserContext.get(),
                 TenantContext.get(),
                 body.sessionId(),
                 body.fileName(),
@@ -64,15 +65,12 @@ public class AttachmentController {
     public ApiResult<AttachmentRefSummary> link(
             @PathVariable String attachmentId,
             @RequestBody AttachmentRefRequest request) {
-        String userId = UserContext.get();
-        if (userId == null || userId.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "userId is required");
-        }
+        accounts.requireActive();
         AttachmentCatalog catalog = catalogs.getIfAvailable();
         if (catalog == null) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "attachment catalog is unavailable");
         }
         AttachmentRefRequest body = request == null ? new AttachmentRefRequest(null, null) : request;
-        return ApiResult.ok(catalog.link(userId, attachmentId, body.refType(), body.refId()));
+        return ApiResult.ok(catalog.link(UserContext.get(), attachmentId, body.refType(), body.refId()));
     }
 }
