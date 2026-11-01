@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * 需要攒齐再查的流式出口。危机和第 21 轮起的人设检查共用。
+ * 需要攒齐再查的流式出口。危机和打开人设检查时共用。
  * 其它轮次不扣增量。不写干预。
  */
 public final class CrisisReplyOutlet {

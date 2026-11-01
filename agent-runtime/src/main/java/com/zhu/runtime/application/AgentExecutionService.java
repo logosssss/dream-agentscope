@@ -27,7 +27,7 @@ import reactor.core.publisher.Flux;
 
 /**
  * 单次执行的生命周期。身份放进 RuntimeContext，执行完无论成败都关闭 Agent。
- * 危机档和第 21 轮起的人设检查都在这里过整段回复，不另写干预。
+ * 危机档和打开人设检查时都在这里过整段回复，不另写干预。
  */
 @Service
 public class AgentExecutionService implements AgentExecutor {
@@ -61,7 +61,7 @@ public class AgentExecutionService implements AgentExecutor {
 
     /**
      * 新建 Agent、同步等待回复、然后关闭。不要把返回的 Agent 留到方法外面。
-     * 危机档和第 21 轮起的人设检查等整段回来再过，避免半句先漏出去。
+     * 危机档和打开人设检查时等整段回来再过，避免半句先漏出去。
      */
     @Override
     public AgentResponse execute(AgentRequest request) {
@@ -89,7 +89,7 @@ public class AgentExecutionService implements AgentExecutor {
     /**
      * 先建好 Agent 和上下文再返回 Flux，这样请求线程上的身份已经被抄进 RuntimeContext。
      * 订阅结束时关闭 Agent。超时只作用于流，不在请求线程上 block。
-     * 危机档和第 21 轮起的人设检查先扣下文本增量，结束事件再带检查后的全文。
+     * 危机档和打开人设检查时先扣下文本增量，结束事件再带检查后的全文。
      */
     @Override
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
