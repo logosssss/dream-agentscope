@@ -7,12 +7,13 @@ import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记租户。不创建用户，也不停用已有租户。
+ * 管理进程登记和停用租户。不创建用户，也不关闭或恢复。
  */
 @RestController
 public class AdminTenantController {
@@ -35,5 +36,17 @@ public class AdminTenantController {
         }
         TenantRequest body = request == null ? new TenantRequest(null, null) : request;
         return ApiResult.ok(catalog.register(body.tenantId(), body.name()));
+    }
+
+    /**
+     * 把可用租户改成停用。已经停用或关闭由目录返回冲突。
+     */
+    @PostMapping("/api/admin/tenants/{tenantId}/suspend")
+    public ApiResult<TenantSummary> suspend(@PathVariable String tenantId) {
+        TenantCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant catalog is unavailable");
+        }
+        return ApiResult.ok(catalog.suspend(tenantId));
     }
 }

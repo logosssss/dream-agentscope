@@ -13,11 +13,12 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 租户登记和对话前检查。不连接 MySQL，也不建用户。
+ * 租户登记、停用和对话前检查。不连接 MySQL，也不建用户。
  */
 class TenantDirectoryTest {
 
@@ -60,5 +61,40 @@ class TenantDirectoryTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
+    /** 只停还在用的租户。没有或已经停用按找不到或冲突。 */
+    @Test
+    void suspendUpdatesActiveOnly() {
+        TenantMapper tenants = mock(TenantMapper.class);
+        MysqlTenantDirectory directory = new MysqlTenantDirectory(tenants);
+
+        assertThatThrownBy(() -> directory.suspend("t"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(tenants, never()).suspendActive("t");
+
+        TenantRecord active = new TenantRecord();
+        active.setTenantId("t");
+        active.setName("示例");
+        active.setPlan("standard");
+        active.setStatus("ACTIVE");
+        when(tenants.findByTenantId("t")).thenReturn(active);
+        when(tenants.suspendActive("t")).thenReturn(1);
+        assertThat(directory.suspend("t")).satisfies(saved -> {
+            assertThat(saved.tenantId()).isEqualTo("t");
+            assertThat(saved.name()).isEqualTo("示例");
+            assertThat(saved.status()).isEqualTo("SUSPENDED");
+        });
+
+        TenantRecord suspended = new TenantRecord();
+        suspended.setStatus("SUSPENDED");
+        when(tenants.findByTenantId("t")).thenReturn(suspended);
+        assertThatThrownBy(() -> directory.suspend("t"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+        verify(tenants).suspendActive("t");
     }
 }

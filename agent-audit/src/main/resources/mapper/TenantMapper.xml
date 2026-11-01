@@ -17,4 +17,12 @@
         FROM tenant
         WHERE tenant_id = #{tenantId}
     </select>
+
+    <!-- 只改还在用的租户。不关户，也不恢复。 -->
+    <update id="suspendActive">
+        UPDATE tenant
+        SET status = 'SUSPENDED'
+        WHERE tenant_id = #{tenantId}
+          AND status = 'ACTIVE'
+    </update>
 </mapper>

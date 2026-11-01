@@ -59,7 +59,7 @@
 
 `POST /api/admin/operation-audits` 追加 `operation_audit`。空白租户按空串。不写前后快照、IP 和 UA。`GET /api/admin/operation-audits` 看最近的操作，默认 50 条，最多 100 条。其它管理接口还不自动记这一行。
 
-`POST /api/admin/tenants` 登记 `tenant`。状态是 `ACTIVE`，套餐是 `standard`。同一标识再登记一次返回冲突。用户进程在 MySQL 打开时只允许这个状态的租户对话。停用还不在这里改。
+`POST /api/admin/tenants` 登记 `tenant`。状态是 `ACTIVE`，套餐是 `standard`。同一标识再登记一次返回冲突。用户进程在 MySQL 打开时只允许这个状态的租户对话。`POST /api/admin/tenants/{tenantId}/suspend` 把可用租户改成 `SUSPENDED`。已经停用或关闭再停一次返回冲突。不删数据，也不建用户。关闭和恢复还不在这里改。
 
 `POST /api/admin/tenant-quotas` 登记 `tenant_quota` 的每日请求上限。类型是 `REQUESTS`，周期是 `DAILY`。上限 0 表示不限额。同一租户再登记一次返回冲突，不覆盖旧值。已用量仍在 Redis。按 token、费用或并发的上限还不写。
 

@@ -12,13 +12,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的租户目录。只在存储开关打开时创建。不建用户，也不改已有行的状态。
+ * MySQL 上的租户目录。只在存储开关打开时创建。不建用户，也不关闭或恢复。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
 public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
 
     private static final String ACTIVE = "ACTIVE";
+
+    private static final String SUSPENDED = "SUSPENDED";
 
     private static final String PLAN = "standard";
 
@@ -68,5 +70,28 @@ public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant already exists");
         }
         return new TenantSummary(tenantId, name, PLAN, ACTIVE);
+    }
+
+    /**
+     * 先读再按 ACTIVE 更新，避免覆盖已经停用或关闭的行。
+     * 不改名称和套餐，也不删会话。
+     */
+    @Override
+    public TenantSummary suspend(String tenantId) {
+        if (tenantId == null || tenantId.isBlank() || tenantId.length() > 64) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenant is invalid");
+        }
+        TenantRecord existing = tenants.findByTenantId(tenantId);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant not found");
+        }
+        if (!ACTIVE.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant is not active");
+        }
+        int updated = tenants.suspendActive(tenantId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant is not active");
+        }
+        return new TenantSummary(existing.getTenantId(), existing.getName(), existing.getPlan(), SUSPENDED);
     }
 }

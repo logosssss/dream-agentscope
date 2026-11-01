@@ -16,20 +16,20 @@
 
 下一空 Flyway 版本：**V31**。
 
-## 已做（附件引用）
+## 已做（停用租户）
 
-`POST /api/attachments/{attachmentId}/refs` 登记 `attachment_ref`。类型 `MESSAGE` / `RUN`。附件必须属于当前用户。不核对话或运行，不接对象存储。
+`POST /api/admin/tenants/{tenantId}/suspend` 把 `ACTIVE` 改成 `SUSPENDED`。找不到按不存在。已经停用或关闭再停一次是冲突。不删数据，不关账号，也不恢复。对话门已经拒绝非 `ACTIVE`。
 
 ## 下一块候选（选一块）
 
 以 README「还没有」为准，例如：
 
-- 停用租户
 - 确认 / 任务待办
 - `tenant_user`
+- 关闭或恢复租户
 
 不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、Persona 读表升级关系。
 
 ## 另一台机器开场白
 
-拉到含附件引用的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含停用租户的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
