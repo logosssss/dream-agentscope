@@ -1,7 +1,7 @@
 package com.zhu.audit.api;
 
 /**
- * 一条已登记的模型配置。不带参数 JSON，也不表示对话已经改用它。
+ * 一条已登记的模型配置。不带参数 JSON。
  *
  * @param configId    配置标识
  * @param model       模型名

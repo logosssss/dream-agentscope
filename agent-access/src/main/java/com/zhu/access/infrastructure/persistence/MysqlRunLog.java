@@ -5,6 +5,8 @@ import com.zhu.access.application.RunStep;
 import com.zhu.access.infrastructure.persistence.entity.AgentRun;
 import com.zhu.access.infrastructure.persistence.entity.AgentRunStep;
 import com.zhu.common.util.Ids;
+import com.zhu.common.exception.BusinessException;
+import com.zhu.runtime.application.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -32,11 +34,18 @@ public class MysqlRunLog implements RunLog {
 
     private final AgentRuntimeProperties properties;
 
-    /** MySQL 打开时由 Mapper 扫描提供实现。模型名来自运行配置。 */
-    public MysqlRunLog(AgentRunMapper runs, AgentRunStepMapper steps, AgentRuntimeProperties properties) {
+    private final ResolvedChatModel chatModel;
+
+    /** MySQL 打开时由 Mapper 扫描提供实现。模型名优先用已登记配置。 */
+    public MysqlRunLog(
+            AgentRunMapper runs,
+            AgentRunStepMapper steps,
+            AgentRuntimeProperties properties,
+            ResolvedChatModel chatModel) {
         this.runs = runs;
         this.steps = steps;
         this.properties = properties;
+        this.chatModel = chatModel;
     }
 
     /**
@@ -69,7 +78,7 @@ public class MysqlRunLog implements RunLog {
         row.setSessionId(sessionId);
         row.setTriggerType(trigger == null || trigger.isBlank() ? "USER" : trigger);
         row.setStatus(status == null || status.isBlank() ? FAILED : status);
-        row.setModel(limit(properties.getModel(), MODEL_LIMIT));
+        row.setModel(limit(modelName(tenantId), MODEL_LIMIT));
         row.setInputSummary(inputSummary == null ? "" : inputSummary);
         row.setOutputSummary(outputSummary == null ? "" : outputSummary);
         row.setErrorCode(limit(errorCode, ERROR_LIMIT));
@@ -80,6 +89,18 @@ public class MysqlRunLog implements RunLog {
         List<AgentRunStep> rows = numbered(recorded);
         if (!rows.isEmpty()) {
             steps.insertSteps(row.getRunId(), rows);
+        }
+    }
+
+    /**
+     * 记运行失败不改变已经结束的对话。
+     * 选模型失败时退回进程配置，避免丢掉这一行。
+     */
+    private String modelName(String tenantId) {
+        try {
+            return chatModel.resolve(tenantId);
+        } catch (BusinessException ex) {
+            return properties.getModel();
         }
     }
 

@@ -1,7 +1,7 @@
 package com.zhu.audit.api;
 
 /**
- * 登记模型配置。不接到运行层，也不解析参数 JSON。
+ * 登记模型配置。不解析参数 JSON。
  */
 public interface ModelConfigCatalog {
 

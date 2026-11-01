@@ -16,7 +16,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 模型配置只登记目录。不连接 MySQL，也不改对话用的模型。
+ * 模型配置登记后可供对话选用。不连接 MySQL，也不解析参数。
  */
 class ModelConfigCatalogTest {
 
@@ -37,5 +37,26 @@ class ModelConfigCatalogTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
+    }
+
+    /** 租户范围优先于全局。没有启用行时没有单独模型。 */
+    @Test
+    void resolvePrefersTenantScope() {
+        ModelConfigMapper configs = mock(ModelConfigMapper.class);
+        MysqlModelConfigCatalog catalog = new MysqlModelConfigCatalog(configs);
+
+        assertThat(catalog.resolveModel("t")).isNull();
+
+        ModelConfig tenant = new ModelConfig();
+        tenant.setProvider("dashscope");
+        tenant.setModel("qwen-max");
+        when(configs.findEnabled("t")).thenReturn(tenant);
+        assertThat(catalog.resolveModel("t")).isEqualTo("dashscope:qwen-max");
+
+        ModelConfig global = new ModelConfig();
+        global.setProvider("dashscope");
+        global.setModel("qwen-plus");
+        when(configs.findEnabled(null)).thenReturn(global);
+        assertThat(catalog.resolveModel(" ")).isEqualTo("dashscope:qwen-plus");
     }
 }

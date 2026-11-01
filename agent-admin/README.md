@@ -46,7 +46,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /api/admin/quota-usage` | 某个租户最近的每日请求流水，默认 50 条，最多 100 条。不回补。MySQL 关闭时返回不可用 |
 | `GET /api/admin/model-prices` | 最近的模型价格，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `POST /api/admin/model-prices` | 再插入一行价格。不改旧行。取价时用生效开始最晚且仍有效的一行 |
-| `POST /api/admin/model-configs` | 登记一条模型配置，版本固定 `1.0.0`。不接到对话，也不解析参数。MySQL 关闭时返回不可用 |
+| `POST /api/admin/model-configs` | 登记一条模型配置，版本固定 `1.0.0`。用户进程对话会选用启用行。不解析参数。MySQL 关闭时返回不可用 |
 | `POST /api/admin/retention-policies` | 登记一条数据保留策略。不执行清理。MySQL 关闭时返回不可用 |
 | `POST /api/admin/task-schedules` | 登记一条任务调度。cron 和延迟二选一。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
 | `GET /api/admin/operation-audits` | 最近的后台操作，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
@@ -64,4 +64,4 @@ mvn -pl agent-admin -am spring-boot:run
 
 ## 还没有
 
-用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不让对话改用刚登记的模型配置，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。后台操作审计还不自动挂到其它接口上。仓库不放模型单价，也不放调用方令牌。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。后台操作审计还不自动挂到其它接口上。仓库不放模型单价，也不放调用方令牌。

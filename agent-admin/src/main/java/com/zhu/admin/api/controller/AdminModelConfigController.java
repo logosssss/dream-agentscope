@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记模型配置。不接到对话，也不改正在用的模型名。
+ * 管理进程登记模型配置。不解析参数。用户进程自己去选用启用行。
  */
 @RestController
 public class AdminModelConfigController {

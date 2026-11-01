@@ -1,6 +1,7 @@
 package com.zhu.runtime.infrastructure.agent;
 
 import com.zhu.runtime.api.AgentRequest;
+import com.zhu.runtime.application.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.semantic.contract.CompletionCriteria;
 import com.zhu.semantic.contract.ProductSemanticProvider;
@@ -25,6 +26,8 @@ import org.springframework.stereotype.Component;
 public class HarnessAgentFactory {
 
     private final AgentRuntimeProperties properties;
+
+    private final ResolvedChatModel chatModel;
 
     private final ProductSemanticProvider semantics;
 
@@ -55,6 +58,7 @@ public class HarnessAgentFactory {
     /** 写文件限制、审批、安全门、人设标记和记忆写入都挂上。体积检查更靠前，危机换话术发生在模型调用之前。 */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,
+            ResolvedChatModel chatModel,
             ProductSemanticProvider semantics,
             ObjectProvider<DistributedStore> stores,
             AuditMiddleware auditMiddleware,
@@ -66,6 +70,7 @@ public class HarnessAgentFactory {
             AgentShutdown shutdown,
             List<ProductTool> productTools) {
         this.properties = properties;
+        this.chatModel = chatModel;
         this.semantics = semantics;
         this.stores = stores;
         this.auditMiddleware = auditMiddleware;
@@ -91,7 +96,7 @@ public class HarnessAgentFactory {
         HarnessAgent.Builder builder = HarnessAgent.builder()
                 .name(properties.getName())
                 .agentId(agentId)
-                .model(properties.getModel())
+                .model(chatModel.resolve(request.tenantId()))
                 .sysPrompt(blank(request.systemPrompt()) ? semantics.promptFallback(null) : request.systemPrompt())
                 .maxIters(maxIterations());
         if (!blank(properties.getWorkspace())) {

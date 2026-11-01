@@ -36,6 +36,8 @@ public class AgentExecutionService implements AgentExecutor {
 
     private final AgentRuntimeProperties properties;
 
+    private final ResolvedChatModel chatModel;
+
     private final UsageMeter usages;
 
     private final CrisisPrompt crisis;
@@ -45,11 +47,13 @@ public class AgentExecutionService implements AgentExecutor {
     public AgentExecutionService(
             HarnessAgentFactory factory,
             AgentRuntimeProperties properties,
+            ResolvedChatModel chatModel,
             UsageMeter usages,
             CrisisPrompt crisis,
             PersonaContract persona) {
         this.factory = factory;
         this.properties = properties;
+        this.chatModel = chatModel;
         this.usages = usages;
         this.crisis = crisis;
         this.persona = persona;
@@ -75,7 +79,7 @@ public class AgentExecutionService implements AgentExecutor {
                     request.userId(),
                     request.sessionId(),
                     runId,
-                    properties.getModel(),
+                    chatModel.resolve(request.tenantId()),
                     reply,
                     started);
             return new AgentResponse(runId, text);
@@ -105,7 +109,7 @@ public class AgentExecutionService implements AgentExecutor {
                                     request.userId(),
                                     request.sessionId(),
                                     runId,
-                                    properties.getModel(),
+                                    chatModel.resolve(request.tenantId()),
                                     message,
                                     started);
                         }

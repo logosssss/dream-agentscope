@@ -55,6 +55,7 @@ AgentStreamEvent   接入层再写成 SSE
 | `api` | `AgentStreamEvent` | 流式事件的类型和短文本 |
 | `api` | `SessionTurnCount` | 会话已经成功结束的轮次。人设检查只看这个数 |
 | `application` | `AgentExecutionService` | 同步 `block` 和流式 `streamEvents`，结束时关闭 Agent。危机档和第 21 轮起的人设检查过整段回复，不另写干预 |
+| `application` | `ResolvedChatModel` | MySQL 打开时用启用的 `model_config`，拼成 `provider:model`。没有行再用进程配置 |
 | `application` | `AgentStreamEvents` | 框架事件收成 `AgentStreamEvent` |
 | `application` | `CrisisReplyOutlet` | 需要攒齐再查的流式出口。增量先扣下，整段结束再过规则 |
 | `application` | `AbsentSessionTurnCount` | MySQL 关闭时成功轮次按 0，人设检查保持关闭 |

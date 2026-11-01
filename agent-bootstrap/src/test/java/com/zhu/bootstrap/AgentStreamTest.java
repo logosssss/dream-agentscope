@@ -5,8 +5,10 @@ import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentStreamEvent;
 import com.zhu.runtime.application.AgentExecutionService;
 import com.zhu.runtime.application.AgentStreamEvents;
+import com.zhu.runtime.application.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import io.agentscope.core.event.RequireUserConfirmEvent;
 import io.agentscope.core.event.TextBlockDeltaEvent;
 import io.agentscope.core.message.ToolUseBlock;
@@ -47,9 +49,11 @@ class AgentStreamTest {
     @Test
     void streamRejectsBlankIdentityBeforeBuild() {
         HarnessAgentFactory factory = mock(HarnessAgentFactory.class);
+        AgentRuntimeProperties properties = new AgentRuntimeProperties();
         AgentExecutionService service = new AgentExecutionService(
                 factory,
-                new AgentRuntimeProperties(),
+                properties,
+                new ResolvedChatModel(properties, mock(ObjectProvider.class)),
                 (tenant, user, session, run, model, input, output, latency) -> {
                 },
                 null,

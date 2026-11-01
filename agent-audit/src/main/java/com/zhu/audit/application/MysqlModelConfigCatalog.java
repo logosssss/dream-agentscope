@@ -1,21 +1,26 @@
 package com.zhu.audit.application;
 
 import com.zhu.audit.api.ModelConfigCatalog;
+import com.zhu.audit.api.ModelConfigLookup;
 import com.zhu.audit.api.ModelConfigSummary;
 import com.zhu.audit.infrastructure.persistence.ModelConfigMapper;
 import com.zhu.audit.infrastructure.persistence.entity.ModelConfig;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.logging.Logger;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记模型配置。只在存储开关打开时创建。不接到运行层。
+ * 登记模型配置，并给对话挑启用行。只在存储开关打开时创建。不解析参数 JSON。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
-public class MysqlModelConfigCatalog implements ModelConfigCatalog {
+public class MysqlModelConfigCatalog implements ModelConfigCatalog, ModelConfigLookup {
+
+    private static final Logger log = Logger.getLogger(MysqlModelConfigCatalog.class.getName());
 
     private static final String VERSION = "1.0.0";
 
@@ -37,7 +42,7 @@ public class MysqlModelConfigCatalog implements ModelConfigCatalog {
     }
 
     /**
-     * 空白范围按全局处理。不写 params，也不改对话里正在用的模型名。
+     * 空白范围按全局处理。不写 params。
      */
     @Override
     public ModelConfigSummary register(String configId, String model, String provider, String tenantScope) {
@@ -61,5 +66,24 @@ public class MysqlModelConfigCatalog implements ModelConfigCatalog {
             throw new BusinessException(ErrorCode.CONFLICT, "model config already exists");
         }
         return new ModelConfigSummary(configId, model, provider, VERSION, scope);
+    }
+
+    /**
+     * 查库失败时拒绝对话，不退回进程配置。
+     * 没有启用行时返回 null，由运行层继续用进程里的模型名。
+     */
+    @Override
+    public String resolveModel(String tenantId) {
+        try {
+            ModelConfig row = configs.findEnabled(tenantId == null || tenantId.isBlank() ? null : tenantId);
+            if (row == null || row.getProvider() == null || row.getProvider().isBlank()
+                    || row.getModel() == null || row.getModel().isBlank()) {
+                return null;
+            }
+            return row.getProvider() + ":" + row.getModel();
+        } catch (DataAccessException ex) {
+            log.warning("model config lookup failed");
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "model config is unavailable");
+        }
     }
 }

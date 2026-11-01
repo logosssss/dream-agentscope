@@ -16,16 +16,16 @@
 
 下一空 Flyway 版本：**V32**。
 
-## 已做（评测打分）
+## 已做（对话用模型配置）
 
-`POST /api/admin/eval-runs/{evalRunId}/score` 给仍在 `RUNNING` 的执行写入通过数和四位通过率，改成 `SUCCEEDED`。已经打过分再打一次是冲突。不调用模型，也不写逐条结果。
+MySQL 打开时，对话选用启用的 `model_config` `1.0.0`，同一租户优先于全局 `*`，拼成 `provider:model`。没有行或 MySQL 关闭时用进程配置。查库失败返回 503。不解析参数 JSON。
 
 ## 下一块
 
-以各模块 README「还没有」为准，例如让对话改用刚登记的模型配置。
+以各模块 README「还没有」为准，例如按保留策略清理数据。
 
 不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、Persona 读表升级关系、语义判定换真模型、Memory Curator、主动唤醒。
 
 ## 另一台机器开场白
 
-拉到含评测打分的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含对话用模型配置的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。

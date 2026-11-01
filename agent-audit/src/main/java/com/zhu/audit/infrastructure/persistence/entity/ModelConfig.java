@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 /**
- * model_config 的一行。只描述目录，不驱动本次对话选模型。
+ * model_config 的一行。启用的 1.0.0 可以驱动本次对话选模型。
  */
 @TableName("model_config")
 public class ModelConfig {
