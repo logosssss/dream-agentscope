@@ -1,4 +1,4 @@
-package com.zhu.bootstrap;
+package com.zhu.vector.api;
 
 /**
  * 知识检索的过滤条件。用户和 Agent 都必须带上，避免串到别人的向量。

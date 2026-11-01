@@ -19,6 +19,7 @@
 
     <modules>
         <module>agent-common</module>
+        <module>agent-vector</module>
         <module>agent-state</module>
         <module>agent-semantic</module>
         <module>agent-runtime</module>
@@ -42,6 +43,11 @@
             <dependency>
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-vector</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

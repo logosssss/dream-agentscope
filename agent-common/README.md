@@ -6,7 +6,7 @@
 
 ## 依赖
 
-不依赖其它业务模块，也不依赖 AgentScope。任何模块都可以依赖它。它不能依赖 `agent-state`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-access`。
+不依赖其它业务模块，也不依赖 AgentScope。任何模块都可以依赖它。它不能依赖 `agent-state`、`agent-vector`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-access`。
 
 ## 包
 
@@ -17,7 +17,7 @@
 | `context` | `TenantContext`、`UserContext`、`RequestIdContext` | 当前线程的租户、用户和幂等标识。请求结束必须 `clear()`，避免线程池串话 |
 | `util` | `Ids` | 还没有框架返回值时生成无连字符的随机 ID |
 | `security` | `CallerTokens` | 比较调用方令牌。期望值由各进程配置，不放进本模块 |
-| `health` | `ReadinessSnapshot`、`MilvusProbe` | 就绪结果汇总。探测只看地址通不通。建集合在用户进程 |
+| `health` | `ReadinessSnapshot`、`MilvusProbe` | 就绪结果汇总。探测只看地址通不通。建集合在 `agent-vector` |
 
 ## 使用约定
 

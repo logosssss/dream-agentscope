@@ -56,7 +56,7 @@ agentscope:
       host: ${AGENTSCOPE_REDIS_HOST:}
       port: ${AGENTSCOPE_REDIS_PORT:6379}
   milvus:
-    # 地址为空或连不上就退出。连通后创建 knowledge 集合。不写入，也不检索。
+    # 地址为空或连不上就退出。连通后创建 knowledge 和 episodic_memory 集合。不写入，也不检索。
     uri: ${MILVUS_URI:}
     token: ${MILVUS_TOKEN:}
     collection: ${MILVUS_COLLECTION:knowledge}

@@ -32,6 +32,12 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..semantic..", "..runtime..", "..access..");
 
+    /** 向量层不认识状态、产品语义、执行和接入。 */
+    private static final ArchRule VECTOR_MUST_NOT_DEPEND_ON_BUSINESS =
+            noClasses().that().resideInAPackage("..vector..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("..state..", "..semantic..", "..runtime..", "..access..", "..admin..");
+
     /** 接入层不能直接引用 Harness 类型。 */
     private static final ArchRule ACCESS_MUST_NOT_TOUCH_HARNESS =
             noClasses().that().resideInAPackage("..access..")
@@ -44,7 +50,7 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..infrastructure.persistence..");
 
-    /** 确认规则作用在真实类上，并且五条边界都成立。 */
+    /** 确认规则作用在真实类上，并且六条边界都成立。 */
     @Test
     void moduleBoundariesHold() {
         JavaClasses classes = new ClassFileImporter().importPackages("com.zhu");
@@ -53,11 +59,14 @@ class ArchitectureTest {
                         "com.zhu.semantic.contract.ProductSemanticProvider",
                         "com.zhu.runtime.api.AgentExecutor",
                         "com.zhu.state.config.DistributedStoreConfig",
+                        "com.zhu.vector.api.VectorStore",
+                        "com.zhu.vector.config.VectorConfig",
                         "com.zhu.access.api.controller.LivenessController");
 
         SEMANTIC_MUST_NOT_DEPEND_ON_RUNTIME_OR_ACCESS.check(classes);
         RUNTIME_ONLY_DEPENDS_ON_SEMANTIC_CONTRACT.check(classes);
         STATE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
+        VECTOR_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         ACCESS_MUST_NOT_TOUCH_HARNESS.check(classes);
         CONTROLLERS_MUST_NOT_ACCESS_REPOSITORIES.check(classes);
     }

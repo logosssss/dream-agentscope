@@ -4,8 +4,11 @@ import com.zhu.common.security.CallerTokens;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.semantic.infrastructure.nacos.AbsentPromptSource;
 import com.zhu.semantic.infrastructure.nacos.PromptSource;
+import com.zhu.vector.api.VectorStore;
+import com.zhu.vector.application.AbsentVectorStore;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
+import io.milvus.v2.client.MilvusClientV2;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -48,6 +51,9 @@ class BootstrapContextTest {
         assertThat(context.getBeansOfType(DistributedStore.class)).isEmpty();
         assertThat(context.getBeansOfType(PromptSource.class)).hasSize(1);
         assertThat(context.getBean(PromptSource.class)).isInstanceOf(AbsentPromptSource.class);
+        assertThat(context.getBeansOfType(VectorStore.class)).hasSize(1);
+        assertThat(context.getBean(VectorStore.class)).isInstanceOf(AbsentVectorStore.class);
+        assertThat(context.getBeansOfType(MilvusClientV2.class)).isEmpty();
         mvc.perform(get("/health/live"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));

@@ -20,6 +20,10 @@
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
+            <artifactId>agent-vector</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
             <artifactId>agent-state</artifactId>
         </dependency>
         <dependency>
@@ -37,10 +41,6 @@
         <dependency>
             <groupId>com.zhu</groupId>
             <artifactId>agent-access</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.milvus</groupId>
-            <artifactId>milvus-sdk-java</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
