@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import java.time.LocalDateTime;
 
 /**
- * eval_run 的一行。这次只表示评测已登记，不表示已经打分。
+ * eval_run 的一行。打分只改通过数、通过率和状态，不写逐条结果。
  */
 @TableName("eval_run")
 public class EvalRun {
@@ -27,10 +27,10 @@ public class EvalRun {
     /** 开始时的用例条数。 */
     private Integer totalCases;
 
-    /** 通过条数。这次写 0。 */
+    /** 通过条数。登记时是 0，打分后写入。 */
     private Integer passedCases;
 
-    /** RUNNING。这次不改成完成或失败。 */
+    /** RUNNING 或 SUCCEEDED。 */
     private String status;
 
     /** 登记时间。 */

@@ -55,7 +55,8 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/deletion-requests/{requestId}/decision` | 把待处理的删除请求改成 `APPROVED` 或 `REJECTED`。不执行删除 |
 | `POST /api/admin/eval-datasets` | 登记一个评测数据集，版本固定 `1.0.0`。不执行。MySQL 关闭时返回不可用 |
 | `POST /api/admin/eval-datasets/{datasetId}/cases` | 给该数据集的 `1.0.0` 追加一条用例。数据集不存在时返回找不到。不执行 |
-| `POST /api/admin/eval-runs` | 为该数据集的 `1.0.0` 登记一次执行，记下用例条数。状态停在 `RUNNING`。不调用模型，也不打分 |
+| `POST /api/admin/eval-runs` | 为该数据集的 `1.0.0` 登记一次执行，记下用例条数。状态停在 `RUNNING`。不调用模型 |
+| `POST /api/admin/eval-runs/{evalRunId}/score` | 给仍在跑的执行写入通过数和通过率，改成 `SUCCEEDED`。不调用模型。MySQL 关闭时返回不可用 |
 
 业务接口要带 `X-Caller-Token`，值来自 `AGENTSCOPE_ADMIN_TOKEN`，和用户进程的令牌分开。没配或对不上时 HTTP 401。存活和就绪不校验。这不是用户登录。
 
@@ -63,4 +64,4 @@ mvn -pl agent-admin -am spring-boot:run
 
 ## 还没有
 
-用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不给评测打分，也不让对话改用刚登记的模型配置，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。后台操作审计还不自动挂到其它接口上。仓库不放模型单价，也不放调用方令牌。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不让对话改用刚登记的模型配置，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。后台操作审计还不自动挂到其它接口上。仓库不放模型单价，也不放调用方令牌。

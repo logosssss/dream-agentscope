@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.EvalRunMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.EvalRun">
+        <id column="id" property="id"/>
+        <result column="eval_run_id" property="evalRunId"/>
+        <result column="dataset_id" property="datasetId"/>
+        <result column="dataset_version" property="datasetVersion"/>
+        <result column="total_cases" property="totalCases"/>
+        <result column="passed_cases" property="passedCases"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 打分前确认这一次执行还在。不读通过率。 -->
+    <select id="findByEvalRunId" resultMap="BaseResultMap">
+        SELECT id, eval_run_id, dataset_id, dataset_version, total_cases, passed_cases, status
+        FROM eval_run
+        WHERE eval_run_id = #{evalRunId}
+    </select>
+
+    <!-- 只改还在跑的执行。不调模型，也不写逐条结果。 -->
+    <update id="scoreRunning">
+        UPDATE eval_run
+        SET passed_cases = #{passedCases},
+            pass_rate = #{passRate},
+            status = 'SUCCEEDED',
+            finished_at = #{finishedAt}
+        WHERE eval_run_id = #{evalRunId}
+          AND status = 'RUNNING'
+    </update>
+</mapper>
