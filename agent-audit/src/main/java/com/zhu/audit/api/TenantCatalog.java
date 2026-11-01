@@ -1,7 +1,7 @@
 package com.zhu.audit.api;
 
 /**
- * 管理进程登记、停用和关闭租户。不恢复，也不建用户账号。
+ * 管理进程登记、停用、关闭和恢复租户。不建用户账号，也不改用户状态。
  */
 public interface TenantCatalog {
 
@@ -19,7 +19,13 @@ public interface TenantCatalog {
 
     /**
      * 把尚未关闭的租户改成 CLOSED。已经关闭再关一次是冲突。
-     * 不删数据和用户，也不恢复。
+     * 不删数据和用户。
      */
     TenantSummary close(String tenantId);
+
+    /**
+     * 把停用或关闭的租户改回 ACTIVE。已经可用再恢复一次是冲突。
+     * 不改用户状态，也不删数据。
+     */
+    TenantSummary restore(String tenantId);
 }

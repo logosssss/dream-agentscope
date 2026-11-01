@@ -5,7 +5,7 @@ import com.zhu.audit.infrastructure.persistence.entity.TenantRecord;
 import org.apache.ibatis.annotations.Param;
 
 /**
- * tenant 的访问。登记用 BaseMapper 插入。查找、停用和关闭在 XML 里。
+ * tenant 的访问。登记用 BaseMapper 插入。查找、停用、关闭和恢复在 XML 里。
  */
 public interface TenantMapper extends BaseMapper<TenantRecord> {
 
@@ -23,4 +23,9 @@ public interface TenantMapper extends BaseMapper<TenantRecord> {
      * 只把尚未关闭的租户改成 CLOSED。返回实际更新行数。
      */
     int closeNotClosed(@Param("tenantId") String tenantId);
+
+    /**
+     * 只把停用或关闭的租户改回 ACTIVE。返回实际更新行数。
+     */
+    int restoreInactive(@Param("tenantId") String tenantId);
 }

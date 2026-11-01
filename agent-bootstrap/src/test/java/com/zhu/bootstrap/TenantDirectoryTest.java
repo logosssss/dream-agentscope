@@ -19,7 +19,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 租户登记、停用、关闭和对话前检查。不连接 MySQL，也不建用户。
+ * 租户登记、停用、关闭、恢复和对话前检查。不连接 MySQL，也不建用户。
  */
 class TenantDirectoryTest {
 
@@ -141,5 +141,49 @@ class TenantDirectoryTest {
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
         verify(tenants, times(2)).closeNotClosed("t");
+    }
+
+    /** 停用和关闭都能恢复。没有或已经可用按找不到或冲突。 */
+    @Test
+    void restoreUpdatesInactiveOnly() {
+        TenantMapper tenants = mock(TenantMapper.class);
+        MysqlTenantDirectory directory = new MysqlTenantDirectory(tenants);
+
+        assertThatThrownBy(() -> directory.restore("t"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(tenants, never()).restoreInactive("t");
+
+        TenantRecord suspended = new TenantRecord();
+        suspended.setTenantId("t");
+        suspended.setName("示例");
+        suspended.setPlan("standard");
+        suspended.setStatus("SUSPENDED");
+        when(tenants.findByTenantId("t")).thenReturn(suspended);
+        when(tenants.restoreInactive("t")).thenReturn(1);
+        assertThat(directory.restore("t")).satisfies(saved -> {
+            assertThat(saved.tenantId()).isEqualTo("t");
+            assertThat(saved.name()).isEqualTo("示例");
+            assertThat(saved.status()).isEqualTo("ACTIVE");
+        });
+
+        TenantRecord closed = new TenantRecord();
+        closed.setTenantId("t");
+        closed.setName("示例");
+        closed.setPlan("standard");
+        closed.setStatus("CLOSED");
+        when(tenants.findByTenantId("t")).thenReturn(closed);
+        when(tenants.restoreInactive("t")).thenReturn(1);
+        assertThat(directory.restore("t").status()).isEqualTo("ACTIVE");
+
+        TenantRecord active = new TenantRecord();
+        active.setStatus("ACTIVE");
+        when(tenants.findByTenantId("t")).thenReturn(active);
+        assertThatThrownBy(() -> directory.restore("t"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+        verify(tenants, times(2)).restoreInactive("t");
     }
 }

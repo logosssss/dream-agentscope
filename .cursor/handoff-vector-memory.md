@@ -16,16 +16,16 @@
 
 下一空 Flyway 版本：**V32**。
 
-## 已做（关闭租户）
+## 已做（恢复租户）
 
-`POST /api/admin/tenants/{tenantId}/close` 把尚未关闭的租户改成 `CLOSED`。可用和停用都能关。已经关闭再关一次是冲突。不删数据，也不恢复。对话已经拒绝非 `ACTIVE`。
+`POST /api/admin/tenants/{tenantId}/restore` 把停用或关闭的租户改回 `ACTIVE`。已经可用再恢复一次是冲突。不改用户状态，也不删数据。对话已经只放行 `ACTIVE`。
 
 ## 下一块
 
-以各模块 README「还没有」为准，例如恢复租户。
+以各模块 README「还没有」为准，例如恢复已停用的租户用户。
 
 不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、Persona 读表升级关系、语义判定换真模型、Memory Curator、主动唤醒。
 
 ## 另一台机器开场白
 
-拉到含关闭租户的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含恢复租户的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。

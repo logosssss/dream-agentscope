@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记、停用和关闭租户。不创建用户，也不恢复。
+ * 管理进程登记、停用、关闭和恢复租户。不创建用户，也不改用户状态。
  */
 @RestController
 public class AdminTenantController {
@@ -60,5 +60,17 @@ public class AdminTenantController {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant catalog is unavailable");
         }
         return ApiResult.ok(catalog.close(tenantId));
+    }
+
+    /**
+     * 把停用或关闭的租户改回可用。已经可用由目录返回冲突。
+     */
+    @PostMapping("/api/admin/tenants/{tenantId}/restore")
+    public ApiResult<TenantSummary> restore(@PathVariable String tenantId) {
+        TenantCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant catalog is unavailable");
+        }
+        return ApiResult.ok(catalog.restore(tenantId));
     }
 }

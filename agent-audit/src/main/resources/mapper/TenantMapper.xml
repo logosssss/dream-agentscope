@@ -26,11 +26,19 @@
           AND status = 'ACTIVE'
     </update>
 
-    <!-- 可用和停用都能关。不删行，也不恢复。 -->
+    <!-- 可用和停用都能关。不删行。 -->
     <update id="closeNotClosed">
         UPDATE tenant
         SET status = 'CLOSED'
         WHERE tenant_id = #{tenantId}
           AND status IN ('ACTIVE', 'SUSPENDED')
+    </update>
+
+    <!-- 停用和关闭都能恢复。不改用户，也不删行。 -->
+    <update id="restoreInactive">
+        UPDATE tenant
+        SET status = 'ACTIVE'
+        WHERE tenant_id = #{tenantId}
+          AND status IN ('SUSPENDED', 'CLOSED')
     </update>
 </mapper>
