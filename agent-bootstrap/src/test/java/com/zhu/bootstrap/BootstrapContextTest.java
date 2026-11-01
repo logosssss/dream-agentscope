@@ -86,5 +86,10 @@ class BootstrapContextTest {
                         .content("{\"dataType\":\"SESSION\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/attachments").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
+                        .contentType("application/json")
+                        .content("{\"fileName\":\"a.txt\",\"storagePath\":\"/tmp/a.txt\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
     }
 }

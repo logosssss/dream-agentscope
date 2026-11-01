@@ -14,22 +14,22 @@
 
 **记忆垂直已落地。** 批准删除仍不执行。不要开始真删。
 
-下一空 Flyway 版本：**V29**。
+下一空 Flyway 版本：**V30**。
 
-## 已做（任务调度登记）
+## 已做（附件元数据）
 
-`POST /api/admin/task-schedules` 登记 `agent_task_schedule`。类型 `BACKFILL` / `REPORT` / `BATCH`。cron 和延迟二选一。不写任务参数，不算下次触发，不消费。
+`POST /api/attachments` 登记 `attachment`。只收文件名和声称的路径，不收文件内容。空白存储类型按 `LOCAL`。不写 `attachment_ref`，也不接对象存储。
 
 ## 下一块候选（选一块）
 
 以 README「还没有」为准，例如：
 
-- 附件表：只登记元数据，不接对象存储
+- `attachment_ref`：只登记附件和消息/运行的关联
 - 停用租户
 - 确认 / 任务待办
 
-不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、批准后执行删除或工具、Persona 读表升级关系。
+不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、Persona 读表升级关系。
 
 ## 另一台机器开场白
 
-拉到含调度登记的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含附件元数据的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。

@@ -39,7 +39,9 @@
 
 同一事件再写 `user_todo`。类型是 `APPROVAL`，状态是 `OPEN`，关联审批单，标题是工具名。同一用户和审批单再开一次不再插一行。`GET /api/todos` 只列出这个用户还开着的审批待办。通过后改 `DONE`，拒绝后改 `CANCELLED`。关闭失败不改已经写下的决定。确认和任务待办还不写。
 
-`POST /api/feedback` 追加 `user_feedback`。评分是 1 到 5，说明最长 1000 字。不存标签，也不要求这次运行已经在 `agent_run` 里。附件还不收，文件没有对象存储。
+`POST /api/feedback` 追加 `user_feedback`。评分是 1 到 5，说明最长 1000 字。不存标签，也不要求这次运行已经在 `agent_run` 里。
+
+`POST /api/attachments` 登记 `attachment`。只收文件名和声称的路径，不收文件内容。空白存储类型按 `LOCAL`。状态是 `ACTIVE`。不写 `attachment_ref`，也不接对象存储。
 
 `POST /api/admin/eval-datasets` 登记 `eval_dataset`，版本固定 `1.0.0`。同一标识再登记这个版本返回冲突。`POST /api/admin/eval-datasets/{datasetId}/cases` 给这个版本追加 `eval_case`。序号从 1 起，输入和期望输出最长 4000 字。数据集还没登记时拒绝。同一序号再写一次返回冲突。不存标签。`POST /api/admin/eval-runs` 为这个版本登记一次 `eval_run`，记下当时的用例条数，状态是 `RUNNING`，通过数是 0。没有用例时不开跑。不调用模型，也不写通过率。
 
@@ -67,4 +69,4 @@
 
 ## 还没有
 
-退款不在这张表上做。付款只改状态。租户、额度、账单、单价、模型配置、评测、保留、删除和调度目录以后才抽到 `agent-ops`，现在仍放本模块。`agent-audit` 以后只留事件审计、审批、通知、待办和后台操作审计。现在不拆。
+退款不在这张表上做。付款只改状态。租户、额度、账单、单价、模型配置、评测、保留、删除、调度和附件目录以后才抽到 `agent-ops`，现在仍放本模块。`agent-audit` 以后只留事件审计、审批、通知、待办和后台操作审计。现在不拆。
