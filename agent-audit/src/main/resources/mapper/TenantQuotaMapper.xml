@@ -12,4 +12,13 @@
           AND period = 'DAILY'
           AND enabled = 1
     </select>
+
+    <!-- 只改已有的每日请求上限。不重置 Redis 已用量。 -->
+    <update id="updateDailyRequestLimit">
+        UPDATE tenant_quota
+        SET limit_value = #{limit}
+        WHERE tenant_id = #{tenantId}
+          AND quota_type = 'REQUESTS'
+          AND period = 'DAILY'
+    </update>
 </mapper>

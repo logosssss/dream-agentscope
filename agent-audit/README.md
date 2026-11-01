@@ -62,7 +62,7 @@
 
 `POST /api/admin/tenants` 登记 `tenant`。状态是 `ACTIVE`，套餐是 `standard`。同一标识再登记一次返回冲突。用户进程在 MySQL 打开时只允许这个状态的租户对话。`POST /api/admin/tenants/{tenantId}/suspend` 把可用租户改成 `SUSPENDED`。已经停用或关闭再停一次返回冲突。不删数据。`POST /api/admin/tenants/{tenantId}/close` 把尚未关闭的租户改成 `CLOSED`。已经关闭再关一次返回冲突。不删数据。`POST /api/admin/tenants/{tenantId}/restore` 把停用或关闭的租户改回 `ACTIVE`。已经可用再恢复一次返回冲突。不改用户状态。`POST /api/admin/tenant-users` 给已登记租户挂一个 `ACTIVE` 用户。显示名可空。不写角色。同一租户再挂这个用户返回冲突。租户还没登记时拒绝。用户进程在 MySQL 打开时只允许这个状态的租户用户对话。`POST /api/admin/tenant-users/{tenantId}/{userId}/disable` 把可用用户改成 `DISABLED`。已经停用再停一次返回冲突。不删数据。`POST /api/admin/tenant-users/{tenantId}/{userId}/restore` 把停用用户改回 `ACTIVE`。已经可用再恢复一次返回冲突。不写角色。
 
-`POST /api/admin/tenant-quotas` 登记 `tenant_quota` 的每日请求上限。类型是 `REQUESTS`，周期是 `DAILY`。上限 0 表示不限额。同一租户再登记一次返回冲突，不覆盖旧值。已用量仍在 Redis。按 token、费用或并发的上限还不写。
+`POST /api/admin/tenant-quotas` 登记 `tenant_quota` 的每日请求上限。类型是 `REQUESTS`，周期是 `DAILY`。上限 0 表示不限额。同一租户再登记一次返回冲突，不覆盖旧值。`POST /api/admin/tenant-quotas/{tenantId}` 改这一行的上限。没有行返回找不到。不重置 Redis 已用量。按 token、费用或并发的上限还不写。
 
 当日计数通过后追加 `quota_usage_log`。数量是 1，不填 `run_id`，因为运行还没开始。不限额时不写。写失败不改变这次请求。`GET /api/admin/quota-usage` 按租户看最近的流水，默认 50 条，最多 100 条。负数回补还不写。
 

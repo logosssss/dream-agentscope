@@ -14,7 +14,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的租户每日请求上限。只在存储开关打开时创建。不改已有行，也不写已用量。
+ * MySQL 上的租户每日请求上限。只在存储开关打开时创建。不写已用量，也不写其它类型。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -68,6 +68,22 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
             quotas.insert(row);
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant quota already exists");
+        }
+        return new TenantQuotaSummary(tenantId, REQUESTS, DAILY, limit);
+    }
+
+    /**
+     * 只改已有行的上限。没有行不插入。
+     * 0 仍表示这个租户不限额。不改启用标记。
+     */
+    @Override
+    public TenantQuotaSummary updateDailyRequests(String tenantId, Long limit) {
+        if (tenantId == null || tenantId.isBlank() || tenantId.length() > 64 || limit == null || limit < 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenant quota is invalid");
+        }
+        int updated = quotas.updateDailyRequestLimit(tenantId, limit);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant quota not found");
         }
         return new TenantQuotaSummary(tenantId, REQUESTS, DAILY, limit);
     }

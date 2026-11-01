@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 /**
- * tenant_quota 的一行。只登记每日请求上限，已用量留给 Redis。
+ * tenant_quota 的一行。只登记和改每日请求上限，已用量留给 Redis。
  */
 @TableName("tenant_quota")
 public class TenantQuotaRecord {

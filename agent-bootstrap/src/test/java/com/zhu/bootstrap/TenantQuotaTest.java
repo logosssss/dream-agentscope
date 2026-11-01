@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,5 +59,28 @@ class TenantQuotaTest {
         assertThat(directory.dailyRequestLimit("t")).isEqualTo(10L);
         when(quotas.findDailyRequestLimit("missing")).thenReturn(null);
         assertThat(directory.dailyRequestLimit("missing")).isNull();
+    }
+
+    /** 只改已有行。没有这一行按找不到。上限 0 表示不限额。 */
+    @Test
+    void updateChangesExistingDailyRequests() {
+        TenantQuotaMapper quotas = mock(TenantQuotaMapper.class);
+        MysqlTenantQuota directory = new MysqlTenantQuota(quotas);
+
+        when(quotas.updateDailyRequestLimit("t", 20L)).thenReturn(0);
+        assertThatThrownBy(() -> directory.updateDailyRequests("t", 20L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+
+        when(quotas.updateDailyRequestLimit("t", 0L)).thenReturn(1);
+        assertThat(directory.updateDailyRequests("t", 0L)).satisfies(saved -> {
+            assertThat(saved.tenantId()).isEqualTo("t");
+            assertThat(saved.quotaType()).isEqualTo("REQUESTS");
+            assertThat(saved.period()).isEqualTo("DAILY");
+            assertThat(saved.limit()).isEqualTo(0L);
+        });
+        verify(quotas).updateDailyRequestLimit("t", 0L);
+        verify(quotas, never()).insert(any(TenantQuotaRecord.class));
     }
 }
