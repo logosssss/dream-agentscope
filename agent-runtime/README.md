@@ -33,6 +33,7 @@ AgentExecutor.stream(AgentRequest)
         │  同样先校验并构造 RuntimeContext
         ▼
 agent.streamEvents(userText, context)
+        │  危机档先扣文本增量，结束事件再过红线
         │  取消、完成或失败时 close
         ▼
 AgentStreamEvent   接入层再写成 SSE
@@ -52,13 +53,14 @@ AgentStreamEvent   接入层再写成 SSE
 | `api` | `AgentRequest` | 执行入参。产品语义由调用方填好 |
 | `api` | `AgentResponse` | 运行标识和文本，不泄漏框架的 `Msg` |
 | `api` | `AgentStreamEvent` | 流式事件的类型和短文本 |
-| `application` | `AgentExecutionService` | 同步 `block` 和流式 `streamEvents`，结束时关闭 Agent |
+| `application` | `AgentExecutionService` | 同步 `block` 和流式 `streamEvents`，结束时关闭 Agent。危机档检查输出红线，不另写干预 |
 | `application` | `AgentStreamEvents` | 框架事件收成 `AgentStreamEvent` |
+| `application` | `CrisisReplyOutlet` | 危机流式出口。增量先扣下，整段结束再过红线 |
 | `infrastructure.agent` | `HarnessAgentFactory`、`CatalogToolRegistrar`、`WorkspaceFilesystem`、`AgentShutdown` | 按请求组装 Agent，并把目录里的业务工具挂到这次 Toolkit。有状态库时工作区按对话隔离。停机时等待在途调用 |
 | `infrastructure.embed` | `DashScopeTextEmbedder` | 密钥读 `DASHSCOPE_API_KEY`。空密钥或失败返回空向量，不让进程退出 |
 | `config` | `AgentRuntimeProperties` | 前缀 `agentscope.runtime` |
 | `config` | `RuntimeConfig` | 只打开配置绑定，不创建 Agent |
-| `domain` | `CallIdentity`、`TextEmbedder`、`RecalledMemories` | 从这次 `RuntimeContext` 读租户、用户、会话，不用 ThreadLocal。嵌入锁 `text-embedding-v4` / 1024。召回结果去重最多 5 条，再由中间件追加到系统提示词 |
+| `domain` | `CallIdentity`、`TextEmbedder`、`RecalledMemories`、`CrisisReplyGuard` | 从这次 `RuntimeContext` 读租户、用户、会话，不用 ThreadLocal。嵌入锁 `text-embedding-v4` / 1024。召回结果去重最多 5 条，再由中间件追加到系统提示词。危机回复按玩笑、暧昧、扮演、危险方法四类词表检查，命中换成 `CrisisPrompt` |
 | `domain.middleware` | `AuditMiddleware`、`ApprovalMiddleware`、`FileWriteLimitMiddleware`、`SafetyGateMiddleware`、`CompanionMemoryMiddleware` | 执行策略。ASK 时发布审批事件。写文件超过 `max-write-bytes` 时丢掉，不调用接入层。关键词或语义判定到危机时换危机话术，升高时只加克制标记。普通和升高在对话开始时召回最近 3 加近邻 3，去重最多 5 条；成功结束后写短摘要和相识画像。系统提示词追加短画像和最多 5 条召回。危机不召回、不写、不注入。读失败或没密钥不改变回复。不用已标删除的 Hook |
 | `task` | `AgentTask`、`AgentTaskPublisher` | 任务消息体和发布口。业务层调用，工厂和 Middleware 不感知 |
 | `task` | `SyncTaskPublisher`、`SyncAgentTaskHandler` | `mode=sync` 时当前线程执行，只记审计，不调用模型 |
@@ -97,6 +99,6 @@ AgentStreamEvent   接入层再写成 SSE
 
 ## 还没有
 
-按产品预构建多份 Builder。进出模型仍检查长度和未替换的 `{{变量}}`。关键词命中 `CRITICAL` 时换成危机话术，不再问语义判定。语义判定失败按 `ELEVATED`。干预写失败不改变话术。情景记忆只留用户输入的短句，不调用对话模型。普通和升高把短画像和最多 5 条召回追加到系统提示词，危机不追加。嵌入失败、向量写入失败或画像读失败不改变回复。Persona 仍不读画像表，注入时从表读阶段，没有行再用锁定阶段。管理列表在 `agent-admin`。RocketMQ 客户端和消费者还没接。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。产品任务替换 `SyncAgentTaskHandler`，不要再注册第二个 `AgentTaskHandler`。
+按产品预构建多份 Builder。进出模型仍检查长度和未替换的 `{{变量}}`。关键词命中 `CRITICAL` 时换成危机话术，不再问语义判定。语义判定失败按 `ELEVATED`。干预写失败不改变话术。危机档同步和流式都检查输出红线，流式先攒齐再查，命中换成 `CrisisPrompt`，不另写干预。升高档不查输出红线。`PersonaConsistencyMiddleware` 还没有：会话成功轮次超过 20 时再按规则看人设漂移，短基线先写在代码里。情景记忆只留用户输入的短句，不调用对话模型。普通和升高把短画像和最多 5 条召回追加到系统提示词，危机不追加。嵌入失败、向量写入失败或画像读失败不改变回复。Persona 仍不读画像表，注入时从表读阶段，没有行再用锁定阶段。管理列表在 `agent-admin`。RocketMQ 客户端和消费者还没接。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。产品任务替换 `SyncAgentTaskHandler`，不要再注册第二个 `AgentTaskHandler`。
 
 `ApprovalMiddleware` 在 `ASK` 时把本次工具标成 `ASKING` 并发出事件，在 `DENY` 时把这次工具从后续执行里拿掉。同一用户、会话和工具已有未执行的批准单时，这次调用放行，结束后回写执行状态，不存工具输出。它不改框架的 `PermissionEngine`：默认权限上下文是 trivial，临时加规则要么这次判定读不到，要么会让同一次调用里没匹配到的工具也变成询问。框架自 2.0.0 起把 `Hook` 标成删除，执行策略挂在 `Middleware` 上。

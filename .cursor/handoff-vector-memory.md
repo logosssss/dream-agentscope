@@ -12,24 +12,20 @@
 
 远端：`origin/feat/agentscope-platform-base`。本机有未推送提交。不要擅自 push。
 
-**记忆垂直已落地。** 批准删除仍不执行。不要开始真删。
+**记忆垂直已落地。危机输出红线已落地。** 批准删除仍不执行。不要开始真删。
 
 下一空 Flyway 版本：**V32**。
 
-## 已做（租户用户）
+## 已做（危机输出红线）
 
-`POST /api/admin/tenant-users` 登记 `tenant_user`。租户必须已经存在。状态 `ACTIVE`。不写角色。同一租户再挂这个用户是冲突。对话仍不按这张表鉴权。不停用用户。
+`CrisisReplyGuard` 按玩笑、暧昧、扮演、危险方法四类词表检查危机档回复。同步等整段；流式扣下 `TextBlockDeltaEvent`，结束事件再查。命中换成 `CrisisPrompt`，不再回头检查预置稿。不另写干预。升高档不查。空回复和被丢掉的占位符不拦。
 
-## 下一块候选（选一块）
+## 下一块
 
-以 README「还没有」为准，例如：
+`PersonaConsistencyMiddleware`，只做规则，不调模型。会话成功轮次超过 20 时启用。短人设基线先写在代码里。从第 21 轮起流式也先攒齐再查。
 
-- 关闭或恢复租户
-- 停用租户用户
-- 对话按 `tenant_user` 鉴权
-
-不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、Persona 读表升级关系。
+不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、Persona 读表升级关系、语义判定换真模型、Memory Curator、主动唤醒。
 
 ## 另一台机器开场白
 
-拉到含租户用户的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含危机输出红线的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。

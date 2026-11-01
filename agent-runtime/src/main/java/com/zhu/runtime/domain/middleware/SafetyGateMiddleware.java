@@ -22,7 +22,7 @@ import reactor.core.publisher.Mono;
 
 /**
  * 安全门。关键词或语义判定到危机时换危机话术，升高时只加克制标记。
- * 挂在审批之后。干预写失败不打断这次对话。
+ * 挂在审批之后。干预写失败不打断这次对话。输出红线不在这里查。
  */
 @Component
 public class SafetyGateMiddleware implements MiddlewareBase {
