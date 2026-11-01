@@ -51,7 +51,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/task-schedules` | 登记一条任务调度。cron 和延迟二选一。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
 | `GET /api/admin/operation-audits` | 最近的后台操作，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `GET /api/admin/safety-interventions` | 最近的安全干预，默认 50 条，最多 100 条。不含用户原文。MySQL 关闭时返回不可用 |
-| `POST /api/admin/operation-audits` | 登记一条后台操作。不写前后快照，也不改业务结果。MySQL 关闭时返回不可用 |
+| `POST /api/admin/operation-audits` | 登记一条后台操作。不写前后快照，也不改业务结果。其它成功写入也会自动记一行。MySQL 关闭时返回不可用 |
 | `POST /api/admin/deletion-requests/{requestId}/decision` | 把待处理的删除请求改成 `APPROVED` 或 `REJECTED`。不执行删除 |
 | `POST /api/admin/eval-datasets` | 登记一个评测数据集，版本固定 `1.0.0`。不执行。MySQL 关闭时返回不可用 |
 | `POST /api/admin/eval-datasets/{datasetId}/cases` | 给该数据集的 `1.0.0` 追加一条用例。数据集不存在时返回找不到。不执行 |
@@ -60,8 +60,10 @@ mvn -pl agent-admin -am spring-boot:run
 
 业务接口要带 `X-Caller-Token`，值来自 `AGENTSCOPE_ADMIN_TOKEN`，和用户进程的令牌分开。没配或对不上时 HTTP 401。存活和就绪不校验。这不是用户登录。
 
+成功的写入接口会再记一行 `operation_audit`。操作人来自 `X-Operator-Id`，没有时是 `admin`。查询、手工 `POST /api/admin/operation-audits` 和业务失败不自动记。审计写失败不改变这次接口结果。MySQL 关闭时跳过。
+
 扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery`、`ApprovalDecider`、关待办和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`ApprovalRecorder`、`SafetyInterventionRecorder`。申请单和干预写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
 
 ## 还没有
 
-用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。后台操作审计还不自动挂到其它接口上。仓库不放模型单价，也不放调用方令牌。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。仓库不放模型单价，也不放调用方令牌。

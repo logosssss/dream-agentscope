@@ -16,16 +16,16 @@
 
 下一空 Flyway 版本：**V32**。
 
-## 已做（对话用模型配置）
+## 已做（后台操作自动审计）
 
-MySQL 打开时，对话选用启用的 `model_config` `1.0.0`，同一租户优先于全局 `*`，拼成 `provider:model`。没有行或 MySQL 关闭时用进程配置。查库失败返回 503。不解析参数 JSON。
+管理进程成功的写入接口按路径补记 `operation_audit`。操作人来自 `X-Operator-Id`，没有时是 `admin`。查询、手工登记和业务失败不自动记。审计写失败不改变这次接口结果。MySQL 关闭时跳过。
 
 ## 下一块
 
-以各模块 README「还没有」为准，例如按保留策略清理数据。
+以各模块 README「还没有」为准。按保留策略清理数据会碰到真删，先不要做。
 
 不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、Persona 读表升级关系、语义判定换真模型、Memory Curator、主动唤醒。
 
 ## 另一台机器开场白
 
-拉到含对话用模型配置的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含后台操作自动审计的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
