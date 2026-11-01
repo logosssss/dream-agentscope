@@ -151,6 +151,8 @@ class ChatRunTest {
                 runs,
                 tenantId -> {
                 },
+                (tenantId, userId) -> {
+                },
                 (tenantId, userId, sessionId) -> {
                 });
     }

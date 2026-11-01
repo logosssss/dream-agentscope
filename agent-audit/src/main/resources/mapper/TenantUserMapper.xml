@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.TenantUserMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.TenantUser">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="user_id" property="userId"/>
+        <result column="display_name" property="displayName"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 对话只看这一对身份。不读角色。 -->
+    <select id="findByTenantAndUser" resultMap="BaseResultMap">
+        SELECT id, tenant_id, user_id, display_name, status
+        FROM tenant_user
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+    </select>
+</mapper>

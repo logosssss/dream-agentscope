@@ -55,6 +55,7 @@ class AccessIdentityTest {
         new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, turns, (tenant, user, session, channel, text) -> {
         }, (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
         }, tenantId -> {
+        }, (tenantId, userId) -> {
         }, (tenantId, userId, sessionId) -> {
         }).chat(request);
 

@@ -46,6 +46,8 @@ class SessionTurnTest {
                 },
                 tenantId -> {
                 },
+                (tenantId, userId) -> {
+                },
                 (tenantId, userId, sessionId) -> {
                 });
 

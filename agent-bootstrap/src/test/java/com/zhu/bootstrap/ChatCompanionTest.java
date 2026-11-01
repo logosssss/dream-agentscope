@@ -77,6 +77,8 @@ class ChatCompanionTest {
                 },
                 tenantId -> {
                 },
+                (tenantId, userId) -> {
+                },
                 owners);
     }
 }

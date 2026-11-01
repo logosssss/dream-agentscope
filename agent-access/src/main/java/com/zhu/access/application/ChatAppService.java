@@ -2,6 +2,7 @@ package com.zhu.access.application;
 
 import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.audit.api.TenantGate;
+import com.zhu.audit.api.TenantUserGate;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
@@ -50,10 +51,12 @@ public class ChatAppService {
 
     private final TenantGate tenants;
 
+    private final TenantUserGate tenantUsers;
+
     private final SessionOwnerGate owners;
 
     /**
-     * 租户和会话归属在额度和占锁之前。MySQL 关闭时这两项放行。
+     * 租户、租户用户和会话归属在额度和占锁之前。MySQL 关闭时这三项放行。
      */
     public ChatAppService(
             AgentExecutor executor,
@@ -64,6 +67,7 @@ public class ChatAppService {
             SessionIndex sessions,
             RunLog runs,
             TenantGate tenants,
+            TenantUserGate tenantUsers,
             SessionOwnerGate owners) {
         this.executor = executor;
         this.prompts = prompts;
@@ -73,6 +77,7 @@ public class ChatAppService {
         this.sessions = sessions;
         this.runs = runs;
         this.tenants = tenants;
+        this.tenantUsers = tenantUsers;
         this.owners = owners;
     }
 
@@ -84,6 +89,7 @@ public class ChatAppService {
         AgentRequest agentRequest = toRequest(request);
         requireUser(agentRequest.userId());
         tenants.requireActive(agentRequest.tenantId());
+        tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
         owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
         SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
@@ -109,6 +115,7 @@ public class ChatAppService {
         AgentRequest agentRequest = toRequest(request);
         requireUser(agentRequest.userId());
         tenants.requireActive(agentRequest.tenantId());
+        tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
         owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
         SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());

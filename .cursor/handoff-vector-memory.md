@@ -16,16 +16,16 @@
 
 下一空 Flyway 版本：**V32**。
 
-## 已做（人设一致性）
+## 已做（对话按 tenant_user 鉴权）
 
-`PersonaConsistencyMiddleware` 在会话已经成功 20 轮后打开标记。执行层按恋人、助手、替人决定三类词表检查回复，命中换成 `PersonaContract` 短基线。流式从第 21 轮起先攒齐再查。危机档不查。不调模型，不另写干预。成功轮次来自 `agent_run`；MySQL 关闭时按 0。
+MySQL 打开时，对话要求该用户已挂到这个租户且状态是 `ACTIVE`。没登记返回找不到，不可用返回冲突。检查在租户门之后、占锁之前。MySQL 关闭时放行。不停用用户。其它接口还不按这张表鉴权。
 
 ## 下一块
 
-以各模块 README「还没有」为准，例如对话按 `tenant_user` 鉴权。用户纠正偏好和跨会话恢复还不触发人设检查。
+以各模块 README「还没有」为准，例如停用租户用户。
 
 不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、Persona 读表升级关系、语义判定换真模型、Memory Curator、主动唤醒。
 
 ## 另一台机器开场白
 
-拉到含人设规则检查的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含对话按 tenant_user 鉴权的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。

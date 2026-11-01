@@ -1,6 +1,7 @@
 package com.zhu.audit.application;
 
 import com.zhu.audit.api.TenantUserCatalog;
+import com.zhu.audit.api.TenantUserGate;
 import com.zhu.audit.api.TenantUserSummary;
 import com.zhu.audit.infrastructure.persistence.TenantMapper;
 import com.zhu.audit.infrastructure.persistence.TenantUserMapper;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
-public class MysqlTenantUserCatalog implements TenantUserCatalog {
+public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate {
 
     private static final String ACTIVE = "ACTIVE";
 
@@ -38,7 +39,7 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog {
 
     /**
      * 租户还没登记时拒绝，避免把用户挂到空租户上。
-     * 不要求租户仍是 ACTIVE，也不按这张表拦截对话。
+     * 不要求租户仍是 ACTIVE。对话检查走 {@link #requireActive(String, String)}。
      */
     @Override
     public TenantUserSummary register(String tenantId, String userId, String displayName) {
@@ -62,5 +63,23 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user already exists");
         }
         return new TenantUserSummary(tenantId, userId, name, ACTIVE);
+    }
+
+    /**
+     * 空标识、查不到，或状态不是 ACTIVE，都不能开始对话。
+     * 不把停用分成另一种错误，调用方只需要知道现在不能用。
+     */
+    @Override
+    public void requireActive(String tenantId, String userId) {
+        if (tenantId == null || tenantId.isBlank() || userId == null || userId.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenantId and userId are required");
+        }
+        TenantUser row = users.findByTenantAndUser(tenantId, userId);
+        if (row == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant user not found");
+        }
+        if (!ACTIVE.equals(row.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant user is not active");
+        }
     }
 }

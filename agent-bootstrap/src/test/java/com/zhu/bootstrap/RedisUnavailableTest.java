@@ -49,6 +49,8 @@ class RedisUnavailableTest {
                 },
                 tenantId -> {
                 },
+                (tenantId, userId) -> {
+                },
                 (tenantId, userId, sessionId) -> {
                 });
 

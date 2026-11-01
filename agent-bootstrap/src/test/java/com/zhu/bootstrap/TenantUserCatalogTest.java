@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -50,5 +51,32 @@ class TenantUserCatalogTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
+    }
+
+    /** 只有 ACTIVE 能过。没有或不在用时拒绝。 */
+    @Test
+    void onlyActiveUserCanCall() {
+        TenantMapper tenants = mock(TenantMapper.class);
+        TenantUserMapper users = mock(TenantUserMapper.class);
+        MysqlTenantUserCatalog catalog = new MysqlTenantUserCatalog(tenants, users);
+
+        TenantUser active = new TenantUser();
+        active.setStatus("ACTIVE");
+        when(users.findByTenantAndUser("t", "u")).thenReturn(active);
+        assertThatCode(() -> catalog.requireActive("t", "u")).doesNotThrowAnyException();
+
+        TenantUser disabled = new TenantUser();
+        disabled.setStatus("DISABLED");
+        when(users.findByTenantAndUser("t", "u")).thenReturn(disabled);
+        assertThatThrownBy(() -> catalog.requireActive("t", "u"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+
+        when(users.findByTenantAndUser("t", "missing")).thenReturn(null);
+        assertThatThrownBy(() -> catalog.requireActive("t", "missing"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
     }
 }
