@@ -5,6 +5,7 @@ import com.zhu.audit.infrastructure.persistence.TenantMapper;
 import com.zhu.audit.infrastructure.persistence.entity.TenantRecord;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -19,7 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 租户登记、停用、关闭、恢复和对话前检查。不连接 MySQL，也不建用户。
+ * 租户登记、列表、停用、关闭、恢复和接入前检查。不连接 MySQL，也不建用户。
  */
 class TenantDirectoryTest {
 
@@ -185,5 +186,25 @@ class TenantDirectoryTest {
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
         verify(tenants, times(2)).restoreInactive("t");
+    }
+
+    /** 列表含停用和关闭。空结果原样返回。 */
+    @Test
+    void recentListsAllStatuses() {
+        TenantMapper tenants = mock(TenantMapper.class);
+        MysqlTenantDirectory directory = new MysqlTenantDirectory(tenants);
+        when(tenants.recent(50)).thenReturn(List.of());
+        assertThat(directory.recent(50)).isEmpty();
+
+        TenantRecord closed = new TenantRecord();
+        closed.setTenantId("t");
+        closed.setName("示例");
+        closed.setPlan("standard");
+        closed.setStatus("CLOSED");
+        when(tenants.recent(50)).thenReturn(List.of(closed));
+        assertThat(directory.recent(0)).singleElement().satisfies(saved -> {
+            assertThat(saved.tenantId()).isEqualTo("t");
+            assertThat(saved.status()).isEqualTo("CLOSED");
+        });
     }
 }

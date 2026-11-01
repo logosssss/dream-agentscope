@@ -16,9 +16,9 @@
 
 下一空 Flyway 版本：**V32**。
 
-## 已做（取消确认和任务待办）
+## 已做（管理端列出租户）
 
-当前用户可以把还开着的 `CONFIRM` / `TASK` 改成 `CANCELLED`。审批待办仍走决定接口。别人的行按找不到处理。不删数据。
+`GET /api/admin/tenants` 看最近登记的租户，默认 50 条，最多 100 条。含停用和关闭。不建用户。MySQL 关闭时返回不可用。
 
 ## 下一块
 
@@ -28,4 +28,4 @@
 
 ## 另一台机器开场白
 
-拉到含取消确认和任务待办的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含管理端列出租户的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。

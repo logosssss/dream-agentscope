@@ -34,6 +34,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/billing/confirmations` | 把对应草稿改成已确认，不重算金额。没有账单时返回找不到 |
 | `POST /api/admin/billing/invoices` | 把已确认的账单改成已开票，不重算金额。草稿要先确认 |
 | `POST /api/admin/billing/payments` | 把已开票的账单改成已付款，不重算金额。还没开票的不能付 |
+| `GET /api/admin/tenants` | 最近登记的租户，默认 50 条，最多 100 条。含停用和关闭。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenants` | 登记一个可用租户，套餐固定 `standard`。不建用户。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenants/{tenantId}/suspend` | 把可用租户改成 `SUSPENDED`。不删数据，也不关账号。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenants/{tenantId}/close` | 把尚未关闭的租户改成 `CLOSED`。不删数据。MySQL 关闭时返回不可用 |

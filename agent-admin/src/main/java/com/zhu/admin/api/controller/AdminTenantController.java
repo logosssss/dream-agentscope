@@ -6,14 +6,17 @@ import com.zhu.audit.api.TenantSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记、停用、关闭和恢复租户。不创建用户，也不改用户状态。
+ * 管理进程登记、查看、停用、关闭和恢复租户。不创建用户，也不改用户状态。
  */
 @RestController
 public class AdminTenantController {
@@ -26,16 +29,20 @@ public class AdminTenantController {
     }
 
     /**
+     * 最近登记的租户。条数默认 50，上限 100。含停用和关闭。
+     */
+    @GetMapping("/api/admin/tenants")
+    public ApiResult<List<TenantSummary>> recent(@RequestParam(defaultValue = "50") int limit) {
+        return ApiResult.ok(catalog().recent(limit));
+    }
+
+    /**
      * 新增一个可用租户。同一标识再提交一次由目录返回冲突。
      */
     @PostMapping("/api/admin/tenants")
     public ApiResult<TenantSummary> register(@RequestBody TenantRequest request) {
-        TenantCatalog catalog = catalogs.getIfAvailable();
-        if (catalog == null) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant catalog is unavailable");
-        }
         TenantRequest body = request == null ? new TenantRequest(null, null) : request;
-        return ApiResult.ok(catalog.register(body.tenantId(), body.name()));
+        return ApiResult.ok(catalog().register(body.tenantId(), body.name()));
     }
 
     /**
@@ -43,11 +50,7 @@ public class AdminTenantController {
      */
     @PostMapping("/api/admin/tenants/{tenantId}/suspend")
     public ApiResult<TenantSummary> suspend(@PathVariable String tenantId) {
-        TenantCatalog catalog = catalogs.getIfAvailable();
-        if (catalog == null) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant catalog is unavailable");
-        }
-        return ApiResult.ok(catalog.suspend(tenantId));
+        return ApiResult.ok(catalog().suspend(tenantId));
     }
 
     /**
@@ -55,11 +58,7 @@ public class AdminTenantController {
      */
     @PostMapping("/api/admin/tenants/{tenantId}/close")
     public ApiResult<TenantSummary> close(@PathVariable String tenantId) {
-        TenantCatalog catalog = catalogs.getIfAvailable();
-        if (catalog == null) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant catalog is unavailable");
-        }
-        return ApiResult.ok(catalog.close(tenantId));
+        return ApiResult.ok(catalog().close(tenantId));
     }
 
     /**
@@ -67,10 +66,15 @@ public class AdminTenantController {
      */
     @PostMapping("/api/admin/tenants/{tenantId}/restore")
     public ApiResult<TenantSummary> restore(@PathVariable String tenantId) {
+        return ApiResult.ok(catalog().restore(tenantId));
+    }
+
+    /** MySQL 关闭时没有目录。 */
+    private TenantCatalog catalog() {
         TenantCatalog catalog = catalogs.getIfAvailable();
         if (catalog == null) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant catalog is unavailable");
         }
-        return ApiResult.ok(catalog.restore(tenantId));
+        return catalog;
     }
 }

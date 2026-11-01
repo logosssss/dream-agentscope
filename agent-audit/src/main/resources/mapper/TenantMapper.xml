@@ -34,6 +34,14 @@
           AND status IN ('ACTIVE', 'SUSPENDED')
     </update>
 
+    <!-- 管理列表看全部状态。创建时间只用于排序。 -->
+    <select id="recent" resultMap="BaseResultMap">
+        SELECT id, tenant_id, name, plan, status
+        FROM tenant
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
     <!-- 停用和关闭都能恢复。不改用户，也不删行。 -->
     <update id="restoreInactive">
         UPDATE tenant

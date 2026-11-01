@@ -2,10 +2,11 @@ package com.zhu.audit.infrastructure.persistence;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhu.audit.infrastructure.persistence.entity.TenantRecord;
+import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 /**
- * tenant 的访问。登记用 BaseMapper 插入。查找、停用、关闭和恢复在 XML 里。
+ * tenant 的访问。登记用 BaseMapper 插入。查找、列表、停用、关闭和恢复在 XML 里。
  */
 public interface TenantMapper extends BaseMapper<TenantRecord> {
 
@@ -28,4 +29,9 @@ public interface TenantMapper extends BaseMapper<TenantRecord> {
      * 只把停用或关闭的租户改回 ACTIVE。返回实际更新行数。
      */
     int restoreInactive(@Param("tenantId") String tenantId);
+
+    /**
+     * 最近登记的租户。调用方已经把条数收进 1 到 100。含停用和关闭。
+     */
+    List<TenantRecord> recent(@Param("limit") int limit);
 }

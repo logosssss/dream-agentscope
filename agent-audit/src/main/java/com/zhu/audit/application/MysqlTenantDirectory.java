@@ -7,6 +7,7 @@ import com.zhu.audit.infrastructure.persistence.TenantMapper;
 import com.zhu.audit.infrastructure.persistence.entity.TenantRecord;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -141,5 +142,19 @@ public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant is already active");
         }
         return new TenantSummary(existing.getTenantId(), existing.getName(), existing.getPlan(), ACTIVE);
+    }
+
+    /**
+     * 空结果返回空列表。不按状态再滤一层，停用和关闭也要能看见才能恢复。
+     */
+    @Override
+    public List<TenantSummary> recent(int limit) {
+        List<TenantRecord> rows = tenants.recent(AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream()
+                .map(row -> new TenantSummary(row.getTenantId(), row.getName(), row.getPlan(), row.getStatus()))
+                .toList();
     }
 }
