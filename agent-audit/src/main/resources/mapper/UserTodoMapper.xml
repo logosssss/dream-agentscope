@@ -11,12 +11,11 @@
         <result column="status" property="status"/>
     </resultMap>
 
-    <!-- 只看这个用户还开着的审批待办。不返回截止时间。 -->
+    <!-- 这个用户还开着的待办。含审批、确认和任务。不返回截止时间。 -->
     <select id="openApprovals" resultMap="ListResultMap">
         SELECT id, todo_type, ref_id, title, status
         FROM user_todo
         WHERE user_id = #{userId}
-          AND todo_type = 'APPROVAL'
           AND status = 'OPEN'
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}

@@ -17,14 +17,16 @@ import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 待确认给发起人开一条待办。决定后再关掉。不连接 MySQL。
+ * 待确认给发起人开审批待办。确认和任务由用户登记。不连接 MySQL。
  */
 class UserTodoTest {
 
@@ -104,5 +106,34 @@ class UserTodoTest {
         verify(todos).closeApproval("ap-1", "DONE");
         catalog.closeApproval("ap-1", "CANCELLED");
         verify(todos).closeApproval("ap-1", "CANCELLED");
+    }
+
+    /** 只开确认和任务。审批类型拒绝。同一引用再开一次是冲突。 */
+    @Test
+    void openRegistersConfirmOrTask() {
+        UserTodoMapper todos = mock(UserTodoMapper.class);
+        MysqlUserTodoCatalog catalog = new MysqlUserTodoCatalog(todos);
+
+        assertThatThrownBy(() -> catalog.open("u", "APPROVAL", "ap-1", "shell"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(todos, never()).insert(any(UserTodo.class));
+
+        assertThat(catalog.open("u", "CONFIRM", "run-1", "确认结果")).satisfies(saved -> {
+            assertThat(saved.todoType()).isEqualTo("CONFIRM");
+            assertThat(saved.refId()).isEqualTo("run-1");
+            assertThat(saved.title()).isEqualTo("确认结果");
+            assertThat(saved.status()).isEqualTo("OPEN");
+        });
+        ArgumentCaptor<UserTodo> saved = ArgumentCaptor.forClass(UserTodo.class);
+        verify(todos).insert(saved.capture());
+        assertThat(saved.getValue().getTodoType()).isEqualTo("CONFIRM");
+
+        when(todos.insert(any(UserTodo.class))).thenThrow(new DataIntegrityViolationException("dup"));
+        assertThatThrownBy(() -> catalog.open("u", "TASK", "task-1", null))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
     }
 }

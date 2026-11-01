@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 /**
- * user_todo 的一行。这次只开和关闭审批待办。
+ * user_todo 的一行。审批待办由询问开、决定关。确认和任务由用户登记。
  */
 @TableName("user_todo")
 public class UserTodo {
@@ -17,13 +17,13 @@ public class UserTodo {
     /** 发起用户。 */
     private String userId;
 
-    /** APPROVAL。这次不写确认或任务。 */
+    /** APPROVAL、CONFIRM 或 TASK。 */
     private String todoType;
 
-    /** 审批单标识。 */
+    /** 审批单、运行或任务标识。 */
     private String refId;
 
-    /** 工具名。不存参数。 */
+    /** 短标题。不存参数。 */
     private String title;
 
     /** 开着是 OPEN。通过后 DONE，拒绝后 CANCELLED。 */

@@ -11,7 +11,7 @@ import org.apache.ibatis.annotations.Param;
 public interface UserTodoMapper extends BaseMapper<UserTodo> {
 
     /**
-     * 某一用户未完成的审批待办。调用方已经把条数收进 1 到 100。
+     * 某一用户未完成的待办。调用方已经把条数收进 1 到 100。
      */
     List<UserTodo> openApprovals(@Param("userId") String userId, @Param("limit") int limit);
 

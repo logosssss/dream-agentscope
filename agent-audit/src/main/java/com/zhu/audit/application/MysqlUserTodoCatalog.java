@@ -14,13 +14,15 @@ import org.springframework.stereotype.Service;
 
 /**
  * MySQL 上的用户待办。只在存储开关打开时创建。
- * 决定后关掉对应审批待办。确认和任务待办还不写。
+ * 决定后关掉对应审批待办。确认和任务由用户登记，这次不关。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
 public class MysqlUserTodoCatalog implements UserTodoCatalog {
 
     private static final String APPROVAL = "APPROVAL";
+
+    private static final Set<String> OPEN_TYPES = Set.of("CONFIRM", "TASK");
 
     private static final String OPEN = "OPEN";
 
@@ -59,6 +61,32 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
         } catch (DataIntegrityViolationException ex) {
             return;
         }
+    }
+
+    /**
+     * 只收 CONFIRM 和 TASK。审批待办仍走询问事件，避免用户自己补一条。
+     * 标题可空。同一用户、类型和关联再插入一次按冲突处理。
+     */
+    @Override
+    public UserTodoRow open(String userId, String todoType, String refId, String title) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || todoType == null || todoType.isBlank() || !OPEN_TYPES.contains(todoType)
+                || refId == null || refId.isBlank() || refId.length() > REF_LIMIT
+                || (title != null && title.length() > TITLE_LIMIT)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "todo is invalid");
+        }
+        UserTodo row = new UserTodo();
+        row.setUserId(userId);
+        row.setTodoType(todoType);
+        row.setRefId(refId);
+        row.setTitle(title == null || title.isBlank() ? null : title);
+        row.setStatus(OPEN);
+        try {
+            todos.insert(row);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.CONFLICT, "todo already exists");
+        }
+        return row(row);
     }
 
     /**

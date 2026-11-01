@@ -16,15 +16,14 @@
 
 下一空 Flyway 版本：**V31**。
 
-## 已做（停用租户）
+## 已做（确认和任务待办）
 
-`POST /api/admin/tenants/{tenantId}/suspend` 把 `ACTIVE` 改成 `SUSPENDED`。找不到按不存在。已经停用或关闭再停一次是冲突。不删数据，不关账号，也不恢复。对话门已经拒绝非 `ACTIVE`。
+`POST /api/todos` 登记 `CONFIRM` / `TASK`。关联运行或任务标识，不核这些对象。同一用户、类型和关联再开一次是冲突。不写截止时间，也不关闭。`GET /api/todos` 列出还开着的审批、确认和任务。审批待办仍由询问事件开、决定后关。
 
 ## 下一块候选（选一块）
 
 以 README「还没有」为准，例如：
 
-- 确认 / 任务待办
 - `tenant_user`
 - 关闭或恢复租户
 
@@ -32,4 +31,4 @@
 
 ## 另一台机器开场白
 
-拉到含停用租户的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含确认和任务待办的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
