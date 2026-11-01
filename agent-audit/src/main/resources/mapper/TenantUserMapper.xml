@@ -18,4 +18,13 @@
         WHERE tenant_id = #{tenantId}
           AND user_id = #{userId}
     </select>
+
+    <!-- 只改还在用的用户。不删行，也不恢复。 -->
+    <update id="disableActive">
+        UPDATE tenant_user
+        SET status = 'DISABLED'
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND status = 'ACTIVE'
+    </update>
 </mapper>

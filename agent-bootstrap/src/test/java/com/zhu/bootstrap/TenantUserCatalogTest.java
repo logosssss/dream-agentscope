@@ -20,7 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 租户用户只挂在已登记的租户上。不连接 MySQL，也不写角色。
+ * 租户用户只挂在已登记的租户上。不连接 MySQL，也不写角色，也不恢复。
  */
 class TenantUserCatalogTest {
 
@@ -78,5 +78,42 @@ class TenantUserCatalogTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
+    /** 只停还在用的用户。没有或已经停用按找不到或冲突。 */
+    @Test
+    void disableUpdatesActiveOnly() {
+        TenantMapper tenants = mock(TenantMapper.class);
+        TenantUserMapper users = mock(TenantUserMapper.class);
+        MysqlTenantUserCatalog catalog = new MysqlTenantUserCatalog(tenants, users);
+
+        assertThatThrownBy(() -> catalog.disable("t", "u"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(users, never()).disableActive("t", "u");
+
+        TenantUser active = new TenantUser();
+        active.setTenantId("t");
+        active.setUserId("u");
+        active.setDisplayName("示例");
+        active.setStatus("ACTIVE");
+        when(users.findByTenantAndUser("t", "u")).thenReturn(active);
+        when(users.disableActive("t", "u")).thenReturn(1);
+        assertThat(catalog.disable("t", "u")).satisfies(saved -> {
+            assertThat(saved.tenantId()).isEqualTo("t");
+            assertThat(saved.userId()).isEqualTo("u");
+            assertThat(saved.displayName()).isEqualTo("示例");
+            assertThat(saved.status()).isEqualTo("DISABLED");
+        });
+
+        TenantUser disabled = new TenantUser();
+        disabled.setStatus("DISABLED");
+        when(users.findByTenantAndUser("t", "u")).thenReturn(disabled);
+        assertThatThrownBy(() -> catalog.disable("t", "u"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+        verify(users).disableActive("t", "u");
     }
 }

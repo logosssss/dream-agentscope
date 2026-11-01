@@ -7,12 +7,13 @@ import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记租户用户。不写角色，也不停用。
+ * 管理进程登记和停用租户用户。不写角色，也不恢复。
  */
 @RestController
 public class AdminTenantUserController {
@@ -35,5 +36,17 @@ public class AdminTenantUserController {
         }
         TenantUserRequest body = request == null ? new TenantUserRequest(null, null, null) : request;
         return ApiResult.ok(catalog.register(body.tenantId(), body.userId(), body.displayName()));
+    }
+
+    /**
+     * 把可用用户改成停用。已经停用由目录返回冲突。
+     */
+    @PostMapping("/api/admin/tenant-users/{tenantId}/{userId}/disable")
+    public ApiResult<TenantUserSummary> disable(@PathVariable String tenantId, @PathVariable String userId) {
+        TenantUserCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant user catalog is unavailable");
+        }
+        return ApiResult.ok(catalog.disable(tenantId, userId));
     }
 }

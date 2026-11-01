@@ -23,7 +23,7 @@ public class TenantUser {
     /** 显示名。可以空。 */
     private String displayName;
 
-    /** ACTIVE 或 DISABLED。这次只写 ACTIVE。 */
+    /** ACTIVE 或 DISABLED。停用只改状态，不删行。 */
     private String status;
 
     /** 主键。 */
