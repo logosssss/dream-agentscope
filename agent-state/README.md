@@ -27,7 +27,7 @@
 
 前三个仓库接口是给运行层以后调用的缝。当前真正装配的是框架的 `DistributedStore`，不要在旁边再写一套绕过它的 SQL。不标过时，也不先写实现。自定义查询出现再实现。
 
-情景记忆和用户画像是搭子自己的表，不走 `DistributedStore`。MySQL 打开时用 JDBC 写入；关闭时的实现直接跳过。接入层和管理进程不要调用这两个接口。抽取和检索还没有。
+情景记忆和用户画像是搭子自己的表，不走 `DistributedStore`。MySQL 打开时用 JDBC 写入；关闭时的实现直接跳过。接入层和管理进程不要调用这两个接口。运行层会在对话成功结束后写入。检索、嵌入和提示词注入还没有。
 
 ## 装配
 
@@ -58,4 +58,4 @@
 
 ## 还没有
 
-`AgentStateRepository`、`WorkspaceFileRepository`、`ExecutionLockService` 的实现、对象存储。工作区文件在挂上 `DistributedStore` 后走远程文件系统，进 `agentscope_store`。情景记忆和画像的抽取、检索还没有。Redis 只做额度、幂等和限流，不存 Agent 状态。
+`AgentStateRepository`、`WorkspaceFileRepository`、`ExecutionLockService` 的实现、对象存储。工作区文件在挂上 `DistributedStore` 后走远程文件系统，进 `agentscope_store`。情景记忆和画像由运行层在对话成功结束后写入。检索、嵌入和提示词注入还没有。Redis 只做额度、幂等和限流，不存 Agent 状态。
