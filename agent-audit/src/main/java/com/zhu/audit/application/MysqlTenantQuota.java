@@ -7,6 +7,7 @@ import com.zhu.audit.infrastructure.persistence.TenantQuotaMapper;
 import com.zhu.audit.infrastructure.persistence.entity.TenantQuotaRecord;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import java.util.logging.Logger;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
@@ -14,7 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的租户每日请求上限。只在存储开关打开时创建。不写已用量，也不写其它类型。
+ * MySQL 上的租户每日请求上限。只在存储开关打开时创建。可列出已登记行。不写已用量，也不写其它类型。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -86,5 +87,23 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
             throw new BusinessException(ErrorCode.NOT_FOUND, "tenant quota not found");
         }
         return new TenantQuotaSummary(tenantId, REQUESTS, DAILY, limit);
+    }
+
+    /**
+     * 空结果返回空列表。只看 REQUESTS / DAILY。已用量不在这张表。
+     */
+    @Override
+    public List<TenantQuotaSummary> recent(int limit) {
+        List<TenantQuotaRecord> rows = quotas.recent(AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream()
+                .map(row -> new TenantQuotaSummary(
+                        row.getTenantId(),
+                        row.getQuotaType(),
+                        row.getPeriod(),
+                        row.getLimitValue() == null ? 0L : row.getLimitValue()))
+                .toList();
     }
 }

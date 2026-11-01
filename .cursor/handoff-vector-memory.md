@@ -16,9 +16,9 @@
 
 下一空 Flyway 版本：**V32**。
 
-## 已做（管理端列出租户用户）
+## 已做（管理端列出每日请求上限）
 
-`GET /api/admin/tenant-users` 看某个租户最近登记的用户，默认 50 条，最多 100 条。含停用。必须带租户。租户还没登记时拒绝。不写角色。MySQL 关闭时返回不可用。
+`GET /api/admin/tenant-quotas` 看最近登记的每日请求上限，默认 50 条，最多 100 条。只看 REQUESTS / DAILY。不带回已用量，也不重置 Redis。MySQL 关闭时返回不可用。
 
 ## 下一块
 
@@ -28,4 +28,4 @@
 
 ## 另一台机器开场白
 
-拉到含管理端列出租户用户的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含管理端列出每日请求上限的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。

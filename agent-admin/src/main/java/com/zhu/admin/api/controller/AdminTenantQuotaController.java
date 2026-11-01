@@ -6,14 +6,17 @@ import com.zhu.audit.api.TenantQuotaSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记和改写租户的每日请求上限。不记消耗，也不写其它类型。
+ * 管理进程登记、查看和改写租户的每日请求上限。不记消耗，也不写其它类型。
  */
 @RestController
 public class AdminTenantQuotaController {
@@ -26,16 +29,20 @@ public class AdminTenantQuotaController {
     }
 
     /**
+     * 最近登记的每日请求上限。条数默认 50，上限 100。不带回已用量。
+     */
+    @GetMapping("/api/admin/tenant-quotas")
+    public ApiResult<List<TenantQuotaSummary>> recent(@RequestParam(defaultValue = "50") int limit) {
+        return ApiResult.ok(catalog().recent(limit));
+    }
+
+    /**
      * 新增 REQUESTS / DAILY。同一租户再提交一次由目录返回冲突。
      */
     @PostMapping("/api/admin/tenant-quotas")
     public ApiResult<TenantQuotaSummary> setDailyRequests(@RequestBody TenantQuotaRequest request) {
-        TenantQuotaCatalog catalog = catalogs.getIfAvailable();
-        if (catalog == null) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant quota is unavailable");
-        }
         TenantQuotaRequest body = request == null ? new TenantQuotaRequest(null, null) : request;
-        return ApiResult.ok(catalog.setDailyRequests(body.tenantId(), body.limit()));
+        return ApiResult.ok(catalog().setDailyRequests(body.tenantId(), body.limit()));
     }
 
     /**
@@ -44,11 +51,16 @@ public class AdminTenantQuotaController {
     @PostMapping("/api/admin/tenant-quotas/{tenantId}")
     public ApiResult<TenantQuotaSummary> updateDailyRequests(
             @PathVariable String tenantId, @RequestBody TenantQuotaRequest request) {
+        TenantQuotaRequest body = request == null ? new TenantQuotaRequest(null, null) : request;
+        return ApiResult.ok(catalog().updateDailyRequests(tenantId, body.limit()));
+    }
+
+    /** MySQL 关闭时没有目录。 */
+    private TenantQuotaCatalog catalog() {
         TenantQuotaCatalog catalog = catalogs.getIfAvailable();
         if (catalog == null) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant quota is unavailable");
         }
-        TenantQuotaRequest body = request == null ? new TenantQuotaRequest(null, null) : request;
-        return ApiResult.ok(catalog.updateDailyRequests(tenantId, body.limit()));
+        return catalog;
     }
 }

@@ -43,6 +43,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/tenant-users` | 给已登记租户挂一个可用用户。不写角色，也不登录。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenant-users/{tenantId}/{userId}/disable` | 把可用用户改成 `DISABLED`。不删数据。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenant-users/{tenantId}/{userId}/restore` | 把停用用户改回 `ACTIVE`。不写角色。MySQL 关闭时返回不可用 |
+| `GET /api/admin/tenant-quotas` | 最近登记的每日请求上限，默认 50 条，最多 100 条。不带回已用量。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenant-quotas` | 登记每日请求上限，类型固定 `REQUESTS`，周期固定 `DAILY`。不改已有行。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenant-quotas/{tenantId}` | 改已有的每日请求上限。没有这一行返回找不到。不重置已用量。MySQL 关闭时返回不可用 |
 | `GET /api/admin/quota-usage` | 某个租户最近的每日请求流水，默认 50 条，最多 100 条。不回补。MySQL 关闭时返回不可用 |

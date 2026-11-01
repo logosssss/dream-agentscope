@@ -8,6 +8,7 @@ import com.zhu.audit.infrastructure.persistence.entity.TenantQuotaRecord;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -20,7 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 租户每日请求上限。不连接 MySQL 或 Redis。进程配置为 0 时，有行才限额。
+ * 租户每日请求上限。列表不带已用量。不连接 MySQL 或 Redis。进程配置为 0 时，有行才限额。
  */
 class TenantQuotaTest {
 
@@ -82,5 +83,27 @@ class TenantQuotaTest {
         });
         verify(quotas).updateDailyRequestLimit("t", 0L);
         verify(quotas, never()).insert(any(TenantQuotaRecord.class));
+    }
+
+    /** 列表只看每日请求上限。空结果原样返回。 */
+    @Test
+    void recentListsDailyRequests() {
+        TenantQuotaMapper quotas = mock(TenantQuotaMapper.class);
+        MysqlTenantQuota directory = new MysqlTenantQuota(quotas);
+        when(quotas.recent(50)).thenReturn(List.of());
+        assertThat(directory.recent(50)).isEmpty();
+
+        TenantQuotaRecord row = new TenantQuotaRecord();
+        row.setTenantId("t");
+        row.setQuotaType("REQUESTS");
+        row.setPeriod("DAILY");
+        row.setLimitValue(0L);
+        when(quotas.recent(50)).thenReturn(List.of(row));
+        assertThat(directory.recent(0)).singleElement().satisfies(saved -> {
+            assertThat(saved.tenantId()).isEqualTo("t");
+            assertThat(saved.quotaType()).isEqualTo("REQUESTS");
+            assertThat(saved.period()).isEqualTo("DAILY");
+            assertThat(saved.limit()).isEqualTo(0L);
+        });
     }
 }
