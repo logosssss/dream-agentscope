@@ -54,7 +54,7 @@
 
 `POST /api/admin/retention-policies` 登记 `data_retention_policy`。类型只接受 `SESSION` / `MESSAGE` / `EVENT` / `ATTACHMENT`。空白范围按全局，空白动作按 `ARCHIVE`。天数从 1 起。同一类型和范围再登记一次返回冲突。`GET /api/admin/retention-policies` 看最近登记的策略，默认 50 条，最多 100 条，含停用。不跑清理任务，也不改已有数据。
 
-`POST /api/admin/task-schedules` 登记 `agent_task_schedule`。类型只接受 `BACKFILL` / `REPORT` / `BATCH`。cron 和延迟必须只给其中一个。不写任务参数，也不算下次触发。同一标识再登记一次返回冲突。不调度，也不消费。
+`POST /api/admin/task-schedules` 登记 `agent_task_schedule`。类型只接受 `BACKFILL` / `REPORT` / `BATCH`。cron 和延迟必须只给其中一个。不写任务参数，也不算下次触发。同一标识再登记一次返回冲突。`GET /api/admin/task-schedules` 看最近登记的调度，默认 50 条，最多 100 条，含停用。不读任务参数。不调度，也不消费。
 
 `POST /api/deletion-requests` 追加 `data_deletion_request`。状态是 `PENDING`。类型只接受 `SESSION` / `ATTACHMENT` / `ALL`。原因最长 1024 字。不执行删除，也不写删除结果。`POST /api/admin/deletion-requests/{requestId}/decision` 把待处理改成 `APPROVED` 或 `REJECTED`。已经决定过再决定一次返回冲突。批准后仍不执行删除。
 

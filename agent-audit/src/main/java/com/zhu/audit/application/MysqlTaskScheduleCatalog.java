@@ -6,13 +6,14 @@ import com.zhu.audit.infrastructure.persistence.AgentTaskScheduleMapper;
 import com.zhu.audit.infrastructure.persistence.entity.AgentTaskSchedule;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记任务调度。只在存储开关打开时创建。不计算下次触发，也不消费。
+ * 登记和列出任务调度。只在存储开关打开时创建。不计算下次触发，也不消费。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -62,5 +63,24 @@ public class MysqlTaskScheduleCatalog implements TaskScheduleCatalog {
             throw new BusinessException(ErrorCode.CONFLICT, "task schedule already exists");
         }
         return new TaskScheduleSummary(scheduleId, taskType, cron, hasDelay ? delaySeconds : null);
+    }
+
+    /**
+     * 空结果返回空列表。不按启用再滤一层，停用也要能看见。
+     * 不读任务参数，也不算下次触发。
+     */
+    @Override
+    public List<TaskScheduleSummary> recent(int limit) {
+        List<AgentTaskSchedule> rows = schedules.recent(AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream()
+                .map(row -> new TaskScheduleSummary(
+                        row.getScheduleId(),
+                        row.getTaskType(),
+                        row.getCronExpr(),
+                        row.getDelaySeconds()))
+                .toList();
     }
 }

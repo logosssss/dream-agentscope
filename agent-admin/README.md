@@ -53,6 +53,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/model-configs` | 登记一条模型配置，版本固定 `1.0.0`。用户进程对话会选用启用行。不解析参数。MySQL 关闭时返回不可用 |
 | `GET /api/admin/retention-policies` | 最近登记的数据保留策略，默认 50 条，最多 100 条。含停用。不执行清理。MySQL 关闭时返回不可用 |
 | `POST /api/admin/retention-policies` | 登记一条数据保留策略。不执行清理。MySQL 关闭时返回不可用 |
+| `GET /api/admin/task-schedules` | 最近登记的任务调度，默认 50 条，最多 100 条。含停用。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
 | `POST /api/admin/task-schedules` | 登记一条任务调度。cron 和延迟二选一。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
 | `GET /api/admin/operation-audits` | 最近的后台操作，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `GET /api/admin/safety-interventions` | 最近的安全干预，默认 50 条，最多 100 条。不含用户原文。MySQL 关闭时返回不可用 |

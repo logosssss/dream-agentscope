@@ -16,9 +16,9 @@
 
 下一空 Flyway 版本：**V32**。
 
-## 已做（管理端列出保留策略）
+## 已做（管理端列出任务调度）
 
-`GET /api/admin/retention-policies` 看最近登记的数据保留策略，默认 50 条，最多 100 条。含停用。不执行清理，也不改已有数据。MySQL 关闭时返回不可用。
+`GET /api/admin/task-schedules` 看最近登记的任务调度，默认 50 条，最多 100 条。含停用。不读任务参数，不算下次触发，也不消费。MySQL 关闭时返回不可用。
 
 ## 下一块
 
@@ -28,4 +28,4 @@
 
 ## 另一台机器开场白
 
-拉到含管理端列出保留策略的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含管理端列出任务调度的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
