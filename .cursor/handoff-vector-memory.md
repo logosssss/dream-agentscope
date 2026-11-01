@@ -10,9 +10,9 @@
 
 分支：`feat/agentscope-platform-base`（不要用 `master`）。
 
-远端：`origin/feat/agentscope-platform-base`。本机有未推送提交。不要擅自 push。
+远端：`origin/feat/agentscope-platform-base`。
 
-**记忆垂直、危机输出红线、人设规则检查已落地。** 批准删除仍不执行。不要开始真删。
+**搭子第一阶段（人格 + 安全底座）已收口。** 管理目录列表也齐了。批准删除仍不执行。不要开始真删。
 
 下一空 Flyway 版本：**V32**。
 
@@ -22,10 +22,12 @@
 
 ## 下一块
 
-以各模块 README「还没有」为准。按保留策略清理数据会碰到真删，先不要做。
+先做第一把业务 `@Tool`。目录、注册、审批、待办已经空转，模型这边还没有实现。只挂能跑通审批的工具，不解释 `conditions`，也不在批准后自动执行。
 
-不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、Persona 读表升级关系、语义判定换真模型、Memory Curator、主动唤醒。
+再往后：用户登录 → 知识检索 / `retrieveQuery` → 额度从每日次数扩到 token / 费用。不要再补管理端 GET 列表。
+
+不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、按保留策略清理数据、Persona 读表升级关系、语义判定换真模型、Memory Curator、主动唤醒。
 
 ## 另一台机器开场白
 
-拉到含人设检查补恢复和纠正触发的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含「下一步先做业务工具」记录的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
