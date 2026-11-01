@@ -9,6 +9,7 @@ import com.zhu.audit.application.MysqlDeletionRequestDecider;
 import com.zhu.audit.application.MysqlOperationAuditCatalog;
 import com.zhu.audit.application.MysqlSafetyInterventionCatalog;
 import com.zhu.audit.application.MysqlRetentionPolicyCatalog;
+import com.zhu.audit.application.MysqlTaskScheduleCatalog;
 import com.zhu.audit.application.MysqlModelPriceCatalog;
 import com.zhu.audit.application.MysqlQuotaUsageQuery;
 import com.zhu.audit.application.MysqlTenantDirectory;
@@ -35,6 +36,7 @@ import org.springframework.context.annotation.Import;
         MysqlModelPriceCatalog.class,
         MysqlModelConfigCatalog.class,
         MysqlRetentionPolicyCatalog.class,
+        MysqlTaskScheduleCatalog.class,
         MysqlOperationAuditCatalog.class,
         MysqlSafetyInterventionCatalog.class,
         MysqlDeletionRequestDecider.class,

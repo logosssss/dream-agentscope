@@ -51,6 +51,8 @@
 
 `POST /api/admin/retention-policies` 登记 `data_retention_policy`。类型只接受 `SESSION` / `MESSAGE` / `EVENT` / `ATTACHMENT`。空白范围按全局，空白动作按 `ARCHIVE`。天数从 1 起。同一类型和范围再登记一次返回冲突。不跑清理任务，也不改已有数据。
 
+`POST /api/admin/task-schedules` 登记 `agent_task_schedule`。类型只接受 `BACKFILL` / `REPORT` / `BATCH`。cron 和延迟必须只给其中一个。不写任务参数，也不算下次触发。同一标识再登记一次返回冲突。不调度，也不消费。
+
 `POST /api/deletion-requests` 追加 `data_deletion_request`。状态是 `PENDING`。类型只接受 `SESSION` / `ATTACHMENT` / `ALL`。原因最长 1024 字。不执行删除，也不写删除结果。`POST /api/admin/deletion-requests/{requestId}/decision` 把待处理改成 `APPROVED` 或 `REJECTED`。已经决定过再决定一次返回冲突。批准后仍不执行删除。
 
 `POST /api/admin/operation-audits` 追加 `operation_audit`。空白租户按空串。不写前后快照、IP 和 UA。`GET /api/admin/operation-audits` 看最近的操作，默认 50 条，最多 100 条。其它管理接口还不自动记这一行。
@@ -65,4 +67,4 @@
 
 ## 还没有
 
-退款不在这张表上做。付款只改状态。租户、额度、账单、单价、模型配置、评测、保留和删除目录以后才抽到 `agent-ops`，现在仍放本模块。`agent-audit` 以后只留事件审计、审批、通知、待办和后台操作审计。现在不拆。
+退款不在这张表上做。付款只改状态。租户、额度、账单、单价、模型配置、评测、保留、删除和调度目录以后才抽到 `agent-ops`，现在仍放本模块。`agent-audit` 以后只留事件审计、审批、通知、待办和后台操作审计。现在不拆。

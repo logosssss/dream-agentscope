@@ -127,6 +127,13 @@ class AdminContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/admin/task-schedules")
+                        .header(CallerTokens.HEADER, "test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduleId\":\"sch-a\",\"taskType\":\"REPORT\",\"cronExpr\":\"0 0 * * *\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/admin/model-configs")
                         .header(CallerTokens.HEADER, "test-token")
                         .contentType(MediaType.APPLICATION_JSON)
