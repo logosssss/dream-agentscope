@@ -13,7 +13,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的租户用户目录。只在存储开关打开时创建。不写角色，也不恢复。
+ * MySQL 上的租户用户目录。只在存储开关打开时创建。不写角色。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -107,5 +107,29 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user is not active");
         }
         return new TenantUserSummary(existing.getTenantId(), existing.getUserId(), existing.getDisplayName(), DISABLED);
+    }
+
+    /**
+     * 先读再按 DISABLED 更新，避免覆盖已经可用的行。
+     * 不改显示名，也不要求租户当前可用。
+     */
+    @Override
+    public TenantUserSummary restore(String tenantId, String userId) {
+        if (tenantId == null || tenantId.isBlank() || tenantId.length() > TENANT_LIMIT
+                || userId == null || userId.isBlank() || userId.length() > USER_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenant user is invalid");
+        }
+        TenantUser existing = users.findByTenantAndUser(tenantId, userId);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant user not found");
+        }
+        if (!DISABLED.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant user is already active");
+        }
+        int updated = users.restoreDisabled(tenantId, userId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant user is already active");
+        }
+        return new TenantUserSummary(existing.getTenantId(), existing.getUserId(), existing.getDisplayName(), ACTIVE);
     }
 }

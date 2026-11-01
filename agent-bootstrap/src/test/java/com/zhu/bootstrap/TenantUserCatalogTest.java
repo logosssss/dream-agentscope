@@ -20,7 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 租户用户只挂在已登记的租户上。不连接 MySQL，也不写角色，也不恢复。
+ * 租户用户只挂在已登记的租户上。不连接 MySQL，也不写角色。
  */
 class TenantUserCatalogTest {
 
@@ -115,5 +115,42 @@ class TenantUserCatalogTest {
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
         verify(users).disableActive("t", "u");
+    }
+
+    /** 只恢复已经停用的用户。没有或已经可用按找不到或冲突。 */
+    @Test
+    void restoreUpdatesDisabledOnly() {
+        TenantMapper tenants = mock(TenantMapper.class);
+        TenantUserMapper users = mock(TenantUserMapper.class);
+        MysqlTenantUserCatalog catalog = new MysqlTenantUserCatalog(tenants, users);
+
+        assertThatThrownBy(() -> catalog.restore("t", "u"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(users, never()).restoreDisabled("t", "u");
+
+        TenantUser disabled = new TenantUser();
+        disabled.setTenantId("t");
+        disabled.setUserId("u");
+        disabled.setDisplayName("示例");
+        disabled.setStatus("DISABLED");
+        when(users.findByTenantAndUser("t", "u")).thenReturn(disabled);
+        when(users.restoreDisabled("t", "u")).thenReturn(1);
+        assertThat(catalog.restore("t", "u")).satisfies(saved -> {
+            assertThat(saved.tenantId()).isEqualTo("t");
+            assertThat(saved.userId()).isEqualTo("u");
+            assertThat(saved.displayName()).isEqualTo("示例");
+            assertThat(saved.status()).isEqualTo("ACTIVE");
+        });
+
+        TenantUser active = new TenantUser();
+        active.setStatus("ACTIVE");
+        when(users.findByTenantAndUser("t", "u")).thenReturn(active);
+        assertThatThrownBy(() -> catalog.restore("t", "u"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+        verify(users).restoreDisabled("t", "u");
     }
 }

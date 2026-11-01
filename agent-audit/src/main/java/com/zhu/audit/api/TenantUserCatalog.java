@@ -1,7 +1,7 @@
 package com.zhu.audit.api;
 
 /**
- * 管理进程登记和停用租户用户。不恢复，也不写角色。
+ * 管理进程登记、停用和恢复租户用户。不写角色。
  */
 public interface TenantUserCatalog {
 
@@ -13,7 +13,13 @@ public interface TenantUserCatalog {
 
     /**
      * 把可用用户改成 DISABLED。已经停用再停一次是冲突。
-     * 不删数据和会话，也不恢复。
+     * 不删数据和会话。
      */
     TenantUserSummary disable(String tenantId, String userId);
+
+    /**
+     * 把停用用户改回 ACTIVE。已经可用再恢复一次是冲突。
+     * 不写角色，也不删数据。
+     */
+    TenantUserSummary restore(String tenantId, String userId);
 }

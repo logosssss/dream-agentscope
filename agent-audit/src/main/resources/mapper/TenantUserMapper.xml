@@ -19,12 +19,21 @@
           AND user_id = #{userId}
     </select>
 
-    <!-- 只改还在用的用户。不删行，也不恢复。 -->
+    <!-- 只改还在用的用户。不删行。 -->
     <update id="disableActive">
         UPDATE tenant_user
         SET status = 'DISABLED'
         WHERE tenant_id = #{tenantId}
           AND user_id = #{userId}
           AND status = 'ACTIVE'
+    </update>
+
+    <!-- 只恢复已经停用的用户。不写角色，也不删行。 -->
+    <update id="restoreDisabled">
+        UPDATE tenant_user
+        SET status = 'ACTIVE'
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND status = 'DISABLED'
     </update>
 </mapper>

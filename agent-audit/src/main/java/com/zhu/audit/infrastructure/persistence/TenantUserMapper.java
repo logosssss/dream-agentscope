@@ -5,7 +5,7 @@ import com.zhu.audit.infrastructure.persistence.entity.TenantUser;
 import org.apache.ibatis.annotations.Param;
 
 /**
- * tenant_user 的访问。登记用 BaseMapper 插入，查找和停用在 XML 里。不在这里写角色。
+ * tenant_user 的访问。登记用 BaseMapper 插入，查找、停用和恢复在 XML 里。不在这里写角色。
  */
 public interface TenantUserMapper extends BaseMapper<TenantUser> {
 
@@ -18,4 +18,9 @@ public interface TenantUserMapper extends BaseMapper<TenantUser> {
      * 只把仍为 ACTIVE 的用户改成 DISABLED。返回实际更新行数。
      */
     int disableActive(@Param("tenantId") String tenantId, @Param("userId") String userId);
+
+    /**
+     * 只把停用用户改回 ACTIVE。返回实际更新行数。
+     */
+    int restoreDisabled(@Param("tenantId") String tenantId, @Param("userId") String userId);
 }
