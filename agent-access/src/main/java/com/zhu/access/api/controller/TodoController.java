@@ -11,13 +11,14 @@ import com.zhu.common.exception.ErrorCode;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 当前用户的未完成待办。可登记确认和任务，不关闭，也不返回别人的行。
+ * 当前用户的待办。可登记并完成确认和任务，不返回别人的行。
  */
 @RestController
 public class TodoController {
@@ -57,5 +58,18 @@ public class TodoController {
         }
         TodoRequest body = request == null ? new TodoRequest(null, null, null) : request;
         return ApiResult.ok(catalog.open(UserContext.get(), body.todoType(), body.refId(), body.title()));
+    }
+
+    /**
+     * 只关这个用户还开着的确认或任务。审批待办仍走决定接口。
+     */
+    @PostMapping("/api/todos/{todoId}/done")
+    public ApiResult<UserTodoRow> complete(@PathVariable Long todoId) {
+        accounts.requireActive();
+        UserTodoCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "todo catalog is unavailable");
+        }
+        return ApiResult.ok(catalog.complete(UserContext.get(), todoId));
     }
 }

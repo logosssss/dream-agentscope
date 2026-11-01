@@ -81,6 +81,9 @@ class BootstrapContextTest {
                         .content("{\"todoType\":\"CONFIRM\",\"refId\":\"run-1\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/todos/1/done").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/feedback").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
                         .contentType("application/json")
                         .content("{\"rating\":5}"))

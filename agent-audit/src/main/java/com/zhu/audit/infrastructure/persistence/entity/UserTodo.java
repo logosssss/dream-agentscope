@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 /**
- * user_todo 的一行。审批待办由询问开、决定关。确认和任务由用户登记。
+ * user_todo 的一行。审批待办由询问开、决定关。确认和任务由用户登记并完成。
  */
 @TableName("user_todo")
 public class UserTodo {

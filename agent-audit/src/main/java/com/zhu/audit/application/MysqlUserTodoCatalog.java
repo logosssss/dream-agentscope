@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * MySQL 上的用户待办。只在存储开关打开时创建。
- * 决定后关掉对应审批待办。确认和任务由用户登记，这次不关。
+ * 决定后关掉对应审批待办。确认和任务由当前用户关成 DONE。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -25,6 +25,8 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
     private static final Set<String> OPEN_TYPES = Set.of("CONFIRM", "TASK");
 
     private static final String OPEN = "OPEN";
+
+    private static final String DONE = "DONE";
 
     private static final Set<String> CLOSE_STATUSES = Set.of("DONE", "CANCELLED");
 
@@ -98,6 +100,32 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
             return;
         }
         todos.closeApproval(clip(approvalId, REF_LIMIT), status);
+    }
+
+    /**
+     * 先读再按开着的确认或任务更新，避免盖掉审批待办或已经关上的行。
+     * 别人的主键按找不到处理，不把标题交出去。
+     */
+    @Override
+    public UserTodoRow complete(String userId, Long todoId) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT || todoId == null || todoId <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "todo is invalid");
+        }
+        UserTodo existing = todos.selectById(todoId);
+        if (existing == null || !userId.equals(existing.getUserId())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "todo not found");
+        }
+        if (!OPEN_TYPES.contains(existing.getTodoType())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "approval todo cannot be completed here");
+        }
+        if (!OPEN.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "todo is not open");
+        }
+        int updated = todos.completeOpen(todoId, userId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "todo is not open");
+        }
+        return new UserTodoRow(existing.getId(), existing.getTodoType(), existing.getRefId(), existing.getTitle(), DONE);
     }
 
     /**

@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * 用户待办。MySQL 关闭时没有这个实现。
- * 审批待办由询问事件开、决定后关。确认和任务由用户登记，这次不关。
+ * 审批待办由询问事件开、决定后关。确认和任务由当前用户关成 DONE。
  */
 public interface UserTodoCatalog {
 
@@ -25,6 +25,12 @@ public interface UserTodoCatalog {
      * 单号为空或没有开着的行时不写。关闭失败由调用方吞掉。
      */
     void closeApproval(String approvalId, String status);
+
+    /**
+     * 当前用户把自己开着的确认或任务改成 DONE。
+     * 审批待办仍走决定接口。别人的行按找不到处理。
+     */
+    UserTodoRow complete(String userId, Long todoId);
 
     /**
      * 这个用户未完成的待办，含审批、确认和任务。条数默认 50，最多 100。用户为空时拒绝。

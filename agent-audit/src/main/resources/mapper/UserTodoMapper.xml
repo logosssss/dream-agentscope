@@ -29,4 +29,14 @@
           AND ref_id = #{refId}
           AND status = 'OPEN'
     </update>
+
+    <!-- 当前用户关确认或任务。审批待办和已经关上的行不动。 -->
+    <update id="completeOpen">
+        UPDATE user_todo
+        SET status = 'DONE'
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND status = 'OPEN'
+          AND todo_type IN ('CONFIRM', 'TASK')
+    </update>
 </mapper>

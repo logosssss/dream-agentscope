@@ -26,7 +26,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 待确认给发起人开审批待办。确认和任务由用户登记。不连接 MySQL。
+ * 待确认给发起人开审批待办。确认和任务由用户登记并完成。不连接 MySQL。
  */
 class UserTodoTest {
 
@@ -135,5 +135,61 @@ class UserTodoTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
+    }
+
+    /** 只关这个用户还开着的确认或任务。审批和别人的行不改。 */
+    @Test
+    void completeUpdatesOwnOpenConfirm() {
+        UserTodoMapper todos = mock(UserTodoMapper.class);
+        MysqlUserTodoCatalog catalog = new MysqlUserTodoCatalog(todos);
+
+        assertThatThrownBy(() -> catalog.complete("u", 0L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(todos, never()).completeOpen(any(), any());
+
+        when(todos.selectById(4L)).thenReturn(null);
+        assertThatThrownBy(() -> catalog.complete("u", 4L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+
+        UserTodo other = new UserTodo();
+        other.setId(4L);
+        other.setUserId("other");
+        other.setTodoType("CONFIRM");
+        other.setStatus("OPEN");
+        when(todos.selectById(4L)).thenReturn(other);
+        assertThatThrownBy(() -> catalog.complete("u", 4L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(todos, never()).completeOpen(any(), any());
+
+        UserTodo approval = new UserTodo();
+        approval.setId(5L);
+        approval.setUserId("u");
+        approval.setTodoType("APPROVAL");
+        approval.setStatus("OPEN");
+        when(todos.selectById(5L)).thenReturn(approval);
+        assertThatThrownBy(() -> catalog.complete("u", 5L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+
+        UserTodo open = new UserTodo();
+        open.setId(6L);
+        open.setUserId("u");
+        open.setTodoType("CONFIRM");
+        open.setRefId("run-1");
+        open.setTitle("确认结果");
+        open.setStatus("OPEN");
+        when(todos.selectById(6L)).thenReturn(open);
+        when(todos.completeOpen(6L, "u")).thenReturn(1);
+        assertThat(catalog.complete("u", 6L)).satisfies(saved -> {
+            assertThat(saved.todoType()).isEqualTo("CONFIRM");
+            assertThat(saved.status()).isEqualTo("DONE");
+        });
     }
 }
