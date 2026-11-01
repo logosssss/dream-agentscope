@@ -12,16 +12,16 @@ public final class MemoryFilter {
     }
 
     /**
-     * 拼出 Milvus 的过滤表达式。任一身份为空时拒绝。
+     * 拼出 Milvus 的过滤表达式。用户和 Agent 不能空。
+     * 没带租户按空串，仍限制在无租户这一档，不会扫到别人。
      * 引号和反斜杠要转义，避免标识里的引号改写条件。
      */
     public static String of(String tenantId, String userId, String agentId) {
-        if (tenantId == null || tenantId.isBlank()
-                || userId == null || userId.isBlank()
-                || agentId == null || agentId.isBlank()) {
-            throw new IllegalArgumentException("tenant, user and agent are required");
+        if (userId == null || userId.isBlank() || agentId == null || agentId.isBlank()) {
+            throw new IllegalArgumentException("user and agent are required");
         }
-        return TENANT + " == \"" + escape(tenantId) + "\" && " + KnowledgeFilter.of(userId, agentId);
+        String tenant = tenantId == null || tenantId.isBlank() ? "" : tenantId;
+        return TENANT + " == \"" + escape(tenant) + "\" && " + KnowledgeFilter.of(userId, agentId);
     }
 
     /** 只转义表达式里的特殊字符，不改原标识的含义。 */

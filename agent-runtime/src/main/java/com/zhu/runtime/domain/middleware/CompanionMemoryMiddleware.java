@@ -1,10 +1,14 @@
 package com.zhu.runtime.domain.middleware;
 
 import com.zhu.runtime.domain.CallIdentity;
+import com.zhu.runtime.domain.TextEmbedder;
 import com.zhu.semantic.contract.PersonaContract;
 import com.zhu.semantic.contract.RiskLevel;
 import com.zhu.state.api.EpisodicMemoryRepository;
 import com.zhu.state.api.UserProfileRepository;
+import com.zhu.vector.api.VectorRecord;
+import com.zhu.vector.api.VectorStore;
+import com.zhu.vector.infrastructure.MilvusCollections;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
@@ -20,7 +24,8 @@ import reactor.core.publisher.Flux;
 
 /**
  * 对话成功结束后写情景记忆和画像。危机不写。
- * 摘要只留用户输入的短句，不存对话全文，也不调用模型。
+ * 摘要只留用户输入的短句，不存对话全文，也不调用对话模型。
+ * MySQL 有行 id 后再嵌入并写入情景记忆集合。画像不进向量。
  * 写失败只打日志，不改变已经生成的回复。
  */
 @Component
@@ -37,13 +42,22 @@ public class CompanionMemoryMiddleware implements MiddlewareBase {
 
     private final PersonaContract persona;
 
+    private final TextEmbedder embedder;
+
+    private final VectorStore vectors;
+
+    /** 向量口和嵌入口都由容器注入。测试关掉启动依赖时向量口是空实现。 */
     public CompanionMemoryMiddleware(
             EpisodicMemoryRepository memories,
             UserProfileRepository profiles,
-            PersonaContract persona) {
+            PersonaContract persona,
+            TextEmbedder embedder,
+            VectorStore vectors) {
         this.memories = memories;
         this.profiles = profiles;
         this.persona = persona;
+        this.embedder = embedder;
+        this.vectors = vectors;
     }
 
     /**
@@ -60,7 +74,8 @@ public class CompanionMemoryMiddleware implements MiddlewareBase {
     }
 
     /**
-     * 危机跳过。摘要为空也跳过。两张表分开写，一张失败不影响另一张。
+     * 危机跳过。摘要为空也跳过。
+     * MySQL、画像和向量分开写，一处失败不影响另外两处，也不挡回复。
      */
     void remember(RuntimeContext context, AgentInput input) {
         if (critical(context)) {
@@ -71,7 +86,7 @@ public class CompanionMemoryMiddleware implements MiddlewareBase {
             return;
         }
         CallIdentity identity = CallIdentity.from(context);
-        appendMemory(identity, summary, salience(context));
+        appendMemory(identity, agentId(context), summary, salience(context));
         upsertProfile(identity);
     }
 
@@ -95,12 +110,58 @@ public class CompanionMemoryMiddleware implements MiddlewareBase {
         return compact.substring(0, SUMMARY_LIMIT);
     }
 
-    private void appendMemory(CallIdentity identity, String summary, int salience) {
+    /**
+     * 先落 MySQL。没有行 id 就不嵌入，避免向量主键对不上账本。
+     */
+    private void appendMemory(CallIdentity identity, String agentId, String summary, int salience) {
+        long id;
         try {
-            memories.append(identity.tenantId(), identity.userId(), identity.sessionId(), summary, salience);
+            id = memories.append(identity.tenantId(), identity.userId(), identity.sessionId(), summary, salience);
         } catch (RuntimeException ex) {
             log.warning("episodic memory record failed");
+            return;
         }
+        if (id <= 0) {
+            return;
+        }
+        writeVector(identity, agentId, id, summary);
+    }
+
+    /**
+     * 只写刚落库的短摘要。没密钥、维度不对或 Milvus 失败都丢掉这次向量。
+     */
+    private void writeVector(CallIdentity identity, String agentId, long id, String summary) {
+        try {
+            float[] vector = embedder.embed(summary);
+            if (vector == null || vector.length != MilvusCollections.DEFAULT_DIMENSIONS) {
+                return;
+            }
+            if (identity.userId() == null || identity.userId().isBlank() || agentId == null || agentId.isBlank()) {
+                return;
+            }
+            String tenant = identity.tenantId() == null || identity.tenantId().isBlank() ? "" : identity.tenantId();
+            vectors.upsert(new VectorRecord(
+                    MilvusCollections.EPISODIC_MEMORY,
+                    Long.toString(id),
+                    vector,
+                    tenant,
+                    identity.userId(),
+                    agentId));
+        } catch (RuntimeException ex) {
+            log.warning("episodic memory vector failed");
+        }
+    }
+
+    /** 上下文没带标识时用锁定人格，避免向量缺 Agent。 */
+    private static String agentId(RuntimeContext context) {
+        if (context == null) {
+            return "companion-v1";
+        }
+        Object value = context.get("agentId");
+        if (value == null || value.toString().isBlank()) {
+            return "companion-v1";
+        }
+        return value.toString();
     }
 
     /**
@@ -114,6 +175,7 @@ public class CompanionMemoryMiddleware implements MiddlewareBase {
         }
     }
 
+    /** 危机档由安全门写入。这里只读，不再判定。 */
     private static boolean critical(RuntimeContext context) {
         return context != null && context.get(RiskLevel.class) == RiskLevel.CRITICAL;
     }

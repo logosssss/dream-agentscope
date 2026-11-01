@@ -23,6 +23,7 @@ spring:
 agentscope:
   runtime:
     # 模型坐标。密钥走环境变量，不写进仓库。
+    # 嵌入固定 text-embedding-v4 / 1024。密钥读 DASHSCOPE_API_KEY，没有或失败只打日志，不挡启动。
     model: ${AGENTSCOPE_MODEL:dashscope:qwen-plus}
     # 状态命名空间。和下面的展示名分开，改名不会把会话指到空库。
     agent-id: companion-v1

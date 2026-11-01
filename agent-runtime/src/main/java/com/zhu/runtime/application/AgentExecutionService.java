@@ -97,13 +97,25 @@ public class AgentExecutionService implements AgentExecutor {
         }
     }
 
-    /** 身份放进框架上下文。tenantId 不是框架字段，放在扩展项里。 */
-    private static RuntimeContext context(AgentRequest request) {
+    /** 身份放进框架上下文。tenantId 和 agentId 不是框架字段，放在扩展项里。 */
+    private RuntimeContext context(AgentRequest request) {
         return RuntimeContext.builder()
                 .userId(request.userId())
                 .sessionId(request.sessionId())
                 .put("tenantId", request.tenantId())
+                .put("agentId", agentId(request))
                 .build();
+    }
+
+    /** 请求没带标识时用运行配置。空配置仍退回 companion-v1，避免向量缺 Agent。 */
+    private String agentId(AgentRequest request) {
+        if (request != null && !blank(request.agentId())) {
+            return request.agentId();
+        }
+        if (!blank(properties.getAgentId())) {
+            return properties.getAgentId();
+        }
+        return "companion-v1";
     }
 
     /** 关闭失败不能盖住已经产生的回复或原始错误。 */

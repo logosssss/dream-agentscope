@@ -1,10 +1,10 @@
-package com.zhu.state.application;
+package com.zhu.state.infrastructure.persistence;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.state.api.EpisodicMemoryRepository;
+import com.zhu.state.infrastructure.persistence.entity.EpisodicMemory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -22,19 +22,20 @@ public class MysqlEpisodicMemoryRepository implements EpisodicMemoryRepository {
 
     private static final int SUMMARY_LIMIT = 500;
 
-    private final JdbcTemplate jdbc;
+    private final EpisodicMemoryMapper memories;
 
-    /** 写入走 JDBC。校验失败不写库。 */
-    public MysqlEpisodicMemoryRepository(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    /** 写入走 BaseMapper。校验失败不写库。 */
+    public MysqlEpisodicMemoryRepository(EpisodicMemoryMapper memories) {
+        this.memories = memories;
     }
 
     /**
      * 空白租户和会话按空串。不截断超长字段。
      * 摘要必须是短句，不要把整段对话传进来。
+     * 自增 id 给向量主键。驱动没回主键时返回 0，不要猜编号。
      */
     @Override
-    public void append(String tenantId, String userId, String sessionId, String summary, int salience) {
+    public long append(String tenantId, String userId, String sessionId, String summary, int salience) {
         if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
                 || (tenantId != null && tenantId.length() > TENANT_LIMIT)
                 || (sessionId != null && sessionId.length() > SESSION_LIMIT)
@@ -42,12 +43,13 @@ public class MysqlEpisodicMemoryRepository implements EpisodicMemoryRepository {
                 || salience < 1 || salience > 5) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "episodic memory is invalid");
         }
-        jdbc.update(
-                "INSERT INTO episodic_memory (tenant_id, user_id, session_id, summary, salience) VALUES (?, ?, ?, ?, ?)",
-                tenantId == null || tenantId.isBlank() ? "" : tenantId,
-                userId,
-                sessionId == null || sessionId.isBlank() ? "" : sessionId,
-                summary,
-                salience);
+        EpisodicMemory row = new EpisodicMemory();
+        row.setTenantId(tenantId == null || tenantId.isBlank() ? "" : tenantId);
+        row.setUserId(userId);
+        row.setSessionId(sessionId == null || sessionId.isBlank() ? "" : sessionId);
+        row.setSummary(summary);
+        row.setSalience(salience);
+        memories.insert(row);
+        return row.getId() == null ? 0L : row.getId();
     }
 }

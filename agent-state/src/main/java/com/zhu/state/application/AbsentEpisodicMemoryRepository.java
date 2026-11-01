@@ -14,8 +14,9 @@ import org.springframework.stereotype.Service;
         matchIfMissing = true)
 public class AbsentEpisodicMemoryRepository implements EpisodicMemoryRepository {
 
-    /** 没有表可写，直接跳过。 */
+    /** 没有表可写，直接跳过。返回 0，调用方不要拿去写向量。 */
     @Override
-    public void append(String tenantId, String userId, String sessionId, String summary, int salience) {
+    public long append(String tenantId, String userId, String sessionId, String summary, int salience) {
+        return 0L;
     }
 }

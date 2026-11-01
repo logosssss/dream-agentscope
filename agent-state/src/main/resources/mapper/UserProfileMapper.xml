@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.state.infrastructure.persistence.UserProfileMapper">
+
+    <!-- 同一租户用户一行。阶段和备注直接覆盖，时间交给表默认值。 -->
+    <insert id="upsert">
+        INSERT INTO user_profile (tenant_id, user_id, relationship_stage, notes)
+        VALUES (#{tenantId}, #{userId}, #{relationshipStage}, #{notes})
+        ON DUPLICATE KEY UPDATE
+            relationship_stage = VALUES(relationship_stage),
+            notes = VALUES(notes)
+    </insert>
+</mapper>

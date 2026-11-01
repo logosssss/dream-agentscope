@@ -1,11 +1,11 @@
-package com.zhu.state.application;
+package com.zhu.state.infrastructure.persistence;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.state.api.UserProfileRepository;
+import com.zhu.state.infrastructure.persistence.entity.UserProfile;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -23,11 +23,11 @@ public class MysqlUserProfileRepository implements UserProfileRepository {
 
     private static final Set<String> STAGES = Set.of("ACQUAINTANCE", "FAMILIAR", "CLOSE");
 
-    private final JdbcTemplate jdbc;
+    private final UserProfileMapper profiles;
 
-    /** 写入走 JDBC。校验失败不写库。 */
-    public MysqlUserProfileRepository(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    /** 覆盖写走 Mapper。校验失败不写库。 */
+    public MysqlUserProfileRepository(UserProfileMapper profiles) {
+        this.profiles = profiles;
     }
 
     /**
@@ -42,12 +42,11 @@ public class MysqlUserProfileRepository implements UserProfileRepository {
                 || (notes != null && notes.length() > NOTES_LIMIT)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "user profile is invalid");
         }
-        jdbc.update(
-                "INSERT INTO user_profile (tenant_id, user_id, relationship_stage, notes) VALUES (?, ?, ?, ?) "
-                        + "ON DUPLICATE KEY UPDATE relationship_stage = VALUES(relationship_stage), notes = VALUES(notes)",
-                tenantId == null || tenantId.isBlank() ? "" : tenantId,
-                userId,
-                relationshipStage,
-                notes == null || notes.isBlank() ? null : notes);
+        UserProfile row = new UserProfile();
+        row.setTenantId(tenantId == null || tenantId.isBlank() ? "" : tenantId);
+        row.setUserId(userId);
+        row.setRelationshipStage(relationshipStage);
+        row.setNotes(notes == null || notes.isBlank() ? null : notes);
+        profiles.upsert(row);
     }
 }

@@ -59,6 +59,7 @@ class ArchitectureTest {
                         "com.zhu.semantic.contract.ProductSemanticProvider",
                         "com.zhu.runtime.api.AgentExecutor",
                         "com.zhu.state.config.DistributedStoreConfig",
+                        "com.zhu.state.config.StateMapperConfig",
                         "com.zhu.vector.api.VectorStore",
                         "com.zhu.vector.config.VectorConfig",
                         "com.zhu.access.api.controller.LivenessController");

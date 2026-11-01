@@ -4,6 +4,8 @@ import com.zhu.common.security.CallerTokens;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.semantic.infrastructure.nacos.AbsentPromptSource;
 import com.zhu.semantic.infrastructure.nacos.PromptSource;
+import com.zhu.runtime.domain.TextEmbedder;
+import com.zhu.runtime.infrastructure.embed.DashScopeTextEmbedder;
 import com.zhu.vector.api.VectorStore;
 import com.zhu.vector.application.AbsentVectorStore;
 import io.agentscope.harness.agent.DistributedStore;
@@ -53,6 +55,8 @@ class BootstrapContextTest {
         assertThat(context.getBean(PromptSource.class)).isInstanceOf(AbsentPromptSource.class);
         assertThat(context.getBeansOfType(VectorStore.class)).hasSize(1);
         assertThat(context.getBean(VectorStore.class)).isInstanceOf(AbsentVectorStore.class);
+        assertThat(context.getBeansOfType(TextEmbedder.class)).hasSize(1);
+        assertThat(context.getBean(TextEmbedder.class)).isInstanceOf(DashScopeTextEmbedder.class);
         assertThat(context.getBeansOfType(MilvusClientV2.class)).isEmpty();
         mvc.perform(get("/health/live"))
                 .andExpect(status().isOk())

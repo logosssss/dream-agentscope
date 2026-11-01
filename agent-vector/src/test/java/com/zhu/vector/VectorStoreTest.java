@@ -32,12 +32,14 @@ class VectorStoreTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    /** 情景记忆必须同时限制租户、用户和 Agent。 */
+    /** 情景记忆必须同时限制租户、用户和 Agent。没带租户按空串，不扫全库。 */
     @Test
     void memoryFilterRequiresTenant() {
         assertThat(MemoryFilter.of("t\"1", "u", "a"))
                 .isEqualTo("tenant_id == \"t\\\"1\" && user_id == \"u\" && agent_id == \"a\"");
-        assertThatThrownBy(() -> MemoryFilter.of(" ", "u", "a"))
+        assertThat(MemoryFilter.of(" ", "u", "a"))
+                .isEqualTo("tenant_id == \"\" && user_id == \"u\" && agent_id == \"a\"");
+        assertThatThrownBy(() -> MemoryFilter.of("t", " ", "a"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -59,7 +61,7 @@ class VectorStoreTest {
         assertThatThrownBy(() -> store.search(new VectorQuery("knowledge", new float[] {0.1f}, "", " ", "a", 3)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> store.upsert(new VectorRecord(
-                MilvusCollections.EPISODIC_MEMORY, "1", new float[] {0.1f}, " ", "u", "a")))
+                MilvusCollections.EPISODIC_MEMORY, "1", new float[] {0.1f}, "t", " ", "a")))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> store.deleteById(" ", "1"))
                 .isInstanceOf(IllegalArgumentException.class);

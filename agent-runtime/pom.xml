@@ -28,6 +28,10 @@
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
+            <artifactId>agent-vector</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
             <artifactId>agent-audit</artifactId>
         </dependency>
         <dependency>
