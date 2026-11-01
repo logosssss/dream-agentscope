@@ -2,6 +2,7 @@ package com.zhu.state.infrastructure.persistence;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import com.zhu.state.api.UserProfileItem;
 import com.zhu.state.api.UserProfileRepository;
 import com.zhu.state.infrastructure.persistence.entity.UserProfile;
 import java.util.Set;
@@ -9,7 +10,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * 把用户画像写入 MySQL。只在存储开关打开时创建。同一租户用户覆盖阶段和备注。
+ * 把用户画像写入 MySQL，并按身份读回。只在存储开关打开时创建。
+ * 同一租户用户覆盖阶段和备注。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -48,5 +50,25 @@ public class MysqlUserProfileRepository implements UserProfileRepository {
         row.setRelationshipStage(relationshipStage);
         row.setNotes(notes == null || notes.isBlank() ? null : notes);
         profiles.upsert(row);
+    }
+
+    /**
+     * 空白租户按空串。没有行或用户为空时返回 null。
+     */
+    @Override
+    public UserProfileItem find(String tenantId, String userId) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || (tenantId != null && tenantId.length() > TENANT_LIMIT)) {
+            return null;
+        }
+        UserProfile row = profiles.find(tenantId == null || tenantId.isBlank() ? "" : tenantId, userId);
+        if (row == null) {
+            return null;
+        }
+        return new UserProfileItem(
+                row.getTenantId() == null ? "" : row.getTenantId(),
+                row.getUserId(),
+                row.getRelationshipStage(),
+                row.getNotes());
     }
 }

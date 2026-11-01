@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 一次对话召回的情景记忆。放进 RuntimeContext，这一刀还不拼进提示词。
+ * 一次对话召回的情景记忆。放进 RuntimeContext，再由中间件追加到系统提示词。
  *
  * @param items 去重后最多 5 条，显著性高的在前，再按时间新到旧
  */

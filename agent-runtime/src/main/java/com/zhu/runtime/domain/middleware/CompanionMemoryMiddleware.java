@@ -7,6 +7,7 @@ import com.zhu.semantic.contract.PersonaContract;
 import com.zhu.semantic.contract.RiskLevel;
 import com.zhu.state.api.EpisodicMemoryItem;
 import com.zhu.state.api.EpisodicMemoryRepository;
+import com.zhu.state.api.UserProfileItem;
 import com.zhu.state.api.UserProfileRepository;
 import com.zhu.vector.api.VectorHit;
 import com.zhu.vector.api.VectorQuery;
@@ -26,12 +27,14 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * 对话开始时召回情景记忆，成功结束后再写短摘要和画像。危机不召回也不写。
  * 摘要只留用户输入的短句，不存对话全文，也不调用对话模型。
  * 检索是 MySQL 最近 3 条加近邻 3 个 id，去重后最多 5 条。Milvus 挂了只用 MySQL。
- * 结果只放进上下文，不拼进提示词。写失败只打日志，不改变已经生成的回复。
+ * 普通和升高把短画像和最多 5 条召回追加到系统提示词后面。危机不追加。
+ * 读失败只打日志，不改变已经选出的话术。
  */
 @Component
 public class CompanionMemoryMiddleware implements MiddlewareBase {
@@ -40,6 +43,9 @@ public class CompanionMemoryMiddleware implements MiddlewareBase {
 
     /** 短摘要上限。表允许 500，这里先压成一句。 */
     static final int SUMMARY_LIMIT = 80;
+
+    /** 注入段开头。已经带过就不再追加，避免多轮重复。 */
+    static final String MEMORY_MARK = "你还记得这些事：";
 
     private final EpisodicMemoryRepository memories;
 
@@ -80,8 +86,21 @@ public class CompanionMemoryMiddleware implements MiddlewareBase {
     }
 
     /**
+     * 安全门先改话术，这里再追加记忆。危机档保持危机话术。
+     * 拼装失败退回当前话术，不能把空串交给模型。
+     */
+    @Override
+    public Mono<String> onSystemPrompt(Agent agent, RuntimeContext context, String currentPrompt) {
+        try {
+            return Mono.just(inject(context, currentPrompt));
+        } catch (RuntimeException ex) {
+            log.warning("companion memory inject failed");
+            return Mono.just(currentPrompt == null ? "" : currentPrompt);
+        }
+    }
+
+    /**
      * 危机跳过。MySQL 和近邻分开取，一处失败不影响另一处。
-     * 不改系统提示词，也不改用户原文。
      */
     void recall(RuntimeContext context, AgentInput input) {
         if (context == null) {
@@ -184,6 +203,96 @@ public class CompanionMemoryMiddleware implements MiddlewareBase {
             return 4;
         }
         return 2;
+    }
+
+    /**
+     * 危机不改。已经注入过就原样返回。
+     * 画像读失败退回锁定阶段。没有召回时仍留下短画像。
+     */
+    String inject(RuntimeContext context, String currentPrompt) {
+        if (critical(context)) {
+            return currentPrompt == null ? "" : currentPrompt;
+        }
+        String base = currentPrompt == null ? "" : currentPrompt;
+        if (base.contains(MEMORY_MARK)) {
+            return base;
+        }
+        String block = memoryBlock(profileOf(context), recalledOf(context));
+        if (block.isEmpty()) {
+            return base;
+        }
+        if (base.isBlank()) {
+            return block;
+        }
+        return base + "\n" + block;
+    }
+
+    /** 短画像加最多 5 条摘要。条目已经在召回时收过口。 */
+    static String memoryBlock(UserProfileItem profile, RecalledMemories recalled) {
+        StringBuilder block = new StringBuilder();
+        block.append("关系阶段：").append(stageLabel(profile == null ? null : profile.relationshipStage()));
+        String notes = profile == null ? "" : clip(profile.notes());
+        if (!notes.isEmpty()) {
+            block.append('\n').append("备注：").append(notes);
+        }
+        List<EpisodicMemoryItem> items = recalled == null ? List.of() : recalled.items();
+        if (!items.isEmpty()) {
+            block.append('\n').append(MEMORY_MARK);
+            int count = 0;
+            for (EpisodicMemoryItem item : items) {
+                if (count >= RecalledMemories.LIMIT) {
+                    break;
+                }
+                String summary = item == null ? "" : clip(item.summary());
+                if (summary.isEmpty()) {
+                    continue;
+                }
+                block.append('\n').append("- ").append(summary);
+                count++;
+            }
+        }
+        return block.toString();
+    }
+
+    /** 表上没有阶段时用相识。未登记的值原样留下，不擅自改关系。 */
+    static String stageLabel(String stage) {
+        if (stage == null || stage.isBlank() || "ACQUAINTANCE".equals(stage)) {
+            return "相识";
+        }
+        if ("FAMILIAR".equals(stage)) {
+            return "熟悉";
+        }
+        if ("CLOSE".equals(stage)) {
+            return "亲近";
+        }
+        return stage;
+    }
+
+    /** 读失败或没有行时退回锁定阶段，对话继续。 */
+    private UserProfileItem profileOf(RuntimeContext context) {
+        CallIdentity identity = CallIdentity.from(context);
+        try {
+            UserProfileItem profile = profiles.find(identity.tenantId(), identity.userId());
+            if (profile != null && profile.relationshipStage() != null && !profile.relationshipStage().isBlank()) {
+                return profile;
+            }
+        } catch (RuntimeException ex) {
+            log.warning("user profile read failed");
+        }
+        return new UserProfileItem(
+                identity.tenantId() == null ? "" : identity.tenantId(),
+                identity.userId(),
+                persona.relationshipStage(),
+                null);
+    }
+
+    /** 召回结果已经在 onAgent 里放进上下文。没有时按空列表。 */
+    private static RecalledMemories recalledOf(RuntimeContext context) {
+        if (context == null) {
+            return RecalledMemories.empty();
+        }
+        RecalledMemories recalled = context.get(RecalledMemories.class);
+        return recalled == null ? RecalledMemories.empty() : recalled;
     }
 
     /** 换行压成空格，超出上限就截断。不把整段对话留下来。 */

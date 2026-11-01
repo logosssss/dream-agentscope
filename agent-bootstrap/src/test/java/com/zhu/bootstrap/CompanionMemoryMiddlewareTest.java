@@ -7,6 +7,7 @@ import com.zhu.semantic.config.CompanionPersona;
 import com.zhu.semantic.contract.RiskLevel;
 import com.zhu.state.api.EpisodicMemoryItem;
 import com.zhu.state.api.EpisodicMemoryRepository;
+import com.zhu.state.api.UserProfileItem;
 import com.zhu.state.api.UserProfileRepository;
 import com.zhu.vector.api.VectorHit;
 import com.zhu.vector.api.VectorQuery;
@@ -28,8 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
- * 普通和升高先召回再写短摘要。危机不召回也不写。
- * 不连接 MySQL、Milvus，也不调用模型，更不改提示词。
+ * 普通和升高先召回再写短摘要，并把短画像和召回追加到系统提示词。
+ * 危机不召回、不写、不注入。不连接 MySQL、Milvus，也不调用模型。
  */
 class CompanionMemoryMiddlewareTest {
 
@@ -140,6 +141,50 @@ class CompanionMemoryMiddlewareTest {
         assertThat(fixture.appends).isNotEmpty();
     }
 
+    /** 普通档追加短画像和召回摘要。备注和阶段从表里读。 */
+    @Test
+    void injectsProfileAndRecalledItems() {
+        Fixture fixture = fixture(false, true, false);
+        fixture.recent.add(item(1, 2, LocalDateTime.of(2026, 11, 1, 10, 0)));
+        fixture.storedProfile = new UserProfileItem("t", "u", "FAMILIAR", "喜欢散步");
+
+        RuntimeContext context = complete(fixture.middleware, RiskLevel.NORMAL, "今天去散步了");
+
+        assertThat(prompt(fixture.middleware, context, "你是搭子。")).isEqualTo("""
+                你是搭子。
+                关系阶段：熟悉
+                备注：喜欢散步
+                你还记得这些事：
+                - m1""");
+    }
+
+    /** 危机档保持当前话术，不追加记忆。 */
+    @Test
+    void crisisKeepsCurrentPrompt() {
+        Fixture fixture = fixture(false, true, false);
+        fixture.recent.add(item(1, 2, LocalDateTime.of(2026, 11, 1, 10, 0)));
+        fixture.storedProfile = new UserProfileItem("t", "u", "CLOSE", "旧备注");
+
+        RuntimeContext context = complete(fixture.middleware, RiskLevel.CRITICAL, "我想自杀");
+
+        assertThat(prompt(fixture.middleware, context, "危机话术")).isEqualTo("危机话术");
+    }
+
+    /** 画像读失败退回锁定阶段。已经注入过的话术不再追加。 */
+    @Test
+    void injectFailureFallsBackAndSkipsDuplicate() {
+        Fixture fixture = fixture(false, true, false);
+        fixture.failProfileRead = true;
+
+        RuntimeContext context = complete(fixture.middleware, RiskLevel.NORMAL, "今天聊了散步");
+
+        assertThat(prompt(fixture.middleware, context, "人设")).isEqualTo("""
+                人设
+                关系阶段：相识""");
+        assertThat(prompt(fixture.middleware, context, "人设\n你还记得这些事：\n- 旧的"))
+                .isEqualTo("人设\n你还记得这些事：\n- 旧的");
+    }
+
     /** 走完中间件的成功路径，先召回再写。 */
     private static RuntimeContext complete(CompanionMemoryMiddleware middleware, RiskLevel level, String userText) {
         RuntimeContext context = RuntimeContext.builder()
@@ -153,6 +198,11 @@ class CompanionMemoryMiddlewareTest {
                 Msg.builder().role(MsgRole.USER).textContent(userText).build()));
         middleware.onAgent(mock(Agent.class), context, input, ignored -> Flux.empty()).blockLast();
         return context;
+    }
+
+    /** 走完提示词注入。不调用模型。 */
+    private static String prompt(CompanionMemoryMiddleware middleware, RuntimeContext context, String current) {
+        return middleware.onSystemPrompt(mock(Agent.class), context, current).block();
     }
 
     /** 假仓库和假向量口。failSearch 只让近邻失败。 */
@@ -198,6 +248,12 @@ class CompanionMemoryMiddlewareTest {
 
         private final List<VectorHit> hits = new ArrayList<>();
 
+        /** 注入时读到的短画像。空表示表上没有行。 */
+        private UserProfileItem storedProfile;
+
+        /** 画像读失败用来确认对话仍继续。 */
+        private boolean failProfileRead;
+
         private CompanionMemoryMiddleware middleware;
 
         /** 写入和最近、按 id 查都走这份假数据。 */
@@ -229,11 +285,24 @@ class CompanionMemoryMiddlewareTest {
 
         /** 失败分支用来确认异常被中间件吞掉。 */
         private UserProfileRepository profiles(boolean failWrites) {
-            return (tenant, user, stage, notes) -> {
-                if (failWrites) {
-                    throw new IllegalStateException("db");
+            return new UserProfileRepository() {
+                /** 写入失败不往外抛。 */
+                @Override
+                public void upsert(String tenant, String user, String stage, String notes) {
+                    if (failWrites) {
+                        throw new IllegalStateException("db");
+                    }
+                    profiles.add(tenant + "|" + user + "|" + stage);
                 }
-                profiles.add(tenant + "|" + user + "|" + stage);
+
+                /** 读失败按空画像处理。 */
+                @Override
+                public UserProfileItem find(String tenant, String user) {
+                    if (failProfileRead) {
+                        throw new IllegalStateException("db");
+                    }
+                    return storedProfile;
+                }
             };
         }
 

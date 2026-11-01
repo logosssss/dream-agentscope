@@ -11,4 +11,13 @@
             relationship_stage = VALUES(relationship_stage),
             notes = VALUES(notes)
     </insert>
+
+    <!-- 注入时读短画像。同一租户用户至多一行。 -->
+    <select id="find" resultType="com.zhu.state.infrastructure.persistence.entity.UserProfile">
+        SELECT tenant_id, user_id, relationship_stage, notes
+        FROM user_profile
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+        LIMIT 1
+    </select>
 </mapper>

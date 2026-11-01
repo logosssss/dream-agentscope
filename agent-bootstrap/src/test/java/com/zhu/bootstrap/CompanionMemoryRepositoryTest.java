@@ -101,4 +101,21 @@ class CompanionMemoryRepositoryTest {
         assertThat(memories.findByIds("t", "u", List.of())).isEmpty();
         verify(mapper, never()).findByIds(any(), any(), any());
     }
+
+    /** 空白租户按空串查。用户为空不碰 Mapper。 */
+    @Test
+    void profileFindReturnsRow() {
+        UserProfileMapper mapper = mock(UserProfileMapper.class);
+        UserProfile row = new UserProfile();
+        row.setTenantId("");
+        row.setUserId("u");
+        row.setRelationshipStage("FAMILIAR");
+        row.setNotes("散步");
+        when(mapper.find("", "u")).thenReturn(row);
+        MysqlUserProfileRepository profiles = new MysqlUserProfileRepository(mapper);
+
+        assertThat(profiles.find(" ", "u").relationshipStage()).isEqualTo("FAMILIAR");
+        assertThat(profiles.find("", " ")).isNull();
+        verify(mapper, never()).find(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(" "));
+    }
 }
