@@ -1,0 +1,54 @@
+package com.zhu.bootstrap;
+
+import com.zhu.audit.application.MysqlTenantUserCatalog;
+import com.zhu.audit.infrastructure.persistence.TenantMapper;
+import com.zhu.audit.infrastructure.persistence.TenantUserMapper;
+import com.zhu.audit.infrastructure.persistence.entity.TenantRecord;
+import com.zhu.audit.infrastructure.persistence.entity.TenantUser;
+import com.zhu.common.exception.BusinessException;
+import com.zhu.common.exception.ErrorCode;
+import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * 租户用户只挂在已登记的租户上。不连接 MySQL，也不写角色。
+ */
+class TenantUserCatalogTest {
+
+    /** 没有租户时不插入。有租户时写入可用用户，同一用户再挂一次按冲突处理。 */
+    @Test
+    void registerRequiresTheTenant() {
+        TenantMapper tenants = mock(TenantMapper.class);
+        TenantUserMapper users = mock(TenantUserMapper.class);
+        MysqlTenantUserCatalog catalog = new MysqlTenantUserCatalog(tenants, users);
+
+        assertThatThrownBy(() -> catalog.register("t", "u", "示例"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(users, never()).insert(any(TenantUser.class));
+
+        when(tenants.findByTenantId("t")).thenReturn(new TenantRecord());
+        assertThat(catalog.register("t", "u", " ")).satisfies(saved -> {
+            assertThat(saved.tenantId()).isEqualTo("t");
+            assertThat(saved.userId()).isEqualTo("u");
+            assertThat(saved.displayName()).isNull();
+            assertThat(saved.status()).isEqualTo("ACTIVE");
+        });
+        verify(users).insert(any(TenantUser.class));
+
+        when(users.insert(any(TenantUser.class))).thenThrow(new DataIntegrityViolationException("dup"));
+        assertThatThrownBy(() -> catalog.register("t", "u", null))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+    }
+}

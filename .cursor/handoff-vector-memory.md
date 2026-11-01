@@ -14,21 +14,22 @@
 
 **记忆垂直已落地。** 批准删除仍不执行。不要开始真删。
 
-下一空 Flyway 版本：**V31**。
+下一空 Flyway 版本：**V32**。
 
-## 已做（确认和任务待办）
+## 已做（租户用户）
 
-`POST /api/todos` 登记 `CONFIRM` / `TASK`。关联运行或任务标识，不核这些对象。同一用户、类型和关联再开一次是冲突。不写截止时间，也不关闭。`GET /api/todos` 列出还开着的审批、确认和任务。审批待办仍由询问事件开、决定后关。
+`POST /api/admin/tenant-users` 登记 `tenant_user`。租户必须已经存在。状态 `ACTIVE`。不写角色。同一租户再挂这个用户是冲突。对话仍不按这张表鉴权。不停用用户。
 
 ## 下一块候选（选一块）
 
 以 README「还没有」为准，例如：
 
-- `tenant_user`
 - 关闭或恢复租户
+- 停用租户用户
+- 对话按 `tenant_user` 鉴权
 
 不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、Persona 读表升级关系。
 
 ## 另一台机器开场白
 
-拉到含确认和任务待办的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含租户用户的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。

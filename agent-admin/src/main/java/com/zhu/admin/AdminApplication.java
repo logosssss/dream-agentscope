@@ -14,6 +14,7 @@ import com.zhu.audit.application.MysqlModelPriceCatalog;
 import com.zhu.audit.application.MysqlQuotaUsageQuery;
 import com.zhu.audit.application.MysqlTenantDirectory;
 import com.zhu.audit.application.MysqlTenantQuota;
+import com.zhu.audit.application.MysqlTenantUserCatalog;
 import com.zhu.audit.application.MybatisApprovalDecider;
 import com.zhu.audit.application.MybatisAuditQuery;
 import com.zhu.audit.application.MysqlUserTodoCatalog;
@@ -41,6 +42,7 @@ import org.springframework.context.annotation.Import;
         MysqlSafetyInterventionCatalog.class,
         MysqlDeletionRequestDecider.class,
         MysqlTenantDirectory.class,
+        MysqlTenantUserCatalog.class,
         MysqlTenantQuota.class,
         MysqlQuotaUsageQuery.class,
         MysqlEvalDatasetCatalog.class,
