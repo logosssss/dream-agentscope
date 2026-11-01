@@ -39,6 +39,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/tenants/{tenantId}/suspend` | 把可用租户改成 `SUSPENDED`。不删数据，也不关账号。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenants/{tenantId}/close` | 把尚未关闭的租户改成 `CLOSED`。不删数据。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenants/{tenantId}/restore` | 把停用或关闭的租户改回 `ACTIVE`。不改用户状态。MySQL 关闭时返回不可用 |
+| `GET /api/admin/tenant-users` | 某个租户最近登记的用户，默认 50 条，最多 100 条。含停用。必须带租户。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenant-users` | 给已登记租户挂一个可用用户。不写角色，也不登录。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenant-users/{tenantId}/{userId}/disable` | 把可用用户改成 `DISABLED`。不删数据。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenant-users/{tenantId}/{userId}/restore` | 把停用用户改回 `ACTIVE`。不写角色。MySQL 关闭时返回不可用 |

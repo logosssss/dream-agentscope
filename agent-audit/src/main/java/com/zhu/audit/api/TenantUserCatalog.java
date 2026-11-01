@@ -1,7 +1,9 @@
 package com.zhu.audit.api;
 
+import java.util.List;
+
 /**
- * 管理进程登记、停用和恢复租户用户。不写角色。
+ * 管理进程登记、查看、停用和恢复租户用户。不写角色。
  */
 public interface TenantUserCatalog {
 
@@ -22,4 +24,10 @@ public interface TenantUserCatalog {
      * 不写角色，也不删数据。
      */
     TenantUserSummary restore(String tenantId, String userId);
+
+    /**
+     * 这个租户下最近登记的用户，含停用。租户必须已经登记。
+     * 条数默认由调用方给出，实现侧再压到上限。
+     */
+    List<TenantUserSummary> recent(String tenantId, int limit);
 }

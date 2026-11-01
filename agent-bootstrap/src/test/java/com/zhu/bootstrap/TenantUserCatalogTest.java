@@ -7,6 +7,7 @@ import com.zhu.audit.infrastructure.persistence.entity.TenantRecord;
 import com.zhu.audit.infrastructure.persistence.entity.TenantUser;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -14,13 +15,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 租户用户只挂在已登记的租户上。不连接 MySQL，也不写角色。
+ * 租户用户只挂在已登记的租户上。列表含停用。不连接 MySQL，也不写角色。
  */
 class TenantUserCatalogTest {
 
@@ -152,5 +154,37 @@ class TenantUserCatalogTest {
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
         verify(users).restoreDisabled("t", "u");
+    }
+
+    /** 没有租户时不查用户。有租户时列出含停用的行。 */
+    @Test
+    void recentRequiresTheTenant() {
+        TenantMapper tenants = mock(TenantMapper.class);
+        TenantUserMapper users = mock(TenantUserMapper.class);
+        MysqlTenantUserCatalog catalog = new MysqlTenantUserCatalog(tenants, users);
+
+        assertThatThrownBy(() -> catalog.recent(" ", 50))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(users, never()).recent(any(), anyInt());
+
+        assertThatThrownBy(() -> catalog.recent("t", 50))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(users, never()).recent(any(), anyInt());
+
+        when(tenants.findByTenantId("t")).thenReturn(new TenantRecord());
+        TenantUser disabled = new TenantUser();
+        disabled.setTenantId("t");
+        disabled.setUserId("u");
+        disabled.setDisplayName("示例");
+        disabled.setStatus("DISABLED");
+        when(users.recent("t", 50)).thenReturn(List.of(disabled));
+        assertThat(catalog.recent("t", 0)).singleElement().satisfies(saved -> {
+            assertThat(saved.userId()).isEqualTo("u");
+            assertThat(saved.status()).isEqualTo("DISABLED");
+        });
     }
 }

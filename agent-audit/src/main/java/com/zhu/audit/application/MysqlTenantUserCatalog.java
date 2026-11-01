@@ -8,6 +8,7 @@ import com.zhu.audit.infrastructure.persistence.TenantUserMapper;
 import com.zhu.audit.infrastructure.persistence.entity.TenantUser;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -131,5 +132,30 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user is already active");
         }
         return new TenantUserSummary(existing.getTenantId(), existing.getUserId(), existing.getDisplayName(), ACTIVE);
+    }
+
+    /**
+     * 租户还没登记时拒绝。空结果返回空列表。
+     * 不按用户状态再滤一层，停用也要能看见才能恢复。
+     */
+    @Override
+    public List<TenantUserSummary> recent(String tenantId, int limit) {
+        if (tenantId == null || tenantId.isBlank() || tenantId.length() > TENANT_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenantId is required");
+        }
+        if (tenants.findByTenantId(tenantId) == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant not found");
+        }
+        List<TenantUser> rows = users.recent(tenantId, AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream()
+                .map(row -> new TenantUserSummary(
+                        row.getTenantId(),
+                        row.getUserId(),
+                        row.getDisplayName(),
+                        row.getStatus()))
+                .toList();
     }
 }

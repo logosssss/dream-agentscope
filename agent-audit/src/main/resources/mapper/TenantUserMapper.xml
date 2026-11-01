@@ -28,6 +28,15 @@
           AND status = 'ACTIVE'
     </update>
 
+    <!-- 管理列表看这个租户的全部状态。不读角色。 -->
+    <select id="recent" resultMap="BaseResultMap">
+        SELECT id, tenant_id, user_id, display_name, status
+        FROM tenant_user
+        WHERE tenant_id = #{tenantId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
     <!-- 只恢复已经停用的用户。不写角色，也不删行。 -->
     <update id="restoreDisabled">
         UPDATE tenant_user
