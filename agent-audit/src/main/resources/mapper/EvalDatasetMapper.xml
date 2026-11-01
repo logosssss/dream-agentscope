@@ -9,11 +9,27 @@
         <result column="version" property="version"/>
     </resultMap>
 
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.EvalDataset">
+        <id column="id" property="id"/>
+        <result column="dataset_id" property="datasetId"/>
+        <result column="name" property="name"/>
+        <result column="version" property="version"/>
+        <result column="description" property="description"/>
+    </resultMap>
+
     <!-- 追加用例前确认这个版本已经登记。 -->
     <select id="findVersion" resultMap="BaseResultMap">
         SELECT id, dataset_id, version
         FROM eval_dataset
         WHERE dataset_id = #{datasetId}
           AND version = #{version}
+    </select>
+
+    <!-- 管理列表看全部启用状态。不读用例。 -->
+    <select id="recent" resultMap="ListResultMap">
+        SELECT id, dataset_id, name, version, description
+        FROM eval_dataset
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
     </select>
 </mapper>

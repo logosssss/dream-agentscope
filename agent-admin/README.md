@@ -59,6 +59,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /api/admin/safety-interventions` | 最近的安全干预，默认 50 条，最多 100 条。不含用户原文。MySQL 关闭时返回不可用 |
 | `POST /api/admin/operation-audits` | 登记一条后台操作。不写前后快照，也不改业务结果。其它成功写入也会自动记一行。MySQL 关闭时返回不可用 |
 | `POST /api/admin/deletion-requests/{requestId}/decision` | 把待处理的删除请求改成 `APPROVED` 或 `REJECTED`。不执行删除 |
+| `GET /api/admin/eval-datasets` | 最近登记的评测数据集，默认 50 条，最多 100 条。含停用。不带回用例。MySQL 关闭时返回不可用 |
 | `POST /api/admin/eval-datasets` | 登记一个评测数据集，版本固定 `1.0.0`。不执行。MySQL 关闭时返回不可用 |
 | `POST /api/admin/eval-datasets/{datasetId}/cases` | 给该数据集的 `1.0.0` 追加一条用例。数据集不存在时返回找不到。不执行 |
 | `POST /api/admin/eval-runs` | 为该数据集的 `1.0.0` 登记一次执行，记下用例条数。状态停在 `RUNNING`。不调用模型 |

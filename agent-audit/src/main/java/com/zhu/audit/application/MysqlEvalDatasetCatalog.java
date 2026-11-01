@@ -6,12 +6,13 @@ import com.zhu.audit.infrastructure.persistence.EvalDatasetMapper;
 import com.zhu.audit.infrastructure.persistence.entity.EvalDataset;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的评测数据集。只在存储开关打开时创建。不写用例，也不执行。
+ * MySQL 上的评测数据集。只在存储开关打开时创建。可列出已登记行。不写用例，也不执行。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -56,5 +57,24 @@ public class MysqlEvalDatasetCatalog implements EvalDatasetCatalog {
         }
         String stored = description == null || description.isBlank() ? null : description;
         return new EvalDatasetSummary(datasetId, name, VERSION, stored);
+    }
+
+    /**
+     * 空结果返回空列表。不按启用再滤一层，停用也要能看见。
+     * 不带回用例，也不执行。
+     */
+    @Override
+    public List<EvalDatasetSummary> recent(int limit) {
+        List<EvalDataset> rows = datasets.recent(AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream()
+                .map(row -> new EvalDatasetSummary(
+                        row.getDatasetId(),
+                        row.getName(),
+                        row.getVersion(),
+                        row.getDescription()))
+                .toList();
     }
 }
