@@ -11,8 +11,11 @@ import com.zhu.runtime.api.UsageMeter;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.domain.CrisisReplyGuard;
 import com.zhu.runtime.domain.ModelTextGuard;
+import com.zhu.runtime.domain.PersonaConsistencyGuard;
+import com.zhu.runtime.domain.middleware.PersonaConsistencyMiddleware;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import com.zhu.semantic.contract.CrisisPrompt;
+import com.zhu.semantic.contract.PersonaContract;
 import com.zhu.semantic.contract.RiskLevel;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentResultEvent;
@@ -24,7 +27,7 @@ import reactor.core.publisher.Flux;
 
 /**
  * 单次执行的生命周期。身份放进 RuntimeContext，执行完无论成败都关闭 Agent。
- * 危机档的输出红线在这里检查整段回复，不另写干预。
+ * 危机档和第 21 轮起的人设检查都在这里过整段回复，不另写干预。
  */
 @Service
 public class AgentExecutionService implements AgentExecutor {
@@ -37,20 +40,24 @@ public class AgentExecutionService implements AgentExecutor {
 
     private final CrisisPrompt crisis;
 
+    private final PersonaContract persona;
+
     public AgentExecutionService(
             HarnessAgentFactory factory,
             AgentRuntimeProperties properties,
             UsageMeter usages,
-            CrisisPrompt crisis) {
+            CrisisPrompt crisis,
+            PersonaContract persona) {
         this.factory = factory;
         this.properties = properties;
         this.usages = usages;
         this.crisis = crisis;
+        this.persona = persona;
     }
 
     /**
      * 新建 Agent、同步等待回复、然后关闭。不要把返回的 Agent 留到方法外面。
-     * 危机档等整段回来再过红线，避免半句先漏出去。
+     * 危机档和第 21 轮起的人设检查等整段回来再过，避免半句先漏出去。
      */
     @Override
     public AgentResponse execute(AgentRequest request) {
@@ -60,10 +67,7 @@ public class AgentExecutionService implements AgentExecutor {
             long started = System.nanoTime();
             Msg reply = agent.call(request.userText(), context)
                     .block(Duration.ofSeconds(properties.getTimeoutSeconds()));
-            String text = CrisisReplyGuard.finalize(
-                    reply == null ? null : reply.getTextContent(),
-                    critical(context),
-                    crisisText());
+            String text = finish(reply == null ? null : reply.getTextContent(), context);
             String runId = reply == null || reply.getId() == null ? Ids.newId() : reply.getId();
             ModelCallUsage.record(
                     usages,
@@ -81,7 +85,7 @@ public class AgentExecutionService implements AgentExecutor {
     /**
      * 先建好 Agent 和上下文再返回 Flux，这样请求线程上的身份已经被抄进 RuntimeContext。
      * 订阅结束时关闭 Agent。超时只作用于流，不在请求线程上 block。
-     * 危机档先扣下文本增量，结束事件再带检查后的全文。
+     * 危机档和第 21 轮起的人设检查先扣下文本增量，结束事件再带检查后的全文。
      */
     @Override
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
@@ -106,7 +110,10 @@ public class AgentExecutionService implements AgentExecutor {
                                     started);
                         }
                     })
-                    .concatMapIterable(event -> CrisisReplyOutlet.emit(event, critical(context), crisisText()))
+                    .concatMapIterable(event -> CrisisReplyOutlet.holdThenFinish(
+                            event,
+                            hold(context),
+                            text -> finish(text, context)))
                     .timeout(Duration.ofSeconds(properties.getTimeoutSeconds()))
                     .doFinally(signal -> close(agent));
         } catch (RuntimeException error) {
@@ -118,6 +125,28 @@ public class AgentExecutionService implements AgentExecutor {
     /** 档位由安全门写入同一份上下文。没有档位不当成危机。 */
     private static boolean critical(RuntimeContext context) {
         return context != null && context.get(RiskLevel.class) == RiskLevel.CRITICAL;
+    }
+
+    /** 人设标记由中间件写入同一份上下文。危机不再查人设。 */
+    private static boolean personaCheck(RuntimeContext context) {
+        return context != null && context.get(PersonaConsistencyMiddleware.Flag.class) == PersonaConsistencyMiddleware.Flag.ON;
+    }
+
+    /** 危机或人设任一需要攒齐时扣增量。 */
+    private static boolean hold(RuntimeContext context) {
+        return critical(context) || personaCheck(context);
+    }
+
+    /**
+     * 先过危机红线。危机命中后不再拿预置稿去查人设。
+     * 人设基线读不到时用代码兜底。
+     */
+    private String finish(String raw, RuntimeContext context) {
+        String text = CrisisReplyGuard.finalize(raw, critical(context), crisisText());
+        if (critical(context)) {
+            return text;
+        }
+        return PersonaConsistencyGuard.finalize(text, personaCheck(context), PersonaConsistencyGuard.baseline(persona));
     }
 
     /** 读失败或空白用代码兜底。盖掉回复时不再回头检查这篇稿。 */

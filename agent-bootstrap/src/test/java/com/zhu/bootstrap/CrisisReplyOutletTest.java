@@ -68,4 +68,21 @@ class CrisisReplyOutletTest {
         assertThat(kept).hasSize(1);
         assertThat(kept.get(0).text()).isEqualTo("先找身边的人");
     }
+
+    /** 人设检查同样扣增量，结束事件再换基线。 */
+    @Test
+    void personaHoldFiltersResult() {
+        assertThat(CrisisReplyOutlet.holdThenFinish(
+                new TextBlockDeltaEvent("reply-1", "block-1", "我是你的恋人"),
+                true,
+                text -> "基线")).isEmpty();
+
+        Msg lover = Msg.builder().role(MsgRole.ASSISTANT).textContent("我是你的恋人").build();
+        List<AgentStreamEvent> events = CrisisReplyOutlet.holdThenFinish(
+                new AgentResultEvent(lover),
+                true,
+                text -> "基线");
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).text()).isEqualTo("基线");
+    }
 }

@@ -52,6 +52,7 @@ class AgentStreamTest {
                 new AgentRuntimeProperties(),
                 (tenant, user, session, run, model, input, output, latency) -> {
                 },
+                null,
                 null);
 
         assertThatThrownBy(() -> service.stream(new AgentRequest(null, null, " ", "session-a", null, "hi")))

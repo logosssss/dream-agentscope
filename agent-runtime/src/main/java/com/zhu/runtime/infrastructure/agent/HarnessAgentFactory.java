@@ -9,6 +9,7 @@ import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
 import com.zhu.runtime.domain.middleware.AuditMiddleware;
 import com.zhu.runtime.domain.middleware.CompanionMemoryMiddleware;
 import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
+import com.zhu.runtime.domain.middleware.PersonaConsistencyMiddleware;
 import com.zhu.runtime.domain.middleware.SafetyGateMiddleware;
 import io.agentscope.core.tracing.OtelTracingMiddleware;
 import io.agentscope.harness.agent.DistributedStore;
@@ -37,6 +38,8 @@ public class HarnessAgentFactory {
 
     private final SafetyGateMiddleware safetyGate;
 
+    private final PersonaConsistencyMiddleware personaConsistency;
+
     private final CompanionMemoryMiddleware companionMemory;
 
     private final AgentShutdown shutdown;
@@ -49,7 +52,7 @@ public class HarnessAgentFactory {
     /** 按目录挑选业务工具。目录为空时不注册。 */
     private final CatalogToolRegistrar toolRegistrar = new CatalogToolRegistrar();
 
-    /** 写文件限制、审批、安全门和记忆写入都挂上。体积检查更靠前，危机换话术发生在模型调用之前。 */
+    /** 写文件限制、审批、安全门、人设标记和记忆写入都挂上。体积检查更靠前，危机换话术发生在模型调用之前。 */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,
             ProductSemanticProvider semantics,
@@ -58,6 +61,7 @@ public class HarnessAgentFactory {
             ApprovalMiddleware approvalMiddleware,
             FileWriteLimitMiddleware fileWriteLimit,
             SafetyGateMiddleware safetyGate,
+            PersonaConsistencyMiddleware personaConsistency,
             CompanionMemoryMiddleware companionMemory,
             AgentShutdown shutdown,
             List<ProductTool> productTools) {
@@ -68,6 +72,7 @@ public class HarnessAgentFactory {
         this.approvalMiddleware = approvalMiddleware;
         this.fileWriteLimit = fileWriteLimit;
         this.safetyGate = safetyGate;
+        this.personaConsistency = personaConsistency;
         this.companionMemory = companionMemory;
         this.shutdown = shutdown;
         this.productTools = productTools == null ? List.of() : List.copyOf(productTools);
@@ -99,6 +104,7 @@ public class HarnessAgentFactory {
         builder.middleware(fileWriteLimit);
         builder.middleware(approvalMiddleware);
         builder.middleware(safetyGate);
+        builder.middleware(personaConsistency);
         builder.middleware(companionMemory);
         builder.middleware(shutdown.middleware());
         DistributedStore store = stores.getIfAvailable();

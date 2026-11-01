@@ -12,4 +12,14 @@
             (#{runId}, #{tenantId}, #{userId}, #{sessionId}, #{triggerType}, #{status}, #{model},
              #{inputSummary}, #{outputSummary}, #{errorCode}, #{startedAt}, #{finishedAt}, #{durationMs})
     </insert>
+
+    <!-- 只数成功轮次。失败和取消不计入人设检查门槛。 -->
+    <select id="countSucceeded" resultType="int">
+        SELECT COUNT(*)
+        FROM agent_run
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND session_id = #{sessionId}
+          AND status = 'SUCCEEDED'
+    </select>
 </mapper>

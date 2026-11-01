@@ -7,10 +7,11 @@ import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.event.TextBlockDeltaEvent;
 import io.agentscope.core.message.Msg;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 /**
- * 危机档流式出口。增量先扣下，等整段结束再过红线。
- * 普通和升高不走这里的扣增量。不写干预。
+ * 需要攒齐再查的流式出口。危机和第 21 轮起的人设检查共用。
+ * 其它轮次不扣增量。不写干预。
  */
 public final class CrisisReplyOutlet {
 
@@ -22,7 +23,18 @@ public final class CrisisReplyOutlet {
      * 其它事件仍按原映射，避免工具名也被吞掉。
      */
     public static List<AgentStreamEvent> emit(AgentEvent event, boolean critical, String crisisText) {
-        if (!critical) {
+        return holdThenFinish(event, critical, text -> CrisisReplyGuard.finalize(text, true, crisisText));
+    }
+
+    /**
+     * 需要攒齐时扣下文本增量，结束事件再套检查。
+     * 不需要时原样映射。其它事件仍放行。
+     */
+    public static List<AgentStreamEvent> holdThenFinish(
+            AgentEvent event,
+            boolean hold,
+            UnaryOperator<String> finish) {
+        if (!hold) {
             return List.of(AgentStreamEvents.from(event));
         }
         if (event instanceof TextBlockDeltaEvent) {
@@ -32,7 +44,8 @@ public final class CrisisReplyOutlet {
             Msg message = result.getResult();
             String raw = message == null ? null : message.getTextContent();
             String type = event.getType() == null ? "unknown" : event.getType().name().toLowerCase();
-            return List.of(new AgentStreamEvent(type, CrisisReplyGuard.finalize(raw, true, crisisText)));
+            UnaryOperator<String> check = finish == null ? text -> text == null ? "" : text : finish;
+            return List.of(new AgentStreamEvent(type, check.apply(raw)));
         }
         return List.of(AgentStreamEvents.from(event));
     }

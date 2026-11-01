@@ -2,9 +2,10 @@ package com.zhu.access.infrastructure.persistence;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhu.access.infrastructure.persistence.entity.AgentRun;
+import org.apache.ibatis.annotations.Param;
 
 /**
- * agent_run 的访问。插入在 XML 里，Java 不写 SQL。
+ * agent_run 的访问。插入和计数在 XML 里，Java 不写 SQL。
  */
 public interface AgentRunMapper extends BaseMapper<AgentRun> {
 
@@ -12,4 +13,12 @@ public interface AgentRunMapper extends BaseMapper<AgentRun> {
      * 写入一次已经结束的运行。不更新中途状态。
      */
     int insertFinished(AgentRun row);
+
+    /**
+     * 同一会话已经成功结束的运行条数。不读摘要。
+     */
+    int countSucceeded(
+            @Param("tenantId") String tenantId,
+            @Param("userId") String userId,
+            @Param("sessionId") String sessionId);
 }
