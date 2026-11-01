@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.AttachmentMapper">
+
+    <resultMap id="OwnerResultMap" type="com.zhu.audit.infrastructure.persistence.entity.Attachment">
+        <id column="id" property="id"/>
+        <result column="attachment_id" property="attachmentId"/>
+        <result column="user_id" property="userId"/>
+    </resultMap>
+
+    <!-- 写引用前确认附件还在。只取归属，不带回路径。 -->
+    <select id="findByAttachmentId" resultMap="OwnerResultMap">
+        SELECT id, attachment_id, user_id
+        FROM attachment
+        WHERE attachment_id = #{attachmentId}
+        LIMIT 1
+    </select>
+</mapper>

@@ -1,7 +1,7 @@
 package com.zhu.audit.api;
 
 /**
- * 登记用户附件元数据。不收文件，也不写引用。
+ * 登记用户附件元数据和引用。不收文件，也不接对象存储。
  */
 public interface AttachmentCatalog {
 
@@ -19,4 +19,10 @@ public interface AttachmentCatalog {
             String mimeType,
             Long sizeBytes,
             String checksum);
+
+    /**
+     * 把附件挂到一条消息或一次运行上。附件必须属于这个用户。
+     * 同一附件、类型和标识再挂一次是冲突。不核对话或运行是否存在。
+     */
+    AttachmentRefSummary link(String userId, String attachmentId, String refType, String refId);
 }

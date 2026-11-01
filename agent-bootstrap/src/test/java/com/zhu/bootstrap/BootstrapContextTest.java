@@ -91,5 +91,10 @@ class BootstrapContextTest {
                         .content("{\"fileName\":\"a.txt\",\"storagePath\":\"/tmp/a.txt\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/attachments/att-1/refs").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
+                        .contentType("application/json")
+                        .content("{\"refType\":\"RUN\",\"refId\":\"run-1\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
     }
 }

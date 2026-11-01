@@ -1,18 +1,22 @@
 package com.zhu.audit.application;
 
 import com.zhu.audit.api.AttachmentCatalog;
+import com.zhu.audit.api.AttachmentRefSummary;
 import com.zhu.audit.api.AttachmentSummary;
 import com.zhu.audit.infrastructure.persistence.AttachmentMapper;
+import com.zhu.audit.infrastructure.persistence.AttachmentRefMapper;
 import com.zhu.audit.infrastructure.persistence.entity.Attachment;
+import com.zhu.audit.infrastructure.persistence.entity.AttachmentRef;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记用户附件元数据。只在存储开关打开时创建。不收文件，也不写引用。
+ * 登记用户附件元数据和引用。只在存储开关打开时创建。不收文件，也不接对象存储。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -38,11 +42,20 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
 
     private static final Set<String> STORAGE_TYPES = Set.of("LOCAL", "S3", "OSS", "MINIO");
 
+    private static final Set<String> REF_TYPES = Set.of("MESSAGE", "RUN");
+
+    private static final int ATTACHMENT_LIMIT = 64;
+
+    private static final int REF_LIMIT = 128;
+
     private final AttachmentMapper attachments;
 
-    /** 附件标识由本类生成。不依赖外部传入。 */
-    public MysqlAttachmentCatalog(AttachmentMapper attachments) {
+    private final AttachmentRefMapper refs;
+
+    /** 附件标识由本类生成。引用挂到已经存在且属于该用户的附件上。 */
+    public MysqlAttachmentCatalog(AttachmentMapper attachments, AttachmentRefMapper refs) {
         this.attachments = attachments;
+        this.refs = refs;
     }
 
     /**
@@ -93,5 +106,33 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
         attachments.insert(row);
         return new AttachmentSummary(
                 attachmentId, savedTenant, userId, savedSession, fileName, savedType, storagePath, ACTIVE);
+    }
+
+    /**
+     * 别人的附件按找不到处理，避免靠引用探测别人的文件。
+     * 不核对话或运行，也不改附件状态。
+     */
+    @Override
+    public AttachmentRefSummary link(String userId, String attachmentId, String refType, String refId) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || attachmentId == null || attachmentId.isBlank() || attachmentId.length() > ATTACHMENT_LIMIT
+                || refType == null || refType.isBlank() || !REF_TYPES.contains(refType)
+                || refId == null || refId.isBlank() || refId.length() > REF_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "attachment ref is invalid");
+        }
+        Attachment existing = attachments.findByAttachmentId(attachmentId);
+        if (existing == null || existing.getUserId() == null || !userId.equals(existing.getUserId())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "attachment not found");
+        }
+        AttachmentRef row = new AttachmentRef();
+        row.setAttachmentId(attachmentId);
+        row.setRefType(refType);
+        row.setRefId(refId);
+        try {
+            refs.insert(row);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.CONFLICT, "attachment ref already exists");
+        }
+        return new AttachmentRefSummary(attachmentId, refType, refId);
     }
 }
