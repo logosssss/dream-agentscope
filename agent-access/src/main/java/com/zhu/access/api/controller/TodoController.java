@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 当前用户的待办。可登记并完成确认和任务，不返回别人的行。
+ * 当前用户的待办。可登记、完成或取消确认和任务，不返回别人的行。
  */
 @RestController
 public class TodoController {
@@ -71,5 +71,18 @@ public class TodoController {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "todo catalog is unavailable");
         }
         return ApiResult.ok(catalog.complete(UserContext.get(), todoId));
+    }
+
+    /**
+     * 只取消这个用户还开着的确认或任务。审批待办仍走决定接口。
+     */
+    @PostMapping("/api/todos/{todoId}/cancel")
+    public ApiResult<UserTodoRow> cancel(@PathVariable Long todoId) {
+        accounts.requireActive();
+        UserTodoCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "todo catalog is unavailable");
+        }
+        return ApiResult.ok(catalog.cancel(UserContext.get(), todoId));
     }
 }

@@ -26,7 +26,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 待确认给发起人开审批待办。确认和任务由用户登记并完成。不连接 MySQL。
+ * 待确认给发起人开审批待办。确认和任务由用户登记、完成或取消。不连接 MySQL。
  */
 class UserTodoTest {
 
@@ -147,7 +147,7 @@ class UserTodoTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.BAD_REQUEST);
-        verify(todos, never()).completeOpen(any(), any());
+        verify(todos, never()).closeOpen(any(), any(), any());
 
         when(todos.selectById(4L)).thenReturn(null);
         assertThatThrownBy(() -> catalog.complete("u", 4L))
@@ -165,7 +165,7 @@ class UserTodoTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
-        verify(todos, never()).completeOpen(any(), any());
+        verify(todos, never()).closeOpen(any(), any(), any());
 
         UserTodo approval = new UserTodo();
         approval.setId(5L);
@@ -186,10 +186,20 @@ class UserTodoTest {
         open.setTitle("确认结果");
         open.setStatus("OPEN");
         when(todos.selectById(6L)).thenReturn(open);
-        when(todos.completeOpen(6L, "u")).thenReturn(1);
+        when(todos.closeOpen(6L, "u", "DONE")).thenReturn(1);
         assertThat(catalog.complete("u", 6L)).satisfies(saved -> {
             assertThat(saved.todoType()).isEqualTo("CONFIRM");
             assertThat(saved.status()).isEqualTo("DONE");
         });
+
+        UserTodo task = new UserTodo();
+        task.setId(7L);
+        task.setUserId("u");
+        task.setTodoType("TASK");
+        task.setRefId("task-1");
+        task.setStatus("OPEN");
+        when(todos.selectById(7L)).thenReturn(task);
+        when(todos.closeOpen(7L, "u", "CANCELLED")).thenReturn(1);
+        assertThat(catalog.cancel("u", 7L).status()).isEqualTo("CANCELLED");
     }
 }

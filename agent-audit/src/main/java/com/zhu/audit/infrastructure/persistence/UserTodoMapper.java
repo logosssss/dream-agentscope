@@ -21,7 +21,7 @@ public interface UserTodoMapper extends BaseMapper<UserTodo> {
     int closeApproval(@Param("refId") String refId, @Param("status") String status);
 
     /**
-     * 只关这个用户还开着的确认或任务。审批待办不动。
+     * 只关这个用户还开着的确认或任务。审批待办不动。状态由调用方写成 DONE 或 CANCELLED。
      */
-    int completeOpen(@Param("id") Long id, @Param("userId") String userId);
+    int closeOpen(@Param("id") Long id, @Param("userId") String userId, @Param("status") String status);
 }

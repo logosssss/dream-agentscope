@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * MySQL 上的用户待办。只在存储开关打开时创建。
- * 决定后关掉对应审批待办。确认和任务由当前用户关成 DONE。
+ * 决定后关掉对应审批待办。确认和任务由当前用户关成 DONE 或 CANCELLED。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -27,6 +27,8 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
     private static final String OPEN = "OPEN";
 
     private static final String DONE = "DONE";
+
+    private static final String CANCELLED = "CANCELLED";
 
     private static final Set<String> CLOSE_STATUSES = Set.of("DONE", "CANCELLED");
 
@@ -102,12 +104,25 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
         todos.closeApproval(clip(approvalId, REF_LIMIT), status);
     }
 
+    /** 完成走同一条关闭路径，状态写成 DONE。 */
+    @Override
+    public UserTodoRow complete(String userId, Long todoId) {
+        return closeOwn(userId, todoId, DONE);
+    }
+
+    /**
+     * 和完成同一条校验。只是把状态写成取消。
+     */
+    @Override
+    public UserTodoRow cancel(String userId, Long todoId) {
+        return closeOwn(userId, todoId, CANCELLED);
+    }
+
     /**
      * 先读再按开着的确认或任务更新，避免盖掉审批待办或已经关上的行。
      * 别人的主键按找不到处理，不把标题交出去。
      */
-    @Override
-    public UserTodoRow complete(String userId, Long todoId) {
+    private UserTodoRow closeOwn(String userId, Long todoId, String status) {
         if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT || todoId == null || todoId <= 0) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "todo is invalid");
         }
@@ -121,11 +136,11 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
         if (!OPEN.equals(existing.getStatus())) {
             throw new BusinessException(ErrorCode.CONFLICT, "todo is not open");
         }
-        int updated = todos.completeOpen(todoId, userId);
+        int updated = todos.closeOpen(todoId, userId, status);
         if (updated != 1) {
             throw new BusinessException(ErrorCode.CONFLICT, "todo is not open");
         }
-        return new UserTodoRow(existing.getId(), existing.getTodoType(), existing.getRefId(), existing.getTitle(), DONE);
+        return new UserTodoRow(existing.getId(), existing.getTodoType(), existing.getRefId(), existing.getTitle(), status);
     }
 
     /**
