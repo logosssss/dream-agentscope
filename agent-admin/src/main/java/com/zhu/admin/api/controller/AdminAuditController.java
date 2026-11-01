@@ -50,7 +50,7 @@ public class AdminAuditController {
     }
 
     /**
-     * 把一张待审批改成通过或拒绝。不触发工具执行。
+     * 把一张待审批改成通过或拒绝。关掉对应待办，仍不触发工具执行。
      * 单据不存在或已经决定过时，由决定口返回失败。
      */
     @PostMapping("/api/admin/approvals/{approvalId}/decision")

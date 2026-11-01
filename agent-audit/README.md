@@ -17,7 +17,7 @@
 | `api` | `AuditRecorder` | 记一条操作。`detail` 不放密钥和全文提示词 |
 | `api` | `ApprovalRecorder` | 记下一次待审批 |
 | `api` | `AuditQuery` | 最近审计、全部待审批，以及按租户和用户查待确认 |
-| `api` | `ApprovalDecider` | 把 PENDING 改成 APPROVED 或 REJECTED。不写执行结果 |
+| `api` | `ApprovalDecider` | 把 PENDING 改成 APPROVED 或 REJECTED。关掉对应待办，不写执行结果 |
 | `api` | `BillingRollup` | 按租户和区间把 `token_usage` 收成一张 `DRAFT` |
 | `api` | `SafetyInterventionRecorder` | 记下一次安全干预。只写升高和危机，摘要不含用户原文 |
 | `api` | `SafetyInterventionCatalog` | 最近的安全干预。不含用户原文 |
@@ -37,7 +37,7 @@
 
 待确认事件再写 `approval_notification`。接收人是发起用户，通道是 `WEB`，状态是 `PENDING`。没有接收人时不写。不发送，也不把状态改成已发送。写失败不改变这次询问。管理进程不查询这张表。
 
-同一事件再写 `user_todo`。类型是 `APPROVAL`，状态是 `OPEN`，关联审批单，标题是工具名。同一用户和审批单再开一次不再插一行。`GET /api/todos` 只列出这个用户还开着的审批待办。批准或拒绝还不关待办。确认和任务待办还不写。
+同一事件再写 `user_todo`。类型是 `APPROVAL`，状态是 `OPEN`，关联审批单，标题是工具名。同一用户和审批单再开一次不再插一行。`GET /api/todos` 只列出这个用户还开着的审批待办。通过后改 `DONE`，拒绝后改 `CANCELLED`。关闭失败不改已经写下的决定。确认和任务待办还不写。
 
 `POST /api/feedback` 追加 `user_feedback`。评分是 1 到 5，说明最长 1000 字。不存标签，也不要求这次运行已经在 `agent_run` 里。附件还不收，文件没有对象存储。
 

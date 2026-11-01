@@ -29,7 +29,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /api/admin/info` | 角色为 `admin` |
 | `GET /api/admin/audits` | 最近审计，默认 50 条，最多 100 条 |
 | `GET /api/admin/approvals` | 决定为 `PENDING` 的审批，条数规则同上 |
-| `POST /api/admin/approvals/{approvalId}/decision` | 把该单改成 `APPROVED` 或 `REJECTED`。通道固定为 `CONSOLE`。不执行工具。单据不存在时返回找不到 |
+| `POST /api/admin/approvals/{approvalId}/decision` | 把该单改成 `APPROVED` 或 `REJECTED`。通道固定为 `CONSOLE`。关掉对应待办，仍不执行工具。单据不存在时返回找不到 |
 | `POST /api/admin/billing/drafts` | 按租户和区间生成一张草稿账单。MySQL 关闭时返回不可用 |
 | `POST /api/admin/billing/confirmations` | 把对应草稿改成已确认，不重算金额。没有账单时返回找不到 |
 | `POST /api/admin/billing/invoices` | 把已确认的账单改成已开票，不重算金额。草稿要先确认 |
@@ -51,7 +51,7 @@ mvn -pl agent-admin -am spring-boot:run
 
 业务接口要带 `X-Caller-Token`，值来自 `AGENTSCOPE_ADMIN_TOKEN`，和用户进程的令牌分开。没配或对不上时 HTTP 401。存活和就绪不校验。这不是用户登录。
 
-扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery`、`ApprovalDecider` 和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`ApprovalRecorder`、`SafetyInterventionRecorder`。申请单和干预写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
+扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery`、`ApprovalDecider`、关待办和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`ApprovalRecorder`、`SafetyInterventionRecorder`。申请单和干预写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
 
 ## 还没有
 

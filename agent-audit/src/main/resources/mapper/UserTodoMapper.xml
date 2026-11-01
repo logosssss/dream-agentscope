@@ -21,4 +21,13 @@
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <!-- 决定后关掉这张审批待办。已经关过的行不动。 -->
+    <update id="closeApproval">
+        UPDATE user_todo
+        SET status = #{status}
+        WHERE todo_type = 'APPROVAL'
+          AND ref_id = #{refId}
+          AND status = 'OPEN'
+    </update>
 </mapper>

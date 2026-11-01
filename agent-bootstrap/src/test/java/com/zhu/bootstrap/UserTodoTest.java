@@ -24,7 +24,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 待确认给发起人开一条待办。不连接 MySQL，也不把待办改成完成。
+ * 待确认给发起人开一条待办。决定后再关掉。不连接 MySQL。
  */
 class UserTodoTest {
 
@@ -89,5 +89,20 @@ class UserTodoTest {
 
         listener.onRequested(new ApprovalRequestedEvent("ap-1", "shell", "t", "u"));
         verify(catalog).openApproval("u", "ap-1", "shell");
+    }
+
+    /** 只关还开着的审批待办。空单号或未登记状态不碰 Mapper。 */
+    @Test
+    void closeApprovalOnlyAcceptsKnownStatus() {
+        UserTodoMapper todos = mock(UserTodoMapper.class);
+        MysqlUserTodoCatalog catalog = new MysqlUserTodoCatalog(todos);
+        catalog.closeApproval(" ", "DONE");
+        catalog.closeApproval("ap-1", "OPEN");
+        verifyNoInteractions(todos);
+
+        catalog.closeApproval("ap-1", "DONE");
+        verify(todos).closeApproval("ap-1", "DONE");
+        catalog.closeApproval("ap-1", "CANCELLED");
+        verify(todos).closeApproval("ap-1", "CANCELLED");
     }
 }

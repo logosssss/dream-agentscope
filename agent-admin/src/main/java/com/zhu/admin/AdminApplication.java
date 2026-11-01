@@ -15,6 +15,7 @@ import com.zhu.audit.application.MysqlTenantDirectory;
 import com.zhu.audit.application.MysqlTenantQuota;
 import com.zhu.audit.application.MybatisApprovalDecider;
 import com.zhu.audit.application.MybatisAuditQuery;
+import com.zhu.audit.application.MysqlUserTodoCatalog;
 import com.zhu.audit.config.AuditMapperConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -22,13 +23,14 @@ import org.springframework.context.annotation.Import;
 
 /**
  * 管理进程入口。只扫 com.zhu.admin。
- * 审计只引入查询和决定实现，不扫描写入用的 Recorder，避免在 8100 上再挂一套记录器。
+ * 审计只引入查询、决定和关待办，不扫描写入用的 Recorder，避免在 8100 上再挂一套记录器。
  * 安全干预只引入目录，不引入 SafetyInterventionRecorder。
  */
 @SpringBootApplication(scanBasePackages = "com.zhu.admin")
 @Import({
         MybatisAuditQuery.class,
         MybatisApprovalDecider.class,
+        MysqlUserTodoCatalog.class,
         MysqlBillingRollup.class,
         MysqlModelPriceCatalog.class,
         MysqlModelConfigCatalog.class,

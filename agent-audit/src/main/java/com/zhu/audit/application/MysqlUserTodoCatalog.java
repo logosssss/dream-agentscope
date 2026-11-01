@@ -7,12 +7,14 @@ import com.zhu.audit.infrastructure.persistence.entity.UserTodo;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.util.List;
+import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的用户待办。只在存储开关打开时创建。不关闭已有待办。
+ * MySQL 上的用户待办。只在存储开关打开时创建。
+ * 决定后关掉对应审批待办。确认和任务待办还不写。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -21,6 +23,8 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
     private static final String APPROVAL = "APPROVAL";
 
     private static final String OPEN = "OPEN";
+
+    private static final Set<String> CLOSE_STATUSES = Set.of("DONE", "CANCELLED");
 
     private static final int USER_LIMIT = 128;
 
@@ -55,6 +59,17 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
         } catch (DataIntegrityViolationException ex) {
             return;
         }
+    }
+
+    /**
+     * 只收 DONE 和 CANCELLED。其它状态不改行，避免把待办写成未知值。
+     */
+    @Override
+    public void closeApproval(String approvalId, String status) {
+        if (approvalId == null || approvalId.isBlank() || status == null || !CLOSE_STATUSES.contains(status)) {
+            return;
+        }
+        todos.closeApproval(clip(approvalId, REF_LIMIT), status);
     }
 
     /**

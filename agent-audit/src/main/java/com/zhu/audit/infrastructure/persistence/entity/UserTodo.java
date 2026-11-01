@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 /**
- * user_todo 的一行。这次只表示一张还没处理的审批待办。
+ * user_todo 的一行。这次只开和关闭审批待办。
  */
 @TableName("user_todo")
 public class UserTodo {
@@ -26,7 +26,7 @@ public class UserTodo {
     /** 工具名。不存参数。 */
     private String title;
 
-    /** OPEN。这次不改成完成。 */
+    /** 开着是 OPEN。通过后 DONE，拒绝后 CANCELLED。 */
     private String status;
 
     /** 主键。 */

@@ -1,7 +1,8 @@
 package com.zhu.audit.api;
 
 /**
- * 审批决定口。只改仍为 PENDING 的单据，不负责批准后的执行。
+ * 审批决定口。只改仍为 PENDING 的单据，不负责批准后的工具执行。
+ * 决定成功后关掉对应待办。
  */
 public interface ApprovalDecider {
 
