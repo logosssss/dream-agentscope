@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.DataRetentionPolicyMapper">
+
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.DataRetentionPolicy">
+        <id column="id" property="id"/>
+        <result column="data_type" property="dataType"/>
+        <result column="scope" property="scope"/>
+        <result column="retain_days" property="retainDays"/>
+        <result column="action" property="action"/>
+    </resultMap>
+
+    <!-- 管理列表看全部启用状态。创建时间只用于排序。不执行清理。 -->
+    <select id="recent" resultMap="ListResultMap">
+        SELECT id, data_type, scope, retain_days, action
+        FROM data_retention_policy
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

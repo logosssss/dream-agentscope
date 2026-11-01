@@ -6,13 +6,16 @@ import com.zhu.audit.api.RetentionPolicySummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记数据保留策略。不执行清理，也不改已有数据。
+ * 管理进程登记和查看数据保留策略。不执行清理，也不改已有数据。
  */
 @RestController
 public class AdminRetentionPolicyController {
@@ -25,17 +28,30 @@ public class AdminRetentionPolicyController {
     }
 
     /**
+     * 最近登记的保留策略。条数默认 50，上限 100。含停用。不执行清理。
+     */
+    @GetMapping("/api/admin/retention-policies")
+    public ApiResult<List<RetentionPolicySummary>> recent(@RequestParam(defaultValue = "50") int limit) {
+        return ApiResult.ok(catalog().recent(limit));
+    }
+
+    /**
      * 新增一条。同一数据类型和范围再提交一次由目录返回冲突。
      */
     @PostMapping("/api/admin/retention-policies")
     public ApiResult<RetentionPolicySummary> register(@RequestBody RetentionPolicyRequest request) {
+        RetentionPolicyRequest body = request == null
+                ? new RetentionPolicyRequest(null, null, null, null)
+                : request;
+        return ApiResult.ok(catalog().register(body.dataType(), body.scope(), body.retainDays(), body.action()));
+    }
+
+    /** MySQL 关闭时没有目录。 */
+    private RetentionPolicyCatalog catalog() {
         RetentionPolicyCatalog catalog = catalogs.getIfAvailable();
         if (catalog == null) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "retention policy is unavailable");
         }
-        RetentionPolicyRequest body = request == null
-                ? new RetentionPolicyRequest(null, null, null, null)
-                : request;
-        return ApiResult.ok(catalog.register(body.dataType(), body.scope(), body.retainDays(), body.action()));
+        return catalog;
     }
 }

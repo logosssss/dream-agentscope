@@ -5,6 +5,7 @@ import com.zhu.audit.infrastructure.persistence.DataRetentionPolicyMapper;
 import com.zhu.audit.infrastructure.persistence.entity.DataRetentionPolicy;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -16,7 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 数据保留策略只登记目录。不连接 MySQL，也不执行清理。
+ * 数据保留策略只登记和列出目录。不连接 MySQL，也不执行清理。
  */
 class RetentionPolicyCatalogTest {
 
@@ -38,5 +39,28 @@ class RetentionPolicyCatalogTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
+    }
+
+    /** 列表含停用。空结果原样返回。不执行清理。 */
+    @Test
+    void recentListsRegisteredPolicies() {
+        DataRetentionPolicyMapper policies = mock(DataRetentionPolicyMapper.class);
+        MysqlRetentionPolicyCatalog catalog = new MysqlRetentionPolicyCatalog(policies);
+        when(policies.recent(50)).thenReturn(List.of());
+        assertThat(catalog.recent(50)).isEmpty();
+
+        DataRetentionPolicy disabled = new DataRetentionPolicy();
+        disabled.setDataType("SESSION");
+        disabled.setScope("*");
+        disabled.setRetainDays(30);
+        disabled.setAction("ARCHIVE");
+        disabled.setEnabled(0);
+        when(policies.recent(50)).thenReturn(List.of(disabled));
+        assertThat(catalog.recent(0)).singleElement().satisfies(saved -> {
+            assertThat(saved.dataType()).isEqualTo("SESSION");
+            assertThat(saved.scope()).isEqualTo("*");
+            assertThat(saved.retainDays()).isEqualTo(30);
+            assertThat(saved.action()).isEqualTo("ARCHIVE");
+        });
     }
 }

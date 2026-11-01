@@ -6,13 +6,14 @@ import com.zhu.audit.infrastructure.persistence.DataRetentionPolicyMapper;
 import com.zhu.audit.infrastructure.persistence.entity.DataRetentionPolicy;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记数据保留策略。只在存储开关打开时创建。不跑清理任务。
+ * 登记和列出数据保留策略。只在存储开关打开时创建。不跑清理任务。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -64,5 +65,24 @@ public class MysqlRetentionPolicyCatalog implements RetentionPolicyCatalog {
             throw new BusinessException(ErrorCode.CONFLICT, "retention policy already exists");
         }
         return new RetentionPolicySummary(dataType, savedScope, retainDays, savedAction);
+    }
+
+    /**
+     * 空结果返回空列表。不按启用再滤一层，停用也要能看见。
+     * 不执行清理，也不改已有数据。
+     */
+    @Override
+    public List<RetentionPolicySummary> recent(int limit) {
+        List<DataRetentionPolicy> rows = policies.recent(AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream()
+                .map(row -> new RetentionPolicySummary(
+                        row.getDataType(),
+                        row.getScope(),
+                        row.getRetainDays() == null ? 0 : row.getRetainDays(),
+                        row.getAction()))
+                .toList();
     }
 }
