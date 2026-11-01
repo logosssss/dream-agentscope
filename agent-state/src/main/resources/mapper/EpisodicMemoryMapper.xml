@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.state.infrastructure.persistence.EpisodicMemoryMapper">
+
+    <!-- 查询列映射。插入仍走 BaseMapper.insert。 -->
+    <resultMap id="BaseResultMap" type="com.zhu.state.infrastructure.persistence.entity.EpisodicMemory">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="user_id" property="userId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="summary" property="summary"/>
+        <result column="salience" property="salience"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 最近几条按时间倒序。LIMIT 用占位符，避免把条数拼进 SQL。 -->
+    <select id="recent" resultMap="BaseResultMap">
+        SELECT id, tenant_id, user_id, session_id, summary, salience, created_at
+        FROM episodic_memory
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 近邻 id 再回表。只取同一租户用户，避免串到别人的摘要。 -->
+    <select id="findByIds" resultMap="BaseResultMap">
+        SELECT id, tenant_id, user_id, session_id, summary, salience, created_at
+        FROM episodic_memory
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+</mapper>

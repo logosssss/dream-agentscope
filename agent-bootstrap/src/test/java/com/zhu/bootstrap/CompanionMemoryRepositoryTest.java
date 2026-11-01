@@ -8,6 +8,7 @@ import com.zhu.state.infrastructure.persistence.MysqlUserProfileRepository;
 import com.zhu.state.infrastructure.persistence.UserProfileMapper;
 import com.zhu.state.infrastructure.persistence.entity.EpisodicMemory;
 import com.zhu.state.infrastructure.persistence.entity.UserProfile;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -71,5 +72,33 @@ class CompanionMemoryRepositoryTest {
                 .isEqualTo(ErrorCode.BAD_REQUEST);
         verify(mapper, never()).upsert(org.mockito.ArgumentMatchers.argThat(
                 profile -> "LOVER".equals(profile.getRelationshipStage())));
+    }
+
+    /** 最近几条按调用方给的条数去查。用户为空不碰 Mapper。 */
+    @Test
+    void memoryRecentUsesLimit() {
+        EpisodicMemoryMapper mapper = mock(EpisodicMemoryMapper.class);
+        EpisodicMemory row = new EpisodicMemory();
+        row.setId(4L);
+        row.setTenantId("");
+        row.setUserId("u");
+        row.setSummary("散步");
+        row.setSalience(2);
+        when(mapper.recent("", "u", 3)).thenReturn(List.of(row));
+        MysqlEpisodicMemoryRepository memories = new MysqlEpisodicMemoryRepository(mapper);
+
+        assertThat(memories.recent(" ", "u", 3)).extracting(item -> item.id()).containsExactly(4L);
+        assertThat(memories.recent("", " ", 3)).isEmpty();
+        verify(mapper, never()).recent(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(" "), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    /** 空 id 列表不查库。 */
+    @Test
+    void memoryFindByIdsSkipsBlank() {
+        EpisodicMemoryMapper mapper = mock(EpisodicMemoryMapper.class);
+        MysqlEpisodicMemoryRepository memories = new MysqlEpisodicMemoryRepository(mapper);
+
+        assertThat(memories.findByIds("t", "u", List.of())).isEmpty();
+        verify(mapper, never()).findByIds(any(), any(), any());
     }
 }
