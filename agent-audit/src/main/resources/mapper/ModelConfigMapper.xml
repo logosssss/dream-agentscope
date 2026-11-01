@@ -10,6 +10,15 @@
         <result column="tenant_scope" property="tenantScope"/>
     </resultMap>
 
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.ModelConfig">
+        <id column="id" property="id"/>
+        <result column="config_id" property="configId"/>
+        <result column="model" property="model"/>
+        <result column="provider" property="provider"/>
+        <result column="version" property="version"/>
+        <result column="tenant_scope" property="tenantScope"/>
+    </resultMap>
+
     <!-- 只取启用的 1.0.0。不读参数 JSON。 -->
     <select id="findEnabled" resultMap="BaseResultMap">
         SELECT id, model, provider, tenant_scope
@@ -28,5 +37,13 @@
             </if>
             id DESC
         LIMIT 1
+    </select>
+
+    <!-- 管理列表看全部启用状态。不读参数 JSON。 -->
+    <select id="recent" resultMap="ListResultMap">
+        SELECT id, config_id, model, provider, version, tenant_scope
+        FROM model_config
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
     </select>
 </mapper>

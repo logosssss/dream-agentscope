@@ -50,7 +50,7 @@
 
 `POST /api/admin/model-prices` 再插入一行 `model_price`。不改旧行。生效开始为空时用 UTC 现在。仓库不放单价。
 
-`POST /api/admin/model-configs` 登记 `model_config`，版本固定 `1.0.0`。空白租户范围按全局。同一标识再登记这个版本返回冲突。不写参数 JSON。用户进程在 MySQL 打开时选用启用中的 `1.0.0`，同一租户优先于全局 `*`，拼成 `provider:model`。没有行或 MySQL 关闭时用进程配置。查库失败返回不可用。提示词仍走 Nacos，不在这里落 `prompt_template`。
+`POST /api/admin/model-configs` 登记 `model_config`，版本固定 `1.0.0`。空白租户范围按全局。同一标识再登记这个版本返回冲突。不写参数 JSON。`GET /api/admin/model-configs` 看最近登记的配置，默认 50 条，最多 100 条，含停用。不读参数 JSON。用户进程在 MySQL 打开时选用启用中的 `1.0.0`，同一租户优先于全局 `*`，拼成 `provider:model`。没有行或 MySQL 关闭时用进程配置。查库失败返回不可用。提示词仍走 Nacos，不在这里落 `prompt_template`。
 
 `POST /api/admin/retention-policies` 登记 `data_retention_policy`。类型只接受 `SESSION` / `MESSAGE` / `EVENT` / `ATTACHMENT`。空白范围按全局，空白动作按 `ARCHIVE`。天数从 1 起。同一类型和范围再登记一次返回冲突。不跑清理任务，也不改已有数据。
 

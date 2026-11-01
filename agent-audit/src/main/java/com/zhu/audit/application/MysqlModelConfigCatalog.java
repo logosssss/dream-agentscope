@@ -7,6 +7,7 @@ import com.zhu.audit.infrastructure.persistence.ModelConfigMapper;
 import com.zhu.audit.infrastructure.persistence.entity.ModelConfig;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import java.util.logging.Logger;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
@@ -14,7 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记模型配置，并给对话挑启用行。只在存储开关打开时创建。不解析参数 JSON。
+ * 登记和列出模型配置，并给对话挑启用行。只在存储开关打开时创建。不解析参数 JSON。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -66,6 +67,26 @@ public class MysqlModelConfigCatalog implements ModelConfigCatalog, ModelConfigL
             throw new BusinessException(ErrorCode.CONFLICT, "model config already exists");
         }
         return new ModelConfigSummary(configId, model, provider, VERSION, scope);
+    }
+
+    /**
+     * 空结果返回空列表。不按启用再滤一层，停用也要能看见。
+     * 不读参数 JSON。
+     */
+    @Override
+    public List<ModelConfigSummary> recent(int limit) {
+        List<ModelConfig> rows = configs.recent(AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream()
+                .map(row -> new ModelConfigSummary(
+                        row.getConfigId(),
+                        row.getModel(),
+                        row.getProvider(),
+                        row.getVersion(),
+                        row.getTenantScope()))
+                .toList();
     }
 
     /**

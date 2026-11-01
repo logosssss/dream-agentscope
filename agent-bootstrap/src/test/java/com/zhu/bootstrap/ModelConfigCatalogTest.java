@@ -5,6 +5,7 @@ import com.zhu.audit.infrastructure.persistence.ModelConfigMapper;
 import com.zhu.audit.infrastructure.persistence.entity.ModelConfig;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -16,7 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 模型配置登记后可供对话选用。不连接 MySQL，也不解析参数。
+ * 模型配置登记后可供对话选用。列表含停用。不连接 MySQL，也不解析参数。
  */
 class ModelConfigCatalogTest {
 
@@ -58,5 +59,28 @@ class ModelConfigCatalogTest {
         global.setModel("qwen-plus");
         when(configs.findEnabled(null)).thenReturn(global);
         assertThat(catalog.resolveModel(" ")).isEqualTo("dashscope:qwen-plus");
+    }
+
+    /** 列表含停用。空结果原样返回。 */
+    @Test
+    void recentListsRegisteredConfigs() {
+        ModelConfigMapper configs = mock(ModelConfigMapper.class);
+        MysqlModelConfigCatalog catalog = new MysqlModelConfigCatalog(configs);
+        when(configs.recent(50)).thenReturn(List.of());
+        assertThat(catalog.recent(50)).isEmpty();
+
+        ModelConfig disabled = new ModelConfig();
+        disabled.setConfigId("cfg-a");
+        disabled.setModel("qwen-plus");
+        disabled.setProvider("dashscope");
+        disabled.setVersion("1.0.0");
+        disabled.setTenantScope("*");
+        disabled.setEnabled(0);
+        when(configs.recent(50)).thenReturn(List.of(disabled));
+        assertThat(catalog.recent(0)).singleElement().satisfies(saved -> {
+            assertThat(saved.configId()).isEqualTo("cfg-a");
+            assertThat(saved.tenantScope()).isEqualTo("*");
+            assertThat(saved.version()).isEqualTo("1.0.0");
+        });
     }
 }

@@ -6,13 +6,16 @@ import com.zhu.audit.api.ModelConfigSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记模型配置。不解析参数。用户进程自己去选用启用行。
+ * 管理进程登记和查看模型配置。不解析参数。用户进程自己去选用启用行。
  */
 @RestController
 public class AdminModelConfigController {
@@ -25,17 +28,30 @@ public class AdminModelConfigController {
     }
 
     /**
+     * 最近登记的模型配置。条数默认 50，上限 100。含停用。不读参数。
+     */
+    @GetMapping("/api/admin/model-configs")
+    public ApiResult<List<ModelConfigSummary>> recent(@RequestParam(defaultValue = "50") int limit) {
+        return ApiResult.ok(catalog().recent(limit));
+    }
+
+    /**
      * 新增 1.0.0。同一标识再提交一次由目录返回冲突。
      */
     @PostMapping("/api/admin/model-configs")
     public ApiResult<ModelConfigSummary> register(@RequestBody ModelConfigRequest request) {
+        ModelConfigRequest body = request == null
+                ? new ModelConfigRequest(null, null, null, null)
+                : request;
+        return ApiResult.ok(catalog().register(body.configId(), body.model(), body.provider(), body.tenantScope()));
+    }
+
+    /** MySQL 关闭时没有目录。 */
+    private ModelConfigCatalog catalog() {
         ModelConfigCatalog catalog = catalogs.getIfAvailable();
         if (catalog == null) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "model config is unavailable");
         }
-        ModelConfigRequest body = request == null
-                ? new ModelConfigRequest(null, null, null, null)
-                : request;
-        return ApiResult.ok(catalog.register(body.configId(), body.model(), body.provider(), body.tenantScope()));
+        return catalog;
     }
 }
