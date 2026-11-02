@@ -25,7 +25,7 @@ mvn -pl agent-bootstrap -am spring-boot:run
 - 数据源、Redis 主机和 Milvus 地址来自环境变量。没配或连不上就退出。连通后创建 `knowledge` 和 `episodic_memory` 集合，向量维度默认 1024。不写入、不检索。换嵌入模型要先删旧集合。本进程执行 Flyway。连接池最大 20、最小空闲 5。
 - `agentscope.distributed.mysql.enabled=true`，`create-if-not-exist` 保持 `false`。
 - 模型默认 `dashscope:qwen-plus`，可用环境变量 `AGENTSCOPE_MODEL` 覆盖。密钥不要写进这个文件。
-- `NACOS_ADDR` 为空时不建提示词客户端。配了也只监听提示词，拉失败用兜底，不让进程退出。
+- `NACOS_ADDR` 为空时不建提示词客户端，也不拉启动配置。配了地址则启动必须拉到 Nacos 上的 `agent-bootstrap.yaml`（group `AGENT_PLATFORM`），失败退出；只合并额度、限流、登录 TTL、字数、超时、`model`、`max-iters`、`max-write-bytes`，改完要重启。提示词仍走 AI Prompt 监听，拉失败用兜底。不做热更新、服务发现和 MCP。
 
 `SPRING_DATASOURCE_URL`、`SPRING_DATASOURCE_USERNAME`、`AGENTSCOPE_REDIS_HOST`、`MILVUS_URI` 必须在环境里提供。密码用 `SPRING_DATASOURCE_PASSWORD`，可以为空。
 

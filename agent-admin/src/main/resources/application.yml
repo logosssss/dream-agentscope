@@ -40,8 +40,17 @@ agentscope:
   caller:
     # 管理进程自己的调用方令牌，和用户进程分开。空则除存活和就绪外全部拒绝。
     token: ${AGENTSCOPE_ADMIN_TOKEN:}
+  nacos:
+    # 地址为空：不拉启动配置。
+    # 配了地址：启动必须拉到 agent-admin.yaml（group=AGENT_PLATFORM），失败退出。
+    # 不做热更新、服务发现和 MCP。连接与密钥仍走环境变量。
+    server-addr: ${NACOS_ADDR:}
+    namespace: ${NACOS_NAMESPACE:}
+    username: ${NACOS_USERNAME:}
+    password: ${NACOS_PASSWORD:}
 
 # 空字段不插入。表结构只由用户进程的 Flyway 变更。
+
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   global-config:

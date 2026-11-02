@@ -1,0 +1,26 @@
+# 粘贴到 Nacos 配置中心时：
+#   Data ID : agent-bootstrap.yaml
+#   Group   : AGENT_PLATFORM
+#   格式    : YAML
+# 仅用户进程启动拉取。改完需重启进程。不要写入数据源、Redis、Milvus、密钥。
+# 未列出的键会被进程丢掉。
+
+agentscope:
+  access:
+    # 每个租户用户每天可发起的对话次数。0 表示不限制。
+    daily-limit: 0
+    # 每个用户每分钟同一入口次数。0 表示不限制。
+    per-minute: 0
+    # 登录会话在 Redis 的有效秒数。小于 1 时进程按一天处理。
+    login-session-seconds: 86400
+  runtime:
+    # 无 model_config 行时的模型坐标。密钥仍用环境变量 DASHSCOPE_API_KEY。
+    model: dashscope:qwen-plus
+    # 单次执行最大推理轮数。
+    max-iters: 20
+    # 等待模型返回的最长时间，单位秒。
+    timeout-seconds: 120
+    # 用户输入字符上限。
+    max-user-chars: 32768
+    # 单次写文件 UTF-8 字节上限。
+    max-write-bytes: 5242880

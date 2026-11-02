@@ -72,8 +72,10 @@ agentscope:
     endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:}
     service-name: ${OTEL_SERVICE_NAME:agentscope-user}
   nacos:
-    # 只监听提示词。地址为空不建客户端。拉失败用兜底，不让进程退出。
-    # 不做动态配置、服务发现和 MCP。账号和命名空间没配就不传。
+    # 地址为空：不建提示词客户端，也不拉启动配置。
+    # 配了地址：启动必须拉到 agent-bootstrap.yaml（group=AGENT_PLATFORM），失败退出。
+    # 提示词监听仍弱依赖，拉失败用兜底。不做热更新、服务发现和 MCP。
+    # 账号和命名空间没配就不传。
     server-addr: ${NACOS_ADDR:}
     namespace: ${NACOS_NAMESPACE:}
     username: ${NACOS_USERNAME:}

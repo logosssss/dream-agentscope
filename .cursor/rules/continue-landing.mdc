@@ -14,6 +14,6 @@ alwaysApply: true
 - 构建用 JDK 21，从仓库根目录跑 `mvn test`。测试不连接真实的 Redis、MySQL、Milvus、Nacos。
 - 用户进程和管理进程启动必须连上 Redis、MySQL、Milvus，连不上就退出。不恢复进程内存储。
 - Milvus 用户进程在连通后创建检索集合。不写入、不检索。管理进程只探测。
-- Nacos 只在配了地址时做提示词监听。拉失败用兜底，不让进程退出。不做动态配置、服务发现和 MCP。不加入 RocketMQ 依赖。`mode=mq` 保持启动失败。
+- Nacos：地址为空不连。配了地址时，用户进程启动必须拉到 `agent-bootstrap.yaml`（`AGENT_PLATFORM`），失败退出；内容只允许额度/限流/登录 TTL/字数/超时/model/max-iters/max-write-bytes，启动合并一次，不热更新。提示词监听仍弱依赖，拉失败用兜底。管理进程同样：必须拉到 `agent-admin.yaml`（同 group），当前白名单为空（只验可达与非空正文），不热更新。不做服务发现和 MCP。连接与密钥仍走环境变量。不加入 RocketMQ 依赖。`mode=mq` 保持启动失败。
 - 管理进程不依赖运行层、接入层和 Harness。只有用户进程跑 Flyway。
 - Redis 在额度或占锁时失败就返回 503，不改走内存或 MySQL。

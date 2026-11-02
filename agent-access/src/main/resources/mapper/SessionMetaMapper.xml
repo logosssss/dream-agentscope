@@ -11,7 +11,7 @@
             (#{userId}, #{sessionId}, #{tenantId}, #{title}, #{channel}, 'ACTIVE', #{lastActiveAt}, 1)
         ON DUPLICATE KEY UPDATE
             channel = VALUES(channel),
-            last_active_at = VALUES(lastActiveAt),
+            last_active_at = VALUES(last_active_at),
             message_count = message_count + 1,
             title = IF(title IS NULL OR title = '', VALUES(title), title)
     </insert>

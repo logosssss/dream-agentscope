@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/**
+ * Step 1 基础语义 Token。后续 Agent 主题可覆盖 --color-brand-primary。
+ */
+@theme {
+  --color-brand-primary: #ec4899;
+  --color-surface-bg: #f8fafc;
+  --color-surface-card: #ffffff;
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+  --color-danger: #dc2626;
+  --chat-bubble-radius: 1rem;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--color-text-main);
+  background: var(--color-surface-bg);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}

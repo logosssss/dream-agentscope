@@ -51,7 +51,7 @@
 | 表 | 内容 |
 | --- | --- |
 | `agentscope_sessions` | 会话状态。主键 `(session_id, state_key, item_index)` |
-| `agentscope_store` | 工作区 KV，例如 MEMORY.md、sessions、skills |
+| `agentscope_store` | 工作区 KV（`item_key`/`value_json`/`version`/`updated_at`，对齐 2.0.4 JdbcStore） |
 | `agentscope_sandbox_snapshots` | 沙箱快照。大对象先放 MySQL |
 | `episodic_memory` | 情景记忆。主键自增，按 `(tenant_id, user_id, created_at)` 查。不存对话全文 |
 | `user_profile` | 用户画像。同一 `(tenant_id, user_id)` 一行。关系阶段由运行层写 |

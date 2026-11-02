@@ -1,0 +1,11 @@
+# 粘贴到 Nacos 配置中心时：
+#   Data ID : agent-admin.yaml
+#   Group   : AGENT_PLATFORM
+#   格式    : YAML
+# 仅管理进程启动拉取。改完需重启进程。不要写入数据源、Redis、Milvus、密钥。
+# 当前管理进程无可覆盖业务旋钮，正文非空即可；未列入白名单的键会被丢掉。
+
+agentscope:
+  admin:
+    # 占位，不会合并进 Environment。保留结构方便以后加旋钮。
+    note: startup-config-present
