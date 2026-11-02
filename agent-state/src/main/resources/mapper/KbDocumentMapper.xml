@@ -57,4 +57,38 @@
           AND user_id = #{userId}
           AND status = 'SUCCESS'
     </update>
+
+    <!-- 列表不带 content，避免一次拉出多篇正文。 -->
+    <select id="listLatestByKb" resultMap="BaseResultMap">
+        SELECT d.id, d.doc_id, d.version, d.kb_id, d.tenant_id, d.user_id, d.agent_id,
+               d.title, NULL AS content, d.status, d.error_msg, d.created_at, d.updated_at
+        FROM kb_document d
+        INNER JOIN (
+            SELECT doc_id, MAX(version) AS version
+            FROM kb_document
+            WHERE kb_id = #{kbId}
+              AND tenant_id = #{tenantId}
+              AND user_id = #{userId}
+            GROUP BY doc_id
+        ) latest ON latest.doc_id = d.doc_id AND latest.version = d.version
+        WHERE d.kb_id = #{kbId}
+          AND d.tenant_id = #{tenantId}
+          AND d.user_id = #{userId}
+        ORDER BY d.updated_at DESC
+        LIMIT 200
+    </select>
+
+    <delete id="deleteByDoc">
+        DELETE FROM kb_document
+        WHERE doc_id = #{docId}
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+    </delete>
+
+    <delete id="deleteByKb">
+        DELETE FROM kb_document
+        WHERE kb_id = #{kbId}
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+    </delete>
 </mapper>

@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-state`、`spring-boot-starter-web`、`spring-boot-starter-data-redis`、`mybatis-plus-spring-boot3-starter`。Redis 自动配置在启动模块里排除，避免没配地址时去连本机。MySQL 关闭时不扫描会话 Mapper。
+依赖 `agent-common`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-state`、`agent-vector`、`spring-boot-starter-web`、`spring-boot-starter-data-redis`、`mybatis-plus-spring-boot3-starter`。Redis 自动配置在启动模块里排除，避免没配地址时去连本机。MySQL 关闭时不扫描会话 Mapper。
 
 架构测试禁止 `com.zhu.access` 引用 `..harness..`。控制器也不能依赖 `..infrastructure.persistence..`。
 
@@ -32,8 +32,8 @@
 | `application` | `SessionListService` | 列表键 `session-list:{tenant}:{user}`，五分钟。写入后删键。Redis 失败改查 MySQL |
 | `application` | `QuotaGuard`、`SessionTurnGuard` | 额度键 `quota:{tenant}:{user}:{yyyyMMdd}`。会话短锁 `turn:{tenant}:{user}:{session}`，结束即释放 |
 | `application` | `AccessAccountGate` | 对话以外的接口先过租户和用户门。MySQL 关闭时放行 |
-| `api.controller` | `KnowledgeController` | `POST /api/kb` 建库；`POST /api/kb/documents` 上传/更新正文（≤2MB）；`GET .../status`；`POST .../reindex`。立即返回 PENDING |
-| `application` | `KnowledgeAppService`、`KnowledgeIndexLauncher` | 落库后 `@Async` 发布 `DOCUMENT_INDEX`。MySQL 关闭时建库不可用 |
+| `api.controller` | `KnowledgeController` | `POST/GET/DELETE /api/kb`；`GET /api/kb/{kbId}/documents`；`POST /api/kb/documents` 上传/更新（≤2MB）；status / reindex / `DELETE` 文档。立即返回 PENDING |
+| `application` | `KnowledgeAppService`、`KnowledgeIndexLauncher` | 落库后 `@Async` 发布 `DOCUMENT_INDEX`。删除先清向量再删 MySQL。MySQL 关闭时建库不可用 |
 | `application` | `OpenTenantUserGate` | MySQL 关闭时不查 `tenant_user`。打开时改走目录 |
 | `infrastructure.persistence` | `MysqlSessionTurnCount` | MySQL 打开时数 `agent_run` 的成功行。人设检查用，不占锁 |
 
@@ -67,4 +67,4 @@
 
 ## 还没有
 
-密码登录、JWT、IM/API 通道适配。调用方令牌已经校验。对话仍可用请求头或请求体带身份。MySQL 打开时，对话、会话列表、待确认、待办、反馈、附件、删除请求和知识库接口都要求这个租户已登记且状态是 `ACTIVE`，并且这个用户已挂到该租户且状态是 `ACTIVE`。停用走管理接口。对话同时选用启用的 `model_config`，没有行再用进程配置。MySQL 关闭时不查。待确认按当前用户读 `approval_record`。同一事件再记一条 `approval_notification`，通道是 `WEB`，状态是 `PENDING`。不发 IM、邮件或短信。通知写失败不改变这次询问。MySQL 关闭时不记。同一事件再给发起人开一条 `user_todo`，类型是 `APPROVAL`，状态是 `OPEN`，标题是工具名。`POST /api/todos` 再给当前用户开确认或任务待办，只接受 `CONFIRM` / `TASK`。不核运行或任务是否存在。`GET /api/todos` 返回当前用户还开着的待办，含审批、确认和任务。审批通过后改 `DONE`，拒绝后改 `CANCELLED`。`POST /api/todos/{todoId}/done` 把这个用户还开着的确认或任务改成 `DONE`。`POST /api/todos/{todoId}/cancel` 改成 `CANCELLED`。审批待办仍走决定接口。别人的行按找不到处理。MySQL 关闭时这些接口返回不可用。`POST /api/feedback` 记下当前用户对一次运行的评分，只接受 1 到 5。不核对运行是否存在，也不接收文件。MySQL 关闭时返回不可用。`POST /api/attachments` 记下当前用户的附件元数据，不收文件内容。空白存储类型按 `LOCAL`。`POST /api/attachments/{attachmentId}/refs` 把该附件挂到一条消息或一次运行上，附件必须属于当前用户。不核对话或运行是否存在。MySQL 关闭时返回不可用。`POST /api/deletion-requests` 记下当前用户的数据删除请求，状态是 `PENDING`。只接受 `SESSION` / `ATTACHMENT` / `ALL`。不批准，也不真正删除。MySQL 关闭时返回不可用。知识库只接文本，不收文件流；还没有列表库、删库、删文档。会话列表已经按当前用户读 `agent_session_meta`。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。危机档和打开人设检查时可能先没有文本增量，结束事件带检查后的全文。通道枚举已经在接入层，不要挪到运行层。就绪检查只探测 Milvus 地址。集合由用户进程创建，管理进程不建。
+密码登录、JWT、IM/API 通道适配。调用方令牌已经校验。对话仍可用请求头或请求体带身份。MySQL 打开时，对话、会话列表、待确认、待办、反馈、附件、删除请求和知识库接口都要求这个租户已登记且状态是 `ACTIVE`，并且这个用户已挂到该租户且状态是 `ACTIVE`。停用走管理接口。对话同时选用启用的 `model_config`，没有行再用进程配置。MySQL 关闭时不查。待确认按当前用户读 `approval_record`。同一事件再记一条 `approval_notification`，通道是 `WEB`，状态是 `PENDING`。不发 IM、邮件或短信。通知写失败不改变这次询问。MySQL 关闭时不记。同一事件再给发起人开一条 `user_todo`，类型是 `APPROVAL`，状态是 `OPEN`，标题是工具名。`POST /api/todos` 再给当前用户开确认或任务待办，只接受 `CONFIRM` / `TASK`。不核运行或任务是否存在。`GET /api/todos` 返回当前用户还开着的待办，含审批、确认和任务。审批通过后改 `DONE`，拒绝后改 `CANCELLED`。`POST /api/todos/{todoId}/done` 把这个用户还开着的确认或任务改成 `DONE`。`POST /api/todos/{todoId}/cancel` 改成 `CANCELLED`。审批待办仍走决定接口。别人的行按找不到处理。MySQL 关闭时这些接口返回不可用。`POST /api/feedback` 记下当前用户对一次运行的评分，只接受 1 到 5。不核对运行是否存在，也不接收文件。MySQL 关闭时返回不可用。`POST /api/attachments` 记下当前用户的附件元数据，不收文件内容。空白存储类型按 `LOCAL`。`POST /api/attachments/{attachmentId}/refs` 把该附件挂到一条消息或一次运行上，附件必须属于当前用户。不核对话或运行是否存在。MySQL 关闭时返回不可用。`POST /api/deletion-requests` 记下当前用户的数据删除请求，状态是 `PENDING`。只接受 `SESSION` / `ATTACHMENT` / `ALL`。不批准，也不真正删除。MySQL 关闭时返回不可用。知识库只接文本，不收文件流；列表库、文档列表、删库、删文档已有。还没有附件上传与 Hybrid/Rerank。会话列表已经按当前用户读 `agent_session_meta`。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。危机档和打开人设检查时可能先没有文本增量，结束事件带检查后的全文。通道枚举已经在接入层，不要挪到运行层。就绪检查只探测 Milvus 地址。集合由用户进程创建，管理进程不建。

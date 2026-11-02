@@ -73,9 +73,45 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
             return null;
         }
         KbKnowledgeBase row = bases.findOwned(kbId, tenant(tenantId), userId);
-        return row == null
-                ? null
-                : new KnowledgeBaseItem(row.getKbId(), row.getTenantId(), row.getUserId(), row.getAgentId(), row.getName());
+        return toBase(row);
+    }
+
+    @Override
+    public List<KnowledgeBaseItem> listBases(String tenantId, String userId) {
+        if (blank(userId)) {
+            return List.of();
+        }
+        List<KbKnowledgeBase> rows = bases.listOwned(tenant(tenantId), userId);
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        List<KnowledgeBaseItem> items = new ArrayList<>(rows.size());
+        for (KbKnowledgeBase row : rows) {
+            KnowledgeBaseItem item = toBase(row);
+            if (item != null) {
+                items.add(item);
+            }
+        }
+        return items;
+    }
+
+    @Override
+    public List<KnowledgeDocumentItem> listLatestDocuments(String kbId, String tenantId, String userId) {
+        if (blank(kbId) || blank(userId) || findBase(kbId, tenantId, userId) == null) {
+            return List.of();
+        }
+        List<KbDocument> rows = documents.listLatestByKb(kbId, tenant(tenantId), userId);
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        List<KnowledgeDocumentItem> items = new ArrayList<>(rows.size());
+        for (KbDocument row : rows) {
+            KnowledgeDocumentItem item = toDoc(row);
+            if (item != null) {
+                items.add(item);
+            }
+        }
+        return items;
     }
 
     @Override
@@ -205,6 +241,60 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
                     row.getChunkIndex() == null ? 0 : row.getChunkIndex()));
         }
         return items;
+    }
+
+    @Override
+    public List<String> listChunkIdsByDoc(String docId, String tenantId, String userId) {
+        if (blank(docId) || blank(userId)) {
+            return List.of();
+        }
+        List<String> ids = chunks.listIdsByDoc(docId, tenant(tenantId), userId);
+        return ids == null ? List.of() : ids;
+    }
+
+    @Override
+    public List<String> listChunkIdsByBase(String kbId, String tenantId, String userId) {
+        if (blank(kbId) || blank(userId)) {
+            return List.of();
+        }
+        List<String> ids = chunks.listIdsByKb(kbId, tenant(tenantId), userId);
+        return ids == null ? List.of() : ids;
+    }
+
+    @Override
+    @Transactional
+    public int deleteDocument(String docId, String tenantId, String userId) {
+        if (blank(docId) || blank(userId)) {
+            return 0;
+        }
+        String tenant = tenant(tenantId);
+        if (documents.maxVersion(docId, tenant, userId) == null) {
+            return 0;
+        }
+        chunks.deleteByDoc(docId, tenant, userId);
+        return documents.deleteByDoc(docId, tenant, userId);
+    }
+
+    @Override
+    @Transactional
+    public int deleteBase(String kbId, String tenantId, String userId) {
+        if (blank(kbId) || blank(userId)) {
+            return 0;
+        }
+        String tenant = tenant(tenantId);
+        if (bases.findOwned(kbId, tenant, userId) == null) {
+            return 0;
+        }
+        chunks.deleteByKb(kbId, tenant, userId);
+        documents.deleteByKb(kbId, tenant, userId);
+        return bases.deleteOwned(kbId, tenant, userId);
+    }
+
+    private static KnowledgeBaseItem toBase(KbKnowledgeBase row) {
+        if (row == null) {
+            return null;
+        }
+        return new KnowledgeBaseItem(row.getKbId(), row.getTenantId(), row.getUserId(), row.getAgentId(), row.getName());
     }
 
     private static KnowledgeDocumentItem toDoc(KbDocument row) {

@@ -31,6 +31,16 @@ public class AbsentKnowledgeRepository implements KnowledgeRepository {
     }
 
     @Override
+    public List<KnowledgeBaseItem> listBases(String tenantId, String userId) {
+        return List.of();
+    }
+
+    @Override
+    public List<KnowledgeDocumentItem> listLatestDocuments(String kbId, String tenantId, String userId) {
+        return List.of();
+    }
+
+    @Override
     public KnowledgeDocumentItem insertDocumentVersion(
             String docId,
             int version,
@@ -74,5 +84,25 @@ public class AbsentKnowledgeRepository implements KnowledgeRepository {
     public List<KnowledgeChunkItem> findSuccessChunksByIds(
             String tenantId, String userId, String agentId, List<String> ids) {
         return List.of();
+    }
+
+    @Override
+    public List<String> listChunkIdsByDoc(String docId, String tenantId, String userId) {
+        return List.of();
+    }
+
+    @Override
+    public List<String> listChunkIdsByBase(String kbId, String tenantId, String userId) {
+        return List.of();
+    }
+
+    @Override
+    public int deleteDocument(String docId, String tenantId, String userId) {
+        return 0;
+    }
+
+    @Override
+    public int deleteBase(String kbId, String tenantId, String userId) {
+        return 0;
     }
 }

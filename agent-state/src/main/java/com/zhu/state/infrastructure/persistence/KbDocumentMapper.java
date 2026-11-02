@@ -2,6 +2,7 @@ package com.zhu.state.infrastructure.persistence;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhu.state.infrastructure.persistence.entity.KbDocument;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -31,4 +32,14 @@ public interface KbDocumentMapper extends BaseMapper<KbDocument> {
     /** 把同 doc 下 SUCCESS 改成 ARCHIVED。 */
     int archiveSuccess(
             @Param("docId") String docId, @Param("tenantId") String tenantId, @Param("userId") String userId);
+
+    /** 某库下每个文档最新一版，不含 content。 */
+    List<KbDocument> listLatestByKb(
+            @Param("kbId") String kbId, @Param("tenantId") String tenantId, @Param("userId") String userId);
+
+    int deleteByDoc(
+            @Param("docId") String docId, @Param("tenantId") String tenantId, @Param("userId") String userId);
+
+    int deleteByKb(
+            @Param("kbId") String kbId, @Param("tenantId") String tenantId, @Param("userId") String userId);
 }

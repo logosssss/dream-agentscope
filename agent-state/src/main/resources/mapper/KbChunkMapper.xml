@@ -43,4 +43,34 @@
             #{id}
         </foreach>
     </select>
+
+    <select id="listIdsByDoc" resultType="java.lang.String">
+        SELECT id
+        FROM kb_chunk
+        WHERE doc_id = #{docId}
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+    </select>
+
+    <select id="listIdsByKb" resultType="java.lang.String">
+        SELECT id
+        FROM kb_chunk
+        WHERE kb_id = #{kbId}
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+    </select>
+
+    <delete id="deleteByDoc">
+        DELETE FROM kb_chunk
+        WHERE doc_id = #{docId}
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+    </delete>
+
+    <delete id="deleteByKb">
+        DELETE FROM kb_chunk
+        WHERE kb_id = #{kbId}
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+    </delete>
 </mapper>

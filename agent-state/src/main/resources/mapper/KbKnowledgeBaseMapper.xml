@@ -21,4 +21,20 @@
           AND user_id = #{userId}
         LIMIT 1
     </select>
+
+    <select id="listOwned" resultMap="BaseResultMap">
+        SELECT id, kb_id, tenant_id, user_id, agent_id, name, created_at
+        FROM kb_knowledge_base
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT 100
+    </select>
+
+    <delete id="deleteOwned">
+        DELETE FROM kb_knowledge_base
+        WHERE kb_id = #{kbId}
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+    </delete>
 </mapper>

@@ -19,6 +19,14 @@ public interface KnowledgeRepository {
     /** 只返回本人的库。找不到返回 null。 */
     KnowledgeBaseItem findBase(String kbId, String tenantId, String userId);
 
+    /** 本人名下的库，按创建时间倒序。 */
+    List<KnowledgeBaseItem> listBases(String tenantId, String userId);
+
+    /**
+     * 某库下每个 docId 的最新一版元数据，不含正文。库不属于本人时返回空。
+     */
+    List<KnowledgeDocumentItem> listLatestDocuments(String kbId, String tenantId, String userId);
+
     /**
      * 新建文档首版或新版本，状态 PENDING。
      * 若 archivePreviousSuccess 为 true，同 docId 下旧 SUCCESS 改 ARCHIVED。
@@ -54,4 +62,22 @@ public interface KnowledgeRepository {
      * 向量命中后回表用。
      */
     List<KnowledgeChunkItem> findSuccessChunksByIds(String tenantId, String userId, String agentId, List<String> ids);
+
+    /** 本人某文档全部切块主键，删向量前先取。 */
+    List<String> listChunkIdsByDoc(String docId, String tenantId, String userId);
+
+    /** 本人某库全部切块主键。 */
+    List<String> listChunkIdsByBase(String kbId, String tenantId, String userId);
+
+    /**
+     * 删掉本人某文档的全部版本与切块。找不到返回 0。
+     * 不碰向量。
+     */
+    int deleteDocument(String docId, String tenantId, String userId);
+
+    /**
+     * 删掉本人某库及其文档与切块。找不到返回 0。
+     * 不碰向量。
+     */
+    int deleteBase(String kbId, String tenantId, String userId);
 }

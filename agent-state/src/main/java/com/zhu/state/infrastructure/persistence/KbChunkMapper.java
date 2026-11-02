@@ -19,4 +19,16 @@ public interface KbChunkMapper extends BaseMapper<KbChunk> {
             @Param("userId") String userId,
             @Param("agentId") String agentId,
             @Param("ids") List<String> ids);
+
+    List<String> listIdsByDoc(
+            @Param("docId") String docId, @Param("tenantId") String tenantId, @Param("userId") String userId);
+
+    List<String> listIdsByKb(
+            @Param("kbId") String kbId, @Param("tenantId") String tenantId, @Param("userId") String userId);
+
+    int deleteByDoc(
+            @Param("docId") String docId, @Param("tenantId") String tenantId, @Param("userId") String userId);
+
+    int deleteByKb(
+            @Param("kbId") String kbId, @Param("tenantId") String tenantId, @Param("userId") String userId);
 }
