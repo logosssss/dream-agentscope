@@ -22,4 +22,15 @@
           AND session_id = #{sessionId}
           AND status = 'SUCCEEDED'
     </select>
+
+    <!-- 本人本租户最近结束的运行。不带回异常原文和步骤。 -->
+    <select id="listOwned" resultType="com.zhu.access.infrastructure.persistence.entity.AgentRun">
+        SELECT run_id, tenant_id, user_id, session_id, trigger_type, status, model,
+               input_summary, output_summary, error_code, duration_ms
+        FROM agent_run
+        WHERE user_id = #{userId}
+          AND tenant_id = #{tenantId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
 </mapper>
