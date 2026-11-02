@@ -13,7 +13,7 @@ import org.apache.ibatis.annotations.Param;
 public interface ToolPermissionMapper extends BaseMapper<ToolPermission> {
 
     /**
-     * 只取这个工具仍启用的规则。条件列原样带回，由调用方决定是否跳过。
+     * 只取这个工具仍启用的规则。条件列原样带回，由调用方解释时间窗。
      */
     List<ToolPermission> selectEnabled(@Param("toolId") String toolId);
 }

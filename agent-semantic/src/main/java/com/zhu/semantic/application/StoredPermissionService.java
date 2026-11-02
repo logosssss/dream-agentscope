@@ -2,19 +2,22 @@ package com.zhu.semantic.application;
 
 import com.zhu.semantic.contract.PermissionDecision;
 import com.zhu.semantic.contract.PermissionRuleService;
+import com.zhu.semantic.domain.PermissionConditions;
 import com.zhu.semantic.domain.PermissionMatcher;
 import com.zhu.semantic.domain.PermissionRule;
 import com.zhu.semantic.infrastructure.persistence.ToolPermissionMapper;
 import com.zhu.semantic.infrastructure.persistence.entity.ToolPermission;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
  * 按 tool_permission 表匹配工具权限。MySQL 打开时创建，替换配置里的规则。
- * 带条件的行先跳过，避免把还不能解释的条件当成无条件生效。
+ * 时间窗条件按 UTC 解释；不能解释的 JSON 仍跳过整条，避免当成无条件生效。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -24,8 +27,18 @@ public class StoredPermissionService implements PermissionRuleService {
 
     private final ToolPermissionMapper rules;
 
+    private final Clock clock;
+
+    /** 生产用系统 UTC。测试再拨时钟。不要注入容器里的 Clock，避免和额度时钟绑在一起。 */
+    @Autowired
     public StoredPermissionService(ToolPermissionMapper rules) {
+        this(rules, Clock.systemUTC());
+    }
+
+    /** 测试注入时钟，验证 after / before 是否命中。 */
+    public StoredPermissionService(ToolPermissionMapper rules, Clock clock) {
         this.rules = rules;
+        this.clock = clock == null ? Clock.systemUTC() : clock;
     }
 
     /**
@@ -39,7 +52,7 @@ public class StoredPermissionService implements PermissionRuleService {
         }
         List<PermissionRule> matched = new ArrayList<>();
         for (ToolPermission row : rules.selectEnabled(toolId)) {
-            PermissionRule rule = toRule(row, toolId, tenantId, roleId);
+            PermissionRule rule = toRule(row, toolId, tenantId, roleId, clock);
             if (rule != null) {
                 matched.add(rule);
             }
@@ -48,10 +61,11 @@ public class StoredPermissionService implements PermissionRuleService {
     }
 
     /**
-     * 没命中的行直接丢掉。命中但带条件的行跳过。
+     * 没命中的行直接丢掉。时间窗未到或 JSON 不能解释时也丢掉。
      * 命中且决定写错时抛出，不能把拒绝配错后当成允许。
      */
-    private static PermissionRule toRule(ToolPermission row, String toolId, String tenantId, String roleId) {
+    private static PermissionRule toRule(
+            ToolPermission row, String toolId, String tenantId, String roleId, Clock clock) {
         if (row == null || blank(row.getToolId()) || blank(row.getTenantId()) || blank(row.getRoleId())) {
             return null;
         }
@@ -62,8 +76,12 @@ public class StoredPermissionService implements PermissionRuleService {
         if (!probe.matches(toolId, tenantId, roleId)) {
             return null;
         }
-        if (!blank(row.getConditions())) {
+        PermissionConditions.Outcome outcome = PermissionConditions.evaluate(row.getConditions(), clock);
+        if (outcome == PermissionConditions.Outcome.UNKNOWN) {
             log.warning("permission rule with conditions was skipped");
+            return null;
+        }
+        if (outcome == PermissionConditions.Outcome.MISS) {
             return null;
         }
         PermissionDecision decision = decision(row.getDecision());
