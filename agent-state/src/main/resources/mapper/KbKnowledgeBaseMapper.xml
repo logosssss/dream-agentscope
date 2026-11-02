@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.state.infrastructure.persistence.KbKnowledgeBaseMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhu.state.infrastructure.persistence.entity.KbKnowledgeBase">
+        <id column="id" property="id"/>
+        <result column="kb_id" property="kbId"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="user_id" property="userId"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="name" property="name"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="findOwned" resultMap="BaseResultMap">
+        SELECT id, kb_id, tenant_id, user_id, agent_id, name, created_at
+        FROM kb_knowledge_base
+        WHERE kb_id = #{kbId}
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+        LIMIT 1
+    </select>
+</mapper>

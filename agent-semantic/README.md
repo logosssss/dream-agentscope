@@ -45,7 +45,7 @@
 
 `NoToolCatalog`：MySQL 关闭时目录为空。
 
-`StoredToolCatalog`：MySQL 打开时读 `tool_registry` 的启用行，表由 `V6__tool_registry.sql` 创建。空白标识跳过。表是空的则目录为空。参数结构只保存在表里，不参与注册。没有对应 `ProductTool` 时运行层仍不把名字交给模型。`V32__echo_text_tool.sql` 种子插入 `echo_text` 目录行，以及全局 `ASK` 权限。
+`StoredToolCatalog`：MySQL 打开时读 `tool_registry` 的启用行，表由 `V6__tool_registry.sql` 创建。空白标识跳过。表是空的则目录为空。参数结构只保存在表里，不参与注册。没有对应 `ProductTool` 时运行层仍不把名字交给模型。`V32__echo_text_tool.sql` 种子插入 `echo_text` 目录行，以及全局 `ASK` 权限。`V35__knowledge_search_tool.sql` 种子插入 `knowledge_search`，全局 `ALLOW`；实现在运行层。
 
 ### `application`
 
@@ -57,7 +57,7 @@
 
 `src/main/resources/prompts` 里的 `.md` 和 `.json` 由 `PromptTemplateCheck` 在测试中校验。键必须是 `prompt.{agent}.{purpose}`，占位符必须在 `PlatformPrompt` 里登记。`.json` 把 `{{变量}}` 换成 `sample` 后必须能解析。`PromptRelease` 在校验通过后才把原文交给发布端。`prompt.safety.crisis` 会校验，但不发布。`NacosPromptPublisher` 向管理接口新建一个版本并发布，进程启动时不调用它。地址没配或对方拒绝时这次发布失败，不影响已经在跑的监听。
 
-运行层的架构测试禁止依赖 `application` 和 `infrastructure`。业务工具和 Mapper 放 `infrastructure`，不要放进 `agent-runtime`。
+运行层的架构测试禁止依赖本模块的 `application` 和 `infrastructure`。无运行层依赖的业务工具（如 `echo_text`）放本模块 `infrastructure.tool`；需要嵌入或向量的工具（如 `knowledge_search`）放运行层。
 
 `infrastructure.tool.EchoTextTool` 是第一把业务工具。实现 `ProductTool`，`toolId` 与 `@Tool` 的 name、目录标识都是 `echo_text`。方法只原样返回，无副作用。容器里始终有这个 Bean；MySQL 关闭时目录为空，运行层仍不注册。MySQL 打开且种子生效时目录命中，权限为全局 `ASK`，用来跑通审批。不解释 `conditions`，批准后不自动再执行。
 
@@ -65,4 +65,4 @@
 
 ## 还没有
 
-更多业务工具。`conditions` 还不能解释。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词发布不在进程启动时发生。主对话话术在 `prompts/prompt.companion.system.md`。危机话术在 `prompts/prompt.safety.crisis.md`，只从 classpath 读。`SemanticRiskJudge` 的生产实现不连网，一律普通陪伴。真正的模型判定以后再换。工具名、JSON 结构和安全护栏留在代码里。管理端登记工具目录还没有。
+`conditions` 还不能解释。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词发布不在进程启动时发生。主对话话术在 `prompts/prompt.companion.system.md`。危机话术在 `prompts/prompt.safety.crisis.md`，只从 classpath 读。`SemanticRiskJudge` 的生产实现不连网，一律普通陪伴。真正的模型判定以后再换。工具名、JSON 结构和安全护栏留在代码里。管理端登记工具目录还没有。

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.state.infrastructure.persistence.KbChunkMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhu.state.infrastructure.persistence.entity.KbChunk">
+        <id column="id" property="id"/>
+        <result column="kb_id" property="kbId"/>
+        <result column="doc_id" property="docId"/>
+        <result column="version" property="version"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="user_id" property="userId"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="content" property="content"/>
+        <result column="chunk_index" property="chunkIndex"/>
+        <result column="token_count" property="tokenCount"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="title" property="titleHint"/>
+    </resultMap>
+
+    <delete id="deleteByDocVersion">
+        DELETE FROM kb_chunk
+        WHERE doc_id = #{docId}
+          AND version = #{version}
+    </delete>
+
+    <!-- 只回 SUCCESS 文档上的块，并带标题供工具展示。 -->
+    <select id="findSuccessByIds" resultMap="BaseResultMap">
+        SELECT c.id, c.kb_id, c.doc_id, c.version, c.tenant_id, c.user_id, c.agent_id,
+               c.content, c.chunk_index, c.token_count, c.created_at, d.title AS title
+        FROM kb_chunk c
+        INNER JOIN kb_document d
+            ON d.doc_id = c.doc_id
+           AND d.version = c.version
+           AND d.tenant_id = c.tenant_id
+           AND d.user_id = c.user_id
+        WHERE c.tenant_id = #{tenantId}
+          AND c.user_id = #{userId}
+          AND c.agent_id = #{agentId}
+          AND d.status = 'SUCCESS'
+          AND c.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+</mapper>

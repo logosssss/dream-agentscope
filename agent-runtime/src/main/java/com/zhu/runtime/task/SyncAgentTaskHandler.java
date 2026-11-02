@@ -1,13 +1,11 @@
 package com.zhu.runtime.task;
 
 import com.zhu.audit.api.AuditRecorder;
-import org.springframework.stereotype.Service;
 
 /**
- * 还没有产品任务时的消费逻辑。只记审计，不调用模型。
- * 产品域替换这个类之后，同步发布和以后的队列消费都会走到新产品逻辑。
+ * 历史占位消费逻辑。只记审计，不调用模型。
+ * 生产请用 {@link DispatchingAgentTaskHandler}；本类留给测试直接构造。
  */
-@Service
 public class SyncAgentTaskHandler implements AgentTaskHandler {
 
     private final AuditRecorder audit;

@@ -21,11 +21,12 @@
 | `api` | `ExecutionLockService` | 沙箱执行锁，还没有实现类 |
 | `api` | `EpisodicMemoryRepository`、`EpisodicMemoryItem` | 情景记忆读写缝。按租户和用户切开 |
 | `api` | `UserProfileRepository`、`UserProfileItem` | 用户画像读写缝。每个租户用户一行 |
+| `api` | `KnowledgeRepository`、`KnowledgeBaseItem`、`KnowledgeDocumentItem`、`KnowledgeChunkItem` | 知识库读写缝。向量不在这里 |
 | `config` | `MysqlStoreProperties` | 前缀 `agentscope.distributed.mysql` |
 | `config` | `DistributedStoreConfig` | 仅在开关打开时装配 `DistributedStore` |
 | `config` | `StateMapperConfig` | MySQL 打开时扫描记忆 Mapper |
-| `application` | `AbsentEpisodicMemoryRepository`、`AbsentUserProfileRepository` | MySQL 关闭时的空实现 |
-| `infrastructure.persistence` | `MysqlEpisodicMemoryRepository`、`MysqlUserProfileRepository` | MySQL 打开时写入和按身份读取。情景记忆插入走 `BaseMapper.insert`，最近和按 id 查、画像覆盖写和查找都在 XML |
+| `application` | `AbsentEpisodicMemoryRepository`、`AbsentUserProfileRepository`、`AbsentKnowledgeRepository` | MySQL 关闭时的空实现 |
+| `infrastructure.persistence` | `MysqlEpisodicMemoryRepository`、`MysqlUserProfileRepository`、`MysqlKnowledgeRepository` | MySQL 打开时写入和按身份读取。情景记忆插入走 `BaseMapper.insert`，最近和按 id 查、画像覆盖写和查找都在 XML。知识库表由 `V34__knowledge_base.sql` 建立 |
 
 前三个仓库接口是给运行层以后调用的缝。当前真正装配的是框架的 `DistributedStore`，不要在旁边再写一套绕过它的 SQL。不标过时，也不先写实现。自定义查询出现再实现。
 
@@ -60,4 +61,4 @@
 
 ## 还没有
 
-`AgentStateRepository`、`WorkspaceFileRepository`、`ExecutionLockService` 的实现、对象存储。工作区文件在挂上 `DistributedStore` 后走远程文件系统，进 `agentscope_store`。情景记忆和画像由运行层在对话成功结束后写入，`append` 回自增 id。最近 3 条、按 id 回表和短画像查找已经有。Redis 只做额度、幂等和限流，不存 Agent 状态。
+`AgentStateRepository`、`WorkspaceFileRepository`、`ExecutionLockService` 的实现、对象存储。工作区文件在挂上 `DistributedStore` 后走远程文件系统，进 `agentscope_store`。情景记忆和画像由运行层在对话成功结束后写入，`append` 回自增 id。最近 3 条、按 id 回表和短画像查找已经有。知识库正文与切块已落 `kb_*`；全文检索留给 Advanced RAG。Redis 只做额度、幂等和限流，不存 Agent 状态。
