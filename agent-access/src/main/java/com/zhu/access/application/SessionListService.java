@@ -3,6 +3,7 @@ package com.zhu.access.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhu.access.api.dto.SessionDetail;
 import com.zhu.access.api.dto.SessionSummary;
 import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.common.exception.BusinessException;
@@ -55,7 +56,7 @@ public class SessionListService implements SessionIndex {
         }
     }
 
-    /** 运行标识为空时跳过。列表响应不含这个字段，不必清缓存。 */
+    /** 运行标识为空时跳过。列表不含这个字段，不必清列表缓存。详情走库。 */
     @Override
     public void attachRun(String tenantId, String userId, String sessionId, String runId) {
         if (runId == null || runId.isBlank()) {
@@ -81,6 +82,22 @@ public class SessionListService implements SessionIndex {
         List<SessionSummary> rows = store.list(tenant, userId);
         writeCache(key, rows);
         return rows;
+    }
+
+    /**
+     * 空用户或空会话拒绝。找不到或不是本人按找不到。
+     * 不走列表缓存，避免把最近运行挡住。
+     */
+    public SessionDetail get(String tenantId, String userId, String sessionId) {
+        if (userId == null || userId.isBlank() || sessionId == null || sessionId.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "session query is invalid");
+        }
+        String tenant = tenantId == null ? "" : tenantId;
+        SessionDetail detail = store.findOwned(tenant, userId, sessionId);
+        if (detail == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "session not found");
+        }
+        return detail;
     }
 
     /** 键带租户，避免不同租户的同名用户共用一份列表。冒号换成下划线。 */

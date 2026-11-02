@@ -1,5 +1,6 @@
 package com.zhu.access.api.controller;
 
+import com.zhu.access.api.dto.SessionDetail;
 import com.zhu.access.api.dto.SessionSummary;
 import com.zhu.access.application.AccessAccountGate;
 import com.zhu.access.application.SessionListService;
@@ -8,10 +9,11 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 当前用户的会话列表。数据来自 MySQL，Redis 只缓存。
+ * 当前用户的会话。列表走缓存；详情走库，仍不含正文。
  */
 @RestController
 public class SessionController {
@@ -35,5 +37,15 @@ public class SessionController {
         accounts.requireActive();
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         return ApiResult.ok(sessions.list(tenantId, UserContext.get()));
+    }
+
+    /**
+     * 别人的会话按找不到处理。不读对话正文，也不走列表缓存。
+     */
+    @GetMapping("/api/sessions/{sessionId}")
+    public ApiResult<SessionDetail> get(@PathVariable String sessionId) {
+        accounts.requireActive();
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        return ApiResult.ok(sessions.get(tenantId, UserContext.get(), sessionId));
     }
 }

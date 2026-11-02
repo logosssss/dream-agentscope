@@ -12,7 +12,7 @@ public interface SessionIndex {
     void record(String tenantId, String userId, String sessionId, String channel, String text);
 
     /**
-     * 把最近一次运行写到会话上。列表不返回这个字段，所以不删缓存。
+     * 把最近一次运行写到会话上。列表不返回这个字段，所以不删列表缓存。详情走库。
      * 缺省什么都不做，测试里的空实现不用再写一遍。
      */
     default void attachRun(String tenantId, String userId, String sessionId, String runId) {

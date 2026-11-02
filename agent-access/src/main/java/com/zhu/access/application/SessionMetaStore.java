@@ -1,5 +1,6 @@
 package com.zhu.access.application;
 
+import com.zhu.access.api.dto.SessionDetail;
 import com.zhu.access.api.dto.SessionSummary;
 import java.util.List;
 
@@ -28,6 +29,14 @@ public interface SessionMetaStore {
      * 缺省不查，测试替身不用再写一遍。
      */
     default String otherUser(String tenantId, String sessionId, String userId) {
+        return null;
+    }
+
+    /**
+     * 当前用户在这个租户下的一次会话。没有或不属于本人时返回 null。
+     * 缺省返回 null，测试替身不用再写一遍。
+     */
+    default SessionDetail findOwned(String tenantId, String userId, String sessionId) {
         return null;
     }
 }

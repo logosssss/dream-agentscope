@@ -6,7 +6,7 @@ import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 /**
- * agent_session_meta 的访问。插入和列表在 XML 里，Java 不写 SQL。
+ * agent_session_meta 的访问。插入、列表和详情在 XML 里，Java 不写 SQL。
  */
 public interface SessionMetaMapper extends BaseMapper<SessionMeta> {
 
@@ -36,4 +36,12 @@ public interface SessionMetaMapper extends BaseMapper<SessionMeta> {
             @Param("tenantId") String tenantId,
             @Param("sessionId") String sessionId,
             @Param("userId") String userId);
+
+    /**
+     * 当前用户在这个租户下的一次会话。别人的行按找不到。
+     */
+    SessionMeta findOwned(
+            @Param("tenantId") String tenantId,
+            @Param("userId") String userId,
+            @Param("sessionId") String sessionId);
 }

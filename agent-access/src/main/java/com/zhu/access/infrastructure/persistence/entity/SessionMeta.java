@@ -30,6 +30,15 @@ public class SessionMeta {
     /** WEB、IM 或 API。 */
     private String channel;
 
+    /** ACTIVE 或 ARCHIVED。列表只看活动行。 */
+    private String status;
+
+    /** 最近一次运行。会话行还不存在时不会写。 */
+    private String lastRunId;
+
+    /** 已记录的对话轮数。touch 时加一。 */
+    private Integer messageCount;
+
     /** 最近活动时间。由写入方填 UTC。 */
     private LocalDateTime lastActiveAt;
 
@@ -91,6 +100,36 @@ public class SessionMeta {
     /** 写入通道。 */
     public void setChannel(String channel) {
         this.channel = channel;
+    }
+
+    /** 会话状态。 */
+    public String getStatus() {
+        return status;
+    }
+
+    /** 写入会话状态。 */
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    /** 最近一次运行。 */
+    public String getLastRunId() {
+        return lastRunId;
+    }
+
+    /** 写入最近一次运行。 */
+    public void setLastRunId(String lastRunId) {
+        this.lastRunId = lastRunId;
+    }
+
+    /** 对话轮数。 */
+    public Integer getMessageCount() {
+        return messageCount;
+    }
+
+    /** 写入对话轮数。 */
+    public void setMessageCount(Integer messageCount) {
+        this.messageCount = messageCount;
     }
 
     /** 最近活动时间。 */

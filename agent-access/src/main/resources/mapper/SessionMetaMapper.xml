@@ -43,4 +43,14 @@
           AND user_id = #{userId}
           AND session_id = #{sessionId}
     </update>
+
+    <!-- 本人本租户的一次会话。已归档的也返回。不带回对话正文。 -->
+    <select id="findOwned" resultType="com.zhu.access.infrastructure.persistence.entity.SessionMeta">
+        SELECT session_id, title, channel, status, last_run_id, message_count, last_active_at
+        FROM agent_session_meta
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND session_id = #{sessionId}
+        LIMIT 1
+    </select>
 </mapper>

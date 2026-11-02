@@ -1,5 +1,6 @@
 package com.zhu.bootstrap;
 
+import com.zhu.access.api.dto.SessionDetail;
 import com.zhu.access.api.dto.SessionSummary;
 import com.zhu.access.application.SessionListService;
 import com.zhu.access.application.SessionMetaStore;
@@ -12,6 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * 会话列表先用缓存，缓存不可用时查存储。不连接 Redis 或 MySQL。
@@ -65,6 +67,25 @@ class SessionListTest {
         assertThat(store.touches).isEqualTo(1);
     }
 
+    /** 详情走存储，不读列表缓存。空标识拒绝。 */
+    @Test
+    void getReadsStoreAndRejectsBlank() {
+        CountingStore store = new CountingStore();
+        store.detail = new SessionDetail("s", "hi", "WEB", "ACTIVE", "run-1", 3, "2026-10-31T01:02:03");
+        SessionListService sessions = new SessionListService(store, new FakeAccessCache());
+        assertThat(sessions.get("t", "u", "s")).isEqualTo(store.detail);
+        assertThat(store.owned).isEqualTo(1);
+        assertThatThrownBy(() -> sessions.get("t", "u", " "))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        store.detail = null;
+        assertThatThrownBy(() -> sessions.get("t", "u", "missing"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
     /** 用户或会话为空时不写存储。 */
     @Test
     void blankIdentityIsSkipped() {
@@ -84,7 +105,11 @@ class SessionListTest {
 
         private int touches;
 
+        private int owned;
+
         private String lastTitle;
+
+        private SessionDetail detail;
 
         /** 记下标题，供断言截断和换行。 */
         @Override
@@ -103,6 +128,13 @@ class SessionListTest {
         /** 运行标识不在这次测试里。 */
         @Override
         public void attachRun(String tenantId, String userId, String sessionId, String runId) {
+        }
+
+        /** 返回预先放好的详情。 */
+        @Override
+        public SessionDetail findOwned(String tenantId, String userId, String sessionId) {
+            owned++;
+            return detail;
         }
     }
 

@@ -1,5 +1,6 @@
 package com.zhu.access.infrastructure.persistence;
 
+import com.zhu.access.api.dto.SessionDetail;
 import com.zhu.access.api.dto.SessionSummary;
 import com.zhu.access.application.SessionMetaStore;
 import com.zhu.access.infrastructure.persistence.entity.SessionMeta;
@@ -74,5 +75,25 @@ public class MysqlSessionMetaStore implements SessionMetaStore {
             return null;
         }
         return sessions.otherUser(tenantId == null ? "" : tenantId, sessionId, userId);
+    }
+
+    /**
+     * 已归档的也返回。没有行时返回 null，不抛找不到。
+     */
+    @Override
+    public SessionDetail findOwned(String tenantId, String userId, String sessionId) {
+        if (userId == null || userId.isBlank() || sessionId == null || sessionId.isBlank()) {
+            return null;
+        }
+        SessionMeta row = sessions.findOwned(tenantId == null ? "" : tenantId, userId, sessionId);
+        if (row == null) {
+            return null;
+        }
+        String active = row.getLastActiveAt() == null ? "" : TIME.format(row.getLastActiveAt());
+        String title = row.getTitle() == null ? "" : row.getTitle();
+        String channel = row.getChannel() == null ? "WEB" : row.getChannel();
+        String status = row.getStatus() == null ? "ACTIVE" : row.getStatus();
+        int count = row.getMessageCount() == null ? 0 : row.getMessageCount();
+        return new SessionDetail(row.getSessionId(), title, channel, status, row.getLastRunId(), count, active);
     }
 }
