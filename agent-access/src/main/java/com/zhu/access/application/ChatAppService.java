@@ -45,6 +45,8 @@ public class ChatAppService {
 
     private final SessionTurnGuard turns;
 
+    private final ConcurrentRunGuard concurrent;
+
     private final SessionIndex sessions;
 
     private final RunLog runs;
@@ -64,6 +66,7 @@ public class ChatAppService {
             ProductSemanticProvider semantics,
             QuotaGuard quota,
             SessionTurnGuard turns,
+            ConcurrentRunGuard concurrent,
             SessionIndex sessions,
             RunLog runs,
             TenantGate tenants,
@@ -74,6 +77,7 @@ public class ChatAppService {
         this.semantics = semantics;
         this.quota = quota;
         this.turns = turns;
+        this.concurrent = concurrent;
         this.sessions = sessions;
         this.runs = runs;
         this.tenants = tenants;
@@ -93,6 +97,13 @@ public class ChatAppService {
         owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
         SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
+        ConcurrentRunGuard.Slot slot;
+        try {
+            slot = concurrent.open(agentRequest.tenantId());
+        } catch (RuntimeException error) {
+            turns.close(turn);
+            throw error;
+        }
         long started = System.nanoTime();
         try {
             remember(request, agentRequest);
@@ -103,13 +114,14 @@ public class ChatAppService {
             finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), started, reasoning(RunLog.FAILED));
             throw error;
         } finally {
+            concurrent.close(slot);
             turns.close(turn);
         }
     }
 
     /**
      * 流式执行。身份在返回 Flux 之前就抄进 AgentRequest，避免过滤器清掉线程上下文后流才开始读。
-     * 会话锁在流结束时释放。调用方不要 block。
+     * 会话锁和并发占位在流结束时释放。调用方不要 block。
      */
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
         AgentRequest agentRequest = toRequest(request);
@@ -119,6 +131,13 @@ public class ChatAppService {
         owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
         SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
+        ConcurrentRunGuard.Slot slot;
+        try {
+            slot = concurrent.open(agentRequest.tenantId());
+        } catch (RuntimeException error) {
+            turns.close(turn);
+            throw error;
+        }
         long started = System.nanoTime();
         try {
             remember(request, agentRequest);
@@ -126,16 +145,19 @@ public class ChatAppService {
             AtomicReference<String> output = new AtomicReference<>("");
             AtomicReference<String> errorCode = new AtomicReference<>();
             ConcurrentLinkedQueue<AgentStreamEvent> seen = new ConcurrentLinkedQueue<>();
+            ConcurrentRunGuard.Slot held = slot;
             return executor.stream(agentRequest)
                     .doOnNext(event -> keep(seen, output, event))
                     .doOnError(error -> errorCode.set(error.getClass().getSimpleName()))
                     .doFinally(signal -> {
+                        concurrent.close(held);
                         turns.close(turn);
                         String status = streamStatus(signal);
                         String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
                         finish(request, agentRequest, status, runId, output.get(), code, started, stepsFrom(seen, status));
                     });
         } catch (RuntimeException error) {
+            concurrent.close(slot);
             turns.close(turn);
             finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), started, reasoning(RunLog.FAILED));
             throw error;
@@ -143,7 +165,7 @@ public class ChatAppService {
     }
 
     /**
-     * 额度通过并占锁之后才记会话。记失败会释放锁并让这次对话失败。
+     * 额度通过、占会话锁和并发名额之后才记会话。记失败会释放并让这次对话失败。
      * 通道留在列表里，不放进 AgentRequest。
      */
     private void remember(ChatRequest request, AgentRequest agentRequest) {

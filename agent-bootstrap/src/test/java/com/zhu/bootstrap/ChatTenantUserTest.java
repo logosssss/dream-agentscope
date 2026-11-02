@@ -2,6 +2,7 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.access.application.ChatAppService;
+import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
@@ -30,6 +31,7 @@ class ChatTenantUserTest {
                 new TestSemanticProvider(),
                 new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
                 new SessionTurnGuard(new FakeAccessCache(), 120),
+                new ConcurrentRunGuard(new FakeAccessCache(), 120),
                 (tenant, user, session, channel, text) -> {
                 },
                 (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {

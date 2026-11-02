@@ -54,4 +54,19 @@ public interface TenantQuotaMapper extends BaseMapper<TenantQuotaRecord> {
      * 最近登记的每日费用上限。
      */
     List<TenantQuotaRecord> recentCosts(@Param("limit") int limit);
+
+    /**
+     * 启用中的 CONCURRENT_RUNS / CURRENT 上限。没有行时返回 null。
+     */
+    Long findConcurrentRunLimit(@Param("tenantId") String tenantId);
+
+    /**
+     * 只改已有 CONCURRENT_RUNS / CURRENT 的上限。返回实际更新行数。
+     */
+    int updateConcurrentRunLimit(@Param("tenantId") String tenantId, @Param("limit") Long limit);
+
+    /**
+     * 最近登记的同时运行上限。
+     */
+    List<TenantQuotaRecord> recentConcurrent(@Param("limit") int limit);
 }

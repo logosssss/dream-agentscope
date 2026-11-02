@@ -1,6 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.application.ChatAppService;
+import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.api.dto.ChatRequest;
@@ -40,6 +41,7 @@ class SessionTurnTest {
                 new TestSemanticProvider(),
                 new QuotaGuard(cache, new AccessLimitProperties(), Clock.systemUTC()),
                 turns,
+                new ConcurrentRunGuard(cache, 120),
                 (tenant, user, session, channel, text) -> {
                 },
                 (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {

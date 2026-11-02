@@ -15,7 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的租户每日请求、token 与费用上限。只在存储开关打开时创建。可列出已登记行。不写已用量。
+ * MySQL 上的租户每日请求、token、费用与同时运行上限。只在存储开关打开时创建。可列出已登记行。不写已用量。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -29,7 +29,11 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
 
     private static final String COST = "COST";
 
+    private static final String CONCURRENT_RUNS = "CONCURRENT_RUNS";
+
     private static final String DAILY = "DAILY";
+
+    private static final String CURRENT = "CURRENT";
 
     private final TenantQuotaMapper quotas;
 
@@ -56,23 +60,33 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
         return lookup(tenantId, () -> quotas.findDailyCostLimit(tenantId));
     }
 
+    @Override
+    public Long concurrentRunLimit(String tenantId) {
+        return lookup(tenantId, () -> quotas.findConcurrentRunLimit(tenantId));
+    }
+
     /**
      * 标识为空、超长，或上限为负时拒绝。0 可以写入，表示这个租户不限额。
      * 同一租户再登记一次按冲突处理，不覆盖旧上限。
      */
     @Override
     public TenantQuotaSummary setDailyRequests(String tenantId, Long limit) {
-        return insert(tenantId, limit, REQUESTS);
+        return insert(tenantId, limit, REQUESTS, DAILY);
     }
 
     @Override
     public TenantQuotaSummary setDailyTokens(String tenantId, Long limit) {
-        return insert(tenantId, limit, TOKENS);
+        return insert(tenantId, limit, TOKENS, DAILY);
     }
 
     @Override
     public TenantQuotaSummary setDailyCost(String tenantId, Long limit) {
-        return insert(tenantId, limit, COST);
+        return insert(tenantId, limit, COST, DAILY);
+    }
+
+    @Override
+    public TenantQuotaSummary setConcurrentRuns(String tenantId, Long limit) {
+        return insert(tenantId, limit, CONCURRENT_RUNS, CURRENT);
     }
 
     /**
@@ -81,17 +95,22 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
      */
     @Override
     public TenantQuotaSummary updateDailyRequests(String tenantId, Long limit) {
-        return update(tenantId, limit, REQUESTS, quotas::updateDailyRequestLimit);
+        return update(tenantId, limit, REQUESTS, DAILY, quotas::updateDailyRequestLimit);
     }
 
     @Override
     public TenantQuotaSummary updateDailyTokens(String tenantId, Long limit) {
-        return update(tenantId, limit, TOKENS, quotas::updateDailyTokenLimit);
+        return update(tenantId, limit, TOKENS, DAILY, quotas::updateDailyTokenLimit);
     }
 
     @Override
     public TenantQuotaSummary updateDailyCost(String tenantId, Long limit) {
-        return update(tenantId, limit, COST, quotas::updateDailyCostLimit);
+        return update(tenantId, limit, COST, DAILY, quotas::updateDailyCostLimit);
+    }
+
+    @Override
+    public TenantQuotaSummary updateConcurrentRuns(String tenantId, Long limit) {
+        return update(tenantId, limit, CONCURRENT_RUNS, CURRENT, quotas::updateConcurrentRunLimit);
     }
 
     /**
@@ -112,6 +131,11 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
         return mapRows(quotas.recentCosts(AuditQueryLimits.normalize(limit)));
     }
 
+    @Override
+    public List<TenantQuotaSummary> recentConcurrent(int limit) {
+        return mapRows(quotas.recentConcurrent(AuditQueryLimits.normalize(limit)));
+    }
+
     private Long lookup(String tenantId, LimitQuery query) {
         if (tenantId == null || tenantId.isBlank()) {
             return null;
@@ -124,12 +148,12 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
         }
     }
 
-    private TenantQuotaSummary insert(String tenantId, Long limit, String type) {
+    private TenantQuotaSummary insert(String tenantId, Long limit, String type, String period) {
         requireWritable(tenantId, limit);
         TenantQuotaRecord row = new TenantQuotaRecord();
         row.setTenantId(tenantId);
         row.setQuotaType(type);
-        row.setPeriod(DAILY);
+        row.setPeriod(period);
         row.setLimitValue(limit);
         row.setEnabled(1);
         try {
@@ -137,16 +161,16 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant quota already exists");
         }
-        return new TenantQuotaSummary(tenantId, type, DAILY, limit);
+        return new TenantQuotaSummary(tenantId, type, period, limit);
     }
 
-    private TenantQuotaSummary update(String tenantId, Long limit, String type, LimitUpdate updater) {
+    private TenantQuotaSummary update(String tenantId, Long limit, String type, String period, LimitUpdate updater) {
         requireWritable(tenantId, limit);
         int updated = updater.apply(tenantId, limit);
         if (updated != 1) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "tenant quota not found");
         }
-        return new TenantQuotaSummary(tenantId, type, DAILY, limit);
+        return new TenantQuotaSummary(tenantId, type, period, limit);
     }
 
     private static void requireWritable(String tenantId, Long limit) {

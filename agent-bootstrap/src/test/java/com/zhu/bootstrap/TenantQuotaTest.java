@@ -1,5 +1,6 @@
 package com.zhu.bootstrap;
 
+import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.application.RedisDailyCostAccumulator;
 import com.zhu.access.application.RedisDailyTokenAccumulator;
@@ -24,7 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 租户每日请求与 token 上限。列表不带已用量。不连接 MySQL 或 Redis。进程配置为 0 时，有行才限额。
+ * 租户每日请求、token、费用与同时运行上限。列表不带已用量。不连接 MySQL 或 Redis。
  */
 class TenantQuotaTest {
 
@@ -173,6 +174,62 @@ class TenantQuotaTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.QUOTA_EXCEEDED);
+    }
+
+    /** 已占用到同时运行上限后下一次对话拒绝；结束后可以再进。 */
+    @Test
+    void concurrentRunsBlockUntilReleased() {
+        FakeAccessCache cache = new FakeAccessCache();
+        TenantQuotaLookup quotas = new TenantQuotaLookup() {
+            @Override
+            public Long dailyRequestLimit(String tenantId) {
+                return null;
+            }
+
+            @Override
+            public Long concurrentRunLimit(String tenantId) {
+                return 1L;
+            }
+        };
+        ConcurrentRunGuard guard = new ConcurrentRunGuard(cache, 120, quotas);
+        ConcurrentRunGuard.Slot first = guard.open("t");
+        assertThatThrownBy(() -> guard.open("t"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.QUOTA_EXCEEDED);
+        guard.close(first);
+        ConcurrentRunGuard.Slot second = guard.open("t");
+        assertThat(second.key()).isEqualTo("concurrent:t");
+        guard.close(second);
+    }
+
+    /** 没有行时不占 Redis。释放空槽没有副作用。 */
+    @Test
+    void concurrentRunsSkipWhenNoRow() {
+        FakeAccessCache cache = new FakeAccessCache();
+        ConcurrentRunGuard guard = new ConcurrentRunGuard(cache, 120, requestsOnly(null));
+        ConcurrentRunGuard.Slot slot = guard.open("t");
+        assertThat(slot.key()).isNull();
+        guard.close(slot);
+        assertThat(cache.getCounter("concurrent:t")).isZero();
+    }
+
+    /** 登记 CONCURRENT_RUNS / CURRENT，列表单独读。 */
+    @Test
+    void registerAndListConcurrentRuns() {
+        TenantQuotaMapper quotas = mock(TenantQuotaMapper.class);
+        MysqlTenantQuota directory = new MysqlTenantQuota(quotas);
+        assertThat(directory.setConcurrentRuns("t", 3L)).satisfies(saved -> {
+            assertThat(saved.quotaType()).isEqualTo("CONCURRENT_RUNS");
+            assertThat(saved.period()).isEqualTo("CURRENT");
+            assertThat(saved.limit()).isEqualTo(3L);
+        });
+        when(quotas.findConcurrentRunLimit("t")).thenReturn(3L);
+        assertThat(directory.concurrentRunLimit("t")).isEqualTo(3L);
+        when(quotas.updateConcurrentRunLimit("t", 5L)).thenReturn(1);
+        assertThat(directory.updateConcurrentRuns("t", 5L).period()).isEqualTo("CURRENT");
+        when(quotas.recentConcurrent(50)).thenReturn(List.of());
+        assertThat(directory.recentConcurrent(50)).isEmpty();
     }
 
     /** 登记 COST / DAILY，列表单独读。 */

@@ -21,6 +21,12 @@ public interface AccessCache {
     long incrementBy(String key, long delta, Duration ttl);
 
     /**
+     * 把计数加上 delta，可为负。结果小于 0 时写成 0。
+     * 每次都刷新过期，给并发占位用。delta 为 0 时只读。
+     */
+    long add(String key, long delta, Duration ttl);
+
+    /**
      * 读当前计数值。没有键或已过期返回 0。
      */
     long getCounter(String key);

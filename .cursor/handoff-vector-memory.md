@@ -14,9 +14,9 @@
 
 下一空 Flyway 版本：**V37**。
 
-## 已做（S3 / MinIO 对象存储）
+## 已做（同时运行额度）
 
-`type=s3` 与 `type=minio` 共用 AWS SDK V2。缺 endpoint/region/bucket/AK/SK 启动失败，不回落 local。MinIO 默认 path-style。对外业务键仍不含配置前缀。测试不连真桶。
+`CONCURRENT_RUNS` / `CURRENT` 登记在 `tenant_quota`。对话在会话锁之后占 Redis 键 `concurrent:{tenant}`，结束减一。没有行或上限 0 不占位。超限 `QUOTA_EXCEEDED`。Redis 占位失败 503；归还失败不改已经生成的回复。管理端 POST/GET 与 token、费用额度同形。
 
 ## 下一块
 
@@ -28,4 +28,4 @@
 
 ## 另一台机器开场白
 
-拉到含「S3 / MinIO 对象存储」的分支后说：「继续」。先读这份 handoff。
+拉到含「同时运行额度」的分支后说：「继续」。先读这份 handoff。

@@ -49,6 +49,24 @@ public class FakeAccessCache implements AccessCache {
         return slot.value;
     }
 
+    /** 负值回拨，小于 0 记成 0。每次都按这次 TTL 重新过期。 */
+    @Override
+    public long add(String key, long delta, Duration ttl) {
+        if (delta == 0L) {
+            return getCounter(key);
+        }
+        long now = clock.millis();
+        Slot slot = slots.compute(key, (name, current) -> {
+            long next = (current == null || current.expiresAtMillis <= now) ? delta : current.value + delta;
+            if (next < 0L) {
+                next = 0L;
+            }
+            String text = current == null ? null : current.text;
+            return new Slot(next, now + ttl.toMillis(), text);
+        });
+        return slot.value;
+    }
+
     /** 过期或没有键返回 0。 */
     @Override
     public long getCounter(String key) {

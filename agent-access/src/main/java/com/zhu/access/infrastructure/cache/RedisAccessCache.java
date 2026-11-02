@@ -55,6 +55,26 @@ public class RedisAccessCache implements AccessCache {
         });
     }
 
+    /**
+     * 负值把计数往回拨。每次都刷新过期，避免占位键僵死。
+     */
+    @Override
+    public long add(String key, long delta, Duration ttl) {
+        if (delta == 0L) {
+            return getCounter(key);
+        }
+        return call(() -> {
+            Long value = redis.opsForValue().increment(key, delta);
+            long current = value == null ? delta : value;
+            if (current < 0L) {
+                redis.opsForValue().set(key, "0", ttl);
+                return 0L;
+            }
+            redis.expire(key, ttl);
+            return current;
+        });
+    }
+
     /** 没有键或非数字视为 0。 */
     @Override
     public long getCounter(String key) {

@@ -121,6 +121,11 @@ class SessionListTest {
         }
 
         @Override
+        public long add(String key, long delta, Duration ttl) {
+            throw unavailable();
+        }
+
+        @Override
         public long getCounter(String key) {
             throw unavailable();
         }

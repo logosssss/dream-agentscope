@@ -2,6 +2,7 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.access.application.ChatAppService;
+import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
@@ -52,7 +53,7 @@ class AccessIdentityTest {
         PromptService prompts = (key, variables, fallback) -> fallback;
         QuotaGuard quota = new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC());
         SessionTurnGuard turns = new SessionTurnGuard(new FakeAccessCache(), 120);
-        new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, turns, (tenant, user, session, channel, text) -> {
+        new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, turns, new ConcurrentRunGuard(new FakeAccessCache(), 120), (tenant, user, session, channel, text) -> {
         }, (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
         }, tenantId -> {
         }, (tenantId, userId) -> {

@@ -3,11 +3,13 @@ package com.zhu.bootstrap;
 import com.zhu.access.api.controller.AccessExceptionHandler;
 import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.access.application.ChatAppService;
+import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.access.infrastructure.cache.RedisAccessCache;
+import com.zhu.audit.api.TenantQuotaLookup;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
@@ -43,6 +45,7 @@ class RedisUnavailableTest {
                 new TestSemanticProvider(),
                 new QuotaGuard(cache, limits, Clock.systemUTC()),
                 new SessionTurnGuard(cache, 120),
+                new ConcurrentRunGuard(cache, 120),
                 (tenant, user, session, channel, text) -> {
                 },
                 (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
@@ -98,6 +101,34 @@ class RedisUnavailableTest {
         turns.close(new SessionTurnGuard.Turn("turn:t:u:s", "token"));
     }
 
+    /** 占并发名额时 Redis 不可用，不放行。 */
+    @Test
+    void concurrentAcquireFailureIsUnavailable() {
+        TenantQuotaLookup quotas = new TenantQuotaLookup() {
+            @Override
+            public Long dailyRequestLimit(String tenantId) {
+                return null;
+            }
+
+            @Override
+            public Long concurrentRunLimit(String tenantId) {
+                return 1L;
+            }
+        };
+        ConcurrentRunGuard guard = new ConcurrentRunGuard(new ThrowingCache(), 120, quotas);
+        assertThatThrownBy(() -> guard.open("t"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.UNAVAILABLE);
+    }
+
+    /** 归还并发名额失败不向外抛。 */
+    @Test
+    void concurrentReleaseFailureDoesNotEscape() {
+        new ConcurrentRunGuard(new ThrowingCache(), 120)
+                .close(new ConcurrentRunGuard.Slot("concurrent:t"));
+    }
+
     /** 取出业务异常。 */
     private static BusinessException caught(Runnable call) {
         try {
@@ -118,6 +149,11 @@ class RedisUnavailableTest {
 
         @Override
         public long incrementBy(String key, long delta, Duration ttl) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
+        }
+
+        @Override
+        public long add(String key, long delta, Duration ttl) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
         }
 

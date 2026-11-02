@@ -36,6 +36,7 @@ public record AdminOperationAuditTarget(
             case "tenant-quotas" -> tenantQuota(parts);
             case "tenant-token-quotas" -> tenantQuota(parts);
             case "tenant-cost-quotas" -> tenantQuota(parts);
+            case "tenant-concurrent-quotas" -> tenantQuota(parts);
             case "model-prices" -> createOnly(parts, "model_price");
             case "model-configs" -> createOnly(parts, "model_config");
             case "retention-policies" -> createOnly(parts, "retention_policy");

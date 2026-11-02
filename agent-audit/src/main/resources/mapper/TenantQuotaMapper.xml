@@ -91,4 +91,33 @@
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <!-- 只取启用的同时运行上限。当前占位在 Redis。 -->
+    <select id="findConcurrentRunLimit" resultType="java.lang.Long">
+        SELECT limit_value
+        FROM tenant_quota
+        WHERE tenant_id = #{tenantId}
+          AND quota_type = 'CONCURRENT_RUNS'
+          AND period = 'CURRENT'
+          AND enabled = 1
+    </select>
+
+    <!-- 只改已有的同时运行上限。不重置 Redis 占位。 -->
+    <update id="updateConcurrentRunLimit">
+        UPDATE tenant_quota
+        SET limit_value = #{limit}
+        WHERE tenant_id = #{tenantId}
+          AND quota_type = 'CONCURRENT_RUNS'
+          AND period = 'CURRENT'
+    </update>
+
+    <!-- 管理列表只看同时运行上限。创建时间只用于排序。 -->
+    <select id="recentConcurrent" resultMap="BaseResultMap">
+        SELECT id, tenant_id, quota_type, period, limit_value
+        FROM tenant_quota
+        WHERE quota_type = 'CONCURRENT_RUNS'
+          AND period = 'CURRENT'
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
 </mapper>
