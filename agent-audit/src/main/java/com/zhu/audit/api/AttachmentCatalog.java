@@ -33,4 +33,10 @@ public interface AttachmentCatalog {
      * 空白租户按空串。不核文档、消息或运行是否存在。
      */
     List<String> storagePaths(String userId, String tenantId, String refType, String refId);
+
+    /**
+     * 本人的一条附件。找不到或别人的按找不到处理。
+     * 不读对象存储，也不改状态。
+     */
+    StoredAttachment owned(String userId, String attachmentId);
 }

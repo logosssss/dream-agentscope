@@ -113,6 +113,11 @@ class BootstrapContextTest {
                         .content("{\"refType\":\"RUN\",\"refId\":\"run-1\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(get("/api/attachments/att-1/content")
+                        .header(CallerTokens.HEADER, "test-token")
+                        .header("X-User-Id", "u"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/login").header(CallerTokens.HEADER, "test-token")
                         .contentType("application/json")
                         .content("{\"tenantId\":\"t\",\"userId\":\"u\"}"))

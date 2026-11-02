@@ -3,6 +3,7 @@ package com.zhu.audit.application;
 import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.audit.api.AttachmentRefSummary;
 import com.zhu.audit.api.AttachmentSummary;
+import com.zhu.audit.api.StoredAttachment;
 import com.zhu.audit.infrastructure.persistence.AttachmentMapper;
 import com.zhu.audit.infrastructure.persistence.AttachmentRefMapper;
 import com.zhu.audit.infrastructure.persistence.entity.Attachment;
@@ -153,5 +154,33 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
         String savedTenant = tenantId == null || tenantId.isBlank() ? "" : tenantId;
         List<String> rows = attachments.listStoragePathsByRef(userId, savedTenant, refType, refId);
         return rows == null ? List.of() : rows;
+    }
+
+    /**
+     * 别人的或停用的按找不到。不把路径是否真实存在交给这里判断。
+     */
+    @Override
+    public StoredAttachment owned(String userId, String attachmentId) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || attachmentId == null || attachmentId.isBlank() || attachmentId.length() > ATTACHMENT_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "attachment is invalid");
+        }
+        Attachment existing = attachments.findStored(attachmentId);
+        if (existing == null
+                || existing.getUserId() == null
+                || !userId.equals(existing.getUserId())
+                || !ACTIVE.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "attachment not found");
+        }
+        String tenant = existing.getTenantId() == null ? "" : existing.getTenantId();
+        String name = existing.getFileName() == null || existing.getFileName().isBlank()
+                ? "file.bin"
+                : existing.getFileName();
+        String path = existing.getStoragePath() == null ? "" : existing.getStoragePath();
+        String mime = existing.getMimeType() == null || existing.getMimeType().isBlank()
+                ? null
+                : existing.getMimeType();
+        return new StoredAttachment(
+                existing.getAttachmentId(), tenant, existing.getUserId(), name, path, mime, existing.getStatus());
     }
 }

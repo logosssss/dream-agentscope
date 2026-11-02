@@ -14,16 +14,18 @@
 
 下一空 Flyway 版本：**V37**。
 
-## 已做（删文档级联清对象）
+## 已做（附件正文下载）
 
-删知识文档或删库时，按 `DOCUMENT` 引用取出附件 `storage_path`，再 `ObjectStore.delete`。目录没有、查路径失败或单个对象失败只记日志，不挡向量清理和 MySQL 删行。不改附件表状态。JSON 正文没有对象时跳过。
+`GET /api/attachments/{attachmentId}/content` 只读本人 ACTIVE 行。对象键必须落在 `att/{tenant}/{user}/` 或 `kb/{tenant}/{user}/`（空租户按 `_`）。JSON 声称的盘路径、别人的对象键、含 `..` 的路径都不读。对象不存在按找不到。MySQL 关闭返回不可用。失败仍走统一 JSON（找不到 HTTP 200，目录/对象存储失败 HTTP 503）。
 
 ## 下一块
 
 以 README「还没有」为准。不要再补管理端 GET 列表。不要开始批准后真删。
 
+管理端登记工具目录还没有，但管理进程不能依赖 `agent-semantic`；不要用这块硬拆模块边界。
+
 不要做：RocketMQ、服务发现、MCP、配置热更新、连接串进 Nacos、密码登录、JWT。
 
 ## 另一台机器开场白
 
-拉到含「删文档级联清对象」的分支后说：「继续」。先读这份 handoff。
+拉到含「附件正文下载」的分支后说：「继续」。先读这份 handoff。

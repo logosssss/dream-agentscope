@@ -1,5 +1,6 @@
 package com.zhu.bootstrap;
 
+import com.zhu.audit.api.StoredAttachment;
 import com.zhu.audit.application.MysqlAttachmentCatalog;
 import com.zhu.audit.infrastructure.persistence.AttachmentMapper;
 import com.zhu.audit.infrastructure.persistence.AttachmentRefMapper;
@@ -15,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -100,5 +102,68 @@ class AttachmentCatalogTest {
         assertThat(catalog.storagePaths("u", "t", "DOCUMENT", "d1")).containsExactly("kb/t/u/d1/v1/a.txt");
         assertThat(catalog.storagePaths("u", "t", "DISK", "d1")).isEmpty();
         verify(attachments, times(1)).listStoragePathsByRef("u", "t", "DOCUMENT", "d1");
+    }
+
+    /** 本人启用的行才能取到路径和文件名。 */
+    @Test
+    void ownedReturnsActiveRow() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, mock(AttachmentRefMapper.class));
+        when(attachments.findStored("att-1")).thenReturn(storedRow(
+                "att-1", "t", "u", "a.txt", "att/t/u/att-1/a.txt", "text/plain", "ACTIVE"));
+        StoredAttachment stored = catalog.owned("u", "att-1");
+        assertThat(stored.fileName()).isEqualTo("a.txt");
+        assertThat(stored.storagePath()).isEqualTo("att/t/u/att-1/a.txt");
+        assertThat(stored.mimeType()).isEqualTo("text/plain");
+    }
+
+    /** 别人的或停用的按找不到，避免把路径漏出去。 */
+    @Test
+    void ownedRejectsForeignAndInactive() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, mock(AttachmentRefMapper.class));
+        when(attachments.findStored("att-2")).thenReturn(storedRow(
+                "att-2", "t", "other", "a.txt", "att/t/other/att-2/a.txt", "text/plain", "ACTIVE"));
+        when(attachments.findStored("att-3")).thenReturn(storedRow(
+                "att-3", "t", "u", "a.txt", "att/t/u/att-3/a.txt", "text/plain", "DELETED"));
+        when(attachments.findStored("missing")).thenReturn(null);
+        assertThatThrownBy(() -> catalog.owned("u", "att-2"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        assertThatThrownBy(() -> catalog.owned("u", "att-3"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        assertThatThrownBy(() -> catalog.owned("u", "missing"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
+    /** 空编号按请求错误，不查库。 */
+    @Test
+    void ownedRejectsBlankIds() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, mock(AttachmentRefMapper.class));
+        assertThatThrownBy(() -> catalog.owned("u", " "))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(attachments, never()).findStored(any());
+    }
+
+    /** 给 Mapper 桩用的一行。只填 owned 会读的字段。 */
+    private static Attachment storedRow(
+            String id, String tenant, String user, String name, String path, String mime, String status) {
+        Attachment row = new Attachment();
+        row.setAttachmentId(id);
+        row.setTenantId(tenant);
+        row.setUserId(user);
+        row.setFileName(name);
+        row.setStoragePath(path);
+        row.setMimeType(mime);
+        row.setStatus(status);
+        return row;
     }
 }

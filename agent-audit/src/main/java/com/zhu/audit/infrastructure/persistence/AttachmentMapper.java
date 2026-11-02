@@ -23,4 +23,9 @@ public interface AttachmentMapper extends BaseMapper<Attachment> {
             @Param("tenantId") String tenantId,
             @Param("refType") String refType,
             @Param("refId") String refId);
+
+    /**
+     * 按标识取下载所需字段。没有时返回 null。
+     */
+    Attachment findStored(@Param("attachmentId") String attachmentId);
 }

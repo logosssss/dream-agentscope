@@ -17,6 +17,24 @@
         LIMIT 1
     </select>
 
+    <resultMap id="StoredResultMap" type="com.zhu.audit.infrastructure.persistence.entity.Attachment">
+        <result column="attachment_id" property="attachmentId"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="user_id" property="userId"/>
+        <result column="file_name" property="fileName"/>
+        <result column="storage_path" property="storagePath"/>
+        <result column="mime_type" property="mimeType"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 下载前取路径和类型。不带回校验和。 -->
+    <select id="findStored" resultMap="StoredResultMap">
+        SELECT attachment_id, tenant_id, user_id, file_name, storage_path, mime_type, status
+        FROM attachment
+        WHERE attachment_id = #{attachmentId}
+        LIMIT 1
+    </select>
+
     <!-- 删文档前取对象键。只看本人、本租户，空路径丢掉。 -->
     <select id="listStoragePathsByRef" resultType="string">
         SELECT a.storage_path

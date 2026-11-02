@@ -42,7 +42,7 @@
 
 `POST /api/feedback` 追加 `user_feedback`。评分是 1 到 5，说明最长 1000 字。不存标签，也不要求这次运行已经在 `agent_run` 里。
 
-`POST /api/attachments` 登记 `attachment`。JSON 只收文件名和声称的路径，不收文件内容。空白存储类型按 `LOCAL`。状态是 `ACTIVE`。本模块仍不接对象存储。`POST /api/attachments/file` 由接入层先写入 `ObjectStore`，再登记（`storage_type` 为 `LOCAL` 或 `OSS`；路径为 `att/{tenant}/{user}/{id}/{fileName}`）。`POST /api/attachments/{attachmentId}/refs` 登记 `attachment_ref`。类型只接受 `MESSAGE` / `RUN` / `DOCUMENT`。附件必须属于当前用户。不核对话、运行或知识文档是否存在。同一引用再挂一次返回冲突。知识库纯文本文件上传成功后由接入层先写入 `ObjectStore`，再登记附件（路径为 `kb/{tenant}/{user}/{docId}/v{version}/{fileName}`），并挂 `DOCUMENT`。删文档或删库时接入层按该引用取出路径清对象，不改附件行。
+`POST /api/attachments` 登记 `attachment`。JSON 只收文件名和声称的路径，不收文件内容。空白存储类型按 `LOCAL`。状态是 `ACTIVE`。本模块仍不接对象存储。`POST /api/attachments/file` 由接入层先写入 `ObjectStore`，再登记（`storage_type` 为 `LOCAL` 或 `OSS`；路径为 `att/{tenant}/{user}/{id}/{fileName}`）。`POST /api/attachments/{attachmentId}/refs` 登记 `attachment_ref`。类型只接受 `MESSAGE` / `RUN` / `DOCUMENT`。附件必须属于当前用户。不核对话、运行或知识文档是否存在。同一引用再挂一次返回冲突。知识库纯文本文件上传成功后由接入层先写入 `ObjectStore`，再登记附件（路径为 `kb/{tenant}/{user}/{docId}/v{version}/{fileName}`），并挂 `DOCUMENT`。删文档或删库时接入层按该引用取出路径清对象，不改附件行。`GET /api/attachments/{attachmentId}/content` 由接入层按本人 ACTIVE 行读对象；路径必须落在 `att/{tenant}/{user}/` 或 `kb/{tenant}/{user}/`。JSON 声称的盘路径不读。本模块仍不接对象存储。
 
 `POST /api/admin/eval-datasets` 登记 `eval_dataset`，版本固定 `1.0.0`。同一标识再登记这个版本返回冲突。`GET /api/admin/eval-datasets` 看最近登记的数据集，默认 50 条，最多 100 条，含停用。不带回用例。`POST /api/admin/eval-datasets/{datasetId}/cases` 给这个版本追加 `eval_case`。序号从 1 起，输入和期望输出最长 4000 字。数据集还没登记时拒绝。同一序号再写一次返回冲突。不存标签。`POST /api/admin/eval-runs` 为这个版本登记一次 `eval_run`，记下当时的用例条数，状态是 `RUNNING`，通过数是 0。没有用例时不开跑。不调用模型。`POST /api/admin/eval-runs/{evalRunId}/score` 给仍在跑的执行写入通过数和四位通过率，改成 `SUCCEEDED`。已经打过分再打一次返回冲突。通过数不能超过开始时的条数。不调用模型，也不写逐条结果。
 

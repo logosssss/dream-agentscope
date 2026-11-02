@@ -36,4 +36,4 @@
 
 ## 还没有
 
-S3 / MinIO 实现。通用附件 multipart 已在接入层。知识库删文档/删库时按 DOCUMENT 引用清对象，也在接入层。
+S3 / MinIO 实现。通用附件 multipart 写入和正文下载已在接入层。知识库删文档/删库时按 DOCUMENT 引用清对象，也在接入层。

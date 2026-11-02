@@ -1,5 +1,6 @@
 package com.zhu.access.api.controller;
 
+import com.zhu.access.api.dto.AttachmentContent;
 import com.zhu.access.api.dto.AttachmentRefRequest;
 import com.zhu.access.api.dto.AttachmentRequest;
 import com.zhu.access.application.AccessAccountGate;
@@ -13,8 +14,13 @@ import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 当前用户登记附件元数据和引用。
+ * 当前用户登记附件元数据和引用，并下载已落入对象存储的正文。
  * JSON 只记声称的路径；multipart 才把字节写入对象存储。
  */
 @RestController
@@ -96,6 +102,28 @@ public class AttachmentController {
                 file.getOriginalFilename(),
                 file.getContentType(),
                 bytes));
+    }
+
+    /**
+     * 只下载本人已落到对象存储的文件。失败仍走统一 JSON。
+     */
+    @GetMapping("/api/attachments/{attachmentId}/content")
+    public ResponseEntity<byte[]> download(@PathVariable String attachmentId) {
+        accounts.requireActive();
+        AttachmentContent file = uploads.download(UserContext.get(), attachmentId);
+        MediaType type;
+        try {
+            type = MediaType.parseMediaType(file.mimeType());
+        } catch (RuntimeException ex) {
+            type = MediaType.APPLICATION_OCTET_STREAM;
+        }
+        ContentDisposition disposition = ContentDisposition.attachment()
+                .filename(file.fileName(), StandardCharsets.UTF_8)
+                .build();
+        return ResponseEntity.ok()
+                .contentType(type)
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .body(file.content());
     }
 
     /**

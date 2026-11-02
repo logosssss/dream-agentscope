@@ -1,7 +1,9 @@
 package com.zhu.access.application;
 
+import com.zhu.access.api.dto.AttachmentContent;
 import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.audit.api.AttachmentSummary;
+import com.zhu.audit.api.StoredAttachment;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
@@ -11,7 +13,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 /**
- * 通用附件上传。字节先入对象存储，再登记元数据。
+ * 通用附件上传和下载。字节走对象存储，元数据走目录。
  * JSON 只登记路径的接口仍走目录，不经过这里。
  * 目录不可用时不写对象。登记失败会尝试删掉刚写入的对象。
  */
@@ -85,6 +87,39 @@ public class AttachmentAppService {
     }
 
     /**
+     * 只读本人附件。路径必须落在 att/{tenant}/{user}/ 或 kb/{tenant}/{user}/ 下。
+     * 对象不存在按找不到。JSON 声称的盘路径不会去读。
+     */
+    public AttachmentContent download(String userId, String attachmentId) {
+        AttachmentCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "attachment catalog is unavailable");
+        }
+        if (userId == null || userId.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "userId is required");
+        }
+        StoredAttachment stored = catalog.owned(userId, attachmentId);
+        if (stored == null || !ownedKey(stored.tenantId(), stored.userId(), stored.storagePath())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "attachment not found");
+        }
+        byte[] content;
+        try {
+            content = objects.get(stored.storagePath());
+        } catch (RuntimeException ex) {
+            log.warning("attachment object get failed");
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "object store get failed");
+        }
+        if (content == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "attachment not found");
+        }
+        String name = stored.fileName() == null || stored.fileName().isBlank() ? "file.bin" : stored.fileName();
+        String mime = stored.mimeType() == null || stored.mimeType().isBlank()
+                ? "application/octet-stream"
+                : stored.mimeType();
+        return new AttachmentContent(name, mime, content);
+    }
+
+    /**
      * 通用附件对象键。文件名只保留安全字符。
      */
     static String objectKey(String tenantId, String userId, String objectId, String fileName) {
@@ -138,6 +173,24 @@ public class AttachmentAppService {
         } catch (RuntimeException ex) {
             log.warning("attachment object rollback failed");
         }
+    }
+
+    /**
+     * 只允许读自己名下的对象键，避免 JSON 登记把别人的路径当下载地址。
+     */
+    static boolean ownedKey(String tenantId, String userId, String path) {
+        if (blank(path) || blank(userId)) {
+            return false;
+        }
+        String tenant = blank(tenantId) ? "_" : tenantId.trim();
+        String user = userId.trim();
+        String normalized = path.replace('\\', '/');
+        if (normalized.contains("..")) {
+            return false;
+        }
+        String att = "att/" + tenant + "/" + user + "/";
+        String kb = "kb/" + tenant + "/" + user + "/";
+        return normalized.startsWith(att) || normalized.startsWith(kb);
     }
 
     private static boolean blank(String value) {
