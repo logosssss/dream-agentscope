@@ -10,20 +10,20 @@
 
 分支：`feat/agentscope-platform-base`（不要用 `master`）。
 
-远端：`origin/feat/agentscope-platform-base`。
+远端：`origin/feat/agentscope-platform-base`。本机可能有未推送提交。不要擅自 push。
 
 下一空 Flyway 版本：**V37**。
 
-## 已做（本块）
+## 已做（通用附件 multipart）
 
-`agent-object-store`：`type=local|oss`。本地默认 `data/objects`；OSS 用官方 SDK V2（`alibabacloud-oss-v2`），缺配置启动失败。知识文件上传按实现写附件 `LOCAL`/`OSS`；桶内前缀默认 `agentscope/`。联调桶示例：`dream-agentscope-dev` / `cn-shenzhen`。
+`POST /api/attachments/file` 收 multipart，字节写入 `ObjectStore`，再登记附件。`storage_type` 跟 local/OSS 实现走。对象键 `att/{tenant}/{user}/{id}/{fileName}`，单文件不超过 5MB。目录不可用或超限不写对象。登记失败尝试回滚对象。JSON `POST /api/attachments` 仍只登记元数据。
 
 ## 下一块
 
-以 README「还没有」为准，优先考虑：通用附件 multipart、删文档时级联清对象。不要再补管理端 GET 列表。
+以 README「还没有」为准，优先：删文档时级联清对象。不要再补管理端 GET 列表。
 
 不要做：RocketMQ、服务发现、MCP、配置热更新、连接串进 Nacos、密码登录、JWT。
 
 ## 另一台机器开场白
 
-拉到含「OSS 双后端切换」的分支后说：「继续」。先读这份 handoff。
+拉到含「通用附件 multipart」的分支后说：「继续」。先读这份 handoff。

@@ -3,6 +3,7 @@ package com.zhu.access.api.controller;
 import com.zhu.access.api.dto.AttachmentRefRequest;
 import com.zhu.access.api.dto.AttachmentRequest;
 import com.zhu.access.application.AccessAccountGate;
+import com.zhu.access.application.AttachmentAppService;
 import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.audit.api.AttachmentRefSummary;
 import com.zhu.audit.api.AttachmentSummary;
@@ -11,25 +12,37 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.io.IOException;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 当前用户登记附件元数据和引用。不接收文件，也不接对象存储。
+ * 当前用户登记附件元数据和引用。
+ * JSON 只记声称的路径；multipart 才把字节写入对象存储。
  */
 @RestController
 public class AttachmentController {
 
     private final ObjectProvider<AttachmentCatalog> catalogs;
 
+    private final AttachmentAppService uploads;
+
     private final AccessAccountGate accounts;
 
     /** MySQL 关闭时没有目录。接口仍在，调用会返回不可用。 */
-    public AttachmentController(ObjectProvider<AttachmentCatalog> catalogs, AccessAccountGate accounts) {
+    public AttachmentController(
+            ObjectProvider<AttachmentCatalog> catalogs,
+            AttachmentAppService uploads,
+            AccessAccountGate accounts) {
         this.catalogs = catalogs;
+        this.uploads = uploads;
         this.accounts = accounts;
     }
 
@@ -56,6 +69,33 @@ public class AttachmentController {
                 body.mimeType(),
                 body.sizeBytes(),
                 body.checksum()));
+    }
+
+    /**
+     * multipart：file 必填；sessionId 可选。不超过 5MB。
+     * 存储类型跟对象存储实现走，不接受调用方声称的路径。
+     */
+    @PostMapping(value = "/api/attachments/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResult<AttachmentSummary> upload(
+            @RequestParam(value = "sessionId", required = false) String sessionId,
+            @RequestPart("file") MultipartFile file) {
+        accounts.requireActive();
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "file is required");
+        }
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException ex) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "file cannot be read");
+        }
+        return ApiResult.ok(uploads.upload(
+                UserContext.get(),
+                TenantContext.get(),
+                sessionId,
+                file.getOriginalFilename(),
+                file.getContentType(),
+                bytes));
     }
 
     /**

@@ -5,6 +5,11 @@ server:
   shutdown: graceful
 
 spring:
+  servlet:
+    multipart:
+      # 与通用附件和写文件工具的 5MB 上限对齐。知识库纯文本仍在业务层卡 2MB。
+      max-file-size: 5MB
+      max-request-size: 5MB
   lifecycle:
     timeout-per-shutdown-phase: 120s
   datasource:

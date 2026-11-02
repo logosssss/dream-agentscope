@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -100,6 +101,11 @@ class BootstrapContextTest {
         mvc.perform(post("/api/attachments").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
                         .contentType("application/json")
                         .content("{\"fileName\":\"a.txt\",\"storagePath\":\"/tmp/a.txt\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(multipart("/api/attachments/file").file("file", "hi".getBytes())
+                        .header(CallerTokens.HEADER, "test-token")
+                        .header("X-User-Id", "u"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/attachments/att-1/refs").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
