@@ -1,7 +1,7 @@
 package com.zhu.audit.api;
 
 /**
- * 对话前读取租户的每日请求上限。MySQL 关闭时没有这个实现，额度用进程配置。
+ * 对话前读取租户的每日上限。MySQL 关闭时没有这个实现，请求额度用进程配置。
  * 计数不在这里扣，仍由 Redis 完成。
  */
 public interface TenantQuotaLookup {
@@ -10,4 +10,12 @@ public interface TenantQuotaLookup {
      * 启用中的每日请求上限。没有行时返回 null。0 表示这个租户不限额。
      */
     Long dailyRequestLimit(String tenantId);
+
+    /**
+     * 启用中的每日 token 上限（input+output）。没有行时返回 null。0 表示不限额。
+     * 默认没有 token 行，兼容只覆盖请求上限的调用方。
+     */
+    default Long dailyTokenLimit(String tenantId) {
+        return null;
+    }
 }

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * 对话进入执行内核之前的额度检查。重复请求先占幂等键，避免同一次提交把额度扣两次。
+ * 请求次数在入口累加；token 在出口记账后累加，入口只读已用量。
  */
 @Service
 public class QuotaGuard {
@@ -24,7 +25,7 @@ public class QuotaGuard {
     private static final Logger log = Logger.getLogger(QuotaGuard.class.getName());
 
     /** 当日额度保留两天，跨日查询还能看到昨天的计数。 */
-    static final Duration QUOTA_TTL = Duration.ofHours(48);
+    public static final Duration QUOTA_TTL = Duration.ofHours(48);
 
     /** 重复提交的判断窗口。 */
     static final Duration IDEM_TTL = Duration.ofMinutes(10);
@@ -87,6 +88,7 @@ public class QuotaGuard {
     /**
      * 限额为 0 的项目跳过。没有请求标识就不做幂等。
      * 租户有每日请求上限时用那一行，否则用进程配置。计数仍在 Redis。
+     * 有 TOKENS 行且已用量达到上限时拒绝对话；本次请求仍可在额度内跑完后记账。
      * 当日计数通过后才记流水。流水写失败不改变这次请求。超限的那一次不记。
      * 超限抛 QUOTA_EXCEEDED，重复标识抛 CONFLICT。
      */
@@ -98,6 +100,8 @@ public class QuotaGuard {
         }
         String user = segment(userId);
         String tenant = segment(tenantId);
+        String day = DAY.format(clock.instant());
+        rejectIfTokenExceeded(tenantId, userId, tenant, user, day);
         long dailyLimit = limits.getDailyLimit();
         if (quotas != null) {
             Long override = quotas.dailyRequestLimit(tenantId);
@@ -106,7 +110,6 @@ public class QuotaGuard {
             }
         }
         if (dailyLimit > 0) {
-            String day = DAY.format(clock.instant());
             long used = cache.increment("quota:" + tenant + ":" + user + ":" + day, QUOTA_TTL);
             if (used > dailyLimit) {
                 throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "daily quota exceeded");
@@ -120,6 +123,27 @@ public class QuotaGuard {
             if (used > perMinute) {
                 throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "rate limit exceeded");
             }
+        }
+    }
+
+    /**
+     * 当日 token 计数键。与 {@link RedisDailyTokenAccumulator} 共用。
+     */
+    public static String tokenKey(String tenantId, String userId, String day) {
+        return "quota-tokens:" + segment(tenantId) + ":" + segment(userId) + ":" + day;
+    }
+
+    private void rejectIfTokenExceeded(String tenantId, String userId, String tenant, String user, String day) {
+        if (quotas == null) {
+            return;
+        }
+        Long tokenLimit = quotas.dailyTokenLimit(tenantId);
+        if (tokenLimit == null || tokenLimit <= 0) {
+            return;
+        }
+        long used = cache.getCounter(tokenKey(tenantId, userId, day));
+        if (used >= tokenLimit) {
+            throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "daily token quota exceeded");
         }
     }
 

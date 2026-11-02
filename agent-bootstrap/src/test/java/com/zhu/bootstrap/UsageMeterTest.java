@@ -57,7 +57,7 @@ class UsageMeterTest {
         UsageMeter meter = new AuditUsageMeter((action, actorId, text) -> detail[0] = text, (tenant, user, session, run, model, input, output) -> {
             tokens[0] = input;
             tokens[1] = output;
-        });
+        }, null);
 
         meter.onCall("t", "user-a", "s", "run-1", "dashscope:qwen-plus\nextra", 3, 5, 12);
 
@@ -72,7 +72,7 @@ class UsageMeterTest {
         boolean[] wrote = new boolean[1];
         UsageMeter meter = new AuditUsageMeter((action, actorId, detail) -> {
             throw new IllegalStateException("db down");
-        }, (tenant, user, session, run, model, input, output) -> wrote[0] = true);
+        }, (tenant, user, session, run, model, input, output) -> wrote[0] = true, null);
 
         meter.onCall("t", "user-a", "s", "run-1", "m", 1, 2, 3);
 
@@ -85,7 +85,7 @@ class UsageMeterTest {
         String[] action = new String[1];
         UsageMeter meter = new AuditUsageMeter((name, actorId, detail) -> action[0] = name, (tenant, user, session, run, model, input, output) -> {
             throw new IllegalStateException("db down");
-        });
+        }, null);
 
         meter.onCall("t", "user-a", "s", "run-1", "m", 1, 2, 3);
 

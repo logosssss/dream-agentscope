@@ -15,6 +15,17 @@ public interface AccessCache {
     long increment(String key, Duration ttl);
 
     /**
+     * 把计数加上 delta。delta 小于 1 时不改键，返回当前值。
+     * 键第一次出现时开始计算过期时间，之后的增加不延长过期。
+     */
+    long incrementBy(String key, long delta, Duration ttl);
+
+    /**
+     * 读当前计数值。没有键或已过期返回 0。
+     */
+    long getCounter(String key);
+
+    /**
      * 占住这个键。已经有人占着且未过期时返回 false。
      */
     boolean claim(String key, Duration ttl);

@@ -109,6 +109,24 @@ class AdminContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(get("/api/admin/tenant-token-quotas").header(CallerTokens.HEADER, "test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/admin/tenant-token-quotas")
+                        .header(CallerTokens.HEADER, "test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tenantId\":\"t\",\"limit\":1000}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/admin/tenant-token-quotas/t")
+                        .header(CallerTokens.HEADER, "test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"limit\":2000}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(get("/api/admin/operation-audits").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))

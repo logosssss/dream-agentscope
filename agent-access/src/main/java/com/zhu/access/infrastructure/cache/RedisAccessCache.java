@@ -34,13 +34,40 @@ public class RedisAccessCache implements AccessCache {
      */
     @Override
     public long increment(String key, Duration ttl) {
+        return incrementBy(key, 1L, ttl);
+    }
+
+    /**
+     * 第一次写入时设置过期。delta 小于 1 只读当前值。
+     */
+    @Override
+    public long incrementBy(String key, long delta, Duration ttl) {
+        if (delta < 1L) {
+            return getCounter(key);
+        }
         return call(() -> {
-            Long value = redis.opsForValue().increment(key);
-            long current = value == null ? 1L : value;
-            if (current == 1L) {
+            Long value = redis.opsForValue().increment(key, delta);
+            long current = value == null ? delta : value;
+            if (current == delta) {
                 redis.expire(key, ttl);
             }
             return current;
+        });
+    }
+
+    /** 没有键或非数字视为 0。 */
+    @Override
+    public long getCounter(String key) {
+        return call(() -> {
+            String raw = redis.opsForValue().get(key);
+            if (raw == null || raw.isBlank()) {
+                return 0L;
+            }
+            try {
+                return Long.parseLong(raw.trim());
+            } catch (NumberFormatException ex) {
+                return 0L;
+            }
         });
     }
 

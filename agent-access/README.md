@@ -30,7 +30,7 @@
 | `application` | `UserLoginService` | 核对租户用户后写入 `login-session:{token}`。Redis 失败 503 |
 | `application` | `ChatAppService` | 请求体身份优先，空字段用请求头。空提示词走 `PromptService`，额度通过并占锁后记下会话，再调用 `AgentExecutor` |
 | `application` | `SessionListService` | 列表键 `session-list:{tenant}:{user}`，五分钟。写入后删键。Redis 失败改查 MySQL |
-| `application` | `QuotaGuard`、`SessionTurnGuard` | 额度键 `quota:{tenant}:{user}:{yyyyMMdd}`。会话短锁 `turn:{tenant}:{user}:{session}`，结束即释放 |
+| `application` | `QuotaGuard`、`RedisDailyTokenAccumulator`、`SessionTurnGuard` | 请求额度键 `quota:{tenant}:{user}:{yyyyMMdd}`；token 键 `quota-tokens:...`。会话短锁 `turn:{tenant}:{user}:{session}`，结束即释放 |
 | `application` | `AccessAccountGate` | 对话以外的接口先过租户和用户门。MySQL 关闭时放行 |
 | `api.controller` | `KnowledgeController` | `POST/GET/DELETE /api/kb`；`GET /api/kb/{kbId}/documents`；`POST /api/kb/documents` 上传/更新（≤2MB）；status / reindex / `DELETE` 文档。立即返回 PENDING |
 | `application` | `KnowledgeAppService`、`KnowledgeIndexLauncher` | 落库后 `@Async` 发布 `DOCUMENT_INDEX`。删除先清向量再删 MySQL。MySQL 关闭时建库不可用 |
@@ -51,7 +51,7 @@
 
 线程上下文只是接入层副本。执行身份以 `AgentRequest` 里的字段为准。
 
-`agentscope.access.daily-limit` 和 `per-minute` 默认是 0，表示不限制。MySQL 打开且该租户有启用的 `REQUESTS` / `DAILY` 行时，当日请求用这一行的上限，0 仍表示不限额；没有行时用进程配置。分钟限流仍是进程配置。计数仍在 Redis，不把已用量写回这张表。查这行失败返回 `UNAVAILABLE`，不改用进程配置。当日计数通过后写 `quota_usage_log`，数量是 1，不填运行标识。不限额时不写。流水写失败不改变这次请求，超限的那一次不记。带了 `X-Request-Id` 时，十分钟内的重复提交返回冲突，不再执行第二次。同一租户、用户、会话进行中时，再来一轮也返回冲突，调用结束就释放。Redis 不保存 Agent 状态或沙箱快照。Redis 在额度、幂等、限流或占锁时失败，请求返回 HTTP 503，错误码 `UNAVAILABLE`，不执行对话，也不改查 MySQL 或内存。释放锁失败不改变已经生成的回复，锁靠过期时间放开。
+`agentscope.access.daily-limit` 和 `per-minute` 默认是 0，表示不限制。MySQL 打开且该租户有启用的 `REQUESTS` / `DAILY` 行时，当日请求用这一行的上限，0 仍表示不限额；没有行时用进程配置。有启用的 `TOKENS` / `DAILY` 时，入口只读 Redis 当日已用量（`quota-tokens:{tenant}:{user}:{day}`），达到上限拒绝对话；用量在模型记账后由 `RedisDailyTokenAccumulator` 累加 input+output。分钟限流仍是进程配置。计数仍在 Redis，不把已用量写回这张表。查这行失败返回 `UNAVAILABLE`，不改用进程配置。当日请求计数通过后写 `quota_usage_log`，数量是 1，不填运行标识。不限额时不写。流水写失败不改变这次请求，超限的那一次不记。费用额度还没有。带了 `X-Request-Id` 时，十分钟内的重复提交返回冲突，不再执行第二次。同一租户、用户、会话进行中时，再来一轮也返回冲突，调用结束就释放。Redis 不保存 Agent 状态或沙箱快照。Redis 在额度、幂等、限流或占锁时失败，请求返回 HTTP 503，错误码 `UNAVAILABLE`，不执行对话，也不改查 MySQL 或内存。释放锁失败不改变已经生成的回复，锁靠过期时间放开。
 
 会话列表是另一条路。`agent_session_meta` 由用户进程的 Flyway 建立，标题最多 40 个字符，不存正文。`GET /api/sessions` 先过账号门，再读 Redis，没有或 Redis 不可用时查这张表。对话在占锁成功后写入；删缓存失败不改变已经开始的对话。MySQL 打开时，同一租户下的 `sessionId` 已被其他用户占用则返回冲突。MySQL 关闭时不查归属，这只出现在测试里。
 

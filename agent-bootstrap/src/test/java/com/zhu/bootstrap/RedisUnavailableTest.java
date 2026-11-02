@@ -117,6 +117,16 @@ class RedisUnavailableTest {
         }
 
         @Override
+        public long incrementBy(String key, long delta, Duration ttl) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
+        }
+
+        @Override
+        public long getCounter(String key) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
+        }
+
+        @Override
         public boolean claim(String key, Duration ttl) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
         }

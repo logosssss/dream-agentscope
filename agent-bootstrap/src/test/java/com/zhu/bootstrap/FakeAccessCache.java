@@ -30,13 +30,33 @@ public class FakeAccessCache implements AccessCache {
     /** 过期后的下一次增加视为新键。 */
     @Override
     public long increment(String key, Duration ttl) {
+        return incrementBy(key, 1L, ttl);
+    }
+
+    /** delta 小于 1 时只读。过期后按新键从 delta 起算。 */
+    @Override
+    public long incrementBy(String key, long delta, Duration ttl) {
+        if (delta < 1L) {
+            return getCounter(key);
+        }
         long now = clock.millis();
         Slot slot = slots.compute(key, (name, current) -> {
             if (current == null || current.expiresAtMillis <= now) {
-                return new Slot(1, now + ttl.toMillis(), null);
+                return new Slot(delta, now + ttl.toMillis(), null);
             }
-            return new Slot(current.value + 1, current.expiresAtMillis, current.text);
+            return new Slot(current.value + delta, current.expiresAtMillis, current.text);
         });
+        return slot.value;
+    }
+
+    /** 过期或没有键返回 0。 */
+    @Override
+    public long getCounter(String key) {
+        long now = clock.millis();
+        Slot slot = slots.get(key);
+        if (slot == null || slot.expiresAtMillis <= now) {
+            return 0L;
+        }
         return slot.value;
     }
 

@@ -21,6 +21,15 @@
           AND enabled = 1
     </select>
 
+    <select id="findDailyTokenLimit" resultType="java.lang.Long">
+        SELECT limit_value
+        FROM tenant_quota
+        WHERE tenant_id = #{tenantId}
+          AND quota_type = 'TOKENS'
+          AND period = 'DAILY'
+          AND enabled = 1
+    </select>
+
     <!-- 只改已有的每日请求上限。不重置 Redis 已用量。 -->
     <update id="updateDailyRequestLimit">
         UPDATE tenant_quota
@@ -30,11 +39,28 @@
           AND period = 'DAILY'
     </update>
 
+    <update id="updateDailyTokenLimit">
+        UPDATE tenant_quota
+        SET limit_value = #{limit}
+        WHERE tenant_id = #{tenantId}
+          AND quota_type = 'TOKENS'
+          AND period = 'DAILY'
+    </update>
+
     <!-- 管理列表只看每日请求上限。创建时间只用于排序。 -->
     <select id="recent" resultMap="BaseResultMap">
         SELECT id, tenant_id, quota_type, period, limit_value
         FROM tenant_quota
         WHERE quota_type = 'REQUESTS'
+          AND period = 'DAILY'
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="recentTokens" resultMap="BaseResultMap">
+        SELECT id, tenant_id, quota_type, period, limit_value
+        FROM tenant_quota
+        WHERE quota_type = 'TOKENS'
           AND period = 'DAILY'
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}

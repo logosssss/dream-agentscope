@@ -115,6 +115,16 @@ class SessionListTest {
             throw unavailable();
         }
 
+        @Override
+        public long incrementBy(String key, long delta, Duration ttl) {
+            throw unavailable();
+        }
+
+        @Override
+        public long getCounter(String key) {
+            throw unavailable();
+        }
+
         /** 占位不参与这次测试。 */
         @Override
         public boolean claim(String key, Duration ttl) {

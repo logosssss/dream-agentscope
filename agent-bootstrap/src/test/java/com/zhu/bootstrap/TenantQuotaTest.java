@@ -1,7 +1,9 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.application.QuotaGuard;
+import com.zhu.access.application.RedisDailyTokenAccumulator;
 import com.zhu.access.config.AccessLimitProperties;
+import com.zhu.audit.api.TenantQuotaLookup;
 import com.zhu.audit.application.MysqlTenantQuota;
 import com.zhu.audit.infrastructure.persistence.TenantQuotaMapper;
 import com.zhu.audit.infrastructure.persistence.entity.TenantQuotaRecord;
@@ -21,7 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 租户每日请求上限。列表不带已用量。不连接 MySQL 或 Redis。进程配置为 0 时，有行才限额。
+ * 租户每日请求与 token 上限。列表不带已用量。不连接 MySQL 或 Redis。进程配置为 0 时，有行才限额。
  */
 class TenantQuotaTest {
 
@@ -29,16 +31,42 @@ class TenantQuotaTest {
     @Test
     void dailyRequestsFollowTheTenantRow() {
         AccessLimitProperties limits = new AccessLimitProperties();
-        QuotaGuard limited = new QuotaGuard(new FakeAccessCache(), limits, Clock.systemUTC(), tenantId -> 1L);
+        QuotaGuard limited = new QuotaGuard(new FakeAccessCache(), limits, Clock.systemUTC(), requestsOnly(1L));
         limited.check("t", "u", "chat", "req-1");
         assertThatThrownBy(() -> limited.check("t", "u", "chat", "req-2"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.QUOTA_EXCEEDED);
 
-        QuotaGuard open = new QuotaGuard(new FakeAccessCache(), limits, Clock.systemUTC(), tenantId -> null);
+        QuotaGuard open = new QuotaGuard(new FakeAccessCache(), limits, Clock.systemUTC(), requestsOnly(null));
         open.check("t", "u", "chat", "req-1");
         open.check("t", "u", "chat", "req-2");
+    }
+
+    /** 已用量达到 token 上限后下一次对话拒绝。记账累加与校验共用键。 */
+    @Test
+    void dailyTokensBlockAfterUsage() {
+        FakeAccessCache cache = new FakeAccessCache();
+        AccessLimitProperties limits = new AccessLimitProperties();
+        TenantQuotaLookup quotas = new TenantQuotaLookup() {
+            @Override
+            public Long dailyRequestLimit(String tenantId) {
+                return null;
+            }
+
+            @Override
+            public Long dailyTokenLimit(String tenantId) {
+                return 10L;
+            }
+        };
+        QuotaGuard guard = new QuotaGuard(cache, limits, Clock.systemUTC(), quotas);
+        guard.check("t", "u", "chat", "req-1");
+        // 测试构造在 access 同模块外不可见，走公开构造即可。
+        new RedisDailyTokenAccumulator(cache).add("t", "u", 10);
+        assertThatThrownBy(() -> guard.check("t", "u", "chat", "req-2"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.QUOTA_EXCEEDED);
     }
 
     /** 登记写入 REQUESTS / DAILY。重复标识按冲突处理，查不到行则没有单独上限。 */
@@ -105,5 +133,28 @@ class TenantQuotaTest {
             assertThat(saved.period()).isEqualTo("DAILY");
             assertThat(saved.limit()).isEqualTo(0L);
         });
+    }
+
+    /** 登记 TOKENS / DAILY，列表单独读。 */
+    @Test
+    void registerAndListDailyTokens() {
+        TenantQuotaMapper quotas = mock(TenantQuotaMapper.class);
+        MysqlTenantQuota directory = new MysqlTenantQuota(quotas);
+        assertThat(directory.setDailyTokens("t", 1000L).quotaType()).isEqualTo("TOKENS");
+        when(quotas.findDailyTokenLimit("t")).thenReturn(1000L);
+        assertThat(directory.dailyTokenLimit("t")).isEqualTo(1000L);
+        when(quotas.updateDailyTokenLimit("t", 2000L)).thenReturn(1);
+        assertThat(directory.updateDailyTokens("t", 2000L).limit()).isEqualTo(2000L);
+        when(quotas.recentTokens(50)).thenReturn(List.of());
+        assertThat(directory.recentTokens(50)).isEmpty();
+    }
+
+    private static TenantQuotaLookup requestsOnly(Long limit) {
+        return new TenantQuotaLookup() {
+            @Override
+            public Long dailyRequestLimit(String tenantId) {
+                return limit;
+            }
+        };
     }
 }

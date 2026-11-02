@@ -15,7 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的租户每日请求上限。只在存储开关打开时创建。可列出已登记行。不写已用量，也不写其它类型。
+ * MySQL 上的租户每日请求与 token 上限。只在存储开关打开时创建。可列出已登记行。不写已用量。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -24,6 +24,8 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
     private static final Logger log = Logger.getLogger(MysqlTenantQuota.class.getName());
 
     private static final String REQUESTS = "REQUESTS";
+
+    private static final String TOKENS = "TOKENS";
 
     private static final String DAILY = "DAILY";
 
@@ -39,15 +41,12 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
      */
     @Override
     public Long dailyRequestLimit(String tenantId) {
-        if (tenantId == null || tenantId.isBlank()) {
-            return null;
-        }
-        try {
-            return quotas.findDailyRequestLimit(tenantId);
-        } catch (DataAccessException ex) {
-            log.warning("tenant quota lookup failed");
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant quota is unavailable");
-        }
+        return lookup(tenantId, () -> quotas.findDailyRequestLimit(tenantId));
+    }
+
+    @Override
+    public Long dailyTokenLimit(String tenantId) {
+        return lookup(tenantId, () -> quotas.findDailyTokenLimit(tenantId));
     }
 
     /**
@@ -56,21 +55,12 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
      */
     @Override
     public TenantQuotaSummary setDailyRequests(String tenantId, Long limit) {
-        if (tenantId == null || tenantId.isBlank() || tenantId.length() > 64 || limit == null || limit < 0) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenant quota is invalid");
-        }
-        TenantQuotaRecord row = new TenantQuotaRecord();
-        row.setTenantId(tenantId);
-        row.setQuotaType(REQUESTS);
-        row.setPeriod(DAILY);
-        row.setLimitValue(limit);
-        row.setEnabled(1);
-        try {
-            quotas.insert(row);
-        } catch (DataIntegrityViolationException ex) {
-            throw new BusinessException(ErrorCode.CONFLICT, "tenant quota already exists");
-        }
-        return new TenantQuotaSummary(tenantId, REQUESTS, DAILY, limit);
+        return insert(tenantId, limit, REQUESTS);
+    }
+
+    @Override
+    public TenantQuotaSummary setDailyTokens(String tenantId, Long limit) {
+        return insert(tenantId, limit, TOKENS);
     }
 
     /**
@@ -79,14 +69,12 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
      */
     @Override
     public TenantQuotaSummary updateDailyRequests(String tenantId, Long limit) {
-        if (tenantId == null || tenantId.isBlank() || tenantId.length() > 64 || limit == null || limit < 0) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenant quota is invalid");
-        }
-        int updated = quotas.updateDailyRequestLimit(tenantId, limit);
-        if (updated != 1) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant quota not found");
-        }
-        return new TenantQuotaSummary(tenantId, REQUESTS, DAILY, limit);
+        return update(tenantId, limit, REQUESTS, quotas::updateDailyRequestLimit);
+    }
+
+    @Override
+    public TenantQuotaSummary updateDailyTokens(String tenantId, Long limit) {
+        return update(tenantId, limit, TOKENS, quotas::updateDailyTokenLimit);
     }
 
     /**
@@ -94,7 +82,58 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
      */
     @Override
     public List<TenantQuotaSummary> recent(int limit) {
-        List<TenantQuotaRecord> rows = quotas.recent(AuditQueryLimits.normalize(limit));
+        return mapRows(quotas.recent(AuditQueryLimits.normalize(limit)));
+    }
+
+    @Override
+    public List<TenantQuotaSummary> recentTokens(int limit) {
+        return mapRows(quotas.recentTokens(AuditQueryLimits.normalize(limit)));
+    }
+
+    private Long lookup(String tenantId, LimitQuery query) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return null;
+        }
+        try {
+            return query.get();
+        } catch (DataAccessException ex) {
+            log.warning("tenant quota lookup failed");
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "tenant quota is unavailable");
+        }
+    }
+
+    private TenantQuotaSummary insert(String tenantId, Long limit, String type) {
+        requireWritable(tenantId, limit);
+        TenantQuotaRecord row = new TenantQuotaRecord();
+        row.setTenantId(tenantId);
+        row.setQuotaType(type);
+        row.setPeriod(DAILY);
+        row.setLimitValue(limit);
+        row.setEnabled(1);
+        try {
+            quotas.insert(row);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant quota already exists");
+        }
+        return new TenantQuotaSummary(tenantId, type, DAILY, limit);
+    }
+
+    private TenantQuotaSummary update(String tenantId, Long limit, String type, LimitUpdate updater) {
+        requireWritable(tenantId, limit);
+        int updated = updater.apply(tenantId, limit);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant quota not found");
+        }
+        return new TenantQuotaSummary(tenantId, type, DAILY, limit);
+    }
+
+    private static void requireWritable(String tenantId, Long limit) {
+        if (tenantId == null || tenantId.isBlank() || tenantId.length() > 64 || limit == null || limit < 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenant quota is invalid");
+        }
+    }
+
+    private static List<TenantQuotaSummary> mapRows(List<TenantQuotaRecord> rows) {
         if (rows == null || rows.isEmpty()) {
             return List.of();
         }
@@ -105,5 +144,15 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
                         row.getPeriod(),
                         row.getLimitValue() == null ? 0L : row.getLimitValue()))
                 .toList();
+    }
+
+    @FunctionalInterface
+    private interface LimitQuery {
+        Long get();
+    }
+
+    @FunctionalInterface
+    private interface LimitUpdate {
+        int apply(String tenantId, Long limit);
     }
 }

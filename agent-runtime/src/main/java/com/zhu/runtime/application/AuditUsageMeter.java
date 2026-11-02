@@ -1,13 +1,18 @@
 package com.zhu.runtime.application;
 
 import com.zhu.audit.api.AuditRecorder;
+import com.zhu.audit.api.DailyTokenAccumulator;
 import com.zhu.audit.api.TokenUsageWriter;
 import com.zhu.runtime.api.UsageMeter;
 import java.util.logging.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 /**
- * 把模型用量写成一条审计，并写入 token 用量表。明细只有模型名和数字，不放提示词或回复正文。
+ * 把模型用量写成一条审计，并写入 token 用量表。
+ * 有当日 token 累加器时再加一把 Redis 计数，供下一次对话入口校验。
+ * 明细只有模型名和数字，不放提示词或回复正文。
  */
 @Service
 public class AuditUsageMeter implements UsageMeter {
@@ -18,10 +23,20 @@ public class AuditUsageMeter implements UsageMeter {
 
     private final TokenUsageWriter tokens;
 
-    /** 两路都可能失败。任何一路失败都不影响另一路，也不影响回复。 */
-    public AuditUsageMeter(AuditRecorder audits, TokenUsageWriter tokens) {
+    private final DailyTokenAccumulator dailyTokens;
+
+    /**
+     * 累加器可缺省。各路失败互不影响，也不影响回复。
+     * 唯一公开构造，避免 Spring 在多构造之间退回无参。
+     */
+    @Autowired
+    public AuditUsageMeter(
+            AuditRecorder audits,
+            TokenUsageWriter tokens,
+            @Nullable DailyTokenAccumulator dailyTokens) {
         this.audits = audits;
         this.tokens = tokens;
+        this.dailyTokens = dailyTokens;
     }
 
     /**
@@ -47,6 +62,18 @@ public class AuditUsageMeter implements UsageMeter {
         } catch (RuntimeException ex) {
             log.warning("usage record failed");
         }
+        if (dailyTokens != null) {
+            try {
+                dailyTokens.add(tenantId, userId, safeSum(inputTokens, outputTokens));
+            } catch (RuntimeException ex) {
+                log.warning("daily token accumulate failed");
+            }
+        }
+    }
+
+    private static int safeSum(int inputTokens, int outputTokens) {
+        long sum = (long) Math.max(0, inputTokens) + (long) Math.max(0, outputTokens);
+        return sum > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) sum;
     }
 
     /** 拼成一行，模型名里的换行去掉，避免审计明细被拆开。 */
