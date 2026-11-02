@@ -1,11 +1,13 @@
 package com.zhu.audit.application;
 
 import com.zhu.audit.api.UserTodoCatalog;
+import com.zhu.audit.api.UserTodoDetail;
 import com.zhu.audit.api.UserTodoRow;
 import com.zhu.audit.infrastructure.persistence.UserTodoMapper;
 import com.zhu.audit.infrastructure.persistence.entity.UserTodo;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -37,6 +39,8 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
     private static final int REF_LIMIT = 128;
 
     private static final int TITLE_LIMIT = 256;
+
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final UserTodoMapper todos;
 
@@ -154,6 +158,29 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
         return todos.openApprovals(clip(userId, USER_LIMIT), AuditQueryLimits.normalize(limit)).stream()
                 .map(MysqlUserTodoCatalog::row)
                 .toList();
+    }
+
+    /**
+     * 空标识拒绝。找不到或不是本人按找不到，避免把别人的标题交出去。
+     * 已关闭的审批、确认和任务都返回。
+     */
+    @Override
+    public UserTodoDetail ownedOne(String userId, Long todoId) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT || todoId == null || todoId <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "todo is invalid");
+        }
+        UserTodo row = todos.findOwned(todoId, userId);
+        if (row == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "todo not found");
+        }
+        String created = row.getCreatedAt() == null ? "" : TIME.format(row.getCreatedAt());
+        return new UserTodoDetail(
+                row.getId(),
+                row.getTodoType(),
+                row.getRefId(),
+                row.getTitle(),
+                row.getStatus(),
+                created);
     }
 
     /** 列表不带用户列，调用方已经按这个用户查过。 */

@@ -39,4 +39,22 @@
           AND status = 'OPEN'
           AND todo_type IN ('CONFIRM', 'TASK')
     </update>
+
+    <!-- 详情含已关闭行。不带回截止时间。 -->
+    <resultMap id="DetailResultMap" type="com.zhu.audit.infrastructure.persistence.entity.UserTodo">
+        <id column="id" property="id"/>
+        <result column="todo_type" property="todoType"/>
+        <result column="ref_id" property="refId"/>
+        <result column="title" property="title"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="findOwned" resultMap="DetailResultMap">
+        SELECT id, todo_type, ref_id, title, status, created_at
+        FROM user_todo
+        WHERE id = #{id}
+          AND user_id = #{userId}
+        LIMIT 1
+    </select>
 </mapper>

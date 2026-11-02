@@ -3,6 +3,7 @@ package com.zhu.audit.infrastructure.persistence.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.time.LocalDateTime;
 
 /**
  * user_todo 的一行。审批待办由询问开、决定关。确认和任务由用户登记、完成或取消。
@@ -28,6 +29,9 @@ public class UserTodo {
 
     /** 开着是 OPEN。通过后 DONE，拒绝后 CANCELLED。 */
     private String status;
+
+    /** 创建时间。截止时间这次不写，不映射。 */
+    private LocalDateTime createdAt;
 
     /** 主键。 */
     public Long getId() {
@@ -87,5 +91,15 @@ public class UserTodo {
     /** 写入状态。 */
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    /** 创建时间。 */
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    /** 写入创建时间。 */
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

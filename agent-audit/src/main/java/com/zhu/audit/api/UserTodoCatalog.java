@@ -42,4 +42,10 @@ public interface UserTodoCatalog {
      * 这个用户未完成的待办，含审批、确认和任务。条数默认 50，最多 100。用户为空时拒绝。
      */
     List<UserTodoRow> openApprovals(String userId, int limit);
+
+    /**
+     * 这个用户的一条待办，含已关闭行。别人的主键按找不到处理。
+     * 不带回截止时间，也不带工具参数。
+     */
+    UserTodoDetail ownedOne(String userId, Long todoId);
 }

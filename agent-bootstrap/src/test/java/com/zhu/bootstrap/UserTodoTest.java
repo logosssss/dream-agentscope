@@ -9,6 +9,7 @@ import com.zhu.audit.infrastructure.persistence.UserTodoMapper;
 import com.zhu.audit.infrastructure.persistence.entity.UserTodo;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -19,6 +20,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,7 +29,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 待确认给发起人开审批待办。确认和任务由用户登记、完成或取消。不连接 MySQL。
+ * 待确认给发起人开审批待办。确认和任务由用户登记、查看、完成或取消。不连接 MySQL。
  */
 class UserTodoTest {
 
@@ -201,5 +204,55 @@ class UserTodoTest {
         when(todos.selectById(7L)).thenReturn(task);
         when(todos.closeOpen(7L, "u", "CANCELLED")).thenReturn(1);
         assertThat(catalog.cancel("u", 7L).status()).isEqualTo("CANCELLED");
+    }
+
+    /** 已关闭的也返回。创建时间为空时用空串。 */
+    @Test
+    void ownedOneReturnsClosedWithCreatedAt() {
+        UserTodoMapper todos = mock(UserTodoMapper.class);
+        MysqlUserTodoCatalog catalog = new MysqlUserTodoCatalog(todos);
+        UserTodo done = new UserTodo();
+        done.setId(6L);
+        done.setTodoType("CONFIRM");
+        done.setRefId("run-1");
+        done.setTitle("确认结果");
+        done.setStatus("DONE");
+        done.setCreatedAt(LocalDateTime.of(2026, 11, 2, 1, 2, 3));
+        when(todos.findOwned(6L, "u")).thenReturn(done);
+        assertThat(catalog.ownedOne("u", 6L)).satisfies(detail -> {
+            assertThat(detail.id()).isEqualTo(6L);
+            assertThat(detail.status()).isEqualTo("DONE");
+            assertThat(detail.createdAt()).isEqualTo("2026-11-02T01:02:03");
+        });
+        UserTodo approval = new UserTodo();
+        approval.setId(8L);
+        approval.setTodoType("APPROVAL");
+        approval.setRefId("ap-1");
+        approval.setStatus("OPEN");
+        when(todos.findOwned(8L, "u")).thenReturn(approval);
+        assertThat(catalog.ownedOne("u", 8L).createdAt()).isEqualTo("");
+    }
+
+    /** 别人的主键或空标识都不查详情。 */
+    @Test
+    void ownedOneRejectsMissingOrBlank() {
+        UserTodoMapper todos = mock(UserTodoMapper.class);
+        MysqlUserTodoCatalog catalog = new MysqlUserTodoCatalog(todos);
+        when(todos.findOwned(9L, "u")).thenReturn(null);
+        assertThatThrownBy(() -> catalog.ownedOne("u", 9L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(todos).findOwned(9L, "u");
+        assertThatThrownBy(() -> catalog.ownedOne("u", 0L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(todos, never()).findOwned(eq(0L), any());
+        assertThatThrownBy(() -> catalog.ownedOne(" ", 9L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(todos, never()).findOwned(anyLong(), eq(" "));
     }
 }

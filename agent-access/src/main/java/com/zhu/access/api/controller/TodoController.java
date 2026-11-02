@@ -3,6 +3,7 @@ package com.zhu.access.api.controller;
 import com.zhu.access.api.dto.TodoRequest;
 import com.zhu.access.application.AccessAccountGate;
 import com.zhu.audit.api.UserTodoCatalog;
+import com.zhu.audit.api.UserTodoDetail;
 import com.zhu.audit.api.UserTodoRow;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 当前用户的待办。可登记、完成或取消确认和任务，不返回别人的行。
+ * 当前用户的待办。可登记、查看、完成或取消确认和任务，不返回别人的行。
  */
 @RestController
 public class TodoController {
@@ -44,6 +45,19 @@ public class TodoController {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "todo catalog is unavailable");
         }
         return ApiResult.ok(catalog.openApprovals(UserContext.get(), limit));
+    }
+
+    /**
+     * 别人的主键按找不到处理。含已关闭行，不带回截止时间。
+     */
+    @GetMapping("/api/todos/{todoId}")
+    public ApiResult<UserTodoDetail> get(@PathVariable Long todoId) {
+        accounts.requireActive();
+        UserTodoCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "todo catalog is unavailable");
+        }
+        return ApiResult.ok(catalog.ownedOne(UserContext.get(), todoId));
     }
 
     /**
