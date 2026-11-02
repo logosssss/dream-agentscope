@@ -14,9 +14,9 @@
 
 下一空 Flyway 版本：**V37**。
 
-## 已做（用户会话详情）
+## 已做（用户当日额度快照）
 
-`GET /api/sessions/{sessionId}` 先确认这次会话属于当前用户和租户，再返回状态、最近运行和轮数。不走列表缓存，不含正文。别人的标识按找不到。MySQL 关闭时也是找不到。
+`GET /api/quota` 只读 Redis 当日已用量和租户/进程上限。不扣额度，不写流水。没有租户行时请求上限用进程配置，token/费用/同时运行上限为空。Redis 失败 503。
 
 ## 下一块
 
@@ -24,8 +24,8 @@
 
 管理端登记工具目录还没有，但管理进程不能依赖 `agent-semantic`；不要用这块硬拆模块边界。
 
-不要做：RocketMQ、服务发现、MCP、配置热更新、连接串进 Nacos、密码登录、JWT。接入层不要调用 `UserProfileRepository`（接口注释禁止）。
+不要做：RocketMQ、服务发现、MCP、配置热更新、连接串进 Nacos、密码登录、JWT。接入层不要调用 `UserProfileRepository` 或 `EpisodicMemoryRepository`（接口注释禁止）。
 
 ## 另一台机器开场白
 
-拉到含「用户会话详情」的分支后说：「继续」。先读这份 handoff。
+拉到含「用户当日额度快照」的分支后说：「继续」。先读这份 handoff。

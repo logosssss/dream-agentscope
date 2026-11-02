@@ -77,6 +77,10 @@ class BootstrapContextTest {
         mvc.perform(get("/api/sessions/s1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+        mvc.perform(get("/api/quota").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(true))
+                .andExpect(jsonPath("$.data.requests.used").value(0));
         mvc.perform(get("/api/todos").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));

@@ -50,6 +50,23 @@ class QuotaGuardTest {
         guard.check("tenant", "user", "chat", null);
     }
 
+    /** 快照只读已用量，再读一次不会把请求计数再加一。 */
+    @Test
+    void snapshotReadsUsedWithoutIncrementing() {
+        AccessLimitProperties limits = new AccessLimitProperties();
+        limits.setDailyLimit(2);
+        Clock clock = Clock.fixed(Instant.parse("2026-10-30T02:03:00Z"), ZoneOffset.UTC);
+        QuotaGuard guard = guard(limits, clock);
+        guard.check("t", "u", "chat", "req-1");
+        assertThat(guard.snapshot("t", "u")).satisfies(snap -> {
+            assertThat(snap.day()).isEqualTo("20261030");
+            assertThat(snap.requests().used()).isEqualTo(1L);
+            assertThat(snap.requests().limit()).isEqualTo(2L);
+            assertThat(snap.tokens().limit()).isNull();
+        });
+        assertThat(guard.snapshot("t", "u").requests().used()).isEqualTo(1L);
+    }
+
     /** 计数和判断用同一只时钟，拨分钟时两边一起动。 */
     private static QuotaGuard guard(AccessLimitProperties limits, Clock clock) {
         return new QuotaGuard(new FakeAccessCache(clock), limits, clock);

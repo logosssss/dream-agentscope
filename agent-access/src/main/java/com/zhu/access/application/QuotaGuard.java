@@ -1,5 +1,7 @@
 package com.zhu.access.application;
 
+import com.zhu.access.api.dto.QuotaMeter;
+import com.zhu.access.api.dto.QuotaSnapshot;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.audit.api.QuotaUsageWriter;
@@ -99,7 +101,6 @@ public class QuotaGuard {
             }
         }
         String user = segment(userId);
-        String tenant = segment(tenantId);
         String day = DAY.format(clock.instant());
         rejectIfTokenExceeded(tenantId, userId, day);
         rejectIfCostExceeded(tenantId, userId, day);
@@ -111,7 +112,7 @@ public class QuotaGuard {
             }
         }
         if (dailyLimit > 0) {
-            long used = cache.increment("quota:" + tenant + ":" + user + ":" + day, QUOTA_TTL);
+            long used = cache.increment(requestKey(tenantId, userId, day), QUOTA_TTL);
             if (used > dailyLimit) {
                 throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "daily quota exceeded");
             }
@@ -125,6 +126,44 @@ public class QuotaGuard {
                 throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "rate limit exceeded");
             }
         }
+    }
+
+    /**
+     * 只读当日已用量和上限。不增加计数，也不写流水。
+     * Redis 失败按不可用抛出，不改走内存。
+     */
+    public QuotaSnapshot snapshot(String tenantId, String userId) {
+        String day = DAY.format(clock.instant());
+        Long requestLimit = (long) limits.getDailyLimit();
+        if (quotas != null) {
+            Long override = quotas.dailyRequestLimit(tenantId);
+            if (override != null) {
+                requestLimit = override;
+            }
+        }
+        Long tokenLimit = quotas == null ? null : quotas.dailyTokenLimit(tenantId);
+        Long costLimit = quotas == null ? null : quotas.dailyCostLimit(tenantId);
+        Long concurrentLimit = quotas == null ? null : quotas.concurrentRunLimit(tenantId);
+        return new QuotaSnapshot(
+                day,
+                new QuotaMeter(cache.getCounter(requestKey(tenantId, userId, day)), requestLimit),
+                new QuotaMeter(cache.getCounter(tokenKey(tenantId, userId, day)), tokenLimit),
+                new QuotaMeter(cache.getCounter(costKey(tenantId, userId, day)), costLimit),
+                new QuotaMeter(cache.getCounter(concurrentKey(tenantId)), concurrentLimit));
+    }
+
+    /**
+     * 当日请求计数键。与 {@link #check} 共用。
+     */
+    public static String requestKey(String tenantId, String userId, String day) {
+        return "quota:" + segment(tenantId) + ":" + segment(userId) + ":" + day;
+    }
+
+    /**
+     * 同时运行占位键。与 {@link ConcurrentRunGuard} 共用同一前缀。
+     */
+    public static String concurrentKey(String tenantId) {
+        return "concurrent:" + segment(tenantId);
     }
 
     /**
