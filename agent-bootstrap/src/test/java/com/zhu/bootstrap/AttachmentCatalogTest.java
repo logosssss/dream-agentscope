@@ -64,9 +64,13 @@ class AttachmentCatalogTest {
             assertThat(saved.refType()).isEqualTo("RUN");
             assertThat(saved.refId()).isEqualTo("run-1");
         });
+        assertThat(catalog.link("u", "att-1", "DOCUMENT", "doc-1")).satisfies(saved -> {
+            assertThat(saved.refType()).isEqualTo("DOCUMENT");
+            assertThat(saved.refId()).isEqualTo("doc-1");
+        });
         ArgumentCaptor<AttachmentRef> saved = ArgumentCaptor.forClass(AttachmentRef.class);
-        verify(refs).insert(saved.capture());
-        assertThat(saved.getValue().getRefType()).isEqualTo("RUN");
+        verify(refs, times(2)).insert(saved.capture());
+        assertThat(saved.getAllValues()).extracting(AttachmentRef::getRefType).containsExactly("RUN", "DOCUMENT");
 
         Attachment other = new Attachment();
         other.setUserId("other");
@@ -75,7 +79,7 @@ class AttachmentCatalogTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
-        verify(refs, times(1)).insert(any(AttachmentRef.class));
+        verify(refs, times(2)).insert(any(AttachmentRef.class));
 
         when(refs.insert(any(AttachmentRef.class)))
                 .thenThrow(new org.springframework.dao.DataIntegrityViolationException("dup"));

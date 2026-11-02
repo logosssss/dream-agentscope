@@ -7,19 +7,25 @@ import com.zhu.access.application.KnowledgeAppService;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
+import com.zhu.common.exception.BusinessException;
+import com.zhu.common.exception.ErrorCode;
 import com.zhu.state.api.KnowledgeBaseItem;
 import com.zhu.state.api.KnowledgeDocumentItem;
+import java.io.IOException;
 import java.util.List;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 用户私有知识库入口。只接文本，索引异步跑。
+ * 用户私有知识库入口。JSON 正文或纯文本文件；索引异步跑。不接 PDF/对象存储。
  */
 @RestController
 public class KnowledgeController {
@@ -82,6 +88,37 @@ public class KnowledgeController {
                 body.docId(),
                 body.title(),
                 body.content()));
+    }
+
+    /**
+     * 纯文本文件进知识库。multipart：kbId 必填；docId/title 可选；file 必填。
+     * 正文进 MySQL；附件表只记元数据并挂 DOCUMENT。不接对象存储。
+     */
+    @PostMapping(value = "/api/kb/documents/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResult<KnowledgeDocumentItem> uploadFile(
+            @RequestParam("kbId") String kbId,
+            @RequestParam(value = "docId", required = false) String docId,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestPart("file") MultipartFile file) {
+        accounts.requireActive();
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "file is required");
+        }
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException ex) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "file cannot be read");
+        }
+        return ApiResult.ok(knowledge.uploadFile(
+                TenantContext.get(),
+                UserContext.get(),
+                kbId,
+                docId,
+                title,
+                file.getOriginalFilename(),
+                file.getContentType(),
+                bytes));
     }
 
     /** 轮询索引进度。 */

@@ -17,7 +17,7 @@ public class AttachmentRef {
     /** 已登记的附件。 */
     private String attachmentId;
 
-    /** MESSAGE 或 RUN。 */
+    /** MESSAGE / RUN / DOCUMENT。 */
     private String refType;
 
     /** 消息或运行标识。 */

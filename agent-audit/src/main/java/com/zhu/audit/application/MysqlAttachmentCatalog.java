@@ -42,7 +42,8 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
 
     private static final Set<String> STORAGE_TYPES = Set.of("LOCAL", "S3", "OSS", "MINIO");
 
-    private static final Set<String> REF_TYPES = Set.of("MESSAGE", "RUN");
+    /** DOCUMENT 挂知识库文档主键，正文在 kb_document，不表示对象存储已落地。 */
+    private static final Set<String> REF_TYPES = Set.of("MESSAGE", "RUN", "DOCUMENT");
 
     private static final int ATTACHMENT_LIMIT = 64;
 

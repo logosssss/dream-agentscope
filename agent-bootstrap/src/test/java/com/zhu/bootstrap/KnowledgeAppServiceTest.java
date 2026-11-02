@@ -2,35 +2,87 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.application.KnowledgeAppService;
 import com.zhu.access.application.KnowledgeIndexLauncher;
+import com.zhu.audit.api.AttachmentCatalog;
+import com.zhu.audit.api.AttachmentSummary;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import com.zhu.state.api.KnowledgeBaseItem;
+import com.zhu.state.api.KnowledgeDocumentItem;
 import com.zhu.state.api.KnowledgeRepository;
 import com.zhu.vector.api.VectorStore;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 上传拒超大；删除先清向量。不连库。
+ * 上传拒超大；文件进库挂 DOCUMENT；删除先清向量。不连库。
  */
 class KnowledgeAppServiceTest {
 
     @Test
     void rejectsOversizedContent() {
-        KnowledgeAppService service = service(mock(KnowledgeRepository.class), mock(VectorStore.class));
+        KnowledgeAppService service = service(mock(KnowledgeRepository.class), mock(VectorStore.class), null);
         String huge = "汉".repeat(KnowledgeAppService.MAX_CONTENT_BYTES);
         assertThatThrownBy(() -> service.upload("t", "u", "kb", null, "t", huge))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).errorCode())
                 .isEqualTo(ErrorCode.BAD_REQUEST);
+    }
+
+    @Test
+    void uploadFileIndexesAndLinksDocumentAttachment() {
+        KnowledgeRepository repo = mock(KnowledgeRepository.class);
+        AttachmentCatalog catalog = mock(AttachmentCatalog.class);
+        when(repo.findBase("kb1", "t", "u"))
+                .thenReturn(new KnowledgeBaseItem("kb1", "t", "u", "agent-a", "n"));
+        when(repo.insertDocumentVersion(
+                        anyString(),
+                        eq(1),
+                        eq("kb1"),
+                        eq("t"),
+                        eq("u"),
+                        eq("agent-a"),
+                        eq("readme"),
+                        eq("hello"),
+                        eq(false)))
+                .thenReturn(new KnowledgeDocumentItem(
+                        "doc-9", 1, "kb1", "t", "u", "agent-a", "readme", null, "PENDING", null));
+        when(catalog.register(
+                        eq("u"),
+                        eq("t"),
+                        isNull(),
+                        eq("readme.md"),
+                        eq("LOCAL"),
+                        eq("kb-doc:doc-9:v1"),
+                        eq("text/markdown"),
+                        anyLong(),
+                        isNull()))
+                .thenReturn(new AttachmentSummary("att-1", "t", "u", null, "readme.md", "LOCAL", "kb-doc:doc-9:v1", "ACTIVE"));
+
+        KnowledgeAppService service = service(repo, mock(VectorStore.class), catalog);
+        KnowledgeDocumentItem saved = service.uploadFile(
+                "t",
+                "u",
+                "kb1",
+                null,
+                null,
+                "readme.md",
+                "text/markdown",
+                "hello".getBytes(StandardCharsets.UTF_8));
+
+        assertThat(saved.docId()).isEqualTo("doc-9");
+        verify(catalog).link("u", "att-1", "DOCUMENT", "doc-9");
     }
 
     @Test
@@ -40,7 +92,7 @@ class KnowledgeAppServiceTest {
         when(repo.latestVersion("d1", "t", "u")).thenReturn(1);
         when(repo.listChunkIdsByDoc("d1", "t", "u")).thenReturn(List.of("c1", "c2"));
         when(repo.deleteDocument("d1", "t", "u")).thenReturn(1);
-        KnowledgeAppService service = service(repo, vectors);
+        KnowledgeAppService service = service(repo, vectors, null);
         service.deleteDocument("t", "u", "d1");
         verify(vectors).deleteById(eq("knowledge"), eq("c1"));
         verify(vectors).deleteById(eq("knowledge"), eq("c2"));
@@ -51,7 +103,7 @@ class KnowledgeAppServiceTest {
     void deleteMissingDocumentIsNotFound() {
         KnowledgeRepository repo = mock(KnowledgeRepository.class);
         when(repo.latestVersion(anyString(), anyString(), anyString())).thenReturn(0);
-        assertThatThrownBy(() -> service(repo, mock(VectorStore.class)).deleteDocument("t", "u", "missing"))
+        assertThatThrownBy(() -> service(repo, mock(VectorStore.class), null).deleteDocument("t", "u", "missing"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
@@ -61,13 +113,18 @@ class KnowledgeAppServiceTest {
     void listBasesDelegates() {
         KnowledgeRepository repo = mock(KnowledgeRepository.class);
         when(repo.listBases("t", "u")).thenReturn(List.of());
-        assertThat(service(repo, mock(VectorStore.class)).listBases("t", "u")).isEmpty();
+        assertThat(service(repo, mock(VectorStore.class), null).listBases("t", "u")).isEmpty();
     }
 
-    private static KnowledgeAppService service(KnowledgeRepository repo, VectorStore vectors) {
+    private static KnowledgeAppService service(
+            KnowledgeRepository repo, VectorStore vectors, AttachmentCatalog catalog) {
         @SuppressWarnings("unchecked")
         ObjectProvider<KnowledgeRepository> repos = mock(ObjectProvider.class);
         when(repos.getIfAvailable()).thenReturn(repo);
-        return new KnowledgeAppService(repos, mock(KnowledgeIndexLauncher.class), vectors, "companion-v1");
+        @SuppressWarnings("unchecked")
+        ObjectProvider<AttachmentCatalog> attachments = mock(ObjectProvider.class);
+        when(attachments.getIfAvailable()).thenReturn(catalog);
+        return new KnowledgeAppService(
+                repos, mock(KnowledgeIndexLauncher.class), vectors, attachments, "companion-v1");
     }
 }

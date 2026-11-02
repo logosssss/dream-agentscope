@@ -21,8 +21,8 @@ public interface AttachmentCatalog {
             String checksum);
 
     /**
-     * 把附件挂到一条消息或一次运行上。附件必须属于这个用户。
-     * 同一附件、类型和标识再挂一次是冲突。不核对话或运行是否存在。
+     * 把附件挂到一条消息、一次运行或一篇知识文档上。附件必须属于这个用户。
+     * 同一附件、类型和标识再挂一次是冲突。不核对话、运行或文档是否存在。
      */
     AttachmentRefSummary link(String userId, String attachmentId, String refType, String refId);
 }
