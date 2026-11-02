@@ -7,6 +7,7 @@ import com.zhu.audit.infrastructure.persistence.entity.DataDeletionRequest;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
+import java.util.List;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -59,5 +60,35 @@ public class MysqlDeletionRequestCatalog implements DeletionRequestCatalog {
         row.setReason(savedReason);
         requests.insert(row);
         return new DeletionRequestSummary(requestId, userId, savedTenant, dataType, PENDING, savedReason);
+    }
+
+    /**
+     * 空用户拒绝。空白租户按空串，和登记时一致。
+     * 已通过或拒绝的行也返回，调用方据此知道决定，仍不删数据。
+     */
+    @Override
+    public List<DeletionRequestSummary> owned(String userId, String tenantId, int limit) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || (tenantId != null && tenantId.length() > TENANT_LIMIT)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "deletion request is invalid");
+        }
+        String savedTenant = tenantId == null || tenantId.isBlank() ? "" : tenantId;
+        List<DataDeletionRequest> rows = requests.listOwned(userId, savedTenant, AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream().map(MysqlDeletionRequestCatalog::summary).toList();
+    }
+
+    /** 列表和登记共用同一份摘要。 */
+    private static DeletionRequestSummary summary(DataDeletionRequest row) {
+        String tenant = row.getTenantId() == null ? "" : row.getTenantId();
+        return new DeletionRequestSummary(
+                row.getRequestId(),
+                row.getUserId(),
+                tenant,
+                row.getDataType(),
+                row.getStatus(),
+                row.getReason());
     }
 }

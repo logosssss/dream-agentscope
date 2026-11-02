@@ -20,6 +20,16 @@
         WHERE request_id = #{requestId}
     </select>
 
+    <!-- 本人本租户的删除请求。含已决定的行，不执行删除。 -->
+    <select id="listOwned" resultMap="BaseResultMap">
+        SELECT id, request_id, user_id, tenant_id, data_type, status, reason
+        FROM data_deletion_request
+        WHERE user_id = #{userId}
+          AND tenant_id = #{tenantId}
+        ORDER BY requested_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
     <!-- 只改待处理。不写执行时间和删除结果。 -->
     <update id="decidePending">
         UPDATE data_deletion_request

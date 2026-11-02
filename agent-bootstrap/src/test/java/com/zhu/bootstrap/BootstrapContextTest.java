@@ -93,6 +93,9 @@ class BootstrapContextTest {
                         .content("{\"rating\":5}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(get("/api/deletion-requests").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/deletion-requests").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
                         .contentType("application/json")
                         .content("{\"dataType\":\"SESSION\"}"))
