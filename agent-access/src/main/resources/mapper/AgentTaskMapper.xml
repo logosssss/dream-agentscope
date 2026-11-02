@@ -11,4 +11,14 @@
             finished_at = #{finishedAt}
         WHERE task_id = #{taskId}
     </update>
+
+    <!-- 本人本租户最近的任务。不带回 payload 和结果引用。 -->
+    <select id="listOwned" resultType="com.zhu.access.infrastructure.persistence.entity.AgentTaskRow">
+        SELECT task_id, tenant_id, user_id, session_id, task_type, status, error_message
+        FROM agent_task
+        WHERE user_id = #{userId}
+          AND tenant_id = #{tenantId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
 </mapper>

@@ -3,10 +3,11 @@ package com.zhu.access.infrastructure.persistence;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhu.access.infrastructure.persistence.entity.AgentTaskRow;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 /**
- * agent_task 的访问。插入用 BaseMapper，结束状态的更新在 XML 里。
+ * agent_task 的访问。插入用 BaseMapper，结束状态和列表在 XML 里。
  */
 public interface AgentTaskMapper extends BaseMapper<AgentTaskRow> {
 
@@ -18,4 +19,12 @@ public interface AgentTaskMapper extends BaseMapper<AgentTaskRow> {
             @Param("status") String status,
             @Param("errorMessage") String errorMessage,
             @Param("finishedAt") LocalDateTime finishedAt);
+
+    /**
+     * 当前用户在这个租户下最近的任务。不带回 payload。
+     */
+    List<AgentTaskRow> listOwned(
+            @Param("userId") String userId,
+            @Param("tenantId") String tenantId,
+            @Param("limit") int limit);
 }
