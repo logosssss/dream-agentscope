@@ -1,6 +1,7 @@
 package com.zhu.runtime.infrastructure.tool;
 
 import com.zhu.runtime.domain.TextEmbedder;
+import com.zhu.runtime.domain.knowledge.ChunkReranker;
 import com.zhu.runtime.domain.knowledge.HybridChunkMerger;
 import com.zhu.semantic.contract.ProductTool;
 import com.zhu.state.api.KnowledgeChunkItem;
@@ -19,7 +20,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Agentic 知识检索。身份只从 RuntimeContext 取，不用 ThreadLocal。
- * Hybrid：向量优先，FULLTEXT ngram 补缺；向量失败时降级纯全文。只回 SUCCESS 文档上的切块。
+ * Hybrid：向量优先，FULLTEXT ngram 补缺，合并最多 20 条后再 Rerank 到 5。
+ * 向量失败时降级纯全文；Rerank 失败退回 Hybrid 原序。只回 SUCCESS 文档上的切块。
  */
 @Component
 public class KnowledgeSearchTool implements ProductTool {
@@ -29,7 +31,7 @@ public class KnowledgeSearchTool implements ProductTool {
     public static final String TOOL_ID = "knowledge_search";
 
     private static final int TOP_K = 5;
-    /** 单路召回上限，合并后再截到 TOP_K。 */
+    /** 单路召回与 Hybrid 合并上限；Rerank 后再截到 TOP_K。 */
     private static final int CANDIDATE_LIMIT = 20;
 
     private final VectorStore vectors;
@@ -38,15 +40,23 @@ public class KnowledgeSearchTool implements ProductTool {
 
     private final TextEmbedder embedder;
 
+    private final ChunkReranker reranker;
+
     /**
      * @param vectors   向量近邻；失败时本工具降级全文
      * @param knowledge 回表 SUCCESS 切块与 FULLTEXT
      * @param embedder  查询嵌入；维度不符时视为向量路空
+     * @param reranker  Hybrid 之后重排；失败时原序截断
      */
-    public KnowledgeSearchTool(VectorStore vectors, KnowledgeRepository knowledge, TextEmbedder embedder) {
+    public KnowledgeSearchTool(
+            VectorStore vectors,
+            KnowledgeRepository knowledge,
+            TextEmbedder embedder,
+            ChunkReranker reranker) {
         this.vectors = vectors;
         this.knowledge = knowledge;
         this.embedder = embedder;
+        this.reranker = reranker;
     }
 
     @Override
@@ -84,11 +94,13 @@ public class KnowledgeSearchTool implements ProductTool {
             List<KnowledgeChunkItem> vectorChunks = loadVectorChunks(tenantId, userId, agentId, q);
             List<KnowledgeChunkItem> fulltextChunks =
                     knowledge.searchSuccessByFulltext(tenantId, userId, agentId, q, CANDIDATE_LIMIT);
-            List<KnowledgeChunkItem> merged = HybridChunkMerger.merge(vectorChunks, fulltextChunks, TOP_K);
-            if (merged.isEmpty()) {
+            List<KnowledgeChunkItem> merged =
+                    HybridChunkMerger.merge(vectorChunks, fulltextChunks, CANDIDATE_LIMIT);
+            List<KnowledgeChunkItem> ranked = reranker.rerank(q, merged, TOP_K);
+            if (ranked.isEmpty()) {
                 return "未找到相关知识。";
             }
-            return format(merged);
+            return format(ranked);
         } catch (RuntimeException ex) {
             log.warning("knowledge search failed");
             return "未找到相关知识。";

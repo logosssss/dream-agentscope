@@ -1,6 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.runtime.domain.TextEmbedder;
+import com.zhu.runtime.domain.knowledge.ChunkReranker;
 import com.zhu.runtime.infrastructure.agent.CatalogToolRegistrar;
 import com.zhu.runtime.infrastructure.tool.KnowledgeSearchTool;
 import com.zhu.semantic.contract.ProductTool;
@@ -37,7 +38,10 @@ class ToolRegistrationTest {
     @Test
     void knowledgeSearchRegistersFromCatalog() {
         KnowledgeSearchTool search = new KnowledgeSearchTool(
-                mock(VectorStore.class), mock(KnowledgeRepository.class), mock(TextEmbedder.class));
+                mock(VectorStore.class),
+                mock(KnowledgeRepository.class),
+                mock(TextEmbedder.class),
+                mock(ChunkReranker.class));
         assertThat(search.toolId()).isEqualTo(KnowledgeSearchTool.TOOL_ID);
         Toolkit toolkit = new Toolkit();
         new CatalogToolRegistrar().register(

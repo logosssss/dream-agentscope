@@ -1,6 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.runtime.domain.TextEmbedder;
+import com.zhu.runtime.domain.knowledge.ChunkReranker;
 import com.zhu.runtime.infrastructure.tool.KnowledgeSearchTool;
 import com.zhu.state.api.KnowledgeChunkItem;
 import com.zhu.state.api.KnowledgeRepository;
@@ -9,6 +10,7 @@ import com.zhu.vector.api.VectorQuery;
 import com.zhu.vector.api.VectorStore;
 import com.zhu.vector.infrastructure.MilvusCollections;
 import io.agentscope.core.agent.RuntimeContext;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -38,7 +41,7 @@ class KnowledgeSearchToolTest {
         when(knowledge.searchSuccessByFulltext(eq("t1"), eq("u1"), eq("a1"), eq("请假"), anyInt()))
                 .thenReturn(List.of(chunk("c1", "全文重复"), chunk("c2", "全文补缺")));
 
-        KnowledgeSearchTool tool = new KnowledgeSearchTool(vectors, knowledge, embedder);
+        KnowledgeSearchTool tool = new KnowledgeSearchTool(vectors, knowledge, embedder, passthroughReranker());
         String out = tool.search("请假", context());
 
         assertThat(out).contains("向量命中正文").contains("全文补缺").doesNotContain("全文重复");
@@ -55,7 +58,7 @@ class KnowledgeSearchToolTest {
         when(knowledge.findSuccessChunksByIds(any(), any(), any(), anyList())).thenReturn(List.of());
 
         KnowledgeSearchTool tool =
-                new KnowledgeSearchTool(mock(VectorStore.class), knowledge, embedder);
+                new KnowledgeSearchTool(mock(VectorStore.class), knowledge, embedder, passthroughReranker());
         String out = tool.search("制度", context());
 
         assertThat(out).contains("制度全文");
@@ -65,10 +68,37 @@ class KnowledgeSearchToolTest {
     @Test
     void blankQueryOrIdentityReturnsFriendlyEmpty() {
         KnowledgeSearchTool tool = new KnowledgeSearchTool(
-                mock(VectorStore.class), mock(KnowledgeRepository.class), mock(TextEmbedder.class));
+                mock(VectorStore.class),
+                mock(KnowledgeRepository.class),
+                mock(TextEmbedder.class),
+                passthroughReranker());
         assertThat(tool.search("  ", context())).isEqualTo("未找到相关知识。");
         assertThat(tool.search("q", RuntimeContext.builder().userId("u1").sessionId("s1").build()))
                 .isEqualTo("未找到相关知识。");
+    }
+
+    /** 单测里 Rerank 保持传入顺序并截到 topK，专注 Hybrid 接线。 */
+    private static ChunkReranker passthroughReranker() {
+        ChunkReranker reranker = mock(ChunkReranker.class);
+        when(reranker.rerank(anyString(), anyList(), anyInt())).thenAnswer(invocation -> {
+            List<KnowledgeChunkItem> candidates = invocation.getArgument(1);
+            int topK = invocation.getArgument(2);
+            if (candidates == null || candidates.isEmpty() || topK < 1) {
+                return List.of();
+            }
+            List<KnowledgeChunkItem> out = new ArrayList<>();
+            for (KnowledgeChunkItem chunk : candidates) {
+                if (chunk == null) {
+                    continue;
+                }
+                out.add(chunk);
+                if (out.size() >= topK) {
+                    break;
+                }
+            }
+            return out;
+        });
+        return reranker;
     }
 
     private static RuntimeContext context() {
