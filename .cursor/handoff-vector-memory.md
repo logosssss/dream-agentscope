@@ -1,4 +1,4 @@
-# Handoff：百炼 Rerank 之后继续落地
+# Handoff：OSS 双后端切换之后继续落地
 
 下一场：用户说「继续」或「继续往下推进」时，按指南清单和各模块 README「还没有」做下一块。不要改 `doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`。
 
@@ -16,14 +16,14 @@
 
 ## 已做（本块）
 
-百炼文本重排：`DashScopeChunkReranker`（`qwen3.7-text-rerank`，固定 `dashscope.aliyuncs.com`，超时 5s）。`KnowledgeSearchTool`：Hybrid 合并最多 20 → Rerank 到 5；无密钥/失败退回 Hybrid 原序；不记账。
+`agent-object-store`：`type=local|oss`。本地默认 `data/objects`；OSS 用官方 SDK V2（`alibabacloud-oss-v2`），缺配置启动失败。知识文件上传按实现写附件 `LOCAL`/`OSS`；桶内前缀默认 `agentscope/`。联调桶示例：`dream-agentscope-dev` / `cn-shenzhen`。
 
 ## 下一块
 
-以 README「还没有」为准，优先考虑：对象存储真正收文件。不要再补管理端 GET 列表。
+以 README「还没有」为准，优先考虑：通用附件 multipart、删文档时级联清对象。不要再补管理端 GET 列表。
 
 不要做：RocketMQ、服务发现、MCP、配置热更新、连接串进 Nacos、密码登录、JWT。
 
 ## 另一台机器开场白
 
-拉到含「百炼 Rerank」的分支后说：「继续」。先读这份 handoff。
+拉到含「OSS 双后端切换」的分支后说：「继续」。先读这份 handoff。

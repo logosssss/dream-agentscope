@@ -4,6 +4,7 @@ import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
+import com.zhu.objectstore.api.ObjectStore;
 import com.zhu.state.api.KnowledgeBaseItem;
 import com.zhu.state.api.KnowledgeDocumentItem;
 import com.zhu.state.api.KnowledgeRepository;
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Service;
 /**
  * 知识库接入用例。只落库并异步触发索引，不在请求线程里嵌入。
  * 删除时先清向量再删 MySQL，避免孤儿正文仍可被检索回表。
- * 文件上传只收纯文本，正文进 kb_document；附件表只记元数据，不接对象存储。
+ * 文件上传：正文进 kb_document；原始字节进本地对象存储；附件表记 LOCAL 路径。
  */
 @Service
 public class KnowledgeAppService {
@@ -38,6 +39,8 @@ public class KnowledgeAppService {
 
     private final VectorStore vectors;
 
+    private final ObjectStore objects;
+
     private final ObjectProvider<AttachmentCatalog> attachments;
 
     private final String defaultAgentId;
@@ -46,11 +49,13 @@ public class KnowledgeAppService {
             ObjectProvider<KnowledgeRepository> repositories,
             KnowledgeIndexLauncher indexer,
             VectorStore vectors,
+            ObjectStore objects,
             ObjectProvider<AttachmentCatalog> attachments,
             @Value("${agentscope.runtime.agent-id:companion-v1}") String defaultAgentId) {
         this.repositories = repositories;
         this.indexer = indexer;
         this.vectors = vectors;
+        this.objects = objects;
         this.attachments = attachments;
         this.defaultAgentId = defaultAgentId == null || defaultAgentId.isBlank() ? "companion-v1" : defaultAgentId;
     }
@@ -143,7 +148,7 @@ public class KnowledgeAppService {
         String content = KnowledgeTextFileReader.readUtf8(fileName, contentType, bytes, MAX_CONTENT_BYTES);
         String resolvedTitle = KnowledgeTextFileReader.defaultTitle(title, fileName);
         KnowledgeDocumentItem saved = upload(tenantId, userId, kbId, docId, resolvedTitle, content);
-        registerFileAttachment(tenantId, userId, fileName, contentType, bytes == null ? 0L : bytes.length, saved);
+        registerFileAttachment(tenantId, userId, fileName, contentType, bytes, saved);
         return saved;
     }
 
@@ -207,40 +212,74 @@ public class KnowledgeAppService {
     }
 
     /**
-     * 附件元数据路径指向知识文档版本，不表示磁盘上另有一份文件。
-     * 目录缺失或写失败只记日志。
+     * 原始字节先写入对象存储，再登记附件并挂 DOCUMENT。
+     * 对象写入或目录登记失败只记日志，不回滚已落库的文档正文。
      */
     private void registerFileAttachment(
             String tenantId,
             String userId,
             String fileName,
             String contentType,
-            long sizeBytes,
+            byte[] bytes,
             KnowledgeDocumentItem saved) {
         if (saved == null || blank(saved.docId())) {
+            return;
+        }
+        String name = blank(fileName) ? saved.docId() + ".txt" : fileName.trim();
+        String path;
+        try {
+            path = objects.put(objectKey(tenantId, userId, saved.docId(), saved.version(), name), bytes);
+        } catch (RuntimeException ex) {
+            log.warning("knowledge file object store failed");
             return;
         }
         AttachmentCatalog catalog = attachments.getIfAvailable();
         if (catalog == null) {
             return;
         }
-        String name = blank(fileName) ? saved.docId() + ".txt" : fileName.trim();
-        String path = "kb-doc:" + saved.docId() + ":v" + saved.version();
         try {
             var att = catalog.register(
                     userId,
                     tenantId,
                     null,
                     name,
-                    "LOCAL",
+                    objects.storageType(),
                     path,
                     blank(contentType) ? "text/plain" : contentType.trim(),
-                    sizeBytes,
+                    bytes == null ? 0L : bytes.length,
                     null);
             catalog.link(userId, att.attachmentId(), REF_DOCUMENT, saved.docId());
         } catch (RuntimeException ex) {
             log.warning("knowledge file attachment register failed");
         }
+    }
+
+    /**
+     * 知识文件对象键。文件名只保留安全字符，避免路径穿越。
+     */
+    static String objectKey(String tenantId, String userId, String docId, int version, String fileName) {
+        String tenant = blank(tenantId) ? "_" : tenantId.trim();
+        String user = blank(userId) ? "_" : userId.trim();
+        String doc = blank(docId) ? "_" : docId.trim();
+        return "kb/" + tenant + "/" + user + "/" + doc + "/v" + version + "/" + safeFileName(fileName);
+    }
+
+    /** 去掉路径分隔与控制字符；空名用 file.bin。 */
+    static String safeFileName(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return "file.bin";
+        }
+        StringBuilder out = new StringBuilder(fileName.length());
+        for (int i = 0; i < fileName.length(); i++) {
+            char ch = fileName.charAt(i);
+            if (ch == '/' || ch == '\\' || ch < ' ') {
+                out.append('_');
+            } else {
+                out.append(ch);
+            }
+        }
+        String cleaned = out.toString().trim();
+        return cleaned.isEmpty() || ".".equals(cleaned) || "..".equals(cleaned) ? "file.bin" : cleaned;
     }
 
     private void dropVectors(List<String> chunkIds) {

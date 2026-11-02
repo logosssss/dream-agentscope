@@ -64,6 +64,19 @@ agentscope:
     token: ${MILVUS_TOKEN:}
     collection: ${MILVUS_COLLECTION:knowledge}
     dimensions: ${MILVUS_DIMENSIONS:1024}
+  object-store:
+    # local：写本地目录。oss：写阿里云 OSS（SDK V2），缺 endpoint/region/bucket/AK/SK 启动失败。
+    type: ${AGENTSCOPE_OBJECT_STORE_TYPE:local}
+    # 本地对象根目录。已在 .gitignore。type=local 时生效。
+    root: ${AGENTSCOPE_OBJECT_STORE_ROOT:data/objects}
+    oss:
+      endpoint: ${AGENTSCOPE_OSS_ENDPOINT:}
+      region: ${AGENTSCOPE_OSS_REGION:}
+      bucket: ${AGENTSCOPE_OSS_BUCKET:}
+      access-key-id: ${AGENTSCOPE_OSS_ACCESS_KEY_ID:}
+      access-key-secret: ${AGENTSCOPE_OSS_ACCESS_KEY_SECRET:}
+      # 桶内前缀；对外业务键不含此前缀。
+      prefix: ${AGENTSCOPE_OSS_PREFIX:agentscope/}
   task:
     # sync 在当前线程执行。改成 mq 会拒绝启动，RocketMQ 依赖还没引入。
     mode: sync

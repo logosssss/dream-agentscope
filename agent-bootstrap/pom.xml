@@ -24,6 +24,10 @@
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
+            <artifactId>agent-object-store</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
             <artifactId>agent-state</artifactId>
         </dependency>
         <dependency>

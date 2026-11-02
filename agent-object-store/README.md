@@ -1,0 +1,39 @@
+# agent-object-store
+
+对象存储。只负责按相对键读写字节。本模块不认识知识库、附件表或模型。
+
+坐标：`com.zhu:agent-object-store`。包名：`com.zhu.objectstore`。
+
+## 依赖
+
+依赖 `agent-common`、`spring-boot-autoconfigure`、`alibabacloud-oss-v2`。
+
+不能依赖 `agent-state`、`agent-semantic`、`agent-runtime`、`agent-access`、`agent-audit`、`agent-admin`、`agent-vector`。
+
+管理进程不要依赖本模块。
+
+## 包
+
+| 包 | 类型 | 现状 |
+| --- | --- | --- |
+| `api` | `ObjectStore` | 写入、读取、删除与 `storageType` 缝 |
+| `infrastructure` | `LocalObjectStore` | `type=local`（默认）。根目录 `agentscope.object-store.root`，默认 `data/objects` |
+| `infrastructure` | `OssObjectStore` | `type=oss`。官方 SDK V2；对外业务键不含前缀 |
+| `config` | `OssObjectStoreConfig` | 装配 OSS 客户端。缺 endpoint/region/bucket/AK/SK 启动失败 |
+
+## 配置
+
+| 项 | 环境变量 | 说明 |
+| --- | --- | --- |
+| `agentscope.object-store.type` | `AGENTSCOPE_OBJECT_STORE_TYPE` | `local` / `oss`，默认 `local` |
+| `agentscope.object-store.root` | `AGENTSCOPE_OBJECT_STORE_ROOT` | 仅 local |
+| `agentscope.object-store.oss.endpoint` | `AGENTSCOPE_OSS_ENDPOINT` | 如 `https://oss-cn-shenzhen.aliyuncs.com` |
+| `agentscope.object-store.oss.region` | `AGENTSCOPE_OSS_REGION` | 如 `cn-shenzhen` |
+| `agentscope.object-store.oss.bucket` | `AGENTSCOPE_OSS_BUCKET` | 桶名 |
+| `agentscope.object-store.oss.access-key-id` | `AGENTSCOPE_OSS_ACCESS_KEY_ID` | 密钥，勿进仓库 |
+| `agentscope.object-store.oss.access-key-secret` | `AGENTSCOPE_OSS_ACCESS_KEY_SECRET` | 密钥，勿进仓库 |
+| `agentscope.object-store.oss.prefix` | `AGENTSCOPE_OSS_PREFIX` | 默认 `agentscope/` |
+
+## 还没有
+
+通用附件 multipart 上传。知识库删除时级联清对象。S3 / MinIO 实现。

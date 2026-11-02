@@ -38,6 +38,19 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..state..", "..semantic..", "..runtime..", "..access..", "..admin..");
 
+    /** 对象存储不认识状态、产品语义、执行、接入和审计。 */
+    private static final ArchRule OBJECT_STORE_MUST_NOT_DEPEND_ON_BUSINESS =
+            noClasses().that().resideInAPackage("..objectstore..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage(
+                            "..state..",
+                            "..semantic..",
+                            "..runtime..",
+                            "..access..",
+                            "..admin..",
+                            "..audit..",
+                            "..vector..");
+
     /** 接入层不能直接引用 Harness 类型。 */
     private static final ArchRule ACCESS_MUST_NOT_TOUCH_HARNESS =
             noClasses().that().resideInAPackage("..access..")
@@ -62,12 +75,15 @@ class ArchitectureTest {
                         "com.zhu.state.config.StateMapperConfig",
                         "com.zhu.vector.api.VectorStore",
                         "com.zhu.vector.config.VectorConfig",
+                        "com.zhu.objectstore.api.ObjectStore",
+                        "com.zhu.objectstore.infrastructure.LocalObjectStore",
                         "com.zhu.access.api.controller.LivenessController");
 
         SEMANTIC_MUST_NOT_DEPEND_ON_RUNTIME_OR_ACCESS.check(classes);
         RUNTIME_ONLY_DEPENDS_ON_SEMANTIC_CONTRACT.check(classes);
         STATE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         VECTOR_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
+        OBJECT_STORE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         ACCESS_MUST_NOT_TOUCH_HARNESS.check(classes);
         CONTROLLERS_MUST_NOT_ACCESS_REPOSITORIES.check(classes);
     }
