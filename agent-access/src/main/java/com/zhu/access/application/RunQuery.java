@@ -1,11 +1,12 @@
 package com.zhu.access.application;
 
+import com.zhu.access.api.dto.RunDetail;
 import com.zhu.access.api.dto.RunSummary;
 import java.util.List;
 
 /**
  * 当前用户的运行记录查询。MySQL 关闭时没有这个实现。
- * 只读已经结束的行，不返回步骤或全文。
+ * 列表不带步骤；单次详情才读步骤，仍不返回全文。
  */
 public interface RunQuery {
 
@@ -14,4 +15,10 @@ public interface RunQuery {
      * 不把别人的行带出来，也不读步骤表。
      */
     List<RunSummary> owned(String userId, String tenantId, int limit);
+
+    /**
+     * 当前用户在这个租户下的一次运行，附带步骤。
+     * 找不到或不是本人时按找不到处理，不读别人的步骤。
+     */
+    RunDetail ownedOne(String userId, String tenantId, String runId);
 }

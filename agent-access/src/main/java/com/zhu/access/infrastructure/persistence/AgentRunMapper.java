@@ -30,4 +30,12 @@ public interface AgentRunMapper extends BaseMapper<AgentRun> {
             @Param("userId") String userId,
             @Param("tenantId") String tenantId,
             @Param("limit") int limit);
+
+    /**
+     * 当前用户在这个租户下的一次运行。别人的行按找不到。
+     */
+    AgentRun findOwned(
+            @Param("userId") String userId,
+            @Param("tenantId") String tenantId,
+            @Param("runId") String runId);
 }

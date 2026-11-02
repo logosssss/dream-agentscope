@@ -11,4 +11,12 @@
             (#{runId}, #{step.stepNo}, #{step.stepType}, #{step.toolId}, #{step.status})
         </foreach>
     </insert>
+
+    <!-- 不带回参数、正文、耗时和 token。这些列写入时就是空的。 -->
+    <select id="listByRunId" resultType="com.zhu.access.infrastructure.persistence.entity.AgentRunStep">
+        SELECT step_no, step_type, tool_id, status
+        FROM agent_run_step
+        WHERE run_id = #{runId}
+        ORDER BY step_no ASC, id ASC
+    </select>
 </mapper>
