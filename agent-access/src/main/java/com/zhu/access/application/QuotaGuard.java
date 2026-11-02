@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * 对话进入执行内核之前的额度检查。重复请求先占幂等键，避免同一次提交把额度扣两次。
- * 请求次数在入口累加；token 在出口记账后累加，入口只读已用量。
+ * 请求次数在入口累加；token / 费用在出口记账后累加，入口只读已用量。
  */
 @Service
 public class QuotaGuard {
@@ -88,7 +88,7 @@ public class QuotaGuard {
     /**
      * 限额为 0 的项目跳过。没有请求标识就不做幂等。
      * 租户有每日请求上限时用那一行，否则用进程配置。计数仍在 Redis。
-     * 有 TOKENS 行且已用量达到上限时拒绝对话；本次请求仍可在额度内跑完后记账。
+     * 有 TOKENS / COST 行且已用量达到上限时拒绝对话；本次请求仍可在额度内跑完后记账。
      * 当日计数通过后才记流水。流水写失败不改变这次请求。超限的那一次不记。
      * 超限抛 QUOTA_EXCEEDED，重复标识抛 CONFLICT。
      */
@@ -101,7 +101,8 @@ public class QuotaGuard {
         String user = segment(userId);
         String tenant = segment(tenantId);
         String day = DAY.format(clock.instant());
-        rejectIfTokenExceeded(tenantId, userId, tenant, user, day);
+        rejectIfTokenExceeded(tenantId, userId, day);
+        rejectIfCostExceeded(tenantId, userId, day);
         long dailyLimit = limits.getDailyLimit();
         if (quotas != null) {
             Long override = quotas.dailyRequestLimit(tenantId);
@@ -133,7 +134,14 @@ public class QuotaGuard {
         return "quota-tokens:" + segment(tenantId) + ":" + segment(userId) + ":" + day;
     }
 
-    private void rejectIfTokenExceeded(String tenantId, String userId, String tenant, String user, String day) {
+    /**
+     * 当日费用微单位计数键。与 {@link RedisDailyCostAccumulator} 共用。
+     */
+    public static String costKey(String tenantId, String userId, String day) {
+        return "quota-cost:" + segment(tenantId) + ":" + segment(userId) + ":" + day;
+    }
+
+    private void rejectIfTokenExceeded(String tenantId, String userId, String day) {
         if (quotas == null) {
             return;
         }
@@ -144,6 +152,20 @@ public class QuotaGuard {
         long used = cache.getCounter(tokenKey(tenantId, userId, day));
         if (used >= tokenLimit) {
             throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "daily token quota exceeded");
+        }
+    }
+
+    private void rejectIfCostExceeded(String tenantId, String userId, String day) {
+        if (quotas == null) {
+            return;
+        }
+        Long costLimit = quotas.dailyCostLimit(tenantId);
+        if (costLimit == null || costLimit <= 0) {
+            return;
+        }
+        long used = cache.getCounter(costKey(tenantId, userId, day));
+        if (used >= costLimit) {
+            throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "daily cost quota exceeded");
         }
     }
 

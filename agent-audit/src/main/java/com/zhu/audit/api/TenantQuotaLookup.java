@@ -18,4 +18,12 @@ public interface TenantQuotaLookup {
     default Long dailyTokenLimit(String tenantId) {
         return null;
     }
+
+    /**
+     * 启用中的每日费用上限，单位是金额微单位（×1e6，与 cost_amount 同精度）。
+     * 没有行时返回 null。0 表示不限额。
+     */
+    default Long dailyCostLimit(String tenantId) {
+        return null;
+    }
 }

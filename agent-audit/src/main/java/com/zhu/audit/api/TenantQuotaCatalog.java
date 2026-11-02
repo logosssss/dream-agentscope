@@ -29,6 +29,16 @@ public interface TenantQuotaCatalog {
     TenantQuotaSummary updateDailyTokens(String tenantId, Long limit);
 
     /**
+     * 写入 COST / DAILY。limit 为金额微单位。同一租户再写一次是冲突。
+     */
+    TenantQuotaSummary setDailyCost(String tenantId, Long limit);
+
+    /**
+     * 改已有 COST / DAILY 的上限。没有这一行按不存在处理。
+     */
+    TenantQuotaSummary updateDailyCost(String tenantId, Long limit);
+
+    /**
      * 最近登记的每日请求上限。条数默认由调用方给出，实现侧再压到上限。
      * 不带回已用量。
      */
@@ -38,4 +48,9 @@ public interface TenantQuotaCatalog {
      * 最近登记的每日 token 上限。不带回已用量。
      */
     List<TenantQuotaSummary> recentTokens(int limit);
+
+    /**
+     * 最近登记的每日费用上限。不带回已用量。
+     */
+    List<TenantQuotaSummary> recentCosts(int limit);
 }

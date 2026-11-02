@@ -1,6 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.application.QuotaGuard;
+import com.zhu.access.application.RedisDailyCostAccumulator;
 import com.zhu.access.application.RedisDailyTokenAccumulator;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.audit.api.TenantQuotaLookup;
@@ -147,6 +148,45 @@ class TenantQuotaTest {
         assertThat(directory.updateDailyTokens("t", 2000L).limit()).isEqualTo(2000L);
         when(quotas.recentTokens(50)).thenReturn(List.of());
         assertThat(directory.recentTokens(50)).isEmpty();
+    }
+
+    /** 已用量达到费用微单位上限后下一次对话拒绝。 */
+    @Test
+    void dailyCostBlocksAfterUsage() {
+        FakeAccessCache cache = new FakeAccessCache();
+        AccessLimitProperties limits = new AccessLimitProperties();
+        TenantQuotaLookup quotas = new TenantQuotaLookup() {
+            @Override
+            public Long dailyRequestLimit(String tenantId) {
+                return null;
+            }
+
+            @Override
+            public Long dailyCostLimit(String tenantId) {
+                return 6000L;
+            }
+        };
+        QuotaGuard guard = new QuotaGuard(cache, limits, Clock.systemUTC(), quotas);
+        guard.check("t", "u", "chat", "req-1");
+        new RedisDailyCostAccumulator(cache).add("t", "u", 6000L);
+        assertThatThrownBy(() -> guard.check("t", "u", "chat", "req-2"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.QUOTA_EXCEEDED);
+    }
+
+    /** 登记 COST / DAILY，列表单独读。 */
+    @Test
+    void registerAndListDailyCost() {
+        TenantQuotaMapper quotas = mock(TenantQuotaMapper.class);
+        MysqlTenantQuota directory = new MysqlTenantQuota(quotas);
+        assertThat(directory.setDailyCost("t", 1_000_000L).quotaType()).isEqualTo("COST");
+        when(quotas.findDailyCostLimit("t")).thenReturn(1_000_000L);
+        assertThat(directory.dailyCostLimit("t")).isEqualTo(1_000_000L);
+        when(quotas.updateDailyCostLimit("t", 2_000_000L)).thenReturn(1);
+        assertThat(directory.updateDailyCost("t", 2_000_000L).limit()).isEqualTo(2_000_000L);
+        when(quotas.recentCosts(50)).thenReturn(List.of());
+        assertThat(directory.recentCosts(50)).isEmpty();
     }
 
     private static TenantQuotaLookup requestsOnly(Long limit) {

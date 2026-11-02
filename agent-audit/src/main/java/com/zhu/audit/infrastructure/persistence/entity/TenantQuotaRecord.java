@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 /**
- * tenant_quota 的一行。登记 REQUESTS 或 TOKENS 的每日上限，已用量留给 Redis。
+ * tenant_quota 的一行。登记 REQUESTS / TOKENS / COST 的每日上限，已用量留给 Redis。
  */
 @TableName("tenant_quota")
 public class TenantQuotaRecord {
@@ -17,7 +17,7 @@ public class TenantQuotaRecord {
     /** 租户业务标识。 */
     private String tenantId;
 
-    /** REQUESTS 或 TOKENS。 */
+    /** REQUESTS、TOKENS 或 COST。COST 的 limit 是金额微单位。 */
     private String quotaType;
 
     /** DAILY。这次不写月或累计。 */

@@ -21,6 +21,11 @@ public interface TenantQuotaMapper extends BaseMapper<TenantQuotaRecord> {
     Long findDailyTokenLimit(@Param("tenantId") String tenantId);
 
     /**
+     * 启用中的 COST / DAILY 上限（微单位）。没有行时返回 null。
+     */
+    Long findDailyCostLimit(@Param("tenantId") String tenantId);
+
+    /**
      * 只改已有 REQUESTS / DAILY 的上限。返回实际更新行数。
      */
     int updateDailyRequestLimit(@Param("tenantId") String tenantId, @Param("limit") Long limit);
@@ -31,6 +36,11 @@ public interface TenantQuotaMapper extends BaseMapper<TenantQuotaRecord> {
     int updateDailyTokenLimit(@Param("tenantId") String tenantId, @Param("limit") Long limit);
 
     /**
+     * 只改已有 COST / DAILY 的上限。返回实际更新行数。
+     */
+    int updateDailyCostLimit(@Param("tenantId") String tenantId, @Param("limit") Long limit);
+
+    /**
      * 最近登记的每日请求上限。调用方已经把条数收进 1 到 100。不读已用量。
      */
     List<TenantQuotaRecord> recent(@Param("limit") int limit);
@@ -39,4 +49,9 @@ public interface TenantQuotaMapper extends BaseMapper<TenantQuotaRecord> {
      * 最近登记的每日 token 上限。
      */
     List<TenantQuotaRecord> recentTokens(@Param("limit") int limit);
+
+    /**
+     * 最近登记的每日费用上限。
+     */
+    List<TenantQuotaRecord> recentCosts(@Param("limit") int limit);
 }

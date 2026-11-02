@@ -50,6 +50,9 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /api/admin/tenant-token-quotas` | 最近登记的每日 token 上限，默认 50 条，最多 100 条。不带回已用量。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenant-token-quotas` | 登记每日 token 上限，类型固定 `TOKENS`，周期固定 `DAILY`。不改已有行。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tenant-token-quotas/{tenantId}` | 改已有的每日 token 上限。没有这一行返回找不到。不重置已用量。MySQL 关闭时返回不可用 |
+| `GET /api/admin/tenant-cost-quotas` | 最近登记的每日费用上限（微单位），默认 50 条，最多 100 条。不带回已用量。MySQL 关闭时返回不可用 |
+| `POST /api/admin/tenant-cost-quotas` | 登记每日费用上限，类型固定 `COST`，周期固定 `DAILY`，`limit` 为金额×1e6。不改已有行。MySQL 关闭时返回不可用 |
+| `POST /api/admin/tenant-cost-quotas/{tenantId}` | 改已有的每日费用上限。没有这一行返回找不到。不重置已用量。MySQL 关闭时返回不可用 |
 | `GET /api/admin/quota-usage` | 某个租户最近的每日请求流水，默认 50 条，最多 100 条。不回补。MySQL 关闭时返回不可用 |
 | `GET /api/admin/model-prices` | 最近的模型价格，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `POST /api/admin/model-prices` | 再插入一行价格。不改旧行。取价时用生效开始最晚且仍有效的一行 |

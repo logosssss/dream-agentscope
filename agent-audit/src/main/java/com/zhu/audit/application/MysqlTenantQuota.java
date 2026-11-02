@@ -15,7 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的租户每日请求与 token 上限。只在存储开关打开时创建。可列出已登记行。不写已用量。
+ * MySQL 上的租户每日请求、token 与费用上限。只在存储开关打开时创建。可列出已登记行。不写已用量。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -26,6 +26,8 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
     private static final String REQUESTS = "REQUESTS";
 
     private static final String TOKENS = "TOKENS";
+
+    private static final String COST = "COST";
 
     private static final String DAILY = "DAILY";
 
@@ -49,6 +51,11 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
         return lookup(tenantId, () -> quotas.findDailyTokenLimit(tenantId));
     }
 
+    @Override
+    public Long dailyCostLimit(String tenantId) {
+        return lookup(tenantId, () -> quotas.findDailyCostLimit(tenantId));
+    }
+
     /**
      * 标识为空、超长，或上限为负时拒绝。0 可以写入，表示这个租户不限额。
      * 同一租户再登记一次按冲突处理，不覆盖旧上限。
@@ -61,6 +68,11 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
     @Override
     public TenantQuotaSummary setDailyTokens(String tenantId, Long limit) {
         return insert(tenantId, limit, TOKENS);
+    }
+
+    @Override
+    public TenantQuotaSummary setDailyCost(String tenantId, Long limit) {
+        return insert(tenantId, limit, COST);
     }
 
     /**
@@ -77,6 +89,11 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
         return update(tenantId, limit, TOKENS, quotas::updateDailyTokenLimit);
     }
 
+    @Override
+    public TenantQuotaSummary updateDailyCost(String tenantId, Long limit) {
+        return update(tenantId, limit, COST, quotas::updateDailyCostLimit);
+    }
+
     /**
      * 空结果返回空列表。只看 REQUESTS / DAILY。已用量不在这张表。
      */
@@ -88,6 +105,11 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
     @Override
     public List<TenantQuotaSummary> recentTokens(int limit) {
         return mapRows(quotas.recentTokens(AuditQueryLimits.normalize(limit)));
+    }
+
+    @Override
+    public List<TenantQuotaSummary> recentCosts(int limit) {
+        return mapRows(quotas.recentCosts(AuditQueryLimits.normalize(limit)));
     }
 
     private Long lookup(String tenantId, LimitQuery query) {
