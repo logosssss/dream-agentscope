@@ -21,4 +21,15 @@
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <!-- 本人本租户的一次任务。不带回 payload。 -->
+    <select id="findOwned" resultType="com.zhu.access.infrastructure.persistence.entity.AgentTaskRow">
+        SELECT task_id, tenant_id, user_id, session_id, task_type, status, error_message,
+               started_at, finished_at
+        FROM agent_task
+        WHERE task_id = #{taskId}
+          AND user_id = #{userId}
+          AND tenant_id = #{tenantId}
+        LIMIT 1
+    </select>
 </mapper>

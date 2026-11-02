@@ -1,5 +1,6 @@
 package com.zhu.access.application;
 
+import com.zhu.access.api.dto.TaskDetail;
 import com.zhu.access.api.dto.TaskSummary;
 import java.util.List;
 
@@ -14,4 +15,10 @@ public interface TaskQuery {
      * 不把别人的行带出来，也不读 payload。
      */
     List<TaskSummary> owned(String userId, String tenantId, int limit);
+
+    /**
+     * 当前用户在这个租户下的一次任务，带开始结束时间。
+     * 找不到或不是本人时按找不到处理。
+     */
+    TaskDetail ownedOne(String userId, String tenantId, String taskId);
 }

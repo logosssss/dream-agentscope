@@ -7,7 +7,7 @@ import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 /**
- * agent_task 的访问。插入用 BaseMapper，结束状态和列表在 XML 里。
+ * agent_task 的访问。插入用 BaseMapper，结束状态、列表和详情在 XML 里。
  */
 public interface AgentTaskMapper extends BaseMapper<AgentTaskRow> {
 
@@ -27,4 +27,12 @@ public interface AgentTaskMapper extends BaseMapper<AgentTaskRow> {
             @Param("userId") String userId,
             @Param("tenantId") String tenantId,
             @Param("limit") int limit);
+
+    /**
+     * 当前用户在这个租户下的一次任务。别人的行按找不到。
+     */
+    AgentTaskRow findOwned(
+            @Param("userId") String userId,
+            @Param("tenantId") String tenantId,
+            @Param("taskId") String taskId);
 }
