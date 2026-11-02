@@ -40,7 +40,7 @@
 
 同一事件再写 `user_todo`。类型是 `APPROVAL`，状态是 `OPEN`，关联审批单，标题是工具名。同一用户和审批单再开一次不再插一行。`POST /api/todos` 再给当前用户开确认或任务待办，类型只接受 `CONFIRM` / `TASK`。关联运行或任务标识，不核这些对象是否存在。同一用户、类型和关联再开一次返回冲突。不写截止时间。`GET /api/todos` 列出这个用户还开着的待办，含审批、确认和任务。审批通过后改 `DONE`，拒绝后改 `CANCELLED`。关闭失败不改已经写下的决定。`POST /api/todos/{todoId}/done` 把这个用户还开着的确认或任务改成 `DONE`。`POST /api/todos/{todoId}/cancel` 改成 `CANCELLED`。审批待办不能从这里关。别人的行按找不到处理。
 
-`POST /api/feedback` 追加 `user_feedback`。评分是 1 到 5，说明最长 1000 字。不存标签，也不要求这次运行已经在 `agent_run` 里。
+`GET /api/feedback` 列出当前用户的 `user_feedback`，默认 50 条，最多 100 条。表没有租户列。`POST /api/feedback` 追加 `user_feedback`。评分是 1 到 5，说明最长 1000 字。不存标签，也不要求这次运行已经在 `agent_run` 里。
 
 `GET /api/attachments` 列出当前用户在这个租户下仍启用的 `attachment`，默认 50 条，最多 100 条。不读对象存储。`POST /api/attachments` 登记 `attachment`。JSON 只收文件名和声称的路径，不收文件内容。空白存储类型按 `LOCAL`。状态是 `ACTIVE`。本模块仍不接对象存储。`POST /api/attachments/file` 由接入层先写入 `ObjectStore`，再登记（`storage_type` 跟实现走：`LOCAL` / `OSS` / `S3` / `MINIO`；路径为 `att/{tenant}/{user}/{id}/{fileName}`）。`POST /api/attachments/{attachmentId}/refs` 登记 `attachment_ref`。类型只接受 `MESSAGE` / `RUN` / `DOCUMENT`。附件必须属于当前用户。不核对话、运行或知识文档是否存在。同一引用再挂一次返回冲突。知识库纯文本文件上传成功后由接入层先写入 `ObjectStore`，再登记附件（路径为 `kb/{tenant}/{user}/{docId}/v{version}/{fileName}`），并挂 `DOCUMENT`。删文档或删库时接入层按该引用取出路径清对象，不改附件行。`GET /api/attachments/{attachmentId}/content` 由接入层按本人 ACTIVE 行读对象；路径必须落在 `att/{tenant}/{user}/` 或 `kb/{tenant}/{user}/`。JSON 声称的盘路径不读。本模块仍不接对象存储。
 

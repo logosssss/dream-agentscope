@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.UserFeedbackMapper">
+
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.UserFeedback">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="run_id" property="runId"/>
+        <result column="rating" property="rating"/>
+        <result column="comment" property="comment"/>
+    </resultMap>
+
+    <!-- 这个用户最近的反馈。表没有租户列，不按租户再滤。 -->
+    <select id="listOwned" resultMap="ListResultMap">
+        SELECT id, user_id, run_id, rating, comment
+        FROM user_feedback
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>
