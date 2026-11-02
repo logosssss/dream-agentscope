@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 本地对象读写与路径护栏。不连 OSS。
+ * 本地对象读写与路径护栏。不连 OSS / S3。
  */
 class LocalObjectStoreTest {
 

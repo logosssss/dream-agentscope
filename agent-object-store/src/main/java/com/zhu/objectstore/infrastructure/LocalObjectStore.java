@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 基础设施：把对象写到本地根目录。默认 data/objects，已进 .gitignore。
- * type=local（或缺省）时启用；不连 OSS。
+ * type=local（或缺省）时启用；不连 OSS / S3。
  */
 @Component
 @ConditionalOnProperty(name = "agentscope.object-store.type", havingValue = "local", matchIfMissing = true)

@@ -4,7 +4,7 @@ import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 
 /**
- * 对象键规范化。本地与 OSS 共用，拒绝空键与路径穿越。
+ * 对象键规范化。本地、OSS 与 S3 共用，拒绝空键与路径穿越。
  */
 public final class ObjectKeys {
 

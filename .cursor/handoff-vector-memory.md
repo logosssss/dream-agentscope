@@ -14,9 +14,9 @@
 
 下一空 Flyway 版本：**V37**。
 
-## 已做（附件正文下载）
+## 已做（S3 / MinIO 对象存储）
 
-`GET /api/attachments/{attachmentId}/content` 只读本人 ACTIVE 行。对象键必须落在 `att/{tenant}/{user}/` 或 `kb/{tenant}/{user}/`（空租户按 `_`）。JSON 声称的盘路径、别人的对象键、含 `..` 的路径都不读。对象不存在按找不到。MySQL 关闭返回不可用。失败仍走统一 JSON（找不到 HTTP 200，目录/对象存储失败 HTTP 503）。
+`type=s3` 与 `type=minio` 共用 AWS SDK V2。缺 endpoint/region/bucket/AK/SK 启动失败，不回落 local。MinIO 默认 path-style。对外业务键仍不含配置前缀。测试不连真桶。
 
 ## 下一块
 
@@ -28,4 +28,4 @@
 
 ## 另一台机器开场白
 
-拉到含「附件正文下载」的分支后说：「继续」。先读这份 handoff。
+拉到含「S3 / MinIO 对象存储」的分支后说：「继续」。先读这份 handoff。

@@ -2,7 +2,7 @@ package com.zhu.objectstore.api;
 
 /**
  * 对象存取口。只按相对键读写字节，不解析业务路径语义。
- * 生产可换 OSS / S3；开发态落本地目录。
+ * 生产可换 OSS / S3 / MinIO；开发态落本地目录。
  */
 public interface ObjectStore {
 
@@ -23,7 +23,7 @@ public interface ObjectStore {
     void delete(String key);
 
     /**
-     * 附件表 storage_type。本地实现返回 LOCAL，OSS 返回 OSS。
+     * 附件表 storage_type。本地 LOCAL，OSS 为 OSS，S3 兼容实现返回 S3 或 MINIO。
      */
     String storageType();
 }

@@ -35,7 +35,7 @@
 | `api.controller` | `KnowledgeController` | `POST/GET/DELETE /api/kb`；`GET /api/kb/{kbId}/documents`；`POST /api/kb/documents` JSON 正文；`POST /api/kb/documents/file` 纯文本 multipart（≤2MB）；status / reindex / `DELETE` 文档。立即返回 PENDING |
 | `api.controller` | `AttachmentController` | `POST /api/attachments` JSON 只登记元数据；`POST /api/attachments/file` multipart 写入 `ObjectStore`（≤5MB）；`GET /api/attachments/{id}/content` 下载正文；`POST /api/attachments/{id}/refs` 挂引用 |
 | `application` | `AttachmentAppService` | 先写对象再登记。`storage_type` 跟实现走。路径 `att/{tenant}/{user}/{id}/{fileName}`。目录不可用或超限不写对象。登记失败尝试回滚对象。下载只读本人 `att/` 或 `kb/` 对象键，JSON 声称的盘路径不读 |
-| `application` | `KnowledgeAppService`、`KnowledgeIndexLauncher`、`KnowledgeTextFileReader` | 落库后 `@Async` 发布 `DOCUMENT_INDEX`。文件只解 UTF-8 纯文本；原始字节写入 `ObjectStore`（local 或 OSS），附件 `storage_type` 跟实现走，路径为业务对象键并挂 `DOCUMENT`。删除先清向量和对象再删 MySQL。对象删失败不挡删行。MySQL 关闭时建库不可用 |
+| `application` | `KnowledgeAppService`、`KnowledgeIndexLauncher`、`KnowledgeTextFileReader` | 落库后 `@Async` 发布 `DOCUMENT_INDEX`。文件只解 UTF-8 纯文本；原始字节写入 `ObjectStore`（local / OSS / S3 / MinIO），附件 `storage_type` 跟实现走，路径为业务对象键并挂 `DOCUMENT`。删除先清向量和对象再删 MySQL。对象删失败不挡删行。MySQL 关闭时建库不可用 |
 | `application` | `OpenTenantUserGate` | MySQL 关闭时不查 `tenant_user`。打开时改走目录 |
 | `infrastructure.persistence` | `MysqlSessionTurnCount` | MySQL 打开时数 `agent_run` 的成功行。人设检查用，不占锁 |
 
