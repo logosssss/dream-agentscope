@@ -82,6 +82,33 @@ class TenantUserCatalogTest {
                 .isEqualTo(ErrorCode.NOT_FOUND);
     }
 
+    /** 空白用户不查。没有行返回空，停用也返回显示名。 */
+    @Test
+    void findReturnsRowOrNull() {
+        TenantMapper tenants = mock(TenantMapper.class);
+        TenantUserMapper users = mock(TenantUserMapper.class);
+        MysqlTenantUserCatalog catalog = new MysqlTenantUserCatalog(tenants, users);
+
+        assertThat(catalog.find("t", " ")).isNull();
+        verify(users, never()).findByTenantAndUser("t", " ");
+
+        when(users.findByTenantAndUser("t", "missing")).thenReturn(null);
+        assertThat(catalog.find("t", "missing")).isNull();
+
+        TenantUser disabled = new TenantUser();
+        disabled.setTenantId("t");
+        disabled.setUserId("u");
+        disabled.setDisplayName("示例");
+        disabled.setStatus("DISABLED");
+        when(users.findByTenantAndUser("t", "u")).thenReturn(disabled);
+        assertThat(catalog.find("t", "u")).satisfies(saved -> {
+            assertThat(saved.tenantId()).isEqualTo("t");
+            assertThat(saved.userId()).isEqualTo("u");
+            assertThat(saved.displayName()).isEqualTo("示例");
+            assertThat(saved.status()).isEqualTo("DISABLED");
+        });
+    }
+
     /** 只停还在用的用户。没有或已经停用按找不到或冲突。 */
     @Test
     void disableUpdatesActiveOnly() {

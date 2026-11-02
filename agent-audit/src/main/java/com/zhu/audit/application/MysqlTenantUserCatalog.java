@@ -2,6 +2,7 @@ package com.zhu.audit.application;
 
 import com.zhu.audit.api.TenantUserCatalog;
 import com.zhu.audit.api.TenantUserGate;
+import com.zhu.audit.api.TenantUserLookup;
 import com.zhu.audit.api.TenantUserSummary;
 import com.zhu.audit.infrastructure.persistence.TenantMapper;
 import com.zhu.audit.infrastructure.persistence.TenantUserMapper;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
-public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate {
+public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate, TenantUserLookup {
 
     private static final String ACTIVE = "ACTIVE";
 
@@ -84,6 +85,22 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
         if (!ACTIVE.equals(row.getStatus())) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user is not active");
         }
+    }
+
+    /**
+     * 空白用户不查。没有行返回 null，停用也返回，由调用方决定能不能用。
+     */
+    @Override
+    public TenantUserSummary find(String tenantId, String userId) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        String tenant = tenantId == null ? "" : tenantId;
+        TenantUser row = users.findByTenantAndUser(tenant, userId);
+        if (row == null) {
+            return null;
+        }
+        return new TenantUserSummary(row.getTenantId(), row.getUserId(), row.getDisplayName(), row.getStatus());
     }
 
     /**
