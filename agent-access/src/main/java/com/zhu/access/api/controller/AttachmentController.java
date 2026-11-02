@@ -6,6 +6,7 @@ import com.zhu.access.api.dto.AttachmentRequest;
 import com.zhu.access.application.AccessAccountGate;
 import com.zhu.access.application.AttachmentAppService;
 import com.zhu.audit.api.AttachmentCatalog;
+import com.zhu.audit.api.AttachmentDetail;
 import com.zhu.audit.api.AttachmentRefSummary;
 import com.zhu.audit.api.AttachmentSummary;
 import com.zhu.common.context.TenantContext;
@@ -31,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 当前用户登记、列出附件元数据和引用，并下载已落入对象存储的正文。
+ * 当前用户登记、列出、查看附件元数据和引用，并下载已落入对象存储的正文。
  * JSON 只记声称的路径；multipart 才把字节写入对象存储。
  */
 @RestController
@@ -91,6 +92,20 @@ public class AttachmentController {
         }
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         return ApiResult.ok(catalog.owned(UserContext.get(), tenantId, limit));
+    }
+
+    /**
+     * 别人的或停用的按找不到。不读对象存储，也不带回校验和。
+     */
+    @GetMapping("/api/attachments/{attachmentId}")
+    public ApiResult<AttachmentDetail> get(@PathVariable String attachmentId) {
+        accounts.requireActive();
+        AttachmentCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "attachment catalog is unavailable");
+        }
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        return ApiResult.ok(catalog.ownedOne(UserContext.get(), tenantId, attachmentId));
     }
 
     /**

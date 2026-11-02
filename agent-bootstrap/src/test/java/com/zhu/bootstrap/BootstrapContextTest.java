@@ -142,6 +142,9 @@ class BootstrapContextTest {
         mvc.perform(get("/api/attachments").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(get("/api/attachments/att-1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/attachments").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
                         .contentType("application/json")
                         .content("{\"fileName\":\"a.txt\",\"storagePath\":\"/tmp/a.txt\"}"))

@@ -45,4 +45,10 @@ public interface AttachmentCatalog {
      * 不读对象存储，也不把别人的行带出来。
      */
     List<AttachmentSummary> owned(String userId, String tenantId, int limit);
+
+    /**
+     * 本人本租户仍启用的一条附件。别人的或停用按找不到。
+     * 不读对象存储，也不带回校验和。
+     */
+    AttachmentDetail ownedOne(String userId, String tenantId, String attachmentId);
 }

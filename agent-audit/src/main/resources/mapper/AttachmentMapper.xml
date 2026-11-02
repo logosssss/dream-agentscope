@@ -57,6 +57,32 @@
         LIMIT #{limit}
     </select>
 
+    <!-- 详情比列表多 MIME 和大小。仍不带回校验和。 -->
+    <resultMap id="DetailResultMap" type="com.zhu.audit.infrastructure.persistence.entity.Attachment">
+        <result column="attachment_id" property="attachmentId"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="user_id" property="userId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="file_name" property="fileName"/>
+        <result column="storage_type" property="storageType"/>
+        <result column="storage_path" property="storagePath"/>
+        <result column="mime_type" property="mimeType"/>
+        <result column="size_bytes" property="sizeBytes"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 本人本租户仍启用的一条。不带回校验和。 -->
+    <select id="findOwned" resultMap="DetailResultMap">
+        SELECT attachment_id, tenant_id, user_id, session_id, file_name, storage_type, storage_path,
+               mime_type, size_bytes, status
+        FROM attachment
+        WHERE attachment_id = #{attachmentId}
+          AND user_id = #{userId}
+          AND tenant_id = #{tenantId}
+          AND status = 'ACTIVE'
+        LIMIT 1
+    </select>
+
     <!-- 删文档前取对象键。只看本人、本租户，空路径丢掉。 -->
     <select id="listStoragePathsByRef" resultType="string">
         SELECT a.storage_path

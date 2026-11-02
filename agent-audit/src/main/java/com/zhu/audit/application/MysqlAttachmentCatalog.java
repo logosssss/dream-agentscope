@@ -1,6 +1,7 @@
 package com.zhu.audit.application;
 
 import com.zhu.audit.api.AttachmentCatalog;
+import com.zhu.audit.api.AttachmentDetail;
 import com.zhu.audit.api.AttachmentRefSummary;
 import com.zhu.audit.api.AttachmentSummary;
 import com.zhu.audit.api.StoredAttachment;
@@ -202,6 +203,24 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
         return rows.stream().map(MysqlAttachmentCatalog::summary).toList();
     }
 
+    /**
+     * 空标识拒绝。找不到、别人的或停用按找不到，避免把路径漏出去。
+     */
+    @Override
+    public AttachmentDetail ownedOne(String userId, String tenantId, String attachmentId) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || (tenantId != null && tenantId.length() > TENANT_LIMIT)
+                || attachmentId == null || attachmentId.isBlank() || attachmentId.length() > ATTACHMENT_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "attachment is invalid");
+        }
+        String savedTenant = tenantId == null || tenantId.isBlank() ? "" : tenantId;
+        Attachment row = attachments.findOwned(userId, savedTenant, attachmentId);
+        if (row == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "attachment not found");
+        }
+        return detail(row);
+    }
+
     /** 列表和登记共用同一份摘要，不带回校验和。 */
     private static AttachmentSummary summary(Attachment row) {
         String tenant = row.getTenantId() == null ? "" : row.getTenantId();
@@ -213,6 +232,23 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
                 row.getFileName(),
                 row.getStorageType(),
                 row.getStoragePath(),
+                row.getStatus());
+    }
+
+    /** 详情补 MIME 和大小。仍不带回校验和。 */
+    private static AttachmentDetail detail(Attachment row) {
+        String tenant = row.getTenantId() == null ? "" : row.getTenantId();
+        String mime = row.getMimeType() == null || row.getMimeType().isBlank() ? null : row.getMimeType();
+        return new AttachmentDetail(
+                row.getAttachmentId(),
+                tenant,
+                row.getUserId(),
+                row.getSessionId(),
+                row.getFileName(),
+                row.getStorageType(),
+                row.getStoragePath(),
+                mime,
+                row.getSizeBytes(),
                 row.getStatus());
     }
 }

@@ -16,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -23,7 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 附件只登记元数据和引用。不连接 MySQL，也不收文件。
+ * 附件只登记元数据和引用。详情才带 MIME 和大小。不连接 MySQL，也不收文件。
  */
 class AttachmentCatalogTest {
 
@@ -185,6 +186,46 @@ class AttachmentCatalogTest {
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.BAD_REQUEST);
         verify(attachments, never()).findStored(any());
+    }
+
+    /** 先确认归属再带 MIME 和大小。空白租户按空串。 */
+    @Test
+    void ownedOneReturnsMimeAndSize() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, mock(AttachmentRefMapper.class));
+        Attachment row = storedRow("att-1", "t", "u", "a.txt", "att/t/u/att-1/a.txt", "text/plain", "ACTIVE");
+        row.setSessionId("s1");
+        row.setStorageType("OSS");
+        row.setSizeBytes(12L);
+        when(attachments.findOwned("u", "t", "att-1")).thenReturn(row);
+        assertThat(catalog.ownedOne("u", "t", "att-1")).satisfies(detail -> {
+            assertThat(detail.attachmentId()).isEqualTo("att-1");
+            assertThat(detail.sessionId()).isEqualTo("s1");
+            assertThat(detail.storageType()).isEqualTo("OSS");
+            assertThat(detail.mimeType()).isEqualTo("text/plain");
+            assertThat(detail.sizeBytes()).isEqualTo(12L);
+        });
+        when(attachments.findOwned("u", "", "att-2")).thenReturn(storedRow(
+                "att-2", "", "u", "b.txt", "att/_/u/att-2/b.txt", null, "ACTIVE"));
+        assertThat(catalog.ownedOne("u", " ", "att-2").mimeType()).isNull();
+    }
+
+    /** 别人的、停用的或空标识都不查详情。停用由 SQL 滤掉，这里按找不到。 */
+    @Test
+    void ownedOneRejectsMissingOrBlank() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, mock(AttachmentRefMapper.class));
+        when(attachments.findOwned("u", "t", "att-x")).thenReturn(null);
+        assertThatThrownBy(() -> catalog.ownedOne("u", "t", "att-x"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(attachments).findOwned("u", "t", "att-x");
+        assertThatThrownBy(() -> catalog.ownedOne("u", "t", " "))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(attachments, never()).findOwned(any(), any(), eq(" "));
     }
 
     /** 给 Mapper 桩用的一行。只填 owned 会读的字段。 */

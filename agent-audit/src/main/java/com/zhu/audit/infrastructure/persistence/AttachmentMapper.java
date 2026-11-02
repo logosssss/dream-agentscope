@@ -6,7 +6,7 @@ import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 /**
- * attachment 的访问。登记用 BaseMapper 插入。按标识查找在 XML 里。
+ * attachment 的访问。登记用 BaseMapper 插入。按标识查找、列表和详情在 XML 里。
  */
 public interface AttachmentMapper extends BaseMapper<Attachment> {
 
@@ -36,4 +36,12 @@ public interface AttachmentMapper extends BaseMapper<Attachment> {
             @Param("userId") String userId,
             @Param("tenantId") String tenantId,
             @Param("limit") int limit);
+
+    /**
+     * 本人本租户仍启用的一条附件。别人的或停用返回 null。
+     */
+    Attachment findOwned(
+            @Param("userId") String userId,
+            @Param("tenantId") String tenantId,
+            @Param("attachmentId") String attachmentId);
 }
