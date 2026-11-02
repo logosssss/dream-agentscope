@@ -75,6 +75,22 @@ public class KnowledgeAppService {
         return repo.listBases(tenantId, userId);
     }
 
+    /**
+     * 本人的一个库。空标识拒绝。找不到或不是本人按找不到，不读文档。
+     */
+    public KnowledgeBaseItem getBase(String tenantId, String userId, String kbId) {
+        KnowledgeRepository repo = requireRepo();
+        requireUser(userId);
+        if (blank(kbId)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "kbId is required");
+        }
+        KnowledgeBaseItem base = repo.findBase(kbId, tenantId, userId);
+        if (base == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "knowledge base not found");
+        }
+        return base;
+    }
+
     /** 某库下每个文档最新一版，不含正文。 */
     public List<KnowledgeDocumentItem> listDocuments(String tenantId, String userId, String kbId) {
         KnowledgeRepository repo = requireRepo();

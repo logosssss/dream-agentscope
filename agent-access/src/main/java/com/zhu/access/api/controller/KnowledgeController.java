@@ -56,6 +56,15 @@ public class KnowledgeController {
         return ApiResult.ok(knowledge.listBases(TenantContext.get(), UserContext.get()));
     }
 
+    /**
+     * 别人的库按找不到处理。不读文档，也不读正文。
+     */
+    @GetMapping("/api/kb/{kbId}")
+    public ApiResult<KnowledgeBaseItem> getBase(@PathVariable String kbId) {
+        accounts.requireActive();
+        return ApiResult.ok(knowledge.getBase(TenantContext.get(), UserContext.get(), kbId));
+    }
+
     /** 删库及下属文档、向量和对象。 */
     @DeleteMapping("/api/kb/{kbId}")
     public ApiResult<Void> deleteBase(@PathVariable String kbId) {

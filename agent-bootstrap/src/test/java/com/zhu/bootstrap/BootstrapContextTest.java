@@ -81,6 +81,9 @@ class BootstrapContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true))
                 .andExpect(jsonPath("$.data.requests.used").value(0));
+        mvc.perform(get("/api/kb/kb-1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
         mvc.perform(get("/api/me").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true))

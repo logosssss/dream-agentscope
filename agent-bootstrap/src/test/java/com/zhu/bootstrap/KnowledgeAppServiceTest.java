@@ -168,6 +168,35 @@ class KnowledgeAppServiceTest {
                 .isEmpty();
     }
 
+    /** 先确认归属再返回库本身。不读文档。 */
+    @Test
+    void getBaseReturnsOwned() {
+        KnowledgeRepository repo = mock(KnowledgeRepository.class);
+        KnowledgeBaseItem row = new KnowledgeBaseItem("kb1", "t", "u", "companion-v1", "示例");
+        when(repo.findBase("kb1", "t", "u")).thenReturn(row);
+        assertThat(service(repo, mock(VectorStore.class), mock(ObjectStore.class), null).getBase("t", "u", "kb1"))
+                .isEqualTo(row);
+        verify(repo, never()).listLatestDocuments(any(), any(), any());
+    }
+
+    /** 空标识不查库。别人的库按找不到。 */
+    @Test
+    void getBaseRejectsMissingOrBlank() {
+        KnowledgeRepository repo = mock(KnowledgeRepository.class);
+        KnowledgeAppService knowledge = service(repo, mock(VectorStore.class), mock(ObjectStore.class), null);
+        assertThatThrownBy(() -> knowledge.getBase("t", "u", " "))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(repo, never()).findBase(eq(" "), any(), any());
+        when(repo.findBase("missing", "t", "u")).thenReturn(null);
+        assertThatThrownBy(() -> knowledge.getBase("t", "u", "missing"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(repo).findBase("missing", "t", "u");
+    }
+
     private static KnowledgeAppService service(
             KnowledgeRepository repo, VectorStore vectors, ObjectStore objects, AttachmentCatalog catalog) {
         @SuppressWarnings("unchecked")
