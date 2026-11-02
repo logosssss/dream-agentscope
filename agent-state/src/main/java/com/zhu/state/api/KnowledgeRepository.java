@@ -63,6 +63,13 @@ public interface KnowledgeRepository {
      */
     List<KnowledgeChunkItem> findSuccessChunksByIds(String tenantId, String userId, String agentId, List<String> ids);
 
+    /**
+     * SUCCESS 文档上的全文检索。按相关度倒序，最多 limit 条。
+     * 查询为空或 MySQL 关闭时返回空列表。
+     */
+    List<KnowledgeChunkItem> searchSuccessByFulltext(
+            String tenantId, String userId, String agentId, String query, int limit);
+
     /** 本人某文档全部切块主键，删向量前先取。 */
     List<String> listChunkIdsByDoc(String docId, String tenantId, String userId);
 

@@ -20,6 +20,14 @@ public interface KbChunkMapper extends BaseMapper<KbChunk> {
             @Param("agentId") String agentId,
             @Param("ids") List<String> ids);
 
+    /** SUCCESS 文档上的全文命中，按相关度倒序。 */
+    List<KbChunk> searchSuccessByFulltext(
+            @Param("tenantId") String tenantId,
+            @Param("userId") String userId,
+            @Param("agentId") String agentId,
+            @Param("query") String query,
+            @Param("limit") int limit);
+
     List<String> listIdsByDoc(
             @Param("docId") String docId, @Param("tenantId") String tenantId, @Param("userId") String userId);
 

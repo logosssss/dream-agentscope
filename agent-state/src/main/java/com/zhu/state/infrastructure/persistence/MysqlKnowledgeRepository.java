@@ -222,25 +222,21 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
         if (wanted.isEmpty()) {
             return List.of();
         }
-        List<KbChunk> rows = chunks.findSuccessByIds(tenant(tenantId), userId, agentId, wanted);
-        if (rows == null || rows.isEmpty()) {
+        return toChunks(chunks.findSuccessByIds(tenant(tenantId), userId, agentId, wanted));
+    }
+
+    @Override
+    public List<KnowledgeChunkItem> searchSuccessByFulltext(
+            String tenantId, String userId, String agentId, String query, int limit) {
+        if (blank(userId) || blank(agentId) || blank(query) || limit < 1) {
             return List.of();
         }
-        List<KnowledgeChunkItem> items = new ArrayList<>(rows.size());
-        for (KbChunk row : rows) {
-            if (row == null) {
-                continue;
-            }
-            items.add(new KnowledgeChunkItem(
-                    row.getId(),
-                    row.getKbId(),
-                    row.getDocId(),
-                    row.getVersion() == null ? 0 : row.getVersion(),
-                    row.getTitleHint(),
-                    row.getContent(),
-                    row.getChunkIndex() == null ? 0 : row.getChunkIndex()));
+        String q = query.trim();
+        if (q.isEmpty()) {
+            return List.of();
         }
-        return items;
+        int size = Math.min(limit, 50);
+        return toChunks(chunks.searchSuccessByFulltext(tenant(tenantId), userId, agentId, q, size));
     }
 
     @Override
@@ -312,6 +308,28 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
                 row.getContent(),
                 row.getStatus(),
                 row.getErrorMsg());
+    }
+
+    /** 将 SUCCESS 行转为检索块；空输入返回空列表。 */
+    private static List<KnowledgeChunkItem> toChunks(List<KbChunk> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        List<KnowledgeChunkItem> items = new ArrayList<>(rows.size());
+        for (KbChunk row : rows) {
+            if (row == null) {
+                continue;
+            }
+            items.add(new KnowledgeChunkItem(
+                    row.getId(),
+                    row.getKbId(),
+                    row.getDocId(),
+                    row.getVersion() == null ? 0 : row.getVersion(),
+                    row.getTitleHint(),
+                    row.getContent(),
+                    row.getChunkIndex() == null ? 0 : row.getChunkIndex()));
+        }
+        return items;
     }
 
     private static void requireIds(String id, String userId, String agentId) {

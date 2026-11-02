@@ -87,6 +87,12 @@ public class AbsentKnowledgeRepository implements KnowledgeRepository {
     }
 
     @Override
+    public List<KnowledgeChunkItem> searchSuccessByFulltext(
+            String tenantId, String userId, String agentId, String query, int limit) {
+        return List.of();
+    }
+
+    @Override
     public List<String> listChunkIdsByDoc(String docId, String tenantId, String userId) {
         return List.of();
     }

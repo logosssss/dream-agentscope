@@ -44,6 +44,25 @@
         </foreach>
     </select>
 
+    <!-- 全文只扫本人 SUCCESS 文档；相关度由 MATCH 分值排序。 -->
+    <select id="searchSuccessByFulltext" resultMap="BaseResultMap">
+        SELECT c.id, c.kb_id, c.doc_id, c.version, c.tenant_id, c.user_id, c.agent_id,
+               c.content, c.chunk_index, c.token_count, c.created_at, d.title AS title
+        FROM kb_chunk c
+        INNER JOIN kb_document d
+            ON d.doc_id = c.doc_id
+           AND d.version = c.version
+           AND d.tenant_id = c.tenant_id
+           AND d.user_id = c.user_id
+        WHERE c.tenant_id = #{tenantId}
+          AND c.user_id = #{userId}
+          AND c.agent_id = #{agentId}
+          AND d.status = 'SUCCESS'
+          AND MATCH(c.content) AGAINST (#{query} IN NATURAL LANGUAGE MODE)
+        ORDER BY MATCH(c.content) AGAINST (#{query} IN NATURAL LANGUAGE MODE) DESC
+        LIMIT #{limit}
+    </select>
+
     <select id="listIdsByDoc" resultType="java.lang.String">
         SELECT id
         FROM kb_chunk

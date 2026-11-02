@@ -1,6 +1,7 @@
 package com.zhu.runtime.infrastructure.tool;
 
 import com.zhu.runtime.domain.TextEmbedder;
+import com.zhu.runtime.domain.knowledge.HybridChunkMerger;
 import com.zhu.semantic.contract.ProductTool;
 import com.zhu.state.api.KnowledgeChunkItem;
 import com.zhu.state.api.KnowledgeRepository;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Agentic 知识检索。身份只从 RuntimeContext 取，不用 ThreadLocal。
- * 只回 SUCCESS 文档上的切块。
+ * Hybrid：向量优先，FULLTEXT ngram 补缺；向量失败时降级纯全文。只回 SUCCESS 文档上的切块。
  */
 @Component
 public class KnowledgeSearchTool implements ProductTool {
@@ -28,6 +29,8 @@ public class KnowledgeSearchTool implements ProductTool {
     public static final String TOOL_ID = "knowledge_search";
 
     private static final int TOP_K = 5;
+    /** 单路召回上限，合并后再截到 TOP_K。 */
+    private static final int CANDIDATE_LIMIT = 20;
 
     private final VectorStore vectors;
 
@@ -35,6 +38,11 @@ public class KnowledgeSearchTool implements ProductTool {
 
     private final TextEmbedder embedder;
 
+    /**
+     * @param vectors   向量近邻；失败时本工具降级全文
+     * @param knowledge 回表 SUCCESS 切块与 FULLTEXT
+     * @param embedder  查询嵌入；维度不符时视为向量路空
+     */
     public KnowledgeSearchTool(VectorStore vectors, KnowledgeRepository knowledge, TextEmbedder embedder) {
         this.vectors = vectors;
         this.knowledge = knowledge;
@@ -52,7 +60,7 @@ public class KnowledgeSearchTool implements ProductTool {
     }
 
     /**
-     * 近邻后回表。嵌入或检索失败返回友好空结果，不抛给模型线程。
+     * Hybrid 检索后格式化摘录。嵌入或向量失败不抛给模型线程，改走全文。
      * RuntimeContext 由框架注入，不要加 @ToolParam。
      */
     @Tool(
@@ -73,12 +81,32 @@ public class KnowledgeSearchTool implements ProductTool {
             if (q.isEmpty()) {
                 return "未找到相关知识。";
             }
-            float[] vector = embedder.embed(q);
-            if (vector == null || vector.length != MilvusCollections.DEFAULT_DIMENSIONS) {
+            List<KnowledgeChunkItem> vectorChunks = loadVectorChunks(tenantId, userId, agentId, q);
+            List<KnowledgeChunkItem> fulltextChunks =
+                    knowledge.searchSuccessByFulltext(tenantId, userId, agentId, q, CANDIDATE_LIMIT);
+            List<KnowledgeChunkItem> merged = HybridChunkMerger.merge(vectorChunks, fulltextChunks, TOP_K);
+            if (merged.isEmpty()) {
                 return "未找到相关知识。";
             }
+            return format(merged);
+        } catch (RuntimeException ex) {
+            log.warning("knowledge search failed");
+            return "未找到相关知识。";
+        }
+    }
+
+    /**
+     * 嵌入 + 近邻 + 回表。任一步失败返回空列表，由全文路兜底。
+     */
+    private List<KnowledgeChunkItem> loadVectorChunks(
+            String tenantId, String userId, String agentId, String query) {
+        try {
+            float[] vector = embedder.embed(query);
+            if (vector == null || vector.length != MilvusCollections.DEFAULT_DIMENSIONS) {
+                return List.of();
+            }
             List<VectorHit> hits = vectors.search(new VectorQuery(
-                    MilvusCollections.DEFAULT_KNOWLEDGE, vector, "", userId, agentId, TOP_K));
+                    MilvusCollections.DEFAULT_KNOWLEDGE, vector, "", userId, agentId, CANDIDATE_LIMIT));
             List<String> ids = new ArrayList<>();
             if (hits != null) {
                 for (VectorHit hit : hits) {
@@ -87,28 +115,31 @@ public class KnowledgeSearchTool implements ProductTool {
                     }
                 }
             }
-            List<KnowledgeChunkItem> chunks =
-                    knowledge.findSuccessChunksByIds(tenantId, userId, agentId, ids);
-            if (chunks.isEmpty()) {
-                return "未找到相关知识。";
+            if (ids.isEmpty()) {
+                return List.of();
             }
-            StringBuilder out = new StringBuilder();
-            for (KnowledgeChunkItem chunk : chunks) {
-                if (chunk == null || chunk.content() == null || chunk.content().isBlank()) {
-                    continue;
-                }
-                if (!out.isEmpty()) {
-                    out.append("\n\n---\n\n");
-                }
-                String title = chunk.titleHint() == null || chunk.titleHint().isBlank()
-                        ? chunk.docId()
-                        : chunk.titleHint();
-                out.append("【来源：").append(title).append("】\n").append(chunk.content());
-            }
-            return out.isEmpty() ? "未找到相关知识。" : out.toString();
+            return knowledge.findSuccessChunksByIds(tenantId, userId, agentId, ids);
         } catch (RuntimeException ex) {
-            log.warning("knowledge search failed");
-            return "未找到相关知识。";
+            log.warning("knowledge search vector failed, degrade to fulltext");
+            return List.of();
         }
+    }
+
+    /** 按来源标题拼摘录；空内容跳过。 */
+    private static String format(List<KnowledgeChunkItem> chunks) {
+        StringBuilder out = new StringBuilder();
+        for (KnowledgeChunkItem chunk : chunks) {
+            if (chunk == null || chunk.content() == null || chunk.content().isBlank()) {
+                continue;
+            }
+            if (!out.isEmpty()) {
+                out.append("\n\n---\n\n");
+            }
+            String title = chunk.titleHint() == null || chunk.titleHint().isBlank()
+                    ? chunk.docId()
+                    : chunk.titleHint();
+            out.append("【来源：").append(title).append("】\n").append(chunk.content());
+        }
+        return out.isEmpty() ? "未找到相关知识。" : out.toString();
     }
 }
