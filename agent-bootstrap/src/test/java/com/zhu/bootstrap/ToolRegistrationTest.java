@@ -3,6 +3,7 @@ package com.zhu.bootstrap;
 import com.zhu.runtime.infrastructure.agent.CatalogToolRegistrar;
 import com.zhu.semantic.contract.ProductTool;
 import com.zhu.semantic.contract.ToolDescriptor;
+import com.zhu.semantic.infrastructure.tool.EchoTextTool;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.tool.Toolkit;
@@ -16,17 +17,28 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ToolRegistrationTest {
 
+    /** 生产回声工具的标识和注解名必须一致。 */
+    @Test
+    void echoTextToolIdMatchesAnnotation() {
+        EchoTextTool echo = new EchoTextTool();
+        assertThat(echo.toolId()).isEqualTo(EchoTextTool.TOOL_ID);
+        assertThat(echo.toolId()).isEqualTo("echo_text");
+        assertThat(echo.target()).isSameAs(echo);
+        assertThat(echo.echo("ping")).isEqualTo("ping");
+        assertThat(echo.echo(null)).isEmpty();
+    }
+
     /** 目录点名的工具能查到。同一次注册里标识重复时留下第一个。 */
     @Test
     void registersOnlyCatalogTools() {
         Toolkit toolkit = new Toolkit();
-        EchoTool echo = new EchoTool();
+        EchoTextTool echo = new EchoTextTool();
         new CatalogToolRegistrar().register(
                 toolkit,
-                List.of(new ToolDescriptor("echo_text", "回声", "原样返回")),
+                List.of(new ToolDescriptor(EchoTextTool.TOOL_ID, "回声", "原样返回")),
                 List.of(echo, new HiddenTool(), echo));
 
-        assertThat(toolkit.getTool("echo_text")).isNotNull();
+        assertThat(toolkit.getTool(EchoTextTool.TOOL_ID)).isNotNull();
         assertThat(toolkit.getTool("hidden_text")).isNull();
     }
 
@@ -35,32 +47,10 @@ class ToolRegistrationTest {
     void emptyCatalogRegistersNothing() {
         Toolkit untouched = new Toolkit();
         Toolkit target = new Toolkit();
-        new CatalogToolRegistrar().register(target, List.of(), List.of(new EchoTool()));
+        new CatalogToolRegistrar().register(target, List.of(), List.of(new EchoTextTool()));
 
-        assertThat(target.getTool("echo_text")).isNull();
-        assertThat(untouched.getTool("echo_text")).isNull();
-    }
-
-    /** 测试用的回声工具。toolId 和注解名相同。 */
-    public static final class EchoTool implements ProductTool {
-
-        /** 目录里的标识。 */
-        @Override
-        public String toolId() {
-            return "echo_text";
-        }
-
-        /** 工具方法就在这个对象上。 */
-        @Override
-        public Object target() {
-            return this;
-        }
-
-        /** 原样返回。测试只验证注册，不调用模型。 */
-        @Tool(name = "echo_text", description = "原样返回")
-        public String echo(@ToolParam(name = "text", description = "原文") String text) {
-            return text;
-        }
+        assertThat(target.getTool(EchoTextTool.TOOL_ID)).isNull();
+        assertThat(untouched.getTool(EchoTextTool.TOOL_ID)).isNull();
     }
 
     /** 不在目录里，不应该出现在 Toolkit。 */
