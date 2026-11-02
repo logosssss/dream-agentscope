@@ -14,4 +14,15 @@
           AND created_at &gt;= #{periodStart}
           AND created_at &lt; #{periodEnd}
     </select>
+
+    <!-- 本人本租户最近的用量。不带回提示词。 -->
+    <select id="listOwned" resultType="com.zhu.audit.infrastructure.persistence.entity.TokenUsage">
+        SELECT id, run_id, tenant_id, user_id, session_id, model,
+               input_tokens, output_tokens, total_tokens, cost_amount, currency
+        FROM token_usage
+        WHERE user_id = #{userId}
+          AND tenant_id = #{tenantId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
 </mapper>

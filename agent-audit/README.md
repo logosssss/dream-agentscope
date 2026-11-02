@@ -19,6 +19,7 @@
 | `api` | `AuditQuery` | 最近审计、全部待审批，以及按租户和用户查待确认 |
 | `api` | `ApprovalDecider` | 把 PENDING 改成 APPROVED 或 REJECTED。关掉对应待办，不写执行结果 |
 | `api` | `BillingRollup` | 按租户和区间把 `token_usage` 收成一张 `DRAFT` |
+| `api` | `TokenUsageQuery` | 当前用户在这个租户下的用量明细。不带提示词 |
 | `api` | `SafetyInterventionRecorder` | 记下一次安全干预。只写升高和危机，摘要不含用户原文 |
 | `api` | `SafetyInterventionCatalog` | 最近的安全干预。不含用户原文 |
 | `api` | `TenantUserGate` | 接入前检查租户用户是否仍可用。MySQL 关闭时放行 |
@@ -32,7 +33,7 @@
 
 `approval_record.tenant_id` 由 `V3__approval_tenant.sql` 补上。没有租户时写成空串。
 
-模型调用的 token 用量也记在这张表里，动作名是 `model.usage`。同时写入 `token_usage`：同步对话的 `run_id` 与 `agent_run` 相同，流式对话的 `agent_run` 由接入层另生成，两边可能不同。计价读 `model_price` 里当前生效的一行，按每千 token 的单价计算，保留 6 位小数。没有命中的价格时金额记 0，币种是 `CNY`。用户或模型为空时不写这张表。写失败不改变回复。
+模型调用的 token 用量也记在这张表里，动作名是 `model.usage`。同时写入 `token_usage`：同步对话的 `run_id` 与 `agent_run` 相同，流式对话的 `agent_run` 由接入层另生成，两边可能不同。计价读 `model_price` 里当前生效的一行，按每千 token 的单价计算，保留 6 位小数。没有命中的价格时金额记 0，币种是 `CNY`。用户或模型为空时不写这张表。写失败不改变回复。`GET /api/usage` 列出当前用户在这个租户下的用量，默认 50 条，最多 100 条。不带提示词，也不改金额。管理进程不查询这张表。
 
 已批准且还没执行的单据，由用户进程在下一次同名工具调用时占上并放行。结束后把 `result` 写成 `{"status":"SUCCEEDED"}`、`FAILED` 或 `CANCELLED`，不存工具输出。管理进程的决定接口仍不执行工具。
 
