@@ -56,7 +56,7 @@ public class KnowledgeController {
         return ApiResult.ok(knowledge.listBases(TenantContext.get(), UserContext.get()));
     }
 
-    /** 删库及下属文档与向量。 */
+    /** 删库及下属文档、向量和对象。 */
     @DeleteMapping("/api/kb/{kbId}")
     public ApiResult<Void> deleteBase(@PathVariable String kbId) {
         accounts.requireActive();
@@ -137,7 +137,7 @@ public class KnowledgeController {
         return ApiResult.ok(knowledge.reindex(TenantContext.get(), UserContext.get(), docId, version));
     }
 
-    /** 删文档全部版本与向量。 */
+    /** 删文档全部版本、向量和对象。 */
     @DeleteMapping("/api/kb/documents/{docId}")
     public ApiResult<Void> deleteDocument(@PathVariable String docId) {
         accounts.requireActive();

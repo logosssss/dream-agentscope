@@ -16,4 +16,17 @@
         WHERE attachment_id = #{attachmentId}
         LIMIT 1
     </select>
+
+    <!-- 删文档前取对象键。只看本人、本租户，空路径丢掉。 -->
+    <select id="listStoragePathsByRef" resultType="string">
+        SELECT a.storage_path
+        FROM attachment a
+        INNER JOIN attachment_ref r ON r.attachment_id = a.attachment_id
+        WHERE a.user_id = #{userId}
+          AND a.tenant_id = #{tenantId}
+          AND r.ref_type = #{refType}
+          AND r.ref_id = #{refId}
+          AND a.storage_path IS NOT NULL
+          AND a.storage_path &lt;&gt; ''
+    </select>
 </mapper>

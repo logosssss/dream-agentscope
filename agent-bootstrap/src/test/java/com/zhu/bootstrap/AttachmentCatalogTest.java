@@ -7,6 +7,7 @@ import com.zhu.audit.infrastructure.persistence.entity.Attachment;
 import com.zhu.audit.infrastructure.persistence.entity.AttachmentRef;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -87,5 +88,17 @@ class AttachmentCatalogTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
+    }
+
+    /** 只返回本人本租户挂到该引用上的路径。类型不认识时空列表。 */
+    @Test
+    void storagePathsListsOwnedDocumentKeys() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, mock(AttachmentRefMapper.class));
+        when(attachments.listStoragePathsByRef("u", "t", "DOCUMENT", "d1"))
+                .thenReturn(List.of("kb/t/u/d1/v1/a.txt"));
+        assertThat(catalog.storagePaths("u", "t", "DOCUMENT", "d1")).containsExactly("kb/t/u/d1/v1/a.txt");
+        assertThat(catalog.storagePaths("u", "t", "DISK", "d1")).isEmpty();
+        verify(attachments, times(1)).listStoragePathsByRef("u", "t", "DOCUMENT", "d1");
     }
 }

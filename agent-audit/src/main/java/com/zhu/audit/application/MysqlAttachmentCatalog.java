@@ -10,6 +10,7 @@ import com.zhu.audit.infrastructure.persistence.entity.AttachmentRef;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
+import java.util.List;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -135,5 +136,22 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
             throw new BusinessException(ErrorCode.CONFLICT, "attachment ref already exists");
         }
         return new AttachmentRefSummary(attachmentId, refType, refId);
+    }
+
+    /**
+     * 空白租户按空串。类型不认识或入参无效时返回空列表，不抛错。
+     * 不改附件状态。
+     */
+    @Override
+    public List<String> storagePaths(String userId, String tenantId, String refType, String refId) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || (tenantId != null && tenantId.length() > TENANT_LIMIT)
+                || refType == null || refType.isBlank() || !REF_TYPES.contains(refType)
+                || refId == null || refId.isBlank() || refId.length() > REF_LIMIT) {
+            return List.of();
+        }
+        String savedTenant = tenantId == null || tenantId.isBlank() ? "" : tenantId;
+        List<String> rows = attachments.listStoragePathsByRef(userId, savedTenant, refType, refId);
+        return rows == null ? List.of() : rows;
     }
 }

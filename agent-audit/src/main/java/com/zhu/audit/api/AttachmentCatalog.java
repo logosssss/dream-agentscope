@@ -1,5 +1,7 @@
 package com.zhu.audit.api;
 
+import java.util.List;
+
 /**
  * 登记用户附件元数据和引用。不收文件，也不接对象存储。
  */
@@ -25,4 +27,10 @@ public interface AttachmentCatalog {
      * 同一附件、类型和标识再挂一次是冲突。不核对话、运行或文档是否存在。
      */
     AttachmentRefSummary link(String userId, String attachmentId, String refType, String refId);
+
+    /**
+     * 当前用户挂到该引用上的存储路径。没有行返回空列表。
+     * 空白租户按空串。不核文档、消息或运行是否存在。
+     */
+    List<String> storagePaths(String userId, String tenantId, String refType, String refId);
 }

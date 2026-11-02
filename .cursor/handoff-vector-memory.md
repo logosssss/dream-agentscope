@@ -14,16 +14,16 @@
 
 下一空 Flyway 版本：**V37**。
 
-## 已做（通用附件 multipart）
+## 已做（删文档级联清对象）
 
-`POST /api/attachments/file` 收 multipart，字节写入 `ObjectStore`，再登记附件。`storage_type` 跟 local/OSS 实现走。对象键 `att/{tenant}/{user}/{id}/{fileName}`，单文件不超过 5MB。目录不可用或超限不写对象。登记失败尝试回滚对象。JSON `POST /api/attachments` 仍只登记元数据。
+删知识文档或删库时，按 `DOCUMENT` 引用取出附件 `storage_path`，再 `ObjectStore.delete`。目录没有、查路径失败或单个对象失败只记日志，不挡向量清理和 MySQL 删行。不改附件表状态。JSON 正文没有对象时跳过。
 
 ## 下一块
 
-以 README「还没有」为准，优先：删文档时级联清对象。不要再补管理端 GET 列表。
+以 README「还没有」为准。不要再补管理端 GET 列表。不要开始批准后真删。
 
 不要做：RocketMQ、服务发现、MCP、配置热更新、连接串进 Nacos、密码登录、JWT。
 
 ## 另一台机器开场白
 
-拉到含「通用附件 multipart」的分支后说：「继续」。先读这份 handoff。
+拉到含「删文档级联清对象」的分支后说：「继续」。先读这份 handoff。

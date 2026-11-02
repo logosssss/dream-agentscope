@@ -20,8 +20,8 @@ import org.springframework.stereotype.Service;
 
 /**
  * 知识库接入用例。只落库并异步触发索引，不在请求线程里嵌入。
- * 删除时先清向量再删 MySQL，避免孤儿正文仍可被检索回表。
- * 文件上传：正文进 kb_document；原始字节进本地对象存储；附件表记 LOCAL 路径。
+ * 删除时先清向量和对象，再删 MySQL，避免孤儿正文仍可被检索回表。
+ * 文件上传：正文进 kb_document；原始字节进对象存储；附件表记实现对应的 storage_type。
  */
 @Service
 public class KnowledgeAppService {
@@ -179,7 +179,7 @@ public class KnowledgeAppService {
         return stripContent(repo.findDocument(docId, version, tenantId, userId));
     }
 
-    /** 删文档全部版本与向量。找不到按 NOT_FOUND。 */
+    /** 删文档全部版本、向量和对象。找不到按 NOT_FOUND。 */
     public void deleteDocument(String tenantId, String userId, String docId) {
         KnowledgeRepository repo = requireRepo();
         requireUser(userId);
@@ -190,12 +190,13 @@ public class KnowledgeAppService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "document not found");
         }
         dropVectors(repo.listChunkIdsByDoc(docId, tenantId, userId));
+        dropObjects(tenantId, userId, docId);
         if (repo.deleteDocument(docId, tenantId, userId) < 1) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "document not found");
         }
     }
 
-    /** 删库及其文档、切块与向量。 */
+    /** 删库及其文档、切块、向量和对象。 */
     public void deleteBase(String tenantId, String userId, String kbId) {
         KnowledgeRepository repo = requireRepo();
         requireUser(userId);
@@ -206,6 +207,14 @@ public class KnowledgeAppService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "knowledge base not found");
         }
         dropVectors(repo.listChunkIdsByBase(kbId, tenantId, userId));
+        List<KnowledgeDocumentItem> docs = repo.listLatestDocuments(kbId, tenantId, userId);
+        if (docs != null) {
+            for (KnowledgeDocumentItem doc : docs) {
+                if (doc != null && !blank(doc.docId())) {
+                    dropObjects(tenantId, userId, doc.docId());
+                }
+            }
+        }
         if (repo.deleteBase(kbId, tenantId, userId) < 1) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "knowledge base not found");
         }
@@ -280,6 +289,37 @@ public class KnowledgeAppService {
         }
         String cleaned = out.toString().trim();
         return cleaned.isEmpty() || ".".equals(cleaned) || "..".equals(cleaned) ? "file.bin" : cleaned;
+    }
+
+    /**
+     * 按 DOCUMENT 引用找到对象键再删。目录没有或读失败就跳过。
+     * 单个对象删失败只记日志，不挡后续路径和 MySQL 清理。
+     */
+    private void dropObjects(String tenantId, String userId, String docId) {
+        AttachmentCatalog catalog = attachments.getIfAvailable();
+        if (catalog == null || blank(docId)) {
+            return;
+        }
+        List<String> paths;
+        try {
+            paths = catalog.storagePaths(userId, tenantId, REF_DOCUMENT, docId);
+        } catch (RuntimeException ex) {
+            log.warning("knowledge attachment path lookup failed");
+            return;
+        }
+        if (paths == null || paths.isEmpty()) {
+            return;
+        }
+        for (String path : paths) {
+            if (blank(path)) {
+                continue;
+            }
+            try {
+                objects.delete(path);
+            } catch (RuntimeException ex) {
+                log.warning("knowledge object delete failed");
+            }
+        }
     }
 
     private void dropVectors(List<String> chunkIds) {

@@ -23,12 +23,14 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 上传拒超大；文件进对象存储并挂 DOCUMENT；删除先清向量。不连库。
+ * 上传拒超大；文件进对象存储并挂 DOCUMENT；删除先清向量和对象。不连库。
  */
 class KnowledgeAppServiceTest {
 
@@ -97,14 +99,53 @@ class KnowledgeAppServiceTest {
     void deleteDocumentDropsVectorsThenRows() {
         KnowledgeRepository repo = mock(KnowledgeRepository.class);
         VectorStore vectors = mock(VectorStore.class);
+        ObjectStore objects = mock(ObjectStore.class);
         when(repo.latestVersion("d1", "t", "u")).thenReturn(1);
         when(repo.listChunkIdsByDoc("d1", "t", "u")).thenReturn(List.of("c1", "c2"));
         when(repo.deleteDocument("d1", "t", "u")).thenReturn(1);
-        KnowledgeAppService service = service(repo, vectors, mock(ObjectStore.class), null);
+        KnowledgeAppService service = service(repo, vectors, objects, null);
         service.deleteDocument("t", "u", "d1");
         verify(vectors).deleteById(eq("knowledge"), eq("c1"));
         verify(vectors).deleteById(eq("knowledge"), eq("c2"));
+        verify(objects, never()).delete(anyString());
         verify(repo).deleteDocument("d1", "t", "u");
+    }
+
+    /** 按 DOCUMENT 引用清对象。单个对象失败不挡删行。 */
+    @Test
+    void deleteDocumentDropsLinkedObjects() {
+        KnowledgeRepository repo = mock(KnowledgeRepository.class);
+        AttachmentCatalog catalog = mock(AttachmentCatalog.class);
+        ObjectStore objects = mock(ObjectStore.class);
+        when(repo.latestVersion("d1", "t", "u")).thenReturn(1);
+        when(repo.listChunkIdsByDoc("d1", "t", "u")).thenReturn(List.of());
+        when(repo.deleteDocument("d1", "t", "u")).thenReturn(1);
+        when(catalog.storagePaths("u", "t", "DOCUMENT", "d1"))
+                .thenReturn(List.of("kb/t/u/d1/v1/a.txt", "kb/t/u/d1/v2/a.txt"));
+        doThrow(new IllegalStateException("oss")).when(objects).delete("kb/t/u/d1/v1/a.txt");
+        service(repo, mock(VectorStore.class), objects, catalog).deleteDocument("t", "u", "d1");
+        verify(objects).delete("kb/t/u/d1/v1/a.txt");
+        verify(objects).delete("kb/t/u/d1/v2/a.txt");
+        verify(repo).deleteDocument("d1", "t", "u");
+    }
+
+    /** 删库时按库内文档逐个清对象。 */
+    @Test
+    void deleteBaseDropsObjectsForEachDocument() {
+        KnowledgeRepository repo = mock(KnowledgeRepository.class);
+        AttachmentCatalog catalog = mock(AttachmentCatalog.class);
+        ObjectStore objects = mock(ObjectStore.class);
+        when(repo.findBase("kb1", "t", "u"))
+                .thenReturn(new KnowledgeBaseItem("kb1", "t", "u", "agent-a", "n"));
+        when(repo.listChunkIdsByBase("kb1", "t", "u")).thenReturn(List.of());
+        when(repo.listLatestDocuments("kb1", "t", "u"))
+                .thenReturn(List.of(new KnowledgeDocumentItem(
+                        "d1", 1, "kb1", "t", "u", "agent-a", "n", null, "SUCCESS", null)));
+        when(repo.deleteBase("kb1", "t", "u")).thenReturn(1);
+        when(catalog.storagePaths("u", "t", "DOCUMENT", "d1")).thenReturn(List.of("kb/t/u/d1/v1/a.txt"));
+        service(repo, mock(VectorStore.class), objects, catalog).deleteBase("t", "u", "kb1");
+        verify(objects).delete("kb/t/u/d1/v1/a.txt");
+        verify(repo).deleteBase("kb1", "t", "u");
     }
 
     @Test
