@@ -28,4 +28,12 @@ public interface AttachmentMapper extends BaseMapper<Attachment> {
      * 按标识取下载所需字段。没有时返回 null。
      */
     Attachment findStored(@Param("attachmentId") String attachmentId);
+
+    /**
+     * 本人本租户仍启用的附件，新的在前。条数由调用方截好。
+     */
+    List<Attachment> listOwned(
+            @Param("userId") String userId,
+            @Param("tenantId") String tenantId,
+            @Param("limit") int limit);
 }

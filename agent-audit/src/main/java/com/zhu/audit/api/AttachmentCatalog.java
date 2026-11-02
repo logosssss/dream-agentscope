@@ -39,4 +39,10 @@ public interface AttachmentCatalog {
      * 不读对象存储，也不改状态。
      */
     StoredAttachment owned(String userId, String attachmentId);
+
+    /**
+     * 当前用户在这个租户下仍启用的附件。默认 50 条，最多 100 条。
+     * 不读对象存储，也不把别人的行带出来。
+     */
+    List<AttachmentSummary> owned(String userId, String tenantId, int limit);
 }

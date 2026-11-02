@@ -15,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -139,6 +140,39 @@ class AttachmentCatalogTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
+    /** 只列出本人本租户仍启用的行。空白租户按空串。 */
+    @Test
+    void ownedListsActiveRowsForTenant() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, mock(AttachmentRefMapper.class));
+        Attachment row = storedRow("att-1", "t", "u", "a.txt", "att/t/u/att-1/a.txt", "text/plain", "ACTIVE");
+        row.setSessionId("s1");
+        row.setStorageType("OSS");
+        when(attachments.listOwned("u", "t", 50)).thenReturn(List.of(row));
+        assertThat(catalog.owned("u", "t", 0)).satisfies(list -> {
+            assertThat(list).hasSize(1);
+            assertThat(list.get(0).attachmentId()).isEqualTo("att-1");
+            assertThat(list.get(0).sessionId()).isEqualTo("s1");
+            assertThat(list.get(0).storageType()).isEqualTo("OSS");
+            assertThat(list.get(0).status()).isEqualTo("ACTIVE");
+        });
+        verify(attachments).listOwned("u", "t", 50);
+        assertThat(catalog.owned("u", " ", 200)).isEmpty();
+        verify(attachments).listOwned("u", "", 100);
+    }
+
+    /** 空用户按请求错误，不查库。 */
+    @Test
+    void ownedListRejectsBlankUser() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, mock(AttachmentRefMapper.class));
+        assertThatThrownBy(() -> catalog.owned(" ", "t", 10))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(attachments, never()).listOwned(any(), any(), anyInt());
     }
 
     /** 空编号按请求错误，不查库。 */

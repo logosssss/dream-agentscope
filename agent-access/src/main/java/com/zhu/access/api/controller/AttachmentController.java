@@ -15,6 +15,7 @@ import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -30,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 当前用户登记附件元数据和引用，并下载已落入对象存储的正文。
+ * 当前用户登记、列出附件元数据和引用，并下载已落入对象存储的正文。
  * JSON 只记声称的路径；multipart 才把字节写入对象存储。
  */
 @RestController
@@ -75,6 +76,21 @@ public class AttachmentController {
                 body.mimeType(),
                 body.sizeBytes(),
                 body.checksum()));
+    }
+
+    /**
+     * 只返回这次请求头里的用户和租户。条数默认 50，最多 100。
+     * 不读对象存储，也不返回别人的行。
+     */
+    @GetMapping("/api/attachments")
+    public ApiResult<List<AttachmentSummary>> list(@RequestParam(defaultValue = "50") int limit) {
+        accounts.requireActive();
+        AttachmentCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "attachment catalog is unavailable");
+        }
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        return ApiResult.ok(catalog.owned(UserContext.get(), tenantId, limit));
     }
 
     /**

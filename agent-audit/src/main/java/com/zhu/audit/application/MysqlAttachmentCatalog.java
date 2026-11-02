@@ -183,4 +183,36 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
         return new StoredAttachment(
                 existing.getAttachmentId(), tenant, existing.getUserId(), name, path, mime, existing.getStatus());
     }
+
+    /**
+     * 空用户拒绝。空白租户按空串，和登记时一致。
+     * 停用行不出现在列表里。
+     */
+    @Override
+    public List<AttachmentSummary> owned(String userId, String tenantId, int limit) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || (tenantId != null && tenantId.length() > TENANT_LIMIT)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "attachment is invalid");
+        }
+        String savedTenant = tenantId == null || tenantId.isBlank() ? "" : tenantId;
+        List<Attachment> rows = attachments.listOwned(userId, savedTenant, AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream().map(MysqlAttachmentCatalog::summary).toList();
+    }
+
+    /** 列表和登记共用同一份摘要，不带回校验和。 */
+    private static AttachmentSummary summary(Attachment row) {
+        String tenant = row.getTenantId() == null ? "" : row.getTenantId();
+        return new AttachmentSummary(
+                row.getAttachmentId(),
+                tenant,
+                row.getUserId(),
+                row.getSessionId(),
+                row.getFileName(),
+                row.getStorageType(),
+                row.getStoragePath(),
+                row.getStatus());
+    }
 }
