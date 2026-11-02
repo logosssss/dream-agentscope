@@ -70,7 +70,7 @@ class AccessIdentityTest {
     /** 头在过滤器链内可见，链结束必须清掉。没有头也不拒绝。 */
     @Test
     void filterSetsHeaderAndClearsAfter() throws Exception {
-        AccessIdentityFilter filter = new AccessIdentityFilter();
+        AccessIdentityFilter filter = new AccessIdentityFilter(caches(null));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader(AccessIdentityFilter.TENANT_HEADER, "t1");
         request.addHeader(AccessIdentityFilter.USER_HEADER, " ");
@@ -91,5 +91,54 @@ class AccessIdentityTest {
         assertThat(TenantContext.get()).isNull();
         assertThat(UserContext.get()).isNull();
         assertThat(RequestIdContext.get()).isNull();
+    }
+
+    /** Bearer 登录会话优先于请求头。无效令牌直接 401。 */
+    @Test
+    void bearerOverridesHeaders() throws Exception {
+        FakeAccessCache cache = new FakeAccessCache();
+        cache.put("login-session:tok-1", "tenant-a\nuser-a", java.time.Duration.ofHours(1));
+        AccessIdentityFilter filter = new AccessIdentityFilter(caches(cache));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(AccessIdentityFilter.AUTHORIZATION_HEADER, "Bearer tok-1");
+        request.addHeader(AccessIdentityFilter.TENANT_HEADER, "header-tenant");
+        request.addHeader(AccessIdentityFilter.USER_HEADER, "header-user");
+        AtomicReference<String> seenTenant = new AtomicReference<>();
+        AtomicReference<String> seenUser = new AtomicReference<>();
+
+        filter.doFilter(request, new MockHttpServletResponse(), (req, res) -> {
+            seenTenant.set(TenantContext.get());
+            seenUser.set(UserContext.get());
+        });
+
+        assertThat(seenTenant.get()).isEqualTo("tenant-a");
+        assertThat(seenUser.get()).isEqualTo("user-a");
+
+        MockHttpServletResponse rejected = new MockHttpServletResponse();
+        MockHttpServletRequest bad = new MockHttpServletRequest();
+        bad.addHeader(AccessIdentityFilter.AUTHORIZATION_HEADER, "Bearer missing");
+        filter.doFilter(bad, rejected, (req, res) -> {
+        });
+        assertThat(rejected.getStatus()).isEqualTo(401);
+    }
+
+    private static org.springframework.beans.factory.ObjectProvider<com.zhu.access.infrastructure.cache.AccessCache> caches(
+            com.zhu.access.infrastructure.cache.AccessCache cache) {
+        return new org.springframework.beans.factory.ObjectProvider<>() {
+            @Override
+            public com.zhu.access.infrastructure.cache.AccessCache getObject() {
+                return cache;
+            }
+
+            @Override
+            public com.zhu.access.infrastructure.cache.AccessCache getIfAvailable() {
+                return cache;
+            }
+
+            @Override
+            public com.zhu.access.infrastructure.cache.AccessCache getIfUnique() {
+                return cache;
+            }
+        };
     }
 }

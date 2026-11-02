@@ -107,5 +107,17 @@ class BootstrapContextTest {
                         .content("{\"refType\":\"RUN\",\"refId\":\"run-1\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/login").header(CallerTokens.HEADER, "test-token")
+                        .contentType("application/json")
+                        .content("{\"tenantId\":\"t\",\"userId\":\"u\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(true))
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.data.userId").value("u"));
+        mvc.perform(post("/api/logout").header(CallerTokens.HEADER, "test-token")
+                        .contentType("application/json")
+                        .content("{\"accessToken\":\"unused\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(true));
     }
 }

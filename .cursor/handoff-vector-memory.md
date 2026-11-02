@@ -16,18 +16,18 @@
 
 下一空 Flyway 版本：**V33**。
 
-## 已做（第一把业务工具 echo_text）
+## 已做（用户登录会话）
 
-`EchoTextTool` 在 `agent-semantic/infrastructure/tool`。Flyway V32 种子目录行 + 全局 ASK。无 MySQL 仍空目录不注册。单元测试锁注册缝。不解释 `conditions`，批准后不自动执行。
+`POST /api/login` 核对租户用户后签发 Redis 不透明令牌；`Authorization: Bearer` 还原身份；`POST /api/logout` 删键。无密码、无 JWT。调用方令牌仍要过。请求头身份仍可用。
 
 ## 下一块
 
-用户登录（现在仍靠请求头/体里的租户用户）。
+知识检索 / `retrieveQuery`。
 
-再往后：知识检索 / `retrieveQuery` → 额度从每日次数扩到 token / 费用。不要再补管理端 GET 列表。
+再往后：额度从每日次数扩到 token / 费用。不要再补管理端 GET 列表。
 
-不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、按保留策略清理数据、Persona 读表升级关系、语义判定换真模型、Memory Curator、主动唤醒。
+不要做：RocketMQ 依赖、`mode=mq` 跑起来、按调度触发任务、对象存储、批准后执行删除或工具、按保留策略清理数据、Persona 读表升级关系、语义判定换真模型、Memory Curator、主动唤醒、密码登录、JWT。
 
 ## 另一台机器开场白
 
-拉到含「第一把业务工具 echo_text」的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。
+拉到含「用户登录会话」的 `feat/agentscope-platform-base` 后说：「继续」。先读这份 handoff 和各模块 README「还没有」，做一块就停。

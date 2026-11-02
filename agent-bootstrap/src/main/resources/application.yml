@@ -47,6 +47,8 @@ agentscope:
     # 0 表示不限制。打开后按租户用户计当日次数和每分钟次数。
     daily-limit: 0
     per-minute: 0
+    # 登录会话在 Redis 的有效秒数。小于 1 时按一天。
+    login-session-seconds: ${AGENTSCOPE_LOGIN_SESSION_SECONDS:86400}
   caller:
     # 调用方令牌。空则除存活和就绪外全部拒绝。不是用户登录，仓库不放值。
     token: ${AGENTSCOPE_CALLER_TOKEN:}

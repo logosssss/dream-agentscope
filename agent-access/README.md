@@ -19,12 +19,15 @@
 | `api.controller` | `ChatController` | `POST /api/chat` 同步 JSON；`POST /api/chat/stream` 输出 SSE。不覆盖过滤器写入的线程身份 |
 | `api.controller` | `ApprovalController` | `GET /api/approvals/pending`。只返回当前请求头用户和租户的待确认，不带工具参数 |
 | `api.controller` | `SessionController` | `GET /api/sessions`。只返回当前请求头用户和租户的活动会话，不含正文 |
+| `api.controller` | `LoginController` | `POST /api/login` 签发会话令牌；`POST /api/logout` 删掉令牌。仍要调用方令牌 |
 | `api.dto` | `SessionSummary` | 列表一行：会话、短标题、通道、最近活动时间 |
 | `api.dto` | `ChatRequest` | HTTP 入参。`channel` 空则 `WEB`，不传给运行层 |
+| `api.dto` | `LoginRequest` / `LoginResponse` | 登录入参和令牌。没有密码字段 |
 | `domain.channel` | `AccessChannel` | `WEB` / `IM` / `API`。只描述请求从哪进来 |
 | `infrastructure.security` | `CallerTokenFilter` | `X-Caller-Token` 对上 `AGENTSCOPE_CALLER_TOKEN` 才放行。存活和就绪除外。这不是用户登录 |
-| `infrastructure.security` | `AccessIdentityFilter` | `X-Tenant-Id`、`X-User-Id`、`X-Request-Id` 写入线程，请求结束清理。不拦截缺头请求 |
-| `infrastructure.cache` | `AccessCache` | 额度、幂等、限流计数，以及会话列表缓存。只走 Redis |
+| `infrastructure.security` | `AccessIdentityFilter` | `Authorization: Bearer` 登录会话优先；否则 `X-Tenant-Id` / `X-User-Id`。请求结束清理 |
+| `infrastructure.cache` | `AccessCache` | 额度、幂等、限流、会话列表和登录会话。只走 Redis |
+| `application` | `UserLoginService` | 核对租户用户后写入 `login-session:{token}`。Redis 失败 503 |
 | `application` | `ChatAppService` | 请求体身份优先，空字段用请求头。空提示词走 `PromptService`，额度通过并占锁后记下会话，再调用 `AgentExecutor` |
 | `application` | `SessionListService` | 列表键 `session-list:{tenant}:{user}`，五分钟。写入后删键。Redis 失败改查 MySQL |
 | `application` | `QuotaGuard`、`SessionTurnGuard` | 额度键 `quota:{tenant}:{user}:{yyyyMMdd}`。会话短锁 `turn:{tenant}:{user}:{session}`，结束即释放 |
@@ -58,6 +61,8 @@
 
 情景记忆和用户画像由运行层写。本模块不写这两张表。
 
+`POST /api/login` 核对租户和 `tenant_user` 仍为 `ACTIVE` 后，签发不透明令牌写入 Redis，键是 `login-session:{token}`。没有密码，也不发 JWT。有效秒数读 `agentscope.access.login-session-seconds`，默认一天。后续请求可带 `Authorization: Bearer <token>`；带了就只信会话，无效 401，Redis 失败 503。没带 Bearer 时仍可用请求头。`POST /api/logout` 删掉会话键。调用方令牌仍然要过。MySQL 关闭时门放行，只留给测试。
+
 ## 还没有
 
-用户登录、IM/API 通道适配。调用方令牌已经校验，租户和用户仍来自请求头或请求体。MySQL 打开时，对话、会话列表、待确认、待办、反馈、附件和删除请求都要求这个租户已登记且状态是 `ACTIVE`，并且这个用户已挂到该租户且状态是 `ACTIVE`。停用走管理接口。对话同时选用启用的 `model_config`，没有行再用进程配置。MySQL 关闭时不查。待确认按当前用户读 `approval_record`。同一事件再记一条 `approval_notification`，通道是 `WEB`，状态是 `PENDING`。不发 IM、邮件或短信。通知写失败不改变这次询问。MySQL 关闭时不记。同一事件再给发起人开一条 `user_todo`，类型是 `APPROVAL`，状态是 `OPEN`，标题是工具名。`POST /api/todos` 再给当前用户开确认或任务待办，只接受 `CONFIRM` / `TASK`。不核运行或任务是否存在。`GET /api/todos` 返回当前用户还开着的待办，含审批、确认和任务。审批通过后改 `DONE`，拒绝后改 `CANCELLED`。`POST /api/todos/{todoId}/done` 把这个用户还开着的确认或任务改成 `DONE`。`POST /api/todos/{todoId}/cancel` 改成 `CANCELLED`。审批待办仍走决定接口。别人的行按找不到处理。MySQL 关闭时这些接口返回不可用。`POST /api/feedback` 记下当前用户对一次运行的评分，只接受 1 到 5。不核对运行是否存在，也不接收文件。MySQL 关闭时返回不可用。`POST /api/attachments` 记下当前用户的附件元数据，不收文件内容。空白存储类型按 `LOCAL`。`POST /api/attachments/{attachmentId}/refs` 把该附件挂到一条消息或一次运行上，附件必须属于当前用户。不核对话或运行是否存在。MySQL 关闭时返回不可用。`POST /api/deletion-requests` 记下当前用户的数据删除请求，状态是 `PENDING`。只接受 `SESSION` / `ATTACHMENT` / `ALL`。不批准，也不真正删除。MySQL 关闭时返回不可用。会话列表已经按当前用户读 `agent_session_meta`。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。危机档和打开人设检查时可能先没有文本增量，结束事件带检查后的全文。通道枚举已经在接入层，不要挪到运行层。就绪检查只探测 Milvus 地址。集合由用户进程创建，管理进程不建。
+密码登录、JWT、IM/API 通道适配。调用方令牌已经校验。对话仍可用请求头或请求体带身份。MySQL 打开时，对话、会话列表、待确认、待办、反馈、附件和删除请求都要求这个租户已登记且状态是 `ACTIVE`，并且这个用户已挂到该租户且状态是 `ACTIVE`。停用走管理接口。对话同时选用启用的 `model_config`，没有行再用进程配置。MySQL 关闭时不查。待确认按当前用户读 `approval_record`。同一事件再记一条 `approval_notification`，通道是 `WEB`，状态是 `PENDING`。不发 IM、邮件或短信。通知写失败不改变这次询问。MySQL 关闭时不记。同一事件再给发起人开一条 `user_todo`，类型是 `APPROVAL`，状态是 `OPEN`，标题是工具名。`POST /api/todos` 再给当前用户开确认或任务待办，只接受 `CONFIRM` / `TASK`。不核运行或任务是否存在。`GET /api/todos` 返回当前用户还开着的待办，含审批、确认和任务。审批通过后改 `DONE`，拒绝后改 `CANCELLED`。`POST /api/todos/{todoId}/done` 把这个用户还开着的确认或任务改成 `DONE`。`POST /api/todos/{todoId}/cancel` 改成 `CANCELLED`。审批待办仍走决定接口。别人的行按找不到处理。MySQL 关闭时这些接口返回不可用。`POST /api/feedback` 记下当前用户对一次运行的评分，只接受 1 到 5。不核对运行是否存在，也不接收文件。MySQL 关闭时返回不可用。`POST /api/attachments` 记下当前用户的附件元数据，不收文件内容。空白存储类型按 `LOCAL`。`POST /api/attachments/{attachmentId}/refs` 把该附件挂到一条消息或一次运行上，附件必须属于当前用户。不核对话或运行是否存在。MySQL 关闭时返回不可用。`POST /api/deletion-requests` 记下当前用户的数据删除请求，状态是 `PENDING`。只接受 `SESSION` / `ATTACHMENT` / `ALL`。不批准，也不真正删除。MySQL 关闭时返回不可用。会话列表已经按当前用户读 `agent_session_meta`。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。危机档和打开人设检查时可能先没有文本增量，结束事件带检查后的全文。通道枚举已经在接入层，不要挪到运行层。就绪检查只探测 Milvus 地址。集合由用户进程创建，管理进程不建。

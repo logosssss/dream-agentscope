@@ -14,6 +14,9 @@ public class AccessLimitProperties {
     /** 每个用户每分钟可打到同一入口的次数。0 不限制。 */
     private int perMinute;
 
+    /** 登录会话在 Redis 里的有效秒数。小于 1 时按一天。 */
+    private int loginSessionSeconds = 86_400;
+
     /** 当日上限。 */
     public int getDailyLimit() {
         return dailyLimit;
@@ -30,5 +33,14 @@ public class AccessLimitProperties {
 
     public void setPerMinute(int perMinute) {
         this.perMinute = perMinute;
+    }
+
+    /** 登录会话有效秒数。 */
+    public int getLoginSessionSeconds() {
+        return loginSessionSeconds;
+    }
+
+    public void setLoginSessionSeconds(int loginSessionSeconds) {
+        this.loginSessionSeconds = loginSessionSeconds;
     }
 }
