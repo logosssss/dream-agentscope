@@ -1,6 +1,7 @@
 package com.zhu.access.api.controller;
 
 import com.zhu.access.api.dto.KnowledgeBaseCreateRequest;
+import com.zhu.access.api.dto.KnowledgeBaseDetail;
 import com.zhu.access.api.dto.KnowledgeDocumentDetail;
 import com.zhu.access.api.dto.KnowledgeDocumentUploadRequest;
 import com.zhu.access.application.AccessAccountGate;
@@ -58,10 +59,10 @@ public class KnowledgeController {
     }
 
     /**
-     * 别人的库按找不到处理。不读文档，也不读正文。
+     * 别人的库按找不到处理。带创建时间，不读文档。
      */
     @GetMapping("/api/kb/{kbId}")
-    public ApiResult<KnowledgeBaseItem> getBase(@PathVariable String kbId) {
+    public ApiResult<KnowledgeBaseDetail> getBase(@PathVariable String kbId) {
         accounts.requireActive();
         return ApiResult.ok(knowledge.getBase(TenantContext.get(), UserContext.get(), kbId));
     }

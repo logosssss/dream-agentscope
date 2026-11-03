@@ -1,5 +1,6 @@
 package com.zhu.access.application;
 
+import com.zhu.access.api.dto.KnowledgeBaseDetail;
 import com.zhu.access.api.dto.KnowledgeDocumentDetail;
 import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.common.exception.BusinessException;
@@ -7,6 +8,7 @@ import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
 import com.zhu.objectstore.api.ObjectStore;
 import com.zhu.state.api.KnowledgeBaseItem;
+import com.zhu.state.api.KnowledgeBaseOwned;
 import com.zhu.state.api.KnowledgeDocumentItem;
 import com.zhu.state.api.KnowledgeDocumentVersion;
 import com.zhu.state.api.KnowledgeRepository;
@@ -36,6 +38,9 @@ public class KnowledgeAppService {
 
     /** 文档标识列宽。超长按请求错误，避免截断后对上另一篇。 */
     private static final int DOC_ID_LIMIT = 64;
+
+    /** 知识库标识列宽。超长按请求错误，避免截断后对上另一个库。 */
+    private static final int KB_ID_LIMIT = 64;
 
     private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
@@ -84,19 +89,22 @@ public class KnowledgeAppService {
     }
 
     /**
-     * 本人的一个库。空标识拒绝。找不到或不是本人按找不到，不读文档。
+     * 本人的一个库。空标识或超长拒绝。找不到或不是本人按找不到。
+     * 带创建时间。不读文档。
      */
-    public KnowledgeBaseItem getBase(String tenantId, String userId, String kbId) {
+    public KnowledgeBaseDetail getBase(String tenantId, String userId, String kbId) {
         KnowledgeRepository repo = requireRepo();
         requireUser(userId);
-        if (blank(kbId)) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "kbId is required");
+        if (blank(kbId) || kbId.length() > KB_ID_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "knowledge base is invalid");
         }
-        KnowledgeBaseItem base = repo.findBase(kbId, tenantId, userId);
+        KnowledgeBaseOwned base = repo.findOwnedBase(kbId, tenantId, userId);
         if (base == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "knowledge base not found");
         }
-        return base;
+        String created = base.createdAt() == null ? "" : TIME.format(base.createdAt());
+        return new KnowledgeBaseDetail(
+                base.kbId(), base.tenantId(), base.userId(), base.agentId(), base.name(), created);
     }
 
     /** 某库下每个文档最新一版，不含正文。 */

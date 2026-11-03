@@ -3,6 +3,7 @@ package com.zhu.state.infrastructure.persistence;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.state.api.KnowledgeBaseItem;
+import com.zhu.state.api.KnowledgeBaseOwned;
 import com.zhu.state.api.KnowledgeChunkItem;
 import com.zhu.state.api.KnowledgeDocumentItem;
 import com.zhu.state.api.KnowledgeDocumentVersion;
@@ -75,6 +76,15 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
         }
         KbKnowledgeBase row = bases.findOwned(kbId, tenant(tenantId), userId);
         return toBase(row);
+    }
+
+    /** 不读文档。超长标识按没有这行，避免截断后对上别人的库。 */
+    @Override
+    public KnowledgeBaseOwned findOwnedBase(String kbId, String tenantId, String userId) {
+        if (blank(kbId) || kbId.length() > KB_LIMIT || blank(userId)) {
+            return null;
+        }
+        return toOwned(bases.findOwned(kbId, tenant(tenantId), userId));
     }
 
     @Override
@@ -301,6 +311,19 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
             return null;
         }
         return new KnowledgeBaseItem(row.getKbId(), row.getTenantId(), row.getUserId(), row.getAgentId(), row.getName());
+    }
+
+    private static KnowledgeBaseOwned toOwned(KbKnowledgeBase row) {
+        if (row == null) {
+            return null;
+        }
+        return new KnowledgeBaseOwned(
+                row.getKbId(),
+                row.getTenantId(),
+                row.getUserId(),
+                row.getAgentId(),
+                row.getName(),
+                row.getCreatedAt());
     }
 
     private static KnowledgeDocumentVersion toVersion(KbDocument row) {

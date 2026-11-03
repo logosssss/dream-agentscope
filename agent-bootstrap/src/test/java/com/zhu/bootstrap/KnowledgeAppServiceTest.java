@@ -7,8 +7,10 @@ import com.zhu.audit.api.AttachmentSummary;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.objectstore.api.ObjectStore;
+import com.zhu.access.api.dto.KnowledgeBaseDetail;
 import com.zhu.access.api.dto.KnowledgeDocumentDetail;
 import com.zhu.state.api.KnowledgeBaseItem;
+import com.zhu.state.api.KnowledgeBaseOwned;
 import com.zhu.state.api.KnowledgeDocumentItem;
 import com.zhu.state.api.KnowledgeDocumentVersion;
 import com.zhu.state.api.KnowledgeRepository;
@@ -172,14 +174,16 @@ class KnowledgeAppServiceTest {
                 .isEmpty();
     }
 
-    /** 先确认归属再返回库本身。不读文档。 */
+    /** 先确认归属再返回库名和创建时间。不读文档。 */
     @Test
-    void getBaseReturnsOwned() {
+    void getBaseReturnsOwnedWithCreatedAt() {
         KnowledgeRepository repo = mock(KnowledgeRepository.class);
-        KnowledgeBaseItem row = new KnowledgeBaseItem("kb1", "t", "u", "companion-v1", "示例");
-        when(repo.findBase("kb1", "t", "u")).thenReturn(row);
-        assertThat(service(repo, mock(VectorStore.class), mock(ObjectStore.class), null).getBase("t", "u", "kb1"))
-                .isEqualTo(row);
+        when(repo.findOwnedBase("kb1", "t", "u")).thenReturn(new KnowledgeBaseOwned(
+                "kb1", "t", "u", "companion-v1", "示例", LocalDateTime.of(2026, 11, 2, 1, 2, 3)));
+        KnowledgeBaseDetail detail =
+                service(repo, mock(VectorStore.class), mock(ObjectStore.class), null).getBase("t", "u", "kb1");
+        assertThat(detail).isEqualTo(new KnowledgeBaseDetail(
+                "kb1", "t", "u", "companion-v1", "示例", "2026-11-02T01:02:03"));
         verify(repo, never()).listLatestDocuments(any(), any(), any());
     }
 
@@ -192,13 +196,13 @@ class KnowledgeAppServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).errorCode())
                 .isEqualTo(ErrorCode.BAD_REQUEST);
-        verify(repo, never()).findBase(eq(" "), any(), any());
-        when(repo.findBase("missing", "t", "u")).thenReturn(null);
+        verify(repo, never()).findOwnedBase(eq(" "), any(), any());
+        when(repo.findOwnedBase("missing", "t", "u")).thenReturn(null);
         assertThatThrownBy(() -> knowledge.getBase("t", "u", "missing"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
-        verify(repo).findBase("missing", "t", "u");
+        verify(repo).findOwnedBase("missing", "t", "u");
     }
 
     /** 最新一版带创建和更新时间。不读正文，也不触发索引。 */

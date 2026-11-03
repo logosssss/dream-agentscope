@@ -16,8 +16,14 @@ public interface KnowledgeRepository {
     /** 为当前用户建库。kbId 由调用方给出。 */
     KnowledgeBaseItem createBase(String kbId, String tenantId, String userId, String agentId, String name);
 
-    /** 只返回本人的库。找不到返回 null。 */
+    /** 只返回本人的库。找不到返回 null。列表用，不带创建时间。 */
     KnowledgeBaseItem findBase(String kbId, String tenantId, String userId);
+
+    /**
+     * 本人的一个库，带创建时间。空标识、超长或别人的返回 null。
+     * 不读文档。
+     */
+    KnowledgeBaseOwned findOwnedBase(String kbId, String tenantId, String userId);
 
     /** 本人名下的库，按创建时间倒序。 */
     List<KnowledgeBaseItem> listBases(String tenantId, String userId);

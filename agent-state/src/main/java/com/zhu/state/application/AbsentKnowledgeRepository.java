@@ -3,6 +3,7 @@ package com.zhu.state.application;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.state.api.KnowledgeBaseItem;
+import com.zhu.state.api.KnowledgeBaseOwned;
 import com.zhu.state.api.KnowledgeChunkItem;
 import com.zhu.state.api.KnowledgeDocumentItem;
 import com.zhu.state.api.KnowledgeDocumentVersion;
@@ -28,6 +29,12 @@ public class AbsentKnowledgeRepository implements KnowledgeRepository {
 
     @Override
     public KnowledgeBaseItem findBase(String kbId, String tenantId, String userId) {
+        return null;
+    }
+
+    /** 关闭时不查库。调用方按找不到处理，不改记到内存。 */
+    @Override
+    public KnowledgeBaseOwned findOwnedBase(String kbId, String tenantId, String userId) {
         return null;
     }
 
