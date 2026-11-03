@@ -15,10 +15,10 @@ import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 当前用户登记、列出、查看附件元数据和引用，并下载已落入对象存储的正文。
+ * 当前用户登记、停用、恢复、列出、查看附件元数据和引用，并下载已落入对象存储的正文。
  * JSON 只记声称的路径；multipart 才把字节写入对象存储。
  */
 @RestController
@@ -109,6 +109,34 @@ public class AttachmentController {
     }
 
     /**
+     * 把本人本租户仍启用的附件改成 DELETED。不删对象存储，也不删引用。
+     */
+    @PostMapping("/api/attachments/{attachmentId}/disable")
+    public ApiResult<AttachmentSummary> disable(@PathVariable String attachmentId) {
+        accounts.requireActive();
+        AttachmentCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "attachment catalog is unavailable");
+        }
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        return ApiResult.ok(catalog.disable(UserContext.get(), tenantId, attachmentId));
+    }
+
+    /**
+     * 把本人本租户已停用的附件改回 ACTIVE。不读写对象存储。
+     */
+    @PostMapping("/api/attachments/{attachmentId}/restore")
+    public ApiResult<AttachmentSummary> restore(@PathVariable String attachmentId) {
+        accounts.requireActive();
+        AttachmentCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "attachment catalog is unavailable");
+        }
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        return ApiResult.ok(catalog.restore(UserContext.get(), tenantId, attachmentId));
+    }
+
+    /**
      * multipart：file 必填；sessionId 可选。不超过 5MB。
      * 存储类型跟对象存储实现走，不接受调用方声称的路径。
      */
@@ -137,6 +165,7 @@ public class AttachmentController {
 
     /**
      * 只下载本人已落到对象存储的文件。失败仍走统一 JSON。
+     * 文件名用 RFC 5987 的 filename*，ASCII 回退用 filename，避免 RFC 2047 被当成字面名。
      */
     @GetMapping("/api/attachments/{attachmentId}/content")
     public ResponseEntity<byte[]> download(@PathVariable String attachmentId) {
@@ -148,13 +177,23 @@ public class AttachmentController {
         } catch (RuntimeException ex) {
             type = MediaType.APPLICATION_OCTET_STREAM;
         }
-        ContentDisposition disposition = ContentDisposition.attachment()
-                .filename(file.fileName(), StandardCharsets.UTF_8)
-                .build();
         return ResponseEntity.ok()
                 .contentType(type)
-                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(file.fileName()))
                 .body(file.content());
+    }
+
+    /**
+     * filename 只放可打印 ASCII；非 ASCII 用 download 作回退。
+     * filename* 用百分号编码，空格写成 %20。
+     */
+    private static String contentDisposition(String fileName) {
+        String raw = fileName == null || fileName.isBlank() ? "download" : fileName;
+        String ascii = raw.chars().allMatch(c -> c >= 0x20 && c < 0x7F && c != '"' && c != '\\')
+                ? raw
+                : "download";
+        String encoded = URLEncoder.encode(raw, StandardCharsets.UTF_8).replace("+", "%20");
+        return "attachment; filename=\"" + ascii + "\"; filename*=UTF-8''" + encoded;
     }
 
     /**

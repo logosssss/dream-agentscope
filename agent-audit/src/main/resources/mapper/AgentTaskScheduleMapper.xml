@@ -9,13 +9,35 @@
         <result column="task_type" property="taskType"/>
         <result column="cron_expr" property="cronExpr"/>
         <result column="delay_seconds" property="delaySeconds"/>
+        <result column="enabled" property="enabled"/>
     </resultMap>
 
     <!-- 管理列表看全部启用状态。不读任务参数和触发时间。 -->
     <select id="recent" resultMap="ListResultMap">
-        SELECT id, schedule_id, task_type, cron_expr, delay_seconds
+        SELECT id, schedule_id, task_type, cron_expr, delay_seconds, enabled
         FROM agent_task_schedule
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <select id="findByScheduleId" resultMap="ListResultMap">
+        SELECT id, schedule_id, task_type, cron_expr, delay_seconds, enabled
+        FROM agent_task_schedule
+        WHERE schedule_id = #{scheduleId}
+        LIMIT 1
+    </select>
+
+    <update id="disableEnabled">
+        UPDATE agent_task_schedule
+        SET enabled = 0
+        WHERE schedule_id = #{scheduleId}
+          AND enabled = 1
+    </update>
+
+    <update id="restoreDisabled">
+        UPDATE agent_task_schedule
+        SET enabled = 1
+        WHERE schedule_id = #{scheduleId}
+          AND enabled = 0
+    </update>
 </mapper>

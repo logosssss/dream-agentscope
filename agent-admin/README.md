@@ -78,12 +78,16 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/retention-policies/{dataType}/restore` | 恢复已停用的策略。空白范围按 `*`。不执行清理。MySQL 关闭时返回不可用 |
 | `GET /api/admin/task-schedules` | 最近登记的任务调度，默认 50 条，最多 100 条。含停用。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
 | `POST /api/admin/task-schedules` | 登记一条任务调度。cron 和延迟二选一。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
+| `POST /api/admin/task-schedules/{scheduleId}/disable` | 停用仍启用的调度。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
+| `POST /api/admin/task-schedules/{scheduleId}/restore` | 恢复已停用的调度。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
 | `GET /api/admin/operation-audits` | 最近的后台操作，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `GET /api/admin/safety-interventions` | 最近的安全干预，默认 50 条，最多 100 条。不含用户原文。MySQL 关闭时返回不可用 |
 | `POST /api/admin/operation-audits` | 登记一条后台操作。不写前后快照，也不改业务结果。其它成功写入也会自动记一行。MySQL 关闭时返回不可用 |
 | `POST /api/admin/deletion-requests/{requestId}/decision` | 把待处理的删除请求改成 `APPROVED` 或 `REJECTED`。不执行删除 |
 | `GET /api/admin/eval-datasets` | 最近登记的评测数据集，默认 50 条，最多 100 条。含停用。不带回用例。MySQL 关闭时返回不可用 |
 | `POST /api/admin/eval-datasets` | 登记一个评测数据集，版本固定 `1.0.0`。不执行。MySQL 关闭时返回不可用 |
+| `POST /api/admin/eval-datasets/{datasetId}/disable` | 停用仍启用的 `1.0.0`。停用后不再开跑。不删用例。MySQL 关闭时返回不可用 |
+| `POST /api/admin/eval-datasets/{datasetId}/restore` | 恢复已停用的 `1.0.0`。MySQL 关闭时返回不可用 |
 | `POST /api/admin/eval-datasets/{datasetId}/cases` | 给该数据集的 `1.0.0` 追加一条用例。数据集不存在时返回找不到。不执行 |
 | `POST /api/admin/eval-runs` | 为该数据集的 `1.0.0` 登记一次执行，记下用例条数。状态停在 `RUNNING`。不调用模型 |
 | `POST /api/admin/eval-runs/{evalRunId}/score` | 给仍在跑的执行写入通过数和通过率，改成 `SUCCEEDED`。不调用模型。MySQL 关闭时返回不可用 |

@@ -13,7 +13,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记和列出任务调度。只在存储开关打开时创建。不计算下次触发，也不消费。
+ * 登记、停用、恢复和列出任务调度。只在存储开关打开时创建。不计算下次触发，也不消费。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -62,7 +62,41 @@ public class MysqlTaskScheduleCatalog implements TaskScheduleCatalog {
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.CONFLICT, "task schedule already exists");
         }
-        return new TaskScheduleSummary(scheduleId, taskType, cron, hasDelay ? delaySeconds : null);
+        return new TaskScheduleSummary(scheduleId, taskType, cron, hasDelay ? delaySeconds : null, true);
+    }
+
+    /**
+     * 先确认存在且启用，再按启用行更新，避免覆盖已停用行。
+     * 不计算下次触发，也不消费。
+     */
+    @Override
+    public TaskScheduleSummary disable(String scheduleId) {
+        AgentTaskSchedule existing = require(scheduleId);
+        if (!Integer.valueOf(1).equals(existing.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "task schedule is not enabled");
+        }
+        int updated = schedules.disableEnabled(scheduleId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "task schedule is not enabled");
+        }
+        return summary(existing, false);
+    }
+
+    /**
+     * 先确认存在且停用，再按停用行更新，避免覆盖已启用行。
+     * 不计算下次触发，也不消费。
+     */
+    @Override
+    public TaskScheduleSummary restore(String scheduleId) {
+        AgentTaskSchedule existing = require(scheduleId);
+        if (Integer.valueOf(1).equals(existing.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "task schedule is already enabled");
+        }
+        int updated = schedules.restoreDisabled(scheduleId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "task schedule is already enabled");
+        }
+        return summary(existing, true);
     }
 
     /**
@@ -80,7 +114,30 @@ public class MysqlTaskScheduleCatalog implements TaskScheduleCatalog {
                         row.getScheduleId(),
                         row.getTaskType(),
                         row.getCronExpr(),
-                        row.getDelaySeconds()))
+                        row.getDelaySeconds(),
+                        Integer.valueOf(1).equals(row.getEnabled())))
                 .toList();
+    }
+
+    /** 按调度标识定位一行。 */
+    private AgentTaskSchedule require(String scheduleId) {
+        if (scheduleId == null || scheduleId.isBlank() || scheduleId.length() > ID_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "task schedule is invalid");
+        }
+        AgentTaskSchedule existing = schedules.findByScheduleId(scheduleId);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "task schedule not found");
+        }
+        return existing;
+    }
+
+    /** 用库里的字段，只改启用标记。 */
+    private static TaskScheduleSummary summary(AgentTaskSchedule existing, boolean enabled) {
+        return new TaskScheduleSummary(
+                existing.getScheduleId(),
+                existing.getTaskType(),
+                existing.getCronExpr(),
+                existing.getDelaySeconds(),
+                enabled);
     }
 }

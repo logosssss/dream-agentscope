@@ -40,13 +40,24 @@ class EvalRunCatalogTest {
                 .isEqualTo(ErrorCode.NOT_FOUND);
         verify(runs, never()).insert(any(EvalRun.class));
 
-        when(datasets.findVersion("set-a", "1.0.0")).thenReturn(new EvalDataset());
+        EvalDataset enabled = new EvalDataset();
+        enabled.setEnabled(1);
+        when(datasets.findVersion("set-a", "1.0.0")).thenReturn(enabled);
         when(cases.countVersion("set-a", "1.0.0")).thenReturn(0L);
         assertThatThrownBy(() -> catalog.start("set-a"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.BAD_REQUEST);
 
+        EvalDataset disabled = new EvalDataset();
+        disabled.setEnabled(0);
+        when(datasets.findVersion("set-a", "1.0.0")).thenReturn(disabled);
+        assertThatThrownBy(() -> catalog.start("set-a"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+
+        when(datasets.findVersion("set-a", "1.0.0")).thenReturn(enabled);
         when(cases.countVersion("set-a", "1.0.0")).thenReturn(2L);
         assertThat(catalog.start("set-a").status()).isEqualTo("RUNNING");
         ArgumentCaptor<EvalRun> saved = ArgumentCaptor.forClass(EvalRun.class);

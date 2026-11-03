@@ -9,13 +9,14 @@ import com.zhu.common.exception.ErrorCode;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记和查看评测数据集。不写用例，也不发起评测。
+ * 管理进程登记、停用、恢复和查看评测数据集。不写用例，也不发起评测。
  */
 @RestController
 public class AdminEvalDatasetController {
@@ -44,6 +45,22 @@ public class AdminEvalDatasetController {
                 ? new EvalDatasetRequest(null, null, null)
                 : request;
         return ApiResult.ok(catalog().register(body.datasetId(), body.name(), body.description()));
+    }
+
+    /**
+     * 停用仍启用的 1.0.0。停用后不再开跑。不删用例。
+     */
+    @PostMapping("/api/admin/eval-datasets/{datasetId}/disable")
+    public ApiResult<EvalDatasetSummary> disable(@PathVariable String datasetId) {
+        return ApiResult.ok(catalog().disable(datasetId));
+    }
+
+    /**
+     * 恢复已停用的 1.0.0。
+     */
+    @PostMapping("/api/admin/eval-datasets/{datasetId}/restore")
+    public ApiResult<EvalDatasetSummary> restore(@PathVariable String datasetId) {
+        return ApiResult.ok(catalog().restore(datasetId));
     }
 
     /** MySQL 关闭时没有目录。 */

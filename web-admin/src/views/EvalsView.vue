@@ -4,8 +4,10 @@
  */
 import {
   addEvalCase,
+  disableEvalDataset,
   listEvalDatasets,
   registerEvalDataset,
+  restoreEvalDataset,
   scoreEvalRun,
   startEvalRun,
 } from '@/shared/api/eval-api'
@@ -28,6 +30,7 @@ const recentRuns = ref<EvalRunSummary[]>([])
 const loading = ref(false)
 const error = ref('')
 const submitting = ref(false)
+const busyId = ref('')
 
 const datasetId = ref('')
 const name = ref('')
@@ -81,6 +84,43 @@ async function onRegisterDataset() {
     error.value = e instanceof Error ? e.message : '登记失败'
   } finally {
     submitting.value = false
+  }
+}
+
+/** 停用仍启用的数据集。 */
+async function onDisableDataset(row: EvalDatasetSummary) {
+  if (busyId.value) {
+    return
+  }
+  if (!window.confirm(`停用数据集 ${row.datasetId}？停用后不再开跑，用例仍保留。`)) {
+    return
+  }
+  busyId.value = row.datasetId
+  error.value = ''
+  try {
+    await disableEvalDataset(row.datasetId)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '停用失败'
+  } finally {
+    busyId.value = ''
+  }
+}
+
+/** 恢复已停用的数据集。 */
+async function onRestoreDataset(row: EvalDatasetSummary) {
+  if (busyId.value) {
+    return
+  }
+  busyId.value = row.datasetId
+  error.value = ''
+  try {
+    await restoreEvalDataset(row.datasetId)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '恢复失败'
+  } finally {
+    busyId.value = ''
   }
 }
 
@@ -213,7 +253,7 @@ onMounted(() => {
 
     <template v-if="tab === 'datasets'">
       <p class="text-xs text-[var(--color-text-muted)]">
-        版本固定 1.0.0。不带回用例，也不发起评测。
+        版本固定 1.0.0。停用后不再开跑；不带回用例，也不调用模型。
       </p>
       <form
         class="flex flex-wrap gap-2 items-end bg-white border border-slate-200 rounded-lg p-3"
@@ -248,11 +288,13 @@ onMounted(() => {
               <th class="px-3 py-2 font-medium">名称</th>
               <th class="px-3 py-2 font-medium">版本</th>
               <th class="px-3 py-2 font-medium">说明</th>
+              <th class="px-3 py-2 font-medium">启用</th>
+              <th class="px-3 py-2 font-medium">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!loading && datasets.length === 0">
-              <td colspan="4" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无数据集</td>
+              <td colspan="6" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无数据集</td>
             </tr>
             <tr
               v-for="row in datasets"
@@ -263,6 +305,27 @@ onMounted(() => {
               <td class="px-3 py-2">{{ row.name }}</td>
               <td class="px-3 py-2">{{ row.version }}</td>
               <td class="px-3 py-2 text-[var(--color-text-muted)]">{{ row.description || '—' }}</td>
+              <td class="px-3 py-2">{{ row.enabled ? '是' : '否' }}</td>
+              <td class="px-3 py-2 whitespace-nowrap">
+                <button
+                  v-if="row.enabled"
+                  type="button"
+                  class="text-sm text-[var(--color-danger)] disabled:opacity-50"
+                  :disabled="busyId === row.datasetId"
+                  @click="onDisableDataset(row)"
+                >
+                  停用
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="text-sm text-[var(--color-brand-primary)] disabled:opacity-50"
+                  :disabled="busyId === row.datasetId"
+                  @click="onRestoreDataset(row)"
+                >
+                  恢复
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>

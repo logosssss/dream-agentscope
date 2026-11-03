@@ -19,13 +19,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记用户附件元数据和引用。只在存储开关打开时创建。不收文件，也不接对象存储。
+ * 登记、停用、恢复用户附件元数据和引用。只在存储开关打开时创建。不收文件，也不接对象存储。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
 public class MysqlAttachmentCatalog implements AttachmentCatalog {
 
     private static final String ACTIVE = "ACTIVE";
+
+    private static final String DELETED = "DELETED";
 
     private static final String DEFAULT_STORAGE = "LOCAL";
 
@@ -113,7 +115,43 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
     }
 
     /**
-     * 别人的附件按找不到处理，避免靠引用探测别人的文件。
+     * 先确认本人本租户仍启用，再改成 DELETED。
+     * 不删对象存储，也不删引用。
+     */
+    @Override
+    public AttachmentSummary disable(String userId, String tenantId, String attachmentId) {
+        Attachment existing = requireOwned(userId, tenantId, attachmentId);
+        if (!ACTIVE.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "attachment is not active");
+        }
+        String savedTenant = existing.getTenantId() == null ? "" : existing.getTenantId();
+        int updated = attachments.markDeleted(userId, savedTenant, attachmentId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "attachment is not active");
+        }
+        return summary(existing, DELETED);
+    }
+
+    /**
+     * 先确认本人本租户已停用，再改回 ACTIVE。
+     * 不读写对象存储。
+     */
+    @Override
+    public AttachmentSummary restore(String userId, String tenantId, String attachmentId) {
+        Attachment existing = requireOwned(userId, tenantId, attachmentId);
+        if (!DELETED.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "attachment is not deleted");
+        }
+        String savedTenant = existing.getTenantId() == null ? "" : existing.getTenantId();
+        int updated = attachments.markActive(userId, savedTenant, attachmentId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "attachment is not deleted");
+        }
+        return summary(existing, ACTIVE);
+    }
+
+    /**
+     * 别人的或已停用按找不到处理，避免靠引用探测别人的文件。
      * 不核对话或运行，也不改附件状态。
      */
     @Override
@@ -125,7 +163,10 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "attachment ref is invalid");
         }
         Attachment existing = attachments.findByAttachmentId(attachmentId);
-        if (existing == null || existing.getUserId() == null || !userId.equals(existing.getUserId())) {
+        if (existing == null
+                || existing.getUserId() == null
+                || !userId.equals(existing.getUserId())
+                || !ACTIVE.equals(existing.getStatus())) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "attachment not found");
         }
         AttachmentRef row = new AttachmentRef();
@@ -221,8 +262,28 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
         return detail(row);
     }
 
+    /** 本人本租户的一行，含停用。空白租户按空串。 */
+    private Attachment requireOwned(String userId, String tenantId, String attachmentId) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || (tenantId != null && tenantId.length() > TENANT_LIMIT)
+                || attachmentId == null || attachmentId.isBlank() || attachmentId.length() > ATTACHMENT_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "attachment is invalid");
+        }
+        String savedTenant = tenantId == null || tenantId.isBlank() ? "" : tenantId;
+        Attachment existing = attachments.findOwnedAny(userId, savedTenant, attachmentId);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "attachment not found");
+        }
+        return existing;
+    }
+
     /** 列表和登记共用同一份摘要，不带回校验和。 */
     private static AttachmentSummary summary(Attachment row) {
+        return summary(row, row.getStatus());
+    }
+
+    /** 用库里的字段，只改状态。 */
+    private static AttachmentSummary summary(Attachment row, String status) {
         String tenant = row.getTenantId() == null ? "" : row.getTenantId();
         return new AttachmentSummary(
                 row.getAttachmentId(),
@@ -232,7 +293,7 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
                 row.getFileName(),
                 row.getStorageType(),
                 row.getStoragePath(),
-                row.getStatus());
+                status);
     }
 
     /** 详情补 MIME 和大小。仍不带回校验和。 */

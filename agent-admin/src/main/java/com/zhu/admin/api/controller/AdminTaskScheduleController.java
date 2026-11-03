@@ -9,13 +9,14 @@ import com.zhu.common.exception.ErrorCode;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记和查看任务调度。不计算下次触发，也不消费。
+ * 管理进程登记、停用、恢复和查看任务调度。不计算下次触发，也不消费。
  */
 @RestController
 public class AdminTaskScheduleController {
@@ -44,6 +45,22 @@ public class AdminTaskScheduleController {
                 ? new TaskScheduleRequest(null, null, null, null)
                 : request;
         return ApiResult.ok(catalog().register(body.scheduleId(), body.taskType(), body.cronExpr(), body.delaySeconds()));
+    }
+
+    /**
+     * 停用仍启用的调度。不计算下次触发，也不消费。
+     */
+    @PostMapping("/api/admin/task-schedules/{scheduleId}/disable")
+    public ApiResult<TaskScheduleSummary> disable(@PathVariable String scheduleId) {
+        return ApiResult.ok(catalog().disable(scheduleId));
+    }
+
+    /**
+     * 恢复已停用的调度。不计算下次触发，也不消费。
+     */
+    @PostMapping("/api/admin/task-schedules/{scheduleId}/restore")
+    public ApiResult<TaskScheduleSummary> restore(@PathVariable String scheduleId) {
+        return ApiResult.ok(catalog().restore(scheduleId));
     }
 
     /** MySQL 关闭时没有目录。 */

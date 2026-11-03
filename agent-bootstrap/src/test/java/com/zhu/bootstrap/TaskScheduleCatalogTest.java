@@ -18,7 +18,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 任务调度只登记和列出目录。不连接 MySQL，也不触发执行。
+ * 任务调度登记、停用、恢复和列表。不连接 MySQL，也不触发执行。
  */
 class TaskScheduleCatalogTest {
 
@@ -33,6 +33,7 @@ class TaskScheduleCatalogTest {
             assertThat(saved.taskType()).isEqualTo("REPORT");
             assertThat(saved.cronExpr()).isEqualTo("0 0 * * *");
             assertThat(saved.delaySeconds()).isNull();
+            assertThat(saved.enabled()).isTrue();
         });
         ArgumentCaptor<AgentTaskSchedule> cron = ArgumentCaptor.forClass(AgentTaskSchedule.class);
         verify(schedules).insert(cron.capture());
@@ -61,6 +62,43 @@ class TaskScheduleCatalogTest {
                 .isEqualTo(ErrorCode.CONFLICT);
     }
 
+    /** 停用只动仍启用的行；恢复只动已停用的行。 */
+    @Test
+    void disableAndRestoreToggleEnabled() {
+        AgentTaskScheduleMapper schedules = mock(AgentTaskScheduleMapper.class);
+        MysqlTaskScheduleCatalog catalog = new MysqlTaskScheduleCatalog(schedules);
+
+        AgentTaskSchedule enabled = new AgentTaskSchedule();
+        enabled.setScheduleId("sch-a");
+        enabled.setTaskType("REPORT");
+        enabled.setCronExpr("0 0 * * *");
+        enabled.setEnabled(1);
+        when(schedules.findByScheduleId("sch-a")).thenReturn(enabled);
+        when(schedules.disableEnabled("sch-a")).thenReturn(1);
+        assertThat(catalog.disable("sch-a").enabled()).isFalse();
+
+        AgentTaskSchedule disabled = new AgentTaskSchedule();
+        disabled.setScheduleId("sch-a");
+        disabled.setTaskType("REPORT");
+        disabled.setCronExpr("0 0 * * *");
+        disabled.setEnabled(0);
+        when(schedules.findByScheduleId("sch-a")).thenReturn(disabled);
+        when(schedules.restoreDisabled("sch-a")).thenReturn(1);
+        assertThat(catalog.restore("sch-a").enabled()).isTrue();
+
+        when(schedules.findByScheduleId("sch-a")).thenReturn(disabled);
+        assertThatThrownBy(() -> catalog.disable("sch-a"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+
+        when(schedules.findByScheduleId("missing")).thenReturn(null);
+        assertThatThrownBy(() -> catalog.restore("missing"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
     /** 列表含停用。空结果原样返回。不触发。 */
     @Test
     void recentListsRegisteredSchedules() {
@@ -80,6 +118,7 @@ class TaskScheduleCatalogTest {
             assertThat(saved.taskType()).isEqualTo("REPORT");
             assertThat(saved.cronExpr()).isEqualTo("0 0 * * *");
             assertThat(saved.delaySeconds()).isNull();
+            assertThat(saved.enabled()).isFalse();
         });
     }
 }

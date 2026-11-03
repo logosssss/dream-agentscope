@@ -47,3 +47,15 @@ export interface ChatMessageItem {
   runId: string | null
   createdAt: string
 }
+
+/** GET /api/attachments 一行。不表示对象已落地。 */
+export interface AttachmentSummary {
+  attachmentId: string
+  tenantId: string
+  userId: string
+  sessionId: string | null
+  fileName: string
+  storageType: string
+  storagePath: string
+  status: string
+}

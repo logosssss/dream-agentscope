@@ -46,6 +46,17 @@ function iconLabel(icon: string, name: string): string {
       {{ iconLabel(agent.icon, agent.name) }}
     </RouterLink>
 
+    <RouterLink
+      to="/attachments"
+      class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
+      :class="currentSlug === 'attachments'
+        ? 'text-white bg-[var(--color-brand-primary)]'
+        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'"
+      title="附件"
+    >
+      附
+    </RouterLink>
+
     <button
       type="button"
       class="mt-auto w-10 h-10 rounded-xl text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"

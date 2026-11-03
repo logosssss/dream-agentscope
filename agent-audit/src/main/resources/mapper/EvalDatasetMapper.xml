@@ -6,7 +6,10 @@
     <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.EvalDataset">
         <id column="id" property="id"/>
         <result column="dataset_id" property="datasetId"/>
+        <result column="name" property="name"/>
         <result column="version" property="version"/>
+        <result column="description" property="description"/>
+        <result column="enabled" property="enabled"/>
     </resultMap>
 
     <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.EvalDataset">
@@ -15,11 +18,12 @@
         <result column="name" property="name"/>
         <result column="version" property="version"/>
         <result column="description" property="description"/>
+        <result column="enabled" property="enabled"/>
     </resultMap>
 
-    <!-- 追加用例前确认这个版本已经登记。 -->
+    <!-- 追加用例与开跑前确认这个版本已经登记。停用也返回，开跑侧再判启用。 -->
     <select id="findVersion" resultMap="BaseResultMap">
-        SELECT id, dataset_id, version
+        SELECT id, dataset_id, name, version, description, enabled
         FROM eval_dataset
         WHERE dataset_id = #{datasetId}
           AND version = #{version}
@@ -27,9 +31,25 @@
 
     <!-- 管理列表看全部启用状态。不读用例。 -->
     <select id="recent" resultMap="ListResultMap">
-        SELECT id, dataset_id, name, version, description
+        SELECT id, dataset_id, name, version, description, enabled
         FROM eval_dataset
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <update id="disableEnabled">
+        UPDATE eval_dataset
+        SET enabled = 0
+        WHERE dataset_id = #{datasetId}
+          AND version = #{version}
+          AND enabled = 1
+    </update>
+
+    <update id="restoreDisabled">
+        UPDATE eval_dataset
+        SET enabled = 1
+        WHERE dataset_id = #{datasetId}
+          AND version = #{version}
+          AND enabled = 0
+    </update>
 </mapper>

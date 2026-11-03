@@ -7,7 +7,7 @@ Vue 3 + Vite + Pinia + Vue Router + Tailwind v4。同仓页面联调用户进程
 - `/companion` 智能搭子：会话栏 / 轻提示插槽；助手气泡 Markdown（`markdown-it`，关 html）
 - `/sketch` 速记草稿：占位 Agent，无侧栏
 
-当前进度：前端方案 Step 1～6 主路径已落地（Markdown、自动滚动、停止按钮、暗黑模式）。左侧轨底「深/浅」切换，记住到 localStorage。
+当前进度：前端方案 Step 1～6 主路径已落地（Markdown、自动滚动、停止按钮、暗黑模式）。左侧轨底「深/浅」切换，记住到 localStorage。平台页 `/attachments`：上传、列表、下载、停用/恢复（不删对象）。
 
 ## 准备
 

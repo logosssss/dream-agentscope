@@ -12,7 +12,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的评测数据集。只在存储开关打开时创建。可列出已登记行。不写用例，也不执行。
+ * MySQL 上的评测数据集。只在存储开关打开时创建。可停用、恢复和列出已登记行。不写用例，也不执行。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -56,7 +56,39 @@ public class MysqlEvalDatasetCatalog implements EvalDatasetCatalog {
             throw new BusinessException(ErrorCode.CONFLICT, "eval dataset already exists");
         }
         String stored = description == null || description.isBlank() ? null : description;
-        return new EvalDatasetSummary(datasetId, name, VERSION, stored);
+        return new EvalDatasetSummary(datasetId, name, VERSION, stored, true);
+    }
+
+    /**
+     * 只动 1.0.0。先确认启用再更新。不删用例。
+     */
+    @Override
+    public EvalDatasetSummary disable(String datasetId) {
+        EvalDataset existing = require(datasetId);
+        if (!Integer.valueOf(1).equals(existing.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "eval dataset is not enabled");
+        }
+        int updated = datasets.disableEnabled(datasetId, VERSION);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "eval dataset is not enabled");
+        }
+        return summary(existing, false);
+    }
+
+    /**
+     * 只动 1.0.0。先确认停用再更新。
+     */
+    @Override
+    public EvalDatasetSummary restore(String datasetId) {
+        EvalDataset existing = require(datasetId);
+        if (Integer.valueOf(1).equals(existing.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "eval dataset is already enabled");
+        }
+        int updated = datasets.restoreDisabled(datasetId, VERSION);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "eval dataset is already enabled");
+        }
+        return summary(existing, true);
     }
 
     /**
@@ -74,7 +106,30 @@ public class MysqlEvalDatasetCatalog implements EvalDatasetCatalog {
                         row.getDatasetId(),
                         row.getName(),
                         row.getVersion(),
-                        row.getDescription()))
+                        row.getDescription(),
+                        Integer.valueOf(1).equals(row.getEnabled())))
                 .toList();
+    }
+
+    /** 只认 1.0.0 这一行。 */
+    private EvalDataset require(String datasetId) {
+        if (datasetId == null || datasetId.isBlank() || datasetId.length() > ID_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "eval dataset is invalid");
+        }
+        EvalDataset existing = datasets.findVersion(datasetId, VERSION);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "eval dataset not found");
+        }
+        return existing;
+    }
+
+    /** 用库里的字段，只改启用标记。 */
+    private static EvalDatasetSummary summary(EvalDataset existing, boolean enabled) {
+        return new EvalDatasetSummary(
+                existing.getDatasetId(),
+                existing.getName(),
+                existing.getVersion() == null ? VERSION : existing.getVersion(),
+                existing.getDescription(),
+                enabled);
     }
 }

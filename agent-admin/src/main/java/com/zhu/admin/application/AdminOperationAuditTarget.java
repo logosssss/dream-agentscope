@@ -42,7 +42,7 @@ public record AdminOperationAuditTarget(
             case "tool-registries" -> toolRegistry(parts);
             case "tool-permissions" -> toolPermission(parts);
             case "retention-policies" -> retentionPolicy(parts);
-            case "task-schedules" -> createOnly(parts, "task_schedule");
+            case "task-schedules" -> taskSchedule(parts);
             case "eval-datasets" -> evalDataset(parts);
             case "eval-runs" -> evalRun(parts);
             case "billing" -> billing(parts);
@@ -95,13 +95,16 @@ public record AdminOperationAuditTarget(
         return null;
     }
 
-    /** 数据集登记和追加用例分开记，避免把用例写成数据集。 */
+    /** 数据集登记、停用、恢复和追加用例分开记，避免把用例写成数据集。 */
     private static AdminOperationAuditTarget evalDataset(String[] parts) {
         if (parts.length == 1) {
             return new AdminOperationAuditTarget("", "CREATE", "eval_dataset", null);
         }
         if (parts.length == 3 && "cases".equals(parts[2])) {
             return identified("", "CREATE", "eval_case", parts[1]);
+        }
+        if (parts.length == 3 && ("disable".equals(parts[2]) || "restore".equals(parts[2]))) {
+            return identified("", parts[2].toUpperCase(), "eval_dataset", parts[1]);
         }
         return null;
     }
@@ -181,6 +184,17 @@ public record AdminOperationAuditTarget(
         }
         if (parts.length == 3 && ("disable".equals(parts[2]) || "restore".equals(parts[2]))) {
             return identified("", parts[2].toUpperCase(), "retention_policy", parts[1]);
+        }
+        return null;
+    }
+
+    /** 登记没有路径标识。停用和恢复带调度标识。 */
+    private static AdminOperationAuditTarget taskSchedule(String[] parts) {
+        if (parts.length == 1) {
+            return new AdminOperationAuditTarget("", "CREATE", "task_schedule", null);
+        }
+        if (parts.length == 3 && ("disable".equals(parts[2]) || "restore".equals(parts[2]))) {
+            return identified("", parts[2].toUpperCase(), "task_schedule", parts[1]);
         }
         return null;
     }

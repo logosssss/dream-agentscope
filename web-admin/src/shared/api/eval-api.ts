@@ -31,6 +31,22 @@ export function registerEvalDataset(body: {
   })
 }
 
+/** 停用仍启用的 1.0.0；停用后不再开跑。 */
+export function disableEvalDataset(datasetId: string): Promise<EvalDatasetSummary> {
+  return apiJson<EvalDatasetSummary>(
+    `/api/admin/eval-datasets/${encodeURIComponent(datasetId)}/disable`,
+    { method: 'POST' },
+  )
+}
+
+/** 恢复已停用的 1.0.0。 */
+export function restoreEvalDataset(datasetId: string): Promise<EvalDatasetSummary> {
+  return apiJson<EvalDatasetSummary>(
+    `/api/admin/eval-datasets/${encodeURIComponent(datasetId)}/restore`,
+    { method: 'POST' },
+  )
+}
+
 /** 给该数据集 1.0.0 追加用例。 */
 export function addEvalCase(
   datasetId: string,

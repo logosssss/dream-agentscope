@@ -53,7 +53,38 @@ class AttachmentCatalogTest {
         assertThat(saved.getValue().getMimeType()).isNull();
     }
 
-    /** 只挂自己的附件。别人的或没有的按找不到。同一引用再挂一次是冲突。 */
+    /** 停用只动仍启用的本人本租户行；恢复只动已停用的行。不删对象。 */
+    @Test
+    void disableAndRestoreToggleStatus() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, mock(AttachmentRefMapper.class));
+
+        Attachment active = storedRow("att-1", "t", "u", "a.txt", "att/t/u/att-1/a.txt", "text/plain", "ACTIVE");
+        active.setStorageType("LOCAL");
+        when(attachments.findOwnedAny("u", "t", "att-1")).thenReturn(active);
+        when(attachments.markDeleted("u", "t", "att-1")).thenReturn(1);
+        assertThat(catalog.disable("u", "t", "att-1").status()).isEqualTo("DELETED");
+
+        Attachment deleted = storedRow("att-1", "t", "u", "a.txt", "att/t/u/att-1/a.txt", "text/plain", "DELETED");
+        deleted.setStorageType("LOCAL");
+        when(attachments.findOwnedAny("u", "t", "att-1")).thenReturn(deleted);
+        when(attachments.markActive("u", "t", "att-1")).thenReturn(1);
+        assertThat(catalog.restore("u", "t", "att-1").status()).isEqualTo("ACTIVE");
+
+        when(attachments.findOwnedAny("u", "t", "att-1")).thenReturn(deleted);
+        assertThatThrownBy(() -> catalog.disable("u", "t", "att-1"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+
+        when(attachments.findOwnedAny("u", "t", "missing")).thenReturn(null);
+        assertThatThrownBy(() -> catalog.restore("u", "t", "missing"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
+    /** 只挂自己仍启用的附件。别人的、停用的或没有的按找不到。同一引用再挂一次是冲突。 */
     @Test
     void linkRequiresOwnedAttachment() {
         AttachmentMapper attachments = mock(AttachmentMapper.class);
@@ -62,6 +93,7 @@ class AttachmentCatalogTest {
         Attachment owned = new Attachment();
         owned.setAttachmentId("att-1");
         owned.setUserId("u");
+        owned.setStatus("ACTIVE");
         when(attachments.findByAttachmentId("att-1")).thenReturn(owned);
 
         assertThat(catalog.link("u", "att-1", "RUN", "run-1")).satisfies(saved -> {
@@ -79,12 +111,23 @@ class AttachmentCatalogTest {
 
         Attachment other = new Attachment();
         other.setUserId("other");
+        other.setStatus("ACTIVE");
         when(attachments.findByAttachmentId("att-2")).thenReturn(other);
         assertThatThrownBy(() -> catalog.link("u", "att-2", "MESSAGE", "m-1"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
         verify(refs, times(2)).insert(any(AttachmentRef.class));
+
+        Attachment deleted = new Attachment();
+        deleted.setAttachmentId("att-3");
+        deleted.setUserId("u");
+        deleted.setStatus("DELETED");
+        when(attachments.findByAttachmentId("att-3")).thenReturn(deleted);
+        assertThatThrownBy(() -> catalog.link("u", "att-3", "RUN", "run-2"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
 
         when(refs.insert(any(AttachmentRef.class)))
                 .thenThrow(new org.springframework.dao.DataIntegrityViolationException("dup"));

@@ -109,6 +109,7 @@ export interface TaskScheduleSummary {
   taskType: string
   cronExpr: string | null
   delaySeconds: number | null
+  enabled: boolean
 }
 
 /** GET /api/admin/eval-datasets 一行。不含用例。 */
@@ -117,6 +118,7 @@ export interface EvalDatasetSummary {
   name: string
   version: string
   description: string | null
+  enabled: boolean
 }
 
 /** POST 追加用例后的一行。不含执行结果。 */

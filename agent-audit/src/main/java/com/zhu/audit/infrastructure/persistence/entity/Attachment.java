@@ -44,7 +44,7 @@ public class Attachment {
     /** 校验和。可以空。 */
     private String checksum;
 
-    /** ACTIVE。这次不写删除。 */
+    /** ACTIVE / DELETED。停用只改状态，不删对象。 */
     private String status;
 
     /** 主键。 */

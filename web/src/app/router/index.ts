@@ -24,6 +24,14 @@ const router = createRouter({
           path: '',
           redirect: defaultAgentPath,
         },
+        {
+          path: 'attachments',
+          name: 'attachments',
+          component: () => import('@/platform/attachments/AttachmentsView.vue'),
+          meta: {
+            themeColor: '#2563eb',
+          },
+        },
         ...agentList.map((agent) => ({
           path: agent.slug,
           name: agent.slug,

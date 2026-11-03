@@ -1,8 +1,13 @@
 <script setup lang="ts">
 /**
- * 任务调度：列表 + 登记。不计算下次触发，也不消费。
+ * 任务调度：列表 + 登记 + 停用/恢复。不计算下次触发，也不消费。
  */
-import { listTaskSchedules, registerTaskSchedule } from '@/shared/api/schedule-api'
+import {
+  disableTaskSchedule,
+  listTaskSchedules,
+  registerTaskSchedule,
+  restoreTaskSchedule,
+} from '@/shared/api/schedule-api'
 import { hasAdminToken } from '@/shared/auth/operator'
 import type { TaskScheduleSummary } from '@/shared/types/api.types'
 import { onMounted, ref } from 'vue'
@@ -15,6 +20,7 @@ const rows = ref<TaskScheduleSummary[]>([])
 const loading = ref(false)
 const error = ref('')
 const submitting = ref(false)
+const busyId = ref('')
 
 const scheduleId = ref('')
 const taskType = ref<(typeof TASK_TYPES)[number]>('BACKFILL')
@@ -77,6 +83,43 @@ async function onRegister() {
     error.value = e instanceof Error ? e.message : '登记失败'
   } finally {
     submitting.value = false
+  }
+}
+
+/** 停用仍启用的调度。 */
+async function onDisable(row: TaskScheduleSummary) {
+  if (busyId.value) {
+    return
+  }
+  if (!window.confirm(`停用调度 ${row.scheduleId}？仍不触发执行。`)) {
+    return
+  }
+  busyId.value = row.scheduleId
+  error.value = ''
+  try {
+    await disableTaskSchedule(row.scheduleId)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '停用失败'
+  } finally {
+    busyId.value = ''
+  }
+}
+
+/** 恢复已停用的调度。 */
+async function onRestore(row: TaskScheduleSummary) {
+  if (busyId.value) {
+    return
+  }
+  busyId.value = row.scheduleId
+  error.value = ''
+  try {
+    await restoreTaskSchedule(row.scheduleId)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '恢复失败'
+  } finally {
+    busyId.value = ''
   }
 }
 
@@ -167,17 +210,40 @@ onMounted(() => {
             <th class="px-3 py-2 font-medium">类型</th>
             <th class="px-3 py-2 font-medium">cron</th>
             <th class="px-3 py-2 font-medium">延迟秒</th>
+            <th class="px-3 py-2 font-medium">启用</th>
+            <th class="px-3 py-2 font-medium">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!loading && rows.length === 0">
-            <td colspan="4" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无调度</td>
+            <td colspan="6" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无调度</td>
           </tr>
           <tr v-for="row in rows" :key="row.scheduleId" class="border-t border-slate-100">
             <td class="px-3 py-2 font-mono text-xs">{{ row.scheduleId }}</td>
             <td class="px-3 py-2">{{ row.taskType }}</td>
             <td class="px-3 py-2 font-mono text-xs">{{ row.cronExpr || '—' }}</td>
             <td class="px-3 py-2">{{ row.delaySeconds ?? '—' }}</td>
+            <td class="px-3 py-2">{{ row.enabled ? '是' : '否' }}</td>
+            <td class="px-3 py-2 whitespace-nowrap">
+              <button
+                v-if="row.enabled"
+                type="button"
+                class="text-sm text-[var(--color-danger)] disabled:opacity-50"
+                :disabled="busyId === row.scheduleId"
+                @click="onDisable(row)"
+              >
+                停用
+              </button>
+              <button
+                v-else
+                type="button"
+                class="text-sm text-[var(--color-brand-primary)] disabled:opacity-50"
+                :disabled="busyId === row.scheduleId"
+                @click="onRestore(row)"
+              >
+                恢复
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>

@@ -5,6 +5,7 @@ import com.zhu.audit.api.EvalRunSummary;
 import com.zhu.audit.infrastructure.persistence.EvalCaseMapper;
 import com.zhu.audit.infrastructure.persistence.EvalDatasetMapper;
 import com.zhu.audit.infrastructure.persistence.EvalRunMapper;
+import com.zhu.audit.infrastructure.persistence.entity.EvalDataset;
 import com.zhu.audit.infrastructure.persistence.entity.EvalRun;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
@@ -45,7 +46,7 @@ public class MysqlEvalRunCatalog implements EvalRunCatalog {
     }
 
     /**
-     * 没有用例时不开跑，避免留下一条永远是 0 的执行。
+     * 没有用例或数据集已停用时不开跑，避免留下一条永远是 0 的执行。
      * 通过数保持 0，结束时间留空。状态停在 RUNNING。
      */
     @Override
@@ -53,8 +54,12 @@ public class MysqlEvalRunCatalog implements EvalRunCatalog {
         if (datasetId == null || datasetId.isBlank() || datasetId.length() > ID_LIMIT) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "eval run is invalid");
         }
-        if (datasets.findVersion(datasetId, VERSION) == null) {
+        EvalDataset dataset = datasets.findVersion(datasetId, VERSION);
+        if (dataset == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "eval dataset not found");
+        }
+        if (!Integer.valueOf(1).equals(dataset.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "eval dataset is not enabled");
         }
         long total = cases.countVersion(datasetId, VERSION);
         if (total < 1) {

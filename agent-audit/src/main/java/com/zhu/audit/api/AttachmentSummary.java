@@ -10,7 +10,7 @@ package com.zhu.audit.api;
  * @param fileName     原始文件名
  * @param storageType  LOCAL / S3 / OSS / MINIO
  * @param storagePath  声称的存储路径
- * @param status       这次是 ACTIVE
+ * @param status       ACTIVE 或 DELETED
  */
 public record AttachmentSummary(
         String attachmentId,

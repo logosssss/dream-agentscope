@@ -3,7 +3,7 @@ package com.zhu.audit.api;
 import java.util.List;
 
 /**
- * 登记用户附件元数据和引用。不收文件，也不接对象存储。
+ * 登记、停用、恢复用户附件元数据和引用。不收文件，也不接对象存储。
  */
 public interface AttachmentCatalog {
 
@@ -23,7 +23,19 @@ public interface AttachmentCatalog {
             String checksum);
 
     /**
-     * 把附件挂到一条消息、一次运行或一篇知识文档上。附件必须属于这个用户。
+     * 把仍启用的附件改成 DELETED。别人的或已停用按找不到/冲突。
+     * 不删对象存储，也不删引用。
+     */
+    AttachmentSummary disable(String userId, String tenantId, String attachmentId);
+
+    /**
+     * 把已停用的附件改回 ACTIVE。别人的或仍启用按找不到/冲突。
+     * 不读写对象存储。
+     */
+    AttachmentSummary restore(String userId, String tenantId, String attachmentId);
+
+    /**
+     * 把附件挂到一条消息、一次运行或一篇知识文档上。附件必须属于这个用户且仍启用。
      * 同一附件、类型和标识再挂一次是冲突。不核对话、运行或文档是否存在。
      */
     AttachmentRefSummary link(String userId, String attachmentId, String refType, String refId);

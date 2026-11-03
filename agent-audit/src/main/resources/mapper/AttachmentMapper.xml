@@ -7,15 +7,44 @@
         <id column="id" property="id"/>
         <result column="attachment_id" property="attachmentId"/>
         <result column="user_id" property="userId"/>
+        <result column="status" property="status"/>
     </resultMap>
 
-    <!-- 写引用前确认附件还在。只取归属，不带回路径。 -->
+    <!-- 写引用前确认附件还在。只取归属和状态，不带回路径。 -->
     <select id="findByAttachmentId" resultMap="OwnerResultMap">
-        SELECT id, attachment_id, user_id
+        SELECT id, attachment_id, user_id, status
         FROM attachment
         WHERE attachment_id = #{attachmentId}
         LIMIT 1
     </select>
+
+    <!-- 停用恢复前取本人本租户一行，含 DELETED。不带回校验和。 -->
+    <select id="findOwnedAny" resultMap="ListResultMap">
+        SELECT attachment_id, tenant_id, user_id, session_id, file_name, storage_type, storage_path, status
+        FROM attachment
+        WHERE attachment_id = #{attachmentId}
+          AND user_id = #{userId}
+          AND tenant_id = #{tenantId}
+        LIMIT 1
+    </select>
+
+    <update id="markDeleted">
+        UPDATE attachment
+        SET status = 'DELETED'
+        WHERE attachment_id = #{attachmentId}
+          AND user_id = #{userId}
+          AND tenant_id = #{tenantId}
+          AND status = 'ACTIVE'
+    </update>
+
+    <update id="markActive">
+        UPDATE attachment
+        SET status = 'ACTIVE'
+        WHERE attachment_id = #{attachmentId}
+          AND user_id = #{userId}
+          AND tenant_id = #{tenantId}
+          AND status = 'DELETED'
+    </update>
 
     <resultMap id="StoredResultMap" type="com.zhu.audit.infrastructure.persistence.entity.Attachment">
         <result column="attachment_id" property="attachmentId"/>

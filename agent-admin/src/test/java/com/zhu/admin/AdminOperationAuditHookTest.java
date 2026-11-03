@@ -57,6 +57,16 @@ class AdminOperationAuditHookTest {
                 .isEqualTo(new AdminOperationAuditTarget("", "DISABLE", "retention_policy", "SESSION"));
         assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/retention-policies/SESSION/restore"))
                 .isEqualTo(new AdminOperationAuditTarget("", "RESTORE", "retention_policy", "SESSION"));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/task-schedules"))
+                .isEqualTo(new AdminOperationAuditTarget("", "CREATE", "task_schedule", null));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/task-schedules/sch-a/disable"))
+                .isEqualTo(new AdminOperationAuditTarget("", "DISABLE", "task_schedule", "sch-a"));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/task-schedules/sch-a/restore"))
+                .isEqualTo(new AdminOperationAuditTarget("", "RESTORE", "task_schedule", "sch-a"));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/eval-datasets/set-a/disable"))
+                .isEqualTo(new AdminOperationAuditTarget("", "DISABLE", "eval_dataset", "set-a"));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/eval-datasets/set-a/restore"))
+                .isEqualTo(new AdminOperationAuditTarget("", "RESTORE", "eval_dataset", "set-a"));
 
         hook.afterSuccess("POST", "/api/admin/tenants", null);
         verify(catalog).record("admin", "", "CREATE", "tenant", null);
