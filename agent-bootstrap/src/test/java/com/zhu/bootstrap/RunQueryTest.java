@@ -7,6 +7,7 @@ import com.zhu.access.infrastructure.persistence.entity.AgentRun;
 import com.zhu.access.infrastructure.persistence.entity.AgentRunStep;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -60,13 +61,16 @@ class RunQueryTest {
         verify(runs, never()).listOwned(any(), any(), anyInt());
     }
 
-    /** 先确认归属再读步骤。没有步骤时仍返回运行本身。 */
+    /** 先确认归属再读步骤，并带上开始和结束时间。没有步骤时仍返回运行本身。 */
     @Test
     void ownedOneReturnsStepsAfterOwnership() {
         AgentRunMapper runs = mock(AgentRunMapper.class);
         AgentRunStepMapper steps = mock(AgentRunStepMapper.class);
         MysqlRunQuery query = new MysqlRunQuery(runs, steps);
-        when(runs.findOwned("u", "t", "run-1")).thenReturn(run("run-1", "t"));
+        AgentRun row = run("run-1", "t");
+        row.setStartedAt(LocalDateTime.of(2026, 11, 2, 1, 2, 3));
+        row.setFinishedAt(LocalDateTime.of(2026, 11, 2, 1, 2, 15));
+        when(runs.findOwned("u", "t", "run-1")).thenReturn(row);
         AgentRunStep reasoning = new AgentRunStep();
         reasoning.setStepNo(1);
         reasoning.setStepType("REASONING");
@@ -82,10 +86,14 @@ class RunQueryTest {
             assertThat(detail.steps()).hasSize(2);
             assertThat(detail.steps().get(0).stepType()).isEqualTo("REASONING");
             assertThat(detail.steps().get(1).toolId()).isEqualTo("echo_text");
+            assertThat(detail.startedAt()).isEqualTo("2026-11-02T01:02:03");
+            assertThat(detail.finishedAt()).isEqualTo("2026-11-02T01:02:15");
         });
         when(runs.findOwned("u", "", "run-2")).thenReturn(run("run-2", ""));
         when(steps.listByRunId("run-2")).thenReturn(List.of());
         assertThat(query.ownedOne("u", " ", "run-2").steps()).isEmpty();
+        assertThat(query.ownedOne("u", " ", "run-2").startedAt()).isEqualTo("");
+        assertThat(query.ownedOne("u", " ", "run-2").finishedAt()).isEqualTo("");
     }
 
     /** 别人的运行或空标识都不读步骤。 */

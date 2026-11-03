@@ -17,8 +17,8 @@ public interface RunQuery {
     List<RunSummary> owned(String userId, String tenantId, int limit);
 
     /**
-     * 当前用户在这个租户下的一次运行，附带步骤。
-     * 找不到或不是本人时按找不到处理，不读别人的步骤。
+     * 当前用户在这个租户下的一次运行，附带步骤、开始时间和结束时间。
+     * 找不到或不是本人时按找不到处理，不读别人的步骤。不返回异常原文。
      */
     RunDetail ownedOne(String userId, String tenantId, String runId);
 }

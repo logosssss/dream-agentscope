@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 当前用户查看已经结束的运行。列表不带步骤；详情才带步骤，仍不返回全文。
+ * 当前用户查看已经结束的运行。列表不带步骤和开始结束时间；详情才带，仍不返回全文。
  */
 @RestController
 public class RunController {
@@ -42,7 +42,7 @@ public class RunController {
     }
 
     /**
-     * 别人的运行按找不到处理。步骤不含参数、耗时或 token。
+     * 别人的运行按找不到处理。带开始和结束时间。步骤不含参数、耗时或 token。
      */
     @GetMapping("/api/runs/{runId}")
     public ApiResult<RunDetail> get(@PathVariable String runId) {

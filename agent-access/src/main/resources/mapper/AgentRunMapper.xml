@@ -34,10 +34,10 @@
         LIMIT #{limit}
     </select>
 
-    <!-- 本人本租户的一次运行。不带回异常原文。 -->
+    <!-- 本人本租户的一次运行。比列表多开始和结束时间，不带回异常原文。 -->
     <select id="findOwned" resultType="com.zhu.access.infrastructure.persistence.entity.AgentRun">
         SELECT run_id, tenant_id, user_id, session_id, trigger_type, status, model,
-               input_summary, output_summary, error_code, duration_ms
+               input_summary, output_summary, error_code, duration_ms, started_at, finished_at
         FROM agent_run
         WHERE run_id = #{runId}
           AND user_id = #{userId}

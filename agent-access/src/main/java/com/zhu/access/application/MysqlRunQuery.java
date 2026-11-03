@@ -9,6 +9,7 @@ import com.zhu.access.infrastructure.persistence.entity.AgentRun;
 import com.zhu.access.infrastructure.persistence.entity.AgentRunStep;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -27,6 +28,9 @@ public class MysqlRunQuery implements RunQuery {
     private static final int TENANT_LIMIT = 64;
 
     private static final int RUN_ID_LIMIT = 128;
+
+    /** 开始和结束时间按本地日期时间写出，不带时区后缀。 */
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final AgentRunMapper runs;
 
@@ -57,6 +61,7 @@ public class MysqlRunQuery implements RunQuery {
 
     /**
      * 空标识拒绝。找不到或不是本人按找不到，避免把别人的步骤露出去。
+     * 带开始和结束时间。不返回异常原文。
      */
     @Override
     public RunDetail ownedOne(String userId, String tenantId, String runId) {
@@ -71,7 +76,9 @@ public class MysqlRunQuery implements RunQuery {
             throw new BusinessException(ErrorCode.NOT_FOUND, "run not found");
         }
         List<AgentRunStep> recorded = steps.listByRunId(row.getRunId());
-        return new RunDetail(summary(row), stepSummaries(recorded));
+        String started = row.getStartedAt() == null ? "" : TIME.format(row.getStartedAt());
+        String finished = row.getFinishedAt() == null ? "" : TIME.format(row.getFinishedAt());
+        return new RunDetail(summary(row), stepSummaries(recorded), started, finished);
     }
 
     /** 列表不带回开始结束时间，调用方用耗时即可。 */
