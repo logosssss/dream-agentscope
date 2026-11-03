@@ -39,7 +39,7 @@ async function onSubmit() {
 <template>
   <div class="min-h-full flex items-center justify-center p-6">
     <form
-      class="w-full max-w-md rounded-2xl bg-[var(--color-surface-card)] p-6 shadow-sm border border-slate-200 space-y-4"
+      class="w-full max-w-md rounded-2xl bg-[var(--color-surface-card)] p-6 shadow-sm border border-[var(--color-border)] space-y-4"
       @submit.prevent="onSubmit"
     >
       <div>
@@ -53,7 +53,7 @@ async function onSubmit() {
         <span class="text-sm">租户 ID</span>
         <input
           v-model="tenantId"
-          class="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
+          class="w-full rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] text-[var(--color-text-main)] px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
           autocomplete="username"
           required
         />
@@ -63,7 +63,7 @@ async function onSubmit() {
         <span class="text-sm">用户 ID</span>
         <input
           v-model="userId"
-          class="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
+          class="w-full rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] text-[var(--color-text-main)] px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
           required
         />
       </label>

@@ -39,6 +39,76 @@ function persistOperator() {
             >
               用户
             </RouterLink>
+            <RouterLink
+              to="/approvals"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              审批
+            </RouterLink>
+            <RouterLink
+              to="/quotas"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              额度
+            </RouterLink>
+            <RouterLink
+              to="/models"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              模型
+            </RouterLink>
+            <RouterLink
+              to="/audits"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              审计
+            </RouterLink>
+            <RouterLink
+              to="/retention"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              保留
+            </RouterLink>
+            <RouterLink
+              to="/schedules"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              调度
+            </RouterLink>
+            <RouterLink
+              to="/evals"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              评测
+            </RouterLink>
+            <RouterLink
+              to="/billing"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              账单
+            </RouterLink>
+            <RouterLink
+              to="/deletions"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              删除
+            </RouterLink>
+            <RouterLink
+              to="/tools"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              工具
+            </RouterLink>
           </nav>
         </div>
         <label class="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">

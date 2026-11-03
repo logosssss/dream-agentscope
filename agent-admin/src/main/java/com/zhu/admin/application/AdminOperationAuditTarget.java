@@ -39,6 +39,7 @@ public record AdminOperationAuditTarget(
             case "tenant-concurrent-quotas" -> tenantQuota(parts);
             case "model-prices" -> createOnly(parts, "model_price");
             case "model-configs" -> createOnly(parts, "model_config");
+            case "tool-registries" -> createOnly(parts, "tool_registry");
             case "retention-policies" -> createOnly(parts, "retention_policy");
             case "task-schedules" -> createOnly(parts, "task_schedule");
             case "eval-datasets" -> evalDataset(parts);

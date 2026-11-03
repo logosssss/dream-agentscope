@@ -179,7 +179,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="flex-1 min-w-0 h-full flex flex-col">
-      <header class="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
+      <header class="flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-3">
         <div>
           <h1 class="text-lg font-semibold text-[var(--color-brand-primary)]">{{ title }}</h1>
           <p class="text-xs text-[var(--color-text-muted)]">
@@ -211,7 +211,7 @@ onBeforeUnmount(() => {
             class="max-w-[80%] break-words px-4 py-2.5 text-sm leading-relaxed"
             :class="msg.role === 'user'
               ? 'whitespace-pre-wrap bg-[var(--color-brand-primary)] text-white rounded-[var(--chat-bubble-radius)] rounded-br-sm'
-              : 'bg-white border border-slate-200 text-[var(--color-text-main)] rounded-[var(--chat-bubble-radius)] rounded-bl-sm'"
+              : 'bg-[var(--color-surface-card)] border border-[var(--color-border)] text-[var(--color-text-main)] rounded-[var(--chat-bubble-radius)] rounded-bl-sm'"
           >
             <template v-if="msg.role === 'assistant' && msg.content">
               <MarkdownContent :source="msg.content" />
@@ -222,21 +222,21 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="border-t border-slate-200 bg-white px-4 py-3 space-y-2">
+      <div class="border-t border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-3 space-y-2">
         <slot name="before-input" />
         <p v-if="statusTip" class="text-xs text-[var(--color-text-muted)]">{{ statusTip }}</p>
         <p v-if="error" class="text-sm text-[var(--color-danger)]">{{ error }}</p>
         <form class="flex gap-2" @submit.prevent="send">
           <input
             v-model="input"
-            class="flex-1 rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-primary)] disabled:bg-slate-50"
+            class="flex-1 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] text-[var(--color-text-main)] px-3 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-primary)] disabled:bg-[var(--color-surface-muted)]"
             placeholder="输入消息…"
             :disabled="streaming || loadingHistory"
           />
           <button
             v-if="streaming"
             type="button"
-            class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm"
+            class="rounded-xl border border-[var(--color-border-strong)] px-4 py-2.5 text-sm hover:bg-[var(--color-surface-muted)]"
             @click="stop"
           >
             停止

@@ -3,11 +3,21 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.zhu.semantic.infrastructure.persistence.ToolRegistryMapper">
 
-    <!-- 目录只需要标识、展示名和说明。版本和参数结构先不参与注册。 -->
+    <!-- 运行目录只需要标识、展示名和说明。版本和参数结构先不参与注册。 -->
     <resultMap id="BaseResultMap" type="com.zhu.semantic.infrastructure.persistence.entity.ToolRegistry">
         <id column="id" property="id"/>
         <result column="tool_id" property="toolId"/>
         <result column="name" property="name"/>
+        <result column="description" property="description"/>
+    </resultMap>
+
+    <!-- 管理列表含版本和模块。不读 param_schema。 -->
+    <resultMap id="ListResultMap" type="com.zhu.semantic.infrastructure.persistence.entity.ToolRegistry">
+        <id column="id" property="id"/>
+        <result column="tool_id" property="toolId"/>
+        <result column="name" property="name"/>
+        <result column="version" property="version"/>
+        <result column="module" property="module"/>
         <result column="description" property="description"/>
     </resultMap>
 
@@ -16,5 +26,12 @@
         FROM tool_registry
         WHERE enabled = 1
         ORDER BY tool_id
+    </select>
+
+    <select id="recent" resultMap="ListResultMap">
+        SELECT id, tool_id, name, version, module, description
+        FROM tool_registry
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
     </select>
 </mapper>

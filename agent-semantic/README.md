@@ -65,4 +65,4 @@
 
 ## 还没有
 
-`conditions` 已解释 UTC 时分窗（`after` / `before`）。参数范围还不看，因为权限判定没有工具入参。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词发布不在进程启动时发生。主对话话术在 `prompts/prompt.companion.system.md`。危机话术在 `prompts/prompt.safety.crisis.md`，只从 classpath 读。`SemanticRiskJudge` 的生产实现不连网，一律普通陪伴。真正的模型判定以后再换。工具名、JSON 结构和安全护栏留在代码里。管理端登记工具目录还没有。
+`conditions` 已解释 UTC 时分窗（`after` / `before`）。参数范围还不看，因为权限判定没有工具入参。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词发布不在进程启动时发生。主对话话术在 `prompts/prompt.companion.system.md`。危机话术在 `prompts/prompt.safety.crisis.md`，只从 classpath 读。`SemanticRiskJudge` 的生产实现不连网，一律普通陪伴。真正的模型判定以后再换。工具名、JSON 结构和安全护栏留在代码里。管理端可通过 `ToolRegistryCatalog` / `POST /api/admin/tool-registries` 登记目录行；仍不写权限规则，也不在批准后执行工具。

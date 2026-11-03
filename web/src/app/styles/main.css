@@ -2,15 +2,32 @@
 
 /**
  * Step 1 基础语义 Token。后续 Agent 主题可覆盖 --color-brand-primary。
+ * 暗黑模式改 surface / text / border，不改品牌色默认值。
  */
 @theme {
   --color-brand-primary: #ec4899;
   --color-surface-bg: #f8fafc;
   --color-surface-card: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
   --color-text-main: #0f172a;
   --color-text-muted: #64748b;
   --color-danger: #dc2626;
+  --color-code-bg: rgb(15 23 42 / 0.06);
   --chat-bubble-radius: 1rem;
+}
+
+html[data-theme="dark"] {
+  --color-surface-bg: #0f172a;
+  --color-surface-card: #1e293b;
+  --color-surface-muted: #334155;
+  --color-border: #334155;
+  --color-border-strong: #475569;
+  --color-text-main: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  --color-danger: #f87171;
+  --color-code-bg: rgb(248 250 252 / 0.08);
 }
 
 html,
@@ -53,14 +70,14 @@ body {
 .md-content code {
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
   font-size: 0.85em;
-  background: rgb(15 23 42 / 0.06);
+  background: var(--color-code-bg);
   border-radius: 0.25rem;
   padding: 0.1em 0.35em;
 }
 
 .md-content pre {
   overflow-x: auto;
-  background: rgb(15 23 42 / 0.06);
+  background: var(--color-code-bg);
   border-radius: 0.5rem;
   padding: 0.65rem 0.75rem;
 }
@@ -76,7 +93,7 @@ body {
 }
 
 .md-content blockquote {
-  border-left: 3px solid color-mix(in srgb, var(--color-brand-primary) 45%, #cbd5e1);
+  border-left: 3px solid color-mix(in srgb, var(--color-brand-primary) 45%, var(--color-border-strong));
   padding-left: 0.75rem;
   color: var(--color-text-muted);
 }

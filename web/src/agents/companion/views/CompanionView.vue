@@ -151,8 +151,8 @@ onMounted(() => {
     @need-login="() => {}"
   >
     <template #sidebar>
-      <aside class="w-64 h-full border-r border-slate-200 bg-white flex flex-col">
-        <div class="p-3 border-b border-slate-200 space-y-2">
+      <aside class="w-64 h-full border-r border-[var(--color-border)] bg-[var(--color-surface-card)] flex flex-col">
+        <div class="p-3 border-b border-[var(--color-border)] space-y-2">
           <p class="text-sm font-semibold text-[var(--color-brand-primary)]">会话</p>
           <button
             type="button"
@@ -175,12 +175,12 @@ onMounted(() => {
             v-for="row in sessionRows"
             :key="row.sessionId"
             type="button"
-            class="w-full text-left rounded-lg px-2.5 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+            class="w-full text-left rounded-lg px-2.5 py-2 text-sm hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
             :class="row.sessionId === sessionId
               ? 'text-[var(--color-brand-primary)] font-medium'
               : 'text-[var(--color-text-main)]'"
             :style="row.sessionId === sessionId
-              ? { backgroundColor: 'color-mix(in srgb, var(--color-brand-primary) 12%, white)' }
+              ? { backgroundColor: 'color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-surface-card))' }
               : undefined"
             :disabled="busy"
             @click="openSession(row)"
@@ -199,7 +199,7 @@ onMounted(() => {
     <template #header-actions>
       <button
         type="button"
-        class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+        class="rounded-lg border border-[var(--color-border-strong)] px-3 py-1.5 text-sm hover:bg-[var(--color-surface-muted)]"
         @click="onLogout"
       >
         退出

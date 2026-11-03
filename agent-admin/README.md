@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-audit`、Web、Redis、`nacos-client` 和 `mysql-connector-j`。用审计模块的查询接口读库。不依赖 `agent-runtime`、`agent-access`、`agent-state`，也不依赖 Harness。Redis 只用于启动探测。
+依赖 `agent-common`、`agent-audit`、`agent-semantic`、Web、Redis、`nacos-client` 和 `mysql-connector-j`。用审计模块的查询接口读库；工具目录登记走语义模块。不依赖 `agent-runtime`、`agent-access`、`agent-state`，也不依赖 Harness。Redis 只用于启动探测。
 `NACOS_ADDR` 有值时启动必须拉到 `agent-admin.yaml`（`AGENT_PLATFORM`），失败退出；当前无业务旋钮白名单，正文非空即可。地址为空不连。不做热更新、服务发现和 MCP。
 
 `agent-bootstrap` 不依赖本模块。用户进程扫描 `com.zhu` 时，classpath 上没有这些类，管理接口不会混进对话进程。
@@ -61,6 +61,8 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/model-prices` | 再插入一行价格。不改旧行。取价时用生效开始最晚且仍有效的一行 |
 | `GET /api/admin/model-configs` | 最近登记的模型配置，默认 50 条，最多 100 条。含停用。不解析参数。MySQL 关闭时返回不可用 |
 | `POST /api/admin/model-configs` | 登记一条模型配置，版本固定 `1.0.0`。用户进程对话会选用启用行。不解析参数。MySQL 关闭时返回不可用 |
+| `GET /api/admin/tool-registries` | 最近登记的工具目录，默认 50 条，最多 100 条。含停用。不读参数结构。MySQL 关闭时返回不可用 |
+| `POST /api/admin/tool-registries` | 登记一条工具目录，版本固定 `1.0.0`。不执行工具，也不写权限。没有对应代码实现时运行层仍不注册。MySQL 关闭时返回不可用 |
 | `GET /api/admin/retention-policies` | 最近登记的数据保留策略，默认 50 条，最多 100 条。含停用。不执行清理。MySQL 关闭时返回不可用 |
 | `POST /api/admin/retention-policies` | 登记一条数据保留策略。不执行清理。MySQL 关闭时返回不可用 |
 | `GET /api/admin/task-schedules` | 最近登记的任务调度，默认 50 条，最多 100 条。含停用。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |

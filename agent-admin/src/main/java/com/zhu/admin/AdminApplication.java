@@ -19,6 +19,8 @@ import com.zhu.audit.application.MybatisApprovalDecider;
 import com.zhu.audit.application.MybatisAuditQuery;
 import com.zhu.audit.application.MysqlUserTodoCatalog;
 import com.zhu.audit.config.AuditMapperConfig;
+import com.zhu.semantic.application.MysqlToolRegistryCatalog;
+import com.zhu.semantic.config.PermissionMapperConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
@@ -27,6 +29,7 @@ import org.springframework.context.annotation.Import;
  * 管理进程入口。只扫 com.zhu.admin。
  * 审计只引入查询、决定和关待办，不扫描写入用的 Recorder，避免在 8100 上再挂一套记录器。
  * 安全干预只引入目录，不引入 SafetyInterventionRecorder。
+ * 工具目录只引入登记实现与语义 Mapper，不引入 StoredToolCatalog。
  */
 @SpringBootApplication(scanBasePackages = "com.zhu.admin")
 @Import({
@@ -48,7 +51,9 @@ import org.springframework.context.annotation.Import;
         MysqlEvalDatasetCatalog.class,
         MysqlEvalCaseCatalog.class,
         MysqlEvalRunCatalog.class,
-        AuditMapperConfig.class
+        MysqlToolRegistryCatalog.class,
+        AuditMapperConfig.class,
+        PermissionMapperConfig.class
 })
 public class AdminApplication {
 

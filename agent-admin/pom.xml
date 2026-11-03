@@ -23,6 +23,11 @@
             <artifactId>agent-audit</artifactId>
         </dependency>
         <dependency>
+            <!-- 工具目录在产品语义模块；管理进程只引登记接口，不引运行层。 -->
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-semantic</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>

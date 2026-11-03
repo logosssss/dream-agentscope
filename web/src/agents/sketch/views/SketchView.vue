@@ -48,14 +48,14 @@ async function onLogout() {
     <template #header-actions>
       <button
         type="button"
-        class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+        class="rounded-lg border border-[var(--color-border-strong)] px-3 py-1.5 text-sm hover:bg-[var(--color-surface-muted)]"
         @click="newChat"
       >
         新对话
       </button>
       <button
         type="button"
-        class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+        class="rounded-lg border border-[var(--color-border-strong)] px-3 py-1.5 text-sm hover:bg-[var(--color-surface-muted)]"
         @click="onLogout"
       >
         退出

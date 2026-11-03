@@ -20,8 +20,17 @@ public class ToolRegistry {
     /** 展示名。 */
     private String name;
 
+    /** 工具版本。登记时固定 1.0.0。 */
+    private String version;
+
+    /** 所属模块。可空。 */
+    private String module;
+
     /** 给模型看的说明。 */
     private String description;
+
+    /** 1 启用，0 停用。运行目录只读启用行。 */
+    private Integer enabled;
 
     /** 主键。 */
     public Long getId() {
@@ -53,6 +62,26 @@ public class ToolRegistry {
         this.name = name;
     }
 
+    /** 版本。 */
+    public String getVersion() {
+        return version;
+    }
+
+    /** 写入版本。 */
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    /** 所属模块。 */
+    public String getModule() {
+        return module;
+    }
+
+    /** 写入所属模块。 */
+    public void setModule(String module) {
+        this.module = module;
+    }
+
     /** 说明。 */
     public String getDescription() {
         return description;
@@ -61,5 +90,15 @@ public class ToolRegistry {
     /** 写入说明。 */
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    /** 启用标记。 */
+    public Integer getEnabled() {
+        return enabled;
+    }
+
+    /** 写入启用标记。 */
+    public void setEnabled(Integer enabled) {
+        this.enabled = enabled;
     }
 }
