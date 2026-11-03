@@ -25,11 +25,14 @@ export const useChatStore = defineStore('chat', () => {
     return sessions.value[key]
   }
 
-  /** 追加一条消息并返回它，便于流式改 content。 */
+  /**
+   * 追加一条消息并返回数组里的响应式对象。
+   * 必须返回 list 里的项，不能返回入参：改入参不会触发视图更新，流式会看起来像一次蹦出。
+   */
   function appendMessage(agentId: string, sessionId: string, message: ChatMessage): ChatMessage {
     const list = getMessages(agentId, sessionId)
     list.push(message)
-    return message
+    return list[list.length - 1]
   }
 
   /** 清空某会话本地消息（新对话时用）。 */
@@ -37,5 +40,13 @@ export const useChatStore = defineStore('chat', () => {
     sessions.value[`${agentId}:${sessionId}`] = []
   }
 
-  return { sessions, getMessages, appendMessage, clearMessages }
+  /**
+   * 用服务端历史整表替换本地气泡。
+   * 切会话时调用，避免和内存里未完成的流式半截混在一起。
+   */
+  function replaceMessages(agentId: string, sessionId: string, messages: ChatMessage[]): void {
+    sessions.value[`${agentId}:${sessionId}`] = messages.map((m) => ({ ...m }))
+  }
+
+  return { sessions, getMessages, appendMessage, clearMessages, replaceMessages }
 })

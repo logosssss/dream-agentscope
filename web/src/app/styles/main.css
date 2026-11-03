@@ -25,3 +25,58 @@ body {
   background: var(--color-surface-bg);
   font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
+
+/**
+ * 助手气泡内 Markdown。不引入 prose 插件，手写最小可读样式。
+ */
+.md-content > :first-child {
+  margin-top: 0;
+}
+
+.md-content > :last-child {
+  margin-bottom: 0;
+}
+
+.md-content p,
+.md-content ul,
+.md-content ol,
+.md-content pre,
+.md-content blockquote {
+  margin: 0.4em 0;
+}
+
+.md-content ul,
+.md-content ol {
+  padding-left: 1.25rem;
+}
+
+.md-content code {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.85em;
+  background: rgb(15 23 42 / 0.06);
+  border-radius: 0.25rem;
+  padding: 0.1em 0.35em;
+}
+
+.md-content pre {
+  overflow-x: auto;
+  background: rgb(15 23 42 / 0.06);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.md-content pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.md-content a {
+  color: var(--color-brand-primary);
+  text-decoration: underline;
+}
+
+.md-content blockquote {
+  border-left: 3px solid color-mix(in srgb, var(--color-brand-primary) 45%, #cbd5e1);
+  padding-left: 0.75rem;
+  color: var(--color-text-muted);
+}

@@ -30,3 +30,20 @@ export interface ChatStreamRequest {
   sessionId: string
   text: string
 }
+
+/** GET /api/sessions 一行。不含正文。 */
+export interface SessionSummary {
+  sessionId: string
+  title: string
+  channel: string
+  lastActiveAt: string
+}
+
+/** GET /api/sessions/{id}/messages 一条气泡。按 seq 升序。 */
+export interface ChatMessageItem {
+  seq: number
+  role: string
+  content: string
+  runId: string | null
+  createdAt: string
+}

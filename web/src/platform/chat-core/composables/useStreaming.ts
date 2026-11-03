@@ -7,8 +7,13 @@ import type { AgentStreamEvent, ChatStreamRequest } from '@/shared/types/api.typ
  */
 
 export interface StreamHandlers {
-  /** 文本增量 */
+  /** 文本增量（text_block_delta） */
   onDelta: (text: string) => void
+  /**
+   * 结束态全文（agent_result）。人设/危机攒齐后只走这里。
+   * 有增量时也会再给一次，应用侧应整段替换而不是追加。
+   */
+  onFinal?: (text: string) => void
   /** 非正文事件的轻提示，例如等待确认 */
   onStatus?: (message: string) => void
   /** 流正常或中止结束后回调 */
@@ -130,6 +135,12 @@ function dispatchSseBlock(block: string, handlers: StreamHandlers): void {
     if (type === 'text_block_delta') {
       if (text) {
         handlers.onDelta(text)
+      }
+      continue
+    }
+    if (type === 'agent_result' || type.endsWith('agent_result')) {
+      if (text) {
+        handlers.onFinal?.(text)
       }
       continue
     }

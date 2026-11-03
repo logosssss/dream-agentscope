@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/**
+ * 管理端基础语义 Token。偏运维后台，不用搭子粉色。
+ */
+@theme {
+  --color-brand-primary: #2563eb;
+  --color-surface-bg: #f8fafc;
+  --color-surface-card: #ffffff;
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+  --color-danger: #dc2626;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--color-text-main);
+  background: var(--color-surface-bg);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}

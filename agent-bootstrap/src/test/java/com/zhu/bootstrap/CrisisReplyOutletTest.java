@@ -69,7 +69,7 @@ class CrisisReplyOutletTest {
         assertThat(kept.get(0).text()).isEqualTo("先找身边的人");
     }
 
-    /** 人设检查同样扣增量，结束事件再换基线。 */
+    /** hold=true 时扣增量，结束事件再换全文（危机出口仍走这条）。 */
     @Test
     void personaHoldFiltersResult() {
         assertThat(CrisisReplyOutlet.holdThenFinish(

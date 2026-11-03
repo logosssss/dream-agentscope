@@ -1,5 +1,18 @@
 /// <reference types="vite/client" />
 
+import 'vue-router'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    /** 登录页等无需会话 */
+    public?: boolean
+    /** 写入 --color-brand-primary */
+    themeColor?: string
+    /** 与后端 agentId 对齐 */
+    agentId?: string
+  }
+}
+
 /**
  * 构建期注入的环境变量。密钥只放本机 .env.local，不要提交。
  */

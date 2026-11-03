@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * 需要攒齐再查的流式出口。危机和打开人设检查时共用。
- * 其它轮次不扣增量。不写干预。
+ * 需要攒齐再查的流式出口。当前由危机档使用。
+ * 普通人设检查在执行服务里放行增量，终态再覆盖。不写干预。
  */
 public final class CrisisReplyOutlet {
 

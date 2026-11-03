@@ -18,16 +18,18 @@ import com.zhu.semantic.contract.CrisisPrompt;
 import com.zhu.semantic.contract.PersonaContract;
 import com.zhu.semantic.contract.RiskLevel;
 import io.agentscope.core.agent.RuntimeContext;
+import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.harness.agent.HarnessAgent;
 import java.time.Duration;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 /**
  * 单次执行的生命周期。身份放进 RuntimeContext，执行完无论成败都关闭 Agent。
- * 危机档和打开人设检查时都在这里过整段回复，不另写干预。
+ * 危机档流式仍攒齐再出；普通人设检查允许增量打出，终态再覆盖。
  */
 @Service
 public class AgentExecutionService implements AgentExecutor {
@@ -89,7 +91,7 @@ public class AgentExecutionService implements AgentExecutor {
     /**
      * 先建好 Agent 和上下文再返回 Flux，这样请求线程上的身份已经被抄进 RuntimeContext。
      * 订阅结束时关闭 Agent。超时只作用于流，不在请求线程上 block。
-     * 危机档和打开人设检查时先扣下文本增量，结束事件再带检查后的全文。
+     * 危机档仍扣增量；普通人设检查放行增量，结束事件再带检查后的全文。
      */
     @Override
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
@@ -114,10 +116,7 @@ public class AgentExecutionService implements AgentExecutor {
                                     started);
                         }
                     })
-                    .concatMapIterable(event -> CrisisReplyOutlet.holdThenFinish(
-                            event,
-                            hold(context),
-                            text -> finish(text, context)))
+                    .concatMapIterable(event -> mapStreamEvent(event, context))
                     .timeout(Duration.ofSeconds(properties.getTimeoutSeconds()))
                     .doFinally(signal -> close(agent));
         } catch (RuntimeException error) {
@@ -136,9 +135,19 @@ public class AgentExecutionService implements AgentExecutor {
         return context != null && context.get(PersonaConsistencyMiddleware.Flag.class) == PersonaConsistencyMiddleware.Flag.ON;
     }
 
-    /** 危机或人设任一需要攒齐时扣增量。 */
-    private static boolean hold(RuntimeContext context) {
-        return critical(context) || personaCheck(context);
+    /**
+     * 流式事件映射：危机仍扣增量，结束再出护栏全文。
+     * 普通人设检查不再扣增量，否则前端看不到打字效果；终态仍走 finish 覆盖。
+     */
+    private List<AgentStreamEvent> mapStreamEvent(AgentEvent event, RuntimeContext context) {
+        if (critical(context)) {
+            return CrisisReplyOutlet.holdThenFinish(event, true, text -> finish(text, context));
+        }
+        if (event instanceof AgentResultEvent) {
+            AgentStreamEvent mapped = AgentStreamEvents.from(event);
+            return List.of(new AgentStreamEvent(mapped.type(), finish(mapped.text(), context)));
+        }
+        return List.of(AgentStreamEvents.from(event));
     }
 
     /**
