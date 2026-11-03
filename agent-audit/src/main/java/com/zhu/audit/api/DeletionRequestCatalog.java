@@ -17,4 +17,10 @@ public interface DeletionRequestCatalog {
      * 含已决定的行，仍不执行删除。
      */
     List<DeletionRequestSummary> owned(String userId, String tenantId, int limit);
+
+    /**
+     * 当前用户在这个租户下的一条删除请求。别人的或没有时按找不到。
+     * 含已决定的行和提出时间，仍不执行删除。
+     */
+    DeletionRequestDetail ownedOne(String userId, String tenantId, String requestId);
 }

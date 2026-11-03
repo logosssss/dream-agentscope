@@ -27,4 +27,12 @@ public interface DataDeletionRequestMapper extends BaseMapper<DataDeletionReques
             @Param("userId") String userId,
             @Param("tenantId") String tenantId,
             @Param("limit") int limit);
+
+    /**
+     * 本人本租户的一条删除请求。别人的或没有时返回 null。含已决定的行。
+     */
+    DataDeletionRequest findOwned(
+            @Param("requestId") String requestId,
+            @Param("userId") String userId,
+            @Param("tenantId") String tenantId);
 }

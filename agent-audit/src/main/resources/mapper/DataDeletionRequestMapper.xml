@@ -30,6 +30,26 @@
         LIMIT #{limit}
     </select>
 
+    <!-- 详情带提出时间。含已决定的行，不执行删除。 -->
+    <resultMap id="DetailResultMap" type="com.zhu.audit.infrastructure.persistence.entity.DataDeletionRequest">
+        <id column="id" property="id"/>
+        <result column="request_id" property="requestId"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="data_type" property="dataType"/>
+        <result column="status" property="status"/>
+        <result column="reason" property="reason"/>
+        <result column="requested_at" property="requestedAt"/>
+    </resultMap>
+
+    <select id="findOwned" resultMap="DetailResultMap">
+        SELECT id, request_id, tenant_id, data_type, status, reason, requested_at
+        FROM data_deletion_request
+        WHERE request_id = #{requestId}
+          AND user_id = #{userId}
+          AND tenant_id = #{tenantId}
+        LIMIT 1
+    </select>
+
     <!-- 只改待处理。不写执行时间和删除结果。 -->
     <update id="decidePending">
         UPDATE data_deletion_request

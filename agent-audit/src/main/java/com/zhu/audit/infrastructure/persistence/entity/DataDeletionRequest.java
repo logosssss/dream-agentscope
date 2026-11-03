@@ -3,6 +3,7 @@ package com.zhu.audit.infrastructure.persistence.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.time.LocalDateTime;
 
 /**
  * data_deletion_request 的一行。只表示用户提出了删除，不表示已经执行。
@@ -31,6 +32,9 @@ public class DataDeletionRequest {
 
     /** 原因。没有时留空。 */
     private String reason;
+
+    /** 提出时间。详情才读，列表不带。 */
+    private LocalDateTime requestedAt;
 
     /** 主键。 */
     public Long getId() {
@@ -100,5 +104,15 @@ public class DataDeletionRequest {
     /** 写入原因。 */
     public void setReason(String reason) {
         this.reason = reason;
+    }
+
+    /** 提出时间。 */
+    public LocalDateTime getRequestedAt() {
+        return requestedAt;
+    }
+
+    /** 写入提出时间。 */
+    public void setRequestedAt(LocalDateTime requestedAt) {
+        this.requestedAt = requestedAt;
     }
 }

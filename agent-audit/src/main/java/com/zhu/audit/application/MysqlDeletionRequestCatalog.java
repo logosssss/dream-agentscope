@@ -1,12 +1,14 @@
 package com.zhu.audit.application;
 
 import com.zhu.audit.api.DeletionRequestCatalog;
+import com.zhu.audit.api.DeletionRequestDetail;
 import com.zhu.audit.api.DeletionRequestSummary;
 import com.zhu.audit.infrastructure.persistence.DataDeletionRequestMapper;
 import com.zhu.audit.infrastructure.persistence.entity.DataDeletionRequest;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -26,6 +28,10 @@ public class MysqlDeletionRequestCatalog implements DeletionRequestCatalog {
     private static final int TENANT_LIMIT = 64;
 
     private static final int REASON_LIMIT = 1024;
+
+    private static final int REQUEST_ID_LIMIT = 64;
+
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private static final Set<String> DATA_TYPES = Set.of("SESSION", "ATTACHMENT", "ALL");
 
@@ -78,6 +84,28 @@ public class MysqlDeletionRequestCatalog implements DeletionRequestCatalog {
             return List.of();
         }
         return rows.stream().map(MysqlDeletionRequestCatalog::summary).toList();
+    }
+
+    /**
+     * 空标识拒绝。找不到或不是本人本租户按找不到，避免把别人的原因交出去。
+     * 已通过或拒绝的行也返回，仍不删数据。
+     */
+    @Override
+    public DeletionRequestDetail ownedOne(String userId, String tenantId, String requestId) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || (tenantId != null && tenantId.length() > TENANT_LIMIT)
+                || requestId == null || requestId.isBlank() || requestId.length() > REQUEST_ID_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "deletion request is invalid");
+        }
+        String savedTenant = tenantId == null || tenantId.isBlank() ? "" : tenantId;
+        DataDeletionRequest row = requests.findOwned(requestId, userId, savedTenant);
+        if (row == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "deletion request not found");
+        }
+        String tenant = row.getTenantId() == null ? "" : row.getTenantId();
+        String requested = row.getRequestedAt() == null ? "" : TIME.format(row.getRequestedAt());
+        return new DeletionRequestDetail(
+                row.getRequestId(), tenant, row.getDataType(), row.getStatus(), row.getReason(), requested);
     }
 
     /** 列表和登记共用同一份摘要。 */

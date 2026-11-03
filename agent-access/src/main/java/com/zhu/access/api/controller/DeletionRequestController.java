@@ -3,6 +3,7 @@ package com.zhu.access.api.controller;
 import com.zhu.access.api.dto.DeletionRequest;
 import com.zhu.access.application.AccessAccountGate;
 import com.zhu.audit.api.DeletionRequestCatalog;
+import com.zhu.audit.api.DeletionRequestDetail;
 import com.zhu.audit.api.DeletionRequestSummary;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
@@ -12,6 +13,7 @@ import com.zhu.common.exception.ErrorCode;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -60,5 +62,19 @@ public class DeletionRequestController {
         }
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         return ApiResult.ok(catalog.owned(UserContext.get(), tenantId, limit));
+    }
+
+    /**
+     * 别人的标识按找不到处理。含已决定的行和提出时间，仍不执行删除。
+     */
+    @GetMapping("/api/deletion-requests/{requestId}")
+    public ApiResult<DeletionRequestDetail> get(@PathVariable String requestId) {
+        accounts.requireActive();
+        DeletionRequestCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "deletion request is unavailable");
+        }
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        return ApiResult.ok(catalog.ownedOne(UserContext.get(), tenantId, requestId));
     }
 }

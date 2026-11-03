@@ -5,6 +5,7 @@ import com.zhu.audit.infrastructure.persistence.DataDeletionRequestMapper;
 import com.zhu.audit.infrastructure.persistence.entity.DataDeletionRequest;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -80,5 +81,55 @@ class DeletionRequestCatalogTest {
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.BAD_REQUEST);
         verify(requests, never()).listOwned(any(), any(), anyInt());
+    }
+
+    /** 已决定的也返回。提出时间为空时用空串。仍不删数据。 */
+    @Test
+    void ownedOneReturnsStatusAndRequestedAt() {
+        DataDeletionRequestMapper requests = mock(DataDeletionRequestMapper.class);
+        MysqlDeletionRequestCatalog catalog = new MysqlDeletionRequestCatalog(requests);
+        DataDeletionRequest approved = new DataDeletionRequest();
+        approved.setRequestId("req-1");
+        approved.setTenantId("t");
+        approved.setDataType("SESSION");
+        approved.setStatus("APPROVED");
+        approved.setReason("done");
+        approved.setRequestedAt(LocalDateTime.of(2026, 11, 2, 1, 2, 3));
+        when(requests.findOwned("req-1", "u", "t")).thenReturn(approved);
+        assertThat(catalog.ownedOne("u", "t", "req-1")).satisfies(detail -> {
+            assertThat(detail.requestId()).isEqualTo("req-1");
+            assertThat(detail.dataType()).isEqualTo("SESSION");
+            assertThat(detail.status()).isEqualTo("APPROVED");
+            assertThat(detail.reason()).isEqualTo("done");
+            assertThat(detail.requestedAt()).isEqualTo("2026-11-02T01:02:03");
+        });
+        DataDeletionRequest pending = new DataDeletionRequest();
+        pending.setRequestId("req-2");
+        pending.setTenantId("");
+        pending.setDataType("ALL");
+        pending.setStatus("PENDING");
+        when(requests.findOwned("req-2", "u", "")).thenReturn(pending);
+        assertThat(catalog.ownedOne("u", " ", "req-2").requestedAt()).isEqualTo("");
+    }
+
+    /** 别人的或没有的按找不到。空标识不查库。 */
+    @Test
+    void ownedOneRejectsMissingOrBlank() {
+        DataDeletionRequestMapper requests = mock(DataDeletionRequestMapper.class);
+        MysqlDeletionRequestCatalog catalog = new MysqlDeletionRequestCatalog(requests);
+        when(requests.findOwned("req-x", "u", "t")).thenReturn(null);
+        assertThatThrownBy(() -> catalog.ownedOne("u", "t", "req-x"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        assertThatThrownBy(() -> catalog.ownedOne("u", "t", " "))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        assertThatThrownBy(() -> catalog.ownedOne(" ", "t", "req-1"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(requests).findOwned("req-x", "u", "t");
     }
 }
