@@ -165,3 +165,13 @@ export interface ToolRegistrySummary {
   module: string
   description: string
 }
+
+/** GET /api/admin/tool-permissions 一行。不含 conditions。 */
+export interface ToolPermissionSummary {
+  toolId: string
+  tenantId: string
+  roleId: string
+  decision: string
+  priority: number
+  enabled: boolean
+}

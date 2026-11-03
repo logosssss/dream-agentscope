@@ -41,6 +41,12 @@ class AdminOperationAuditHookTest {
                 .isEqualTo(new AdminOperationAuditTarget("", "PAY", "billing", null));
         assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/tool-registries"))
                 .isEqualTo(new AdminOperationAuditTarget("", "CREATE", "tool_registry", null));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/tool-permissions"))
+                .isEqualTo(new AdminOperationAuditTarget("", "CREATE", "tool_permission", null));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/tool-permissions/echo_text/disable"))
+                .isEqualTo(new AdminOperationAuditTarget("", "DISABLE", "tool_permission", "echo_text"));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/tool-permissions/echo_text/priority"))
+                .isEqualTo(new AdminOperationAuditTarget("", "UPDATE", "tool_permission", "echo_text"));
 
         hook.afterSuccess("POST", "/api/admin/tenants", null);
         verify(catalog).record("admin", "", "CREATE", "tenant", null);

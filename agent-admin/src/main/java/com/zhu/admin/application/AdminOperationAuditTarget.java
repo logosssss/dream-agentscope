@@ -40,6 +40,7 @@ public record AdminOperationAuditTarget(
             case "model-prices" -> createOnly(parts, "model_price");
             case "model-configs" -> createOnly(parts, "model_config");
             case "tool-registries" -> createOnly(parts, "tool_registry");
+            case "tool-permissions" -> toolPermission(parts);
             case "retention-policies" -> createOnly(parts, "retention_policy");
             case "task-schedules" -> createOnly(parts, "task_schedule");
             case "eval-datasets" -> evalDataset(parts);
@@ -134,6 +135,19 @@ public record AdminOperationAuditTarget(
     private static AdminOperationAuditTarget decision(String[] parts, String objectType) {
         if (parts.length == 3 && "decision".equals(parts[2])) {
             return identified("", "DECIDE", objectType, parts[1]);
+        }
+        return null;
+    }
+
+    /** 登记没有路径标识。停用、恢复和改优先级带工具标识。 */
+    private static AdminOperationAuditTarget toolPermission(String[] parts) {
+        if (parts.length == 1) {
+            return new AdminOperationAuditTarget("", "CREATE", "tool_permission", null);
+        }
+        if (parts.length == 3
+                && ("disable".equals(parts[2]) || "restore".equals(parts[2]) || "priority".equals(parts[2]))) {
+            String operation = "priority".equals(parts[2]) ? "UPDATE" : parts[2].toUpperCase();
+            return identified("", operation, "tool_permission", parts[1]);
         }
         return null;
     }

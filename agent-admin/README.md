@@ -63,6 +63,11 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/model-configs` | 登记一条模型配置，版本固定 `1.0.0`。用户进程对话会选用启用行。不解析参数。MySQL 关闭时返回不可用 |
 | `GET /api/admin/tool-registries` | 最近登记的工具目录，默认 50 条，最多 100 条。含停用。不读参数结构。MySQL 关闭时返回不可用 |
 | `POST /api/admin/tool-registries` | 登记一条工具目录，版本固定 `1.0.0`。不执行工具，也不写权限。没有对应代码实现时运行层仍不注册。MySQL 关闭时返回不可用 |
+| `GET /api/admin/tool-permissions` | 最近登记的工具权限规则，默认 50 条，最多 100 条。含停用。不读 conditions。MySQL 关闭时返回不可用 |
+| `POST /api/admin/tool-permissions` | 登记一条工具权限。空白租户/角色按 `*`，空白优先级按 100，conditions 固定空。不执行工具。MySQL 关闭时返回不可用 |
+| `POST /api/admin/tool-permissions/{toolId}/disable` | 停用仍启用的规则。空白租户/角色按 `*`。不执行工具。MySQL 关闭时返回不可用 |
+| `POST /api/admin/tool-permissions/{toolId}/restore` | 恢复已停用的规则。空白租户/角色按 `*`。不执行工具。MySQL 关闭时返回不可用 |
+| `POST /api/admin/tool-permissions/{toolId}/priority` | 改优先级，不改决定与启用。空白租户/角色按 `*`。MySQL 关闭时返回不可用 |
 | `GET /api/admin/retention-policies` | 最近登记的数据保留策略，默认 50 条，最多 100 条。含停用。不执行清理。MySQL 关闭时返回不可用 |
 | `POST /api/admin/retention-policies` | 登记一条数据保留策略。不执行清理。MySQL 关闭时返回不可用 |
 | `GET /api/admin/task-schedules` | 最近登记的任务调度，默认 50 条，最多 100 条。含停用。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |

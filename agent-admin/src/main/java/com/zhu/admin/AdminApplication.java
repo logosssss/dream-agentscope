@@ -19,6 +19,7 @@ import com.zhu.audit.application.MybatisApprovalDecider;
 import com.zhu.audit.application.MybatisAuditQuery;
 import com.zhu.audit.application.MysqlUserTodoCatalog;
 import com.zhu.audit.config.AuditMapperConfig;
+import com.zhu.semantic.application.MysqlToolPermissionCatalog;
 import com.zhu.semantic.application.MysqlToolRegistryCatalog;
 import com.zhu.semantic.config.PermissionMapperConfig;
 import org.springframework.boot.SpringApplication;
@@ -52,6 +53,7 @@ import org.springframework.context.annotation.Import;
         MysqlEvalCaseCatalog.class,
         MysqlEvalRunCatalog.class,
         MysqlToolRegistryCatalog.class,
+        MysqlToolPermissionCatalog.class,
         AuditMapperConfig.class,
         PermissionMapperConfig.class
 })
