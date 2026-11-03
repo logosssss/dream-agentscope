@@ -1,6 +1,7 @@
 package com.zhu.access.api.controller;
 
 import com.zhu.access.application.AccessAccountGate;
+import com.zhu.audit.api.TokenUsageDetail;
 import com.zhu.audit.api.TokenUsageQuery;
 import com.zhu.audit.api.TokenUsageRow;
 import com.zhu.common.context.TenantContext;
@@ -11,6 +12,7 @@ import com.zhu.common.exception.ErrorCode;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,5 +45,19 @@ public class UsageController {
         }
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         return ApiResult.ok(query.owned(UserContext.get(), tenantId, limit));
+    }
+
+    /**
+     * 别人的主键按找不到处理。带记账时间，不改金额，也不带提示词。
+     */
+    @GetMapping("/api/usage/{usageId}")
+    public ApiResult<TokenUsageDetail> get(@PathVariable Long usageId) {
+        accounts.requireActive();
+        TokenUsageQuery query = queries.getIfAvailable();
+        if (query == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "usage is unavailable");
+        }
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        return ApiResult.ok(query.ownedOne(UserContext.get(), tenantId, usageId));
     }
 }

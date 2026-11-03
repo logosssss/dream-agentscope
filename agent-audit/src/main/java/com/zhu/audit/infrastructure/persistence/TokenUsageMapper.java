@@ -26,4 +26,12 @@ public interface TokenUsageMapper extends BaseMapper<TokenUsage> {
             @Param("userId") String userId,
             @Param("tenantId") String tenantId,
             @Param("limit") int limit);
+
+    /**
+     * 本人本租户的一条用量。别人的或没有时返回 null。不带回提示词。
+     */
+    TokenUsage findOwned(
+            @Param("id") Long id,
+            @Param("userId") String userId,
+            @Param("tenantId") String tenantId);
 }

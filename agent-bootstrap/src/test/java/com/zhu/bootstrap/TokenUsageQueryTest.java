@@ -6,6 +6,7 @@ import com.zhu.audit.infrastructure.persistence.entity.TokenUsage;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -63,5 +64,58 @@ class TokenUsageQueryTest {
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.BAD_REQUEST);
         verify(usages, never()).listOwned(any(), any(), anyInt());
+    }
+
+    /** 记账时间为空时用空串。不改金额。 */
+    @Test
+    void ownedOneReturnsTokensAndCreatedAt() {
+        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        MysqlTokenUsageQuery query = new MysqlTokenUsageQuery(usages);
+        TokenUsage row = new TokenUsage();
+        row.setId(3L);
+        row.setRunId("run-1");
+        row.setTenantId("t");
+        row.setSessionId("s");
+        row.setModel("dashscope:qwen");
+        row.setInputTokens(10L);
+        row.setOutputTokens(4L);
+        row.setTotalTokens(14L);
+        row.setCostAmount(new BigDecimal("0.010000"));
+        row.setCurrency("CNY");
+        row.setCreatedAt(LocalDateTime.of(2026, 11, 2, 1, 2, 3));
+        when(usages.findOwned(3L, "u", "t")).thenReturn(row);
+        assertThat(query.ownedOne("u", "t", 3L)).satisfies(detail -> {
+            assertThat(detail.id()).isEqualTo(3L);
+            assertThat(detail.totalTokens()).isEqualTo(14L);
+            assertThat(detail.costAmount()).isEqualByComparingTo("0.010000");
+            assertThat(detail.createdAt()).isEqualTo("2026-11-02T01:02:03");
+        });
+        TokenUsage blank = new TokenUsage();
+        blank.setId(4L);
+        blank.setTenantId("");
+        blank.setTotalTokens(1L);
+        when(usages.findOwned(4L, "u", "")).thenReturn(blank);
+        assertThat(query.ownedOne("u", " ", 4L).createdAt()).isEqualTo("");
+    }
+
+    /** 别人的或没有的按找不到。空用户或非法主键不查库。 */
+    @Test
+    void ownedOneRejectsMissingOrBlank() {
+        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        MysqlTokenUsageQuery query = new MysqlTokenUsageQuery(usages);
+        when(usages.findOwned(9L, "u", "t")).thenReturn(null);
+        assertThatThrownBy(() -> query.ownedOne("u", "t", 9L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        assertThatThrownBy(() -> query.ownedOne("u", "t", 0L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        assertThatThrownBy(() -> query.ownedOne(" ", "t", 9L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(usages).findOwned(9L, "u", "t");
     }
 }

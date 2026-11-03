@@ -13,4 +13,10 @@ public interface TokenUsageQuery {
      * 不把别人的行带出来。
      */
     List<TokenUsageRow> owned(String userId, String tenantId, int limit);
+
+    /**
+     * 当前用户在这个租户下的一条用量。别人的或没有时按找不到。
+     * 带记账时间，仍不改金额，也不带提示词。
+     */
+    TokenUsageDetail ownedOne(String userId, String tenantId, Long usageId);
 }

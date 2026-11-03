@@ -25,4 +25,15 @@
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <!-- 详情带记账时间。不带回提示词，也不改金额。 -->
+    <select id="findOwned" resultType="com.zhu.audit.infrastructure.persistence.entity.TokenUsage">
+        SELECT id, run_id, tenant_id, session_id, model,
+               input_tokens, output_tokens, total_tokens, cost_amount, currency, created_at
+        FROM token_usage
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND tenant_id = #{tenantId}
+        LIMIT 1
+    </select>
 </mapper>

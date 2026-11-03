@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * token_usage 的一行。只放模型和 token 数，不放提示词或回复。
@@ -44,6 +45,9 @@ public class TokenUsage {
 
     /** 币种。当前固定 CNY。 */
     private String currency;
+
+    /** 记账时间。详情才读，列表不带。 */
+    private LocalDateTime createdAt;
 
     /** 主键。 */
     public Long getId() {
@@ -153,5 +157,15 @@ public class TokenUsage {
     /** 写入币种。 */
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    /** 记账时间。 */
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    /** 写入记账时间。 */
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }
