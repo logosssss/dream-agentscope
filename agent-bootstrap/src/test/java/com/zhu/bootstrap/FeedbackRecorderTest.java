@@ -5,6 +5,7 @@ import com.zhu.audit.infrastructure.persistence.UserFeedbackMapper;
 import com.zhu.audit.infrastructure.persistence.entity.UserFeedback;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -80,5 +81,52 @@ class FeedbackRecorderTest {
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.BAD_REQUEST);
         verify(feedback, never()).listOwned(any(), anyInt());
+    }
+
+    /** 创建时间为空时用空串。不读对话正文。 */
+    @Test
+    void ownedOneReturnsRatingAndCreatedAt() {
+        UserFeedbackMapper feedback = mock(UserFeedbackMapper.class);
+        MysqlFeedbackRecorder recorder = new MysqlFeedbackRecorder(feedback);
+        UserFeedback row = new UserFeedback();
+        row.setId(9L);
+        row.setRunId("run-1");
+        row.setRating(4);
+        row.setComment("ok");
+        row.setCreatedAt(LocalDateTime.of(2026, 11, 2, 1, 2, 3));
+        when(feedback.findOwned(9L, "u")).thenReturn(row);
+        assertThat(recorder.ownedOne("u", 9L)).satisfies(detail -> {
+            assertThat(detail.id()).isEqualTo(9L);
+            assertThat(detail.runId()).isEqualTo("run-1");
+            assertThat(detail.rating()).isEqualTo(4);
+            assertThat(detail.comment()).isEqualTo("ok");
+            assertThat(detail.createdAt()).isEqualTo("2026-11-02T01:02:03");
+        });
+        UserFeedback blank = new UserFeedback();
+        blank.setId(10L);
+        blank.setRating(1);
+        when(feedback.findOwned(10L, "u")).thenReturn(blank);
+        assertThat(recorder.ownedOne("u", 10L).createdAt()).isEqualTo("");
+    }
+
+    /** 别人的或没有的按找不到。空用户或非法主键不查库。 */
+    @Test
+    void ownedOneRejectsMissingOrBlank() {
+        UserFeedbackMapper feedback = mock(UserFeedbackMapper.class);
+        MysqlFeedbackRecorder recorder = new MysqlFeedbackRecorder(feedback);
+        when(feedback.findOwned(11L, "u")).thenReturn(null);
+        assertThatThrownBy(() -> recorder.ownedOne("u", 11L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        assertThatThrownBy(() -> recorder.ownedOne("u", 0L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        assertThatThrownBy(() -> recorder.ownedOne(" ", 11L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(feedback).findOwned(11L, "u");
     }
 }

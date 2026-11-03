@@ -2,6 +2,7 @@ package com.zhu.access.api.controller;
 
 import com.zhu.access.api.dto.FeedbackRequest;
 import com.zhu.access.application.AccessAccountGate;
+import com.zhu.audit.api.FeedbackDetail;
 import com.zhu.audit.api.FeedbackRecorder;
 import com.zhu.audit.api.FeedbackSummary;
 import com.zhu.common.context.UserContext;
@@ -11,6 +12,7 @@ import com.zhu.common.exception.ErrorCode;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -59,5 +61,18 @@ public class FeedbackController {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "feedback recorder is unavailable");
         }
         return ApiResult.ok(recorder.owned(UserContext.get(), limit));
+    }
+
+    /**
+     * 别人的主键按找不到处理。带创建时间，不读对话正文。
+     */
+    @GetMapping("/api/feedback/{feedbackId}")
+    public ApiResult<FeedbackDetail> get(@PathVariable Long feedbackId) {
+        accounts.requireActive();
+        FeedbackRecorder recorder = recorders.getIfAvailable();
+        if (recorder == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "feedback recorder is unavailable");
+        }
+        return ApiResult.ok(recorder.ownedOne(UserContext.get(), feedbackId));
     }
 }

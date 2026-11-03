@@ -1,11 +1,13 @@
 package com.zhu.audit.application;
 
+import com.zhu.audit.api.FeedbackDetail;
 import com.zhu.audit.api.FeedbackRecorder;
 import com.zhu.audit.api.FeedbackSummary;
 import com.zhu.audit.infrastructure.persistence.UserFeedbackMapper;
 import com.zhu.audit.infrastructure.persistence.entity.UserFeedback;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,8 @@ public class MysqlFeedbackRecorder implements FeedbackRecorder {
     private static final int RUN_LIMIT = 128;
 
     private static final int COMMENT_LIMIT = 1000;
+
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final UserFeedbackMapper feedback;
 
@@ -62,6 +66,23 @@ public class MysqlFeedbackRecorder implements FeedbackRecorder {
             return List.of();
         }
         return rows.stream().map(MysqlFeedbackRecorder::summary).toList();
+    }
+
+    /**
+     * 空用户或非法主键拒绝。找不到或不是本人按找不到，避免把别人的说明交出去。
+     * 不核这次运行是否还在。
+     */
+    @Override
+    public FeedbackDetail ownedOne(String userId, Long feedbackId) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT || feedbackId == null || feedbackId <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "feedback is invalid");
+        }
+        UserFeedback row = feedback.findOwned(feedbackId, userId);
+        if (row == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "feedback not found");
+        }
+        String created = row.getCreatedAt() == null ? "" : TIME.format(row.getCreatedAt());
+        return new FeedbackDetail(row.getId(), row.getRunId(), row.getRating(), row.getComment(), created);
     }
 
     /** 列表不带回时间戳，调用方只需要评分和说明。 */

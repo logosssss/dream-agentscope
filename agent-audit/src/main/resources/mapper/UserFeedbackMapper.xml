@@ -19,4 +19,21 @@
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <!-- 详情带创建时间。不读对话正文。 -->
+    <resultMap id="DetailResultMap" type="com.zhu.audit.infrastructure.persistence.entity.UserFeedback">
+        <id column="id" property="id"/>
+        <result column="run_id" property="runId"/>
+        <result column="rating" property="rating"/>
+        <result column="comment" property="comment"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="findOwned" resultMap="DetailResultMap">
+        SELECT id, run_id, rating, comment, created_at
+        FROM user_feedback
+        WHERE id = #{id}
+          AND user_id = #{userId}
+        LIMIT 1
+    </select>
 </mapper>

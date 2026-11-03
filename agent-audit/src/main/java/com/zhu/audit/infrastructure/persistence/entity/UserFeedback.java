@@ -3,6 +3,7 @@ package com.zhu.audit.infrastructure.persistence.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.time.LocalDateTime;
 
 /**
  * user_feedback 的一行。只放评分和短说明，不放对话正文。
@@ -25,6 +26,9 @@ public class UserFeedback {
 
     /** 短说明。没有时留空。 */
     private String comment;
+
+    /** 创建时间。详情才读，列表不带。 */
+    private LocalDateTime createdAt;
 
     /** 主键。 */
     public Long getId() {
@@ -74,5 +78,15 @@ public class UserFeedback {
     /** 写入说明。 */
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    /** 创建时间。 */
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    /** 写入创建时间。 */
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

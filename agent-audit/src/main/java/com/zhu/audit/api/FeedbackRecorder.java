@@ -18,4 +18,10 @@ public interface FeedbackRecorder {
      * 表没有租户列，不按租户再滤；也不把别人的行带出来。
      */
     List<FeedbackSummary> owned(String userId, int limit);
+
+    /**
+     * 当前用户的一条反馈。别人的或没有时按找不到。
+     * 带创建时间，仍不读对话正文，也不核运行是否存在。
+     */
+    FeedbackDetail ownedOne(String userId, Long feedbackId);
 }

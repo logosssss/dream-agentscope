@@ -132,6 +132,9 @@ class BootstrapContextTest {
         mvc.perform(get("/api/feedback").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(get("/api/feedback/1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/feedback").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
                         .contentType("application/json")
                         .content("{\"rating\":5}"))
