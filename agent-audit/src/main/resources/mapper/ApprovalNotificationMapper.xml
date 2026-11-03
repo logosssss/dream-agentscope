@@ -19,4 +19,21 @@
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <!-- 详情含已发送或失败的行。不带回错误、重试和发送时间。 -->
+    <resultMap id="DetailResultMap" type="com.zhu.audit.infrastructure.persistence.entity.ApprovalNotification">
+        <id column="id" property="id"/>
+        <result column="approval_id" property="approvalId"/>
+        <result column="channel" property="channel"/>
+        <result column="send_status" property="sendStatus"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="findOwned" resultMap="DetailResultMap">
+        SELECT id, approval_id, channel, send_status, created_at
+        FROM approval_notification
+        WHERE id = #{id}
+          AND receiver_id = #{receiverId}
+        LIMIT 1
+    </select>
 </mapper>

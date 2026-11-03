@@ -1,11 +1,13 @@
 package com.zhu.audit.application;
 
 import com.zhu.audit.api.ApprovalNotice;
+import com.zhu.audit.api.ApprovalNoticeDetail;
 import com.zhu.audit.api.ApprovalNotifier;
 import com.zhu.audit.infrastructure.persistence.ApprovalNotificationMapper;
 import com.zhu.audit.infrastructure.persistence.entity.ApprovalNotification;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,8 @@ public class MysqlApprovalNotifier implements ApprovalNotifier {
     private static final int APPROVAL_LIMIT = 64;
 
     private static final int RECEIVER_LIMIT = 128;
+
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final ApprovalNotificationMapper notifications;
 
@@ -64,6 +68,28 @@ public class MysqlApprovalNotifier implements ApprovalNotifier {
             return List.of();
         }
         return rows.stream().map(MysqlApprovalNotifier::notice).toList();
+    }
+
+    /**
+     * 空接收人或非法主键拒绝。找不到或不是本人按找不到，避免把别人的审批单交出去。
+     * 已发送或失败的行也返回。不改状态，不发消息。
+     */
+    @Override
+    public ApprovalNoticeDetail ownedOne(String receiverId, Long notificationId) {
+        if (receiverId == null
+                || receiverId.isBlank()
+                || receiverId.length() > RECEIVER_LIMIT
+                || notificationId == null
+                || notificationId <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "notification is invalid");
+        }
+        ApprovalNotification row = notifications.findOwned(notificationId, receiverId);
+        if (row == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "notification not found");
+        }
+        String created = row.getCreatedAt() == null ? "" : TIME.format(row.getCreatedAt());
+        return new ApprovalNoticeDetail(
+                row.getId(), row.getApprovalId(), row.getChannel(), row.getSendStatus(), created);
     }
 
     /** 列表不带回错误和发送时间，这次本来就不写这两列。 */

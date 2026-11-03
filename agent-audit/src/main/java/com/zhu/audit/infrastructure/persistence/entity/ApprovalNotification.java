@@ -3,6 +3,7 @@ package com.zhu.audit.infrastructure.persistence.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.time.LocalDateTime;
 
 /**
  * approval_notification 的一行。只表示还没推送，不表示消息已经送到。
@@ -28,6 +29,9 @@ public class ApprovalNotification {
 
     /** 固定为 0。不重试。 */
     private Integer retryCount;
+
+    /** 创建时间。详情才读，列表不带。 */
+    private LocalDateTime createdAt;
 
     /** 主键。 */
     public Long getId() {
@@ -87,5 +91,15 @@ public class ApprovalNotification {
     /** 写入重试次数。 */
     public void setRetryCount(Integer retryCount) {
         this.retryCount = retryCount;
+    }
+
+    /** 创建时间。 */
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    /** 写入创建时间。 */
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

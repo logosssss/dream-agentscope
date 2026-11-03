@@ -14,4 +14,9 @@ public interface ApprovalNotificationMapper extends BaseMapper<ApprovalNotificat
      * 本人最近的通知，新的在前。条数由调用方截好。
      */
     List<ApprovalNotification> listOwned(@Param("receiverId") String receiverId, @Param("limit") int limit);
+
+    /**
+     * 这个接收人的一条通知。别人的或没有时返回 null。含已发送或失败的行。
+     */
+    ApprovalNotification findOwned(@Param("id") Long id, @Param("receiverId") String receiverId);
 }

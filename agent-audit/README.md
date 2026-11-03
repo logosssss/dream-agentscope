@@ -38,7 +38,7 @@
 
 已批准且还没执行的单据，由用户进程在下一次同名工具调用时占上并放行。结束后把 `result` 写成 `{"status":"SUCCEEDED"}`、`FAILED` 或 `CANCELLED`，不存工具输出。管理进程的决定接口仍不执行工具。同一用户、会话和工具上已有 `PENDING` 时，`findPending` 返回该单号，ASK 复用，不插第二张。
 
-待确认事件再写 `approval_notification`。接收人是发起用户，通道是 `WEB`，状态是 `PENDING`。没有接收人时不写。不发送，也不把状态改成已发送。写失败不改变这次询问。`GET /api/notifications` 列出当前接收人的通知，默认 50 条，最多 100 条。表没有租户列。管理进程不查询这张表。
+待确认事件再写 `approval_notification`。接收人是发起用户，通道是 `WEB`，状态是 `PENDING`。没有接收人时不写。不发送，也不把状态改成已发送。写失败不改变这次询问。`GET /api/notifications` 列出当前接收人的通知，默认 50 条，最多 100 条。`GET /api/notifications/{notificationId}` 先确认接收人再返回通道、状态和创建时间，不带回错误和发送时间。别人的主键按找不到。表没有租户列。管理进程不查询这张表。
 
 同一事件再写 `user_todo`。类型是 `APPROVAL`，状态是 `OPEN`，关联审批单，标题是工具名。同一用户和审批单再开一次不再插一行。`POST /api/todos` 再给当前用户开确认或任务待办，类型只接受 `CONFIRM` / `TASK`。关联运行或任务标识，不核这些对象是否存在。同一用户、类型和关联再开一次返回冲突。不写截止时间。`GET /api/todos` 列出这个用户还开着的待办，含审批、确认和任务。`GET /api/todos/{todoId}` 看一条待办，含已关闭行和创建时间，不带回截止时间。别人的主键按找不到。审批通过后改 `DONE`，拒绝后改 `CANCELLED`。关闭失败不改已经写下的决定。`POST /api/todos/{todoId}/done` 把这个用户还开着的确认或任务改成 `DONE`。`POST /api/todos/{todoId}/cancel` 改成 `CANCELLED`。审批待办不能从这里关。别人的行按找不到处理。
 

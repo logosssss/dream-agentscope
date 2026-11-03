@@ -2,6 +2,7 @@ package com.zhu.access.api.controller;
 
 import com.zhu.access.application.AccessAccountGate;
 import com.zhu.audit.api.ApprovalNotice;
+import com.zhu.audit.api.ApprovalNoticeDetail;
 import com.zhu.audit.api.ApprovalNotifier;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
@@ -10,6 +11,7 @@ import com.zhu.common.exception.ErrorCode;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,5 +43,18 @@ public class NotificationController {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "notification is unavailable");
         }
         return ApiResult.ok(notifier.owned(UserContext.get(), limit));
+    }
+
+    /**
+     * 别人的主键按找不到处理。含已发送或失败的行，不带回错误和发送时间。
+     */
+    @GetMapping("/api/notifications/{notificationId}")
+    public ApiResult<ApprovalNoticeDetail> get(@PathVariable Long notificationId) {
+        accounts.requireActive();
+        ApprovalNotifier notifier = notifiers.getIfAvailable();
+        if (notifier == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "notification is unavailable");
+        }
+        return ApiResult.ok(notifier.ownedOne(UserContext.get(), notificationId));
     }
 }

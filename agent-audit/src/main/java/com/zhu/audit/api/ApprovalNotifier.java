@@ -18,4 +18,10 @@ public interface ApprovalNotifier {
      * 表没有租户列，不按租户再滤；也不把别人的行带出来。
      */
     List<ApprovalNotice> owned(String receiverId, int limit);
+
+    /**
+     * 当前接收人的一条通知。别人的或没有时按找不到。
+     * 含已发送或失败的行，仍不改状态、不发消息，也不带回错误和发送时间。
+     */
+    ApprovalNoticeDetail ownedOne(String receiverId, Long notificationId);
 }
