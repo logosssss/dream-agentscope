@@ -6,8 +6,8 @@ import com.zhu.access.domain.channel.AccessChannel;
  * 聊天接口的入参。和运行层的 AgentRequest 分开，接入层可以改字段而不带动执行内核。
  *
  * @param agentId      可选，空则用运行配置的默认 Agent
- * @param tenantId     租户。空则用请求头 X-Tenant-Id
- * @param userId       用户。空则用请求头 X-User-Id
+ * @param tenantId     已忽略。身份只来自登录会话
+ * @param userId       已忽略。身份只来自登录会话
  * @param sessionId    会话
  * @param systemPrompt 已忽略。人设只来自产品提示词
  * @param text         用户输入

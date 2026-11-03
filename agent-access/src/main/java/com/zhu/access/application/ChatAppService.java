@@ -91,7 +91,7 @@ public class ChatAppService {
 
     /**
      * 同步执行一次对话。
-     * 请求体里的租户和用户优先；空字段才用过滤器放进线程的请求头。通道留在接入层，不放进 AgentRequest。
+     * 租户和用户只取登录会话写进线程的值。请求体里的身份丢掉。通道留在接入层。
      */
     public AgentResponse chat(ChatRequest request) {
         AgentRequest agentRequest = toRequest(request);
@@ -315,19 +315,20 @@ public class ChatAppService {
     /** 通道只在接入层归一化，不传给运行层。 */
     private AgentRequest toRequest(ChatRequest request) {
         request.channelOrDefault();
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         return new AgentRequest(
                 request.agentId(),
-                firstNonBlank(request.tenantId(), TenantContext.get()),
-                firstNonBlank(request.userId(), UserContext.get()),
+                tenantId,
+                UserContext.get(),
                 request.sessionId(),
                 systemPrompt(request),
                 request.text());
     }
 
-    /** 没有用户时拒绝。搭子按用户切开，不能匿名进模型。 */
+    /** 没有登录会话时按未登录拒绝。请求体里的用户不算。 */
     private static void requireUser(String userId) {
         if (userId == null || userId.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "userId is required");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "login is required");
         }
     }
 
@@ -336,16 +337,5 @@ public class ChatAppService {
      */
     private String systemPrompt(ChatRequest request) {
         return prompts.get(PlatformPrompt.SYSTEM_KEY, Map.of(), semantics.promptFallback(PlatformPrompt.SYSTEM_KEY));
-    }
-
-    /** 空白不算有效身份，否则空字符串会挡住请求头。 */
-    private static String firstNonBlank(String primary, String fallback) {
-        if (primary != null && !primary.isBlank()) {
-            return primary;
-        }
-        if (fallback == null || fallback.isBlank()) {
-            return null;
-        }
-        return fallback;
     }
 }

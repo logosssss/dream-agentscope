@@ -7,6 +7,7 @@ import com.zhu.access.application.AccessAccountGate;
 import com.zhu.access.application.AttachmentAppService;
 import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.audit.api.AttachmentDetail;
+import com.zhu.audit.api.AttachmentRefItem;
 import com.zhu.audit.api.AttachmentRefSummary;
 import com.zhu.audit.api.AttachmentSummary;
 import com.zhu.common.context.TenantContext;
@@ -210,5 +211,21 @@ public class AttachmentController {
         }
         AttachmentRefRequest body = request == null ? new AttachmentRefRequest(null, null) : request;
         return ApiResult.ok(catalog.link(UserContext.get(), attachmentId, body.refType(), body.refId()));
+    }
+
+    /**
+     * 别人的或停用的按找不到。带挂上的时间。
+     * 不核消息、运行或文档是否存在，也不读对象存储。
+     */
+    @GetMapping("/api/attachments/{attachmentId}/refs")
+    public ApiResult<List<AttachmentRefItem>> refs(
+            @PathVariable String attachmentId, @RequestParam(defaultValue = "50") int limit) {
+        accounts.requireActive();
+        AttachmentCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "attachment catalog is unavailable");
+        }
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        return ApiResult.ok(catalog.listRefs(UserContext.get(), tenantId, attachmentId, limit));
     }
 }

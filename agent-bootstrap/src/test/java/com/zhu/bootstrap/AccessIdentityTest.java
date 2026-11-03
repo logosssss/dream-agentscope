@@ -31,7 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 请求体身份优先，请求头只补空字段。过滤器在请求结束后清掉线程上下文。
+ * 对话身份只来自线程里的登录会话。请求体里的租户和用户不采用。
  */
 class AccessIdentityTest {
 
@@ -42,9 +42,9 @@ class AccessIdentityTest {
         RequestIdContext.clear();
     }
 
-    /** 没写通道时按 WEB。通道不进入执行入参。 */
+    /** 没写通道时按 WEB。请求体里的租户不覆盖会话。 */
     @Test
-    void blankChannelDefaultsToWebAndBodyWins() {
+    void blankChannelDefaultsToWebAndSessionWins() {
         AgentExecutor executor = mock(AgentExecutor.class);
         when(executor.execute(any())).thenReturn(new AgentResponse("run-1", "ok"));
         TenantContext.set("header-tenant");
@@ -64,14 +64,14 @@ class AccessIdentityTest {
         ArgumentCaptor<AgentRequest> sent = ArgumentCaptor.forClass(AgentRequest.class);
         verify(executor).execute(sent.capture());
         assertThat(request.channelOrDefault()).isEqualTo(AccessChannel.WEB);
-        assertThat(sent.getValue().tenantId()).isEqualTo("body-tenant");
+        assertThat(sent.getValue().tenantId()).isEqualTo("header-tenant");
         assertThat(sent.getValue().userId()).isEqualTo("header-user");
         assertThat(sent.getValue().systemPrompt()).isEqualTo(".");
     }
 
-    /** 头在过滤器链内可见，链结束必须清掉。没有头也不拒绝。 */
+    /** 请求头里的租户和用户不写入上下文。请求号仍然可见，链结束必须清掉。 */
     @Test
-    void filterSetsHeaderAndClearsAfter() throws Exception {
+    void filterIgnoresIdentityHeadersAndClearsAfter() throws Exception {
         AccessIdentityFilter filter = new AccessIdentityFilter(caches(null));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader(AccessIdentityFilter.TENANT_HEADER, "t1");
@@ -87,7 +87,7 @@ class AccessIdentityTest {
             seenRequest.set(RequestIdContext.get());
         });
 
-        assertThat(seenTenant.get()).isEqualTo("t1");
+        assertThat(seenTenant.get()).isNull();
         assertThat(seenUser.get()).isNull();
         assertThat(seenRequest.get()).isEqualTo("req-1");
         assertThat(TenantContext.get()).isNull();

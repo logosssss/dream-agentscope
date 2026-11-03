@@ -1,5 +1,5 @@
 import { apiJson } from '@/shared/api/http'
-import type { ChatMessageItem, SessionSummary } from '@/shared/types/api.types'
+import type { ChatMessageItem, SessionDetail, SessionSummary } from '@/shared/types/api.types'
 
 /**
  * 会话列表与消息历史。身份靠 Bearer，不传租户用户。
@@ -8,6 +8,11 @@ import type { ChatMessageItem, SessionSummary } from '@/shared/types/api.types'
 /** 当前用户活动会话，按最近活动倒序。 */
 export function listSessions(): Promise<SessionSummary[]> {
   return apiJson<SessionSummary[]>('/api/sessions')
+}
+
+/** 本人会话的状态、轮数和最近运行。不拉正文。 */
+export function getSession(sessionId: string): Promise<SessionDetail> {
+  return apiJson<SessionDetail>(`/api/sessions/${encodeURIComponent(sessionId)}`)
 }
 
 /**

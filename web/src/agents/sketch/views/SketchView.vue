@@ -14,7 +14,7 @@ const AGENT_ID = 'sketch-v1'
 const router = useRouter()
 const session = loadSession()
 const sessionId = ref<string>(crypto.randomUUID())
-const identity = computed(() => `${session?.tenantId || ''} / ${session?.userId || ''}`)
+const identity = computed(() => session?.displayName || '已登录')
 
 /** 换新会话，本地气泡清空由新 key 自然隔离。 */
 function newChat() {

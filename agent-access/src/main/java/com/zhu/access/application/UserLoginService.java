@@ -12,8 +12,8 @@ import java.time.Duration;
 import org.springframework.stereotype.Service;
 
 /**
- * 用户登录。核对租户用户后签发 Redis 会话令牌。
- * 这不是调用方令牌，也不做密码校验。Redis 失败按 503。
+ * 签发和删除 Redis 登录会话。密码和微信核对在客户端账号服务里完成。
+ * 这里不再接受调用方自报的用户标识。Redis 失败按 503。
  */
 @Service
 public class UserLoginService {
@@ -45,14 +45,15 @@ public class UserLoginService {
     }
 
     /**
-     * 空白租户按空串。用户必须非空。
-     * MySQL 打开时门会拒绝未登记或停用的账号。关闭时门放行，只留给测试。
+     * 凭证已经核对过后签发会话。显示名只放进响应，不写进 Redis。
+     * 空白用户、超长或含换行时拒绝。MySQL 打开时仍要求租户用户是启用的。
      */
-    public LoginResponse login(String tenantId, String userId) {
+    public LoginResponse issue(String tenantId, String userId, String displayName) {
         String tenant = tenantId == null || tenantId.isBlank() ? "" : tenantId.trim();
         String user = userId == null ? "" : userId.trim();
+        String shown = displayName == null ? "" : displayName;
         if (user.isBlank() || user.length() > USER_LIMIT || tenant.length() > TENANT_LIMIT
-                || tenant.indexOf('\n') >= 0 || user.indexOf('\n') >= 0) {
+                || tenant.indexOf('\n') >= 0 || user.indexOf('\n') >= 0 || shown.indexOf('\n') >= 0) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "login is invalid");
         }
         tenants.requireActive(tenant);
@@ -60,7 +61,7 @@ public class UserLoginService {
         long ttlSeconds = ttlSeconds();
         String token = Ids.newId();
         cache.put(LoginSessionCodec.key(token), LoginSessionCodec.encode(tenant, user), Duration.ofSeconds(ttlSeconds));
-        return new LoginResponse(token, ttlSeconds, tenant, user);
+        return new LoginResponse(token, ttlSeconds, tenant, user, shown);
     }
 
     /**

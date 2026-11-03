@@ -36,7 +36,7 @@ public class CallerTokenFilter extends OncePerRequestFilter {
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain chain) throws ServletException, IOException {
-        if (CallerTokens.isHealth(path(request))) {
+        if (CallerTokens.isHealth(path(request)) || CallerTokens.isWxConfirm(path(request))) {
             chain.doFilter(request, response);
             return;
         }

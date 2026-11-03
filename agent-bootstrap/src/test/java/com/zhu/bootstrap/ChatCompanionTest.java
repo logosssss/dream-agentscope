@@ -7,12 +7,15 @@ import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
+import com.zhu.common.context.TenantContext;
+import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentResponse;
 import java.time.Clock;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -29,6 +32,13 @@ import static org.mockito.Mockito.when;
  */
 class ChatCompanionTest {
 
+    /** 对话会把用户留在线程上，结束时清掉。 */
+    @AfterEach
+    void clearIdentity() {
+        TenantContext.clear();
+        UserContext.clear();
+    }
+
     /** 没有用户时不执行。请求体里的提示词丢掉。 */
     @Test
     void userIsRequiredAndClientPromptIsDropped() {
@@ -40,9 +50,11 @@ class ChatCompanionTest {
         assertThatThrownBy(() -> chats.chat(new ChatRequest(null, "t", " ", "s", "客户端人设", "hi", null)))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
-                .isEqualTo(ErrorCode.BAD_REQUEST);
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
         verify(executor, never()).execute(any());
 
+        TenantContext.set("t");
+        UserContext.set("u");
         chats.chat(new ChatRequest(null, "t", "u", "s", "客户端人设", "hi", null));
         ArgumentCaptor<AgentRequest> sent = ArgumentCaptor.forClass(AgentRequest.class);
         verify(executor).execute(sent.capture());
@@ -58,6 +70,8 @@ class ChatCompanionTest {
             throw new BusinessException(ErrorCode.CONFLICT, "session belongs to another user");
         });
 
+        TenantContext.set("t");
+        UserContext.set("u2");
         assertThatThrownBy(() -> chats.chat(new ChatRequest(null, "t", "u2", "s", null, "hi", null)))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())

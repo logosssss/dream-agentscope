@@ -43,4 +43,18 @@ class CallerTokenFilterTest {
 
         assertThat(called[0]).isTrue();
     }
+
+    /** 小程序确认不带调用方令牌也能进入后面的处理。 */
+    @Test
+    void wxConfirmSkipsToken() throws Exception {
+        CallerTokenFilter filter = new CallerTokenFilter("");
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/public/auth/wx/confirm");
+        request.setServletPath("/api/public/auth/wx/confirm");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        boolean[] called = new boolean[1];
+
+        filter.doFilter(request, response, (req, res) -> called[0] = true);
+
+        assertThat(called[0]).isTrue();
+    }
 }

@@ -1,5 +1,7 @@
 package com.zhu.bootstrap;
 
+import com.zhu.access.application.LoginSessionCodec;
+import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.common.security.CallerTokens;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.semantic.infrastructure.nacos.AbsentPromptSource;
@@ -11,6 +13,7 @@ import com.zhu.vector.application.AbsentVectorStore;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import io.milvus.v2.client.MilvusClientV2;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -43,6 +46,9 @@ class BootstrapContextTest {
     @Autowired
     private MockMvc mvc;
 
+    @Autowired
+    private AccessCache cache;
+
     /**
      * 执行入口只有一个 AgentExecutor。Agent 按请求创建，不注册成 Bean。
      * 存活检查不依赖 MySQL。默认开关关闭时就绪检查跳过 MySQL 和 Redis。
@@ -68,141 +74,155 @@ class BootstrapContextTest {
                 .andExpect(jsonPath("$.mysql").value("SKIPPED"))
                 .andExpect(jsonPath("$.redis").value("SKIPPED"))
                 .andExpect(jsonPath("$.milvus").value("SKIPPED"));
+        cache.put(LoginSessionCodec.key("test-session"), LoginSessionCodec.encode("demo", "u"), Duration.ofHours(1));
         mvc.perform(get("/api/sessions"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
         mvc.perform(get("/api/sessions").header(CallerTokens.HEADER, "test-token"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
-        mvc.perform(get("/api/sessions/s1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mvc.perform(get("/api/sessions/s1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
-        mvc.perform(get("/api/quota").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/quota").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true))
                 .andExpect(jsonPath("$.data.requests.used").value(0));
-        mvc.perform(get("/api/kb/kb-1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/kb/kb-1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
-        mvc.perform(get("/api/kb/documents/doc-1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/kb/documents/doc-1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
-        mvc.perform(get("/api/me").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/me").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true))
                 .andExpect(jsonPath("$.data.userId").value("u"));
         mvc.perform(get("/api/me").header(CallerTokens.HEADER, "test-token"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
-        mvc.perform(get("/api/todos").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mvc.perform(get("/api/todos").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/todos/1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/todos/1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(post("/api/todos").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
+        mvc.perform(post("/api/todos").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session")
                         .contentType("application/json")
                         .content("{\"todoType\":\"CONFIRM\",\"refId\":\"run-1\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(post("/api/todos/1/done").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(post("/api/todos/1/done").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(post("/api/todos/1/cancel").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(post("/api/todos/1/cancel").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/notifications").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/notifications").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/notifications/1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/notifications/1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/runs").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/runs").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/runs/run-1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/runs/run-1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/usage").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/usage").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/usage/1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/usage/1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/approvals/a-1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/approvals/a-1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
-        mvc.perform(get("/api/tasks").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/tasks").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/tasks/task-1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/tasks/task-1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/feedback").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/feedback").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/feedback/1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/feedback/1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(post("/api/feedback").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
+        mvc.perform(post("/api/feedback").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session")
                         .contentType("application/json")
                         .content("{\"rating\":5}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/deletion-requests").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/deletion-requests").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/deletion-requests/req-1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/deletion-requests/req-1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(post("/api/deletion-requests").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
+        mvc.perform(post("/api/deletion-requests").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session")
                         .contentType("application/json")
                         .content("{\"dataType\":\"SESSION\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/attachments").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/attachments").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(get("/api/attachments/att-1").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u"))
+        mvc.perform(get("/api/attachments/att-1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/attachments/att-1/disable")
                         .header(CallerTokens.HEADER, "test-token")
-                        .header("X-User-Id", "u"))
+                        .header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/attachments/att-1/restore")
                         .header(CallerTokens.HEADER, "test-token")
-                        .header("X-User-Id", "u"))
+                        .header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(post("/api/attachments").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
+        mvc.perform(post("/api/attachments").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session")
                         .contentType("application/json")
                         .content("{\"fileName\":\"a.txt\",\"storagePath\":\"/tmp/a.txt\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(multipart("/api/attachments/file").file("file", "hi".getBytes())
                         .header(CallerTokens.HEADER, "test-token")
-                        .header("X-User-Id", "u"))
+                        .header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
-        mvc.perform(post("/api/attachments/att-1/refs").header(CallerTokens.HEADER, "test-token").header("X-User-Id", "u")
+        mvc.perform(post("/api/attachments/att-1/refs").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session")
                         .contentType("application/json")
                         .content("{\"refType\":\"RUN\",\"refId\":\"run-1\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(get("/api/attachments/att-1/refs").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(get("/api/attachments/att-1/content")
                         .header(CallerTokens.HEADER, "test-token")
-                        .header("X-User-Id", "u"))
+                        .header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(post("/api/login").header(CallerTokens.HEADER, "test-token")
                         .contentType("application/json")
-                        .content("{\"tenantId\":\"t\",\"userId\":\"u\"}"))
+                        .content("{\"accountName\":\"demo\",\"password\":\"secret1\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/register").header(CallerTokens.HEADER, "test-token")
+                        .contentType("application/json")
+                        .content("{\"accountName\":\"demo\",\"password\":\"secret1\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(get("/api/auth/config").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(true))
-                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.userId").value("u"));
+                .andExpect(jsonPath("$.data.wxScanLoginEnabled").value(false));
+        mvc.perform(post("/api/public/auth/wx/confirm")
+                        .contentType("application/json")
+                        .content("{\"ticketId\":\"t\",\"code\":\"c\"}"))
+                .andExpect(status().isBadRequest());
         mvc.perform(post("/api/logout").header(CallerTokens.HEADER, "test-token")
                         .contentType("application/json")
                         .content("{\"accessToken\":\"unused\"}"))

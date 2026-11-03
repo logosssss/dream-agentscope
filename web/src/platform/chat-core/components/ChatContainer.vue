@@ -6,8 +6,10 @@
 import MarkdownContent from '@/platform/chat-core/components/MarkdownContent.vue'
 import { useStreaming } from '@/platform/chat-core/composables/useStreaming'
 import { useChatStore } from '@/platform/chat-core/stores/useChatStore'
+import { getQuota } from '@/shared/api/quota-api'
 import { clearSession } from '@/shared/auth/session'
-import { computed, nextTick, onBeforeUnmount, ref, useSlots, watch } from 'vue'
+import type { QuotaMeter, QuotaSnapshot } from '@/shared/types/api.types'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const props = withDefaults(
@@ -50,6 +52,14 @@ const error = ref('')
 const statusTip = ref('')
 const streaming = ref(false)
 const listEl = ref<HTMLElement | null>(null)
+const quota = ref<QuotaSnapshot | null>(null)
+const quotaError = ref('')
+
+/** 顶栏里的一项额度。over 表示已达到正数上限。 */
+interface QuotaPart {
+  text: string
+  over: boolean
+}
 
 let abortController: AbortController | null = null
 
@@ -57,6 +67,56 @@ const messages = computed(() => chatStore.getMessages(props.agentId, props.sessi
 const shortSession = computed(() => props.sessionId.slice(0, 8))
 /** 有 sidebar 插槽时才留左侧栏位，占位 Agent 可全宽。 */
 const hasSidebar = computed(() => !!slots.sidebar)
+
+/** 有上限才展示 token、费用和同时运行；请求始终展示。 */
+const quotaParts = computed(() => {
+  const snapshot = quota.value
+  if (!snapshot) {
+    return [] as QuotaPart[]
+  }
+  return [
+    meterPart('请求', snapshot.requests, true),
+    meterPart('token', snapshot.tokens, false),
+    meterPart('费用', snapshot.cost, false),
+    meterPart('同时运行', snapshot.concurrent, false),
+  ].filter((part): part is QuotaPart => part !== null)
+})
+
+/**
+ * limit 为空表示这项没有配置，非请求项不占位。
+ * 0 表示不限额。正数上限且已用达到上限时标红。
+ */
+function meterPart(label: string, meter: QuotaMeter | null | undefined, always: boolean): QuotaPart | null {
+  if (!meter || (meter.limit == null && !always)) {
+    return null
+  }
+  const over = meter.limit != null && meter.limit > 0 && meter.used >= meter.limit
+  let text = `${label} ${meter.used}`
+  if (meter.limit != null && meter.limit > 0) {
+    text += `/${meter.limit}`
+  } else if (meter.limit === 0) {
+    text += ' · 不限额'
+  }
+  return { text, over }
+}
+
+/** 拉当日额度。失败只写顶栏，不挡输入。登录失效仍回登录页。 */
+async function refreshQuota() {
+  quotaError.value = ''
+  try {
+    quota.value = await getQuota()
+  } catch (e) {
+    const message = e instanceof Error ? e.message : '额度加载失败'
+    if (message.includes('重新登录')) {
+      clearSession()
+      emit('needLogin')
+      await router.replace('/login')
+      return
+    }
+    quota.value = null
+    quotaError.value = '额度暂不可用'
+  }
+}
 
 /** 滚动到底部，流式追加时保持贴底。 */
 async function scrollToBottom() {
@@ -133,6 +193,7 @@ async function send(overrideText?: string) {
       abortController.signal,
     )
     emit('sent')
+    void refreshQuota()
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
       statusTip.value = '已停止生成'
@@ -143,6 +204,10 @@ async function send(overrideText?: string) {
         emit('needLogin')
         await router.replace('/login')
       }
+      if (!assistant.content) {
+        chatStore.dropMessage(props.agentId, props.sessionId, assistant.id)
+      }
+      void refreshQuota()
     }
   } finally {
     assistant.streaming = false
@@ -195,6 +260,10 @@ defineExpose({
   },
 })
 
+onMounted(() => {
+  void refreshQuota()
+})
+
 onBeforeUnmount(() => {
   abortController?.abort()
 })
@@ -212,6 +281,14 @@ onBeforeUnmount(() => {
           <h1 class="text-lg font-semibold text-[var(--color-brand-primary)]">{{ title }}</h1>
           <p class="text-xs text-[var(--color-text-muted)]">
             <span v-if="identity">{{ identity }} · </span>{{ shortSession }}…
+          </p>
+          <p v-if="quotaError" class="text-xs text-[var(--color-danger)]">{{ quotaError }}</p>
+          <p v-else-if="quotaParts.length" class="text-xs text-[var(--color-text-muted)]">
+            今日
+            <template v-for="(part, index) in quotaParts" :key="part.text">
+              <span v-if="index > 0"> · </span>
+              <span :class="part.over ? 'text-[var(--color-danger)]' : ''">{{ part.text }}</span>
+            </template>
           </p>
         </div>
         <div class="flex items-center gap-2">

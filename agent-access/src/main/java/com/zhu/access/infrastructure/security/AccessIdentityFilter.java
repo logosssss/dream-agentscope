@@ -17,8 +17,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * 接入层身份过滤器。Bearer 登录会话优先，否则用请求头补线程身份。
- * 存活检查不需要这些头。请求体里的身份由 ChatAppService 优先使用。
+ * 接入层身份过滤器。只认 Bearer 登录会话。
+ * 请求头里的租户和用户不再写入上下文。请求结束必须清掉。
  */
 @Component
 public class AccessIdentityFilter extends OncePerRequestFilter {
@@ -40,8 +40,7 @@ public class AccessIdentityFilter extends OncePerRequestFilter {
     private final AccessCache cache;
 
     /**
-     * 没有 AccessCache Bean 时只认请求头，留给极端装配。
-     * 正式进程和测试都会提供缓存实现。
+     * 没有缓存时，带了 Bearer 按不可用处理。正式进程和测试都会提供缓存。
      */
     public AccessIdentityFilter(ObjectProvider<AccessCache> caches) {
         this.cache = caches == null ? null : caches.getIfAvailable();
@@ -49,7 +48,7 @@ public class AccessIdentityFilter extends OncePerRequestFilter {
 
     /**
      * 带了 Bearer 就只信登录会话：无效 401，Redis 失败 503。
-     * 没带 Bearer 时请求头有非空值才写入上下文。请求结束必须清掉。
+     * 没带 Bearer 时不从请求头补用户。请求号仍然读取。请求结束必须清掉。
      */
     @Override
     protected void doFilterInternal(
@@ -66,9 +65,6 @@ public class AccessIdentityFilter extends OncePerRequestFilter {
             }
             tenantId = identity.tenantId();
             userId = identity.userId();
-        } else {
-            tenantId = text(request.getHeader(TENANT_HEADER));
-            userId = text(request.getHeader(USER_HEADER));
         }
         String requestId = text(request.getHeader(REQUEST_ID_HEADER));
         if (tenantId != null) {

@@ -12,6 +12,8 @@ import com.zhu.access.application.SessionListService;
 import com.zhu.access.application.SessionMetaStore;
 import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
+import com.zhu.common.context.TenantContext;
+import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.runtime.api.AgentExecutor;
@@ -19,6 +21,7 @@ import com.zhu.runtime.api.AgentResponse;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +35,13 @@ import static org.mockito.Mockito.when;
  */
 class ChatMessageHistoryTest {
 
+    /** 对话会把用户留在线程上，结束时清掉。 */
+    @AfterEach
+    void clearIdentity() {
+        TenantContext.clear();
+        UserContext.clear();
+    }
+
     /** 成功后追加 user + assistant，失败不写。 */
     @Test
     void successAppendsTurnFailureSkips() {
@@ -42,6 +52,8 @@ class ChatMessageHistoryTest {
                 .thenThrow(new IllegalStateException("boom"));
         ChatAppService chats = chats(executor, store);
 
+        TenantContext.set("t");
+        UserContext.set("u");
         chats.chat(new ChatRequest(null, "t", "u", "s1", null, "嗨", null));
         assertThatThrownBy(() -> chats.chat(new ChatRequest(null, "t", "u", "s1", null, "再问", null)))
                 .isInstanceOf(IllegalStateException.class);

@@ -1,5 +1,5 @@
--- 本地联调演示账号。不进 Flyway，按需在本机库执行。
--- 与 web/.env.example 默认预填一致：tenant_id=demo / user_id=demo-user
+-- 本地联调演示租户和用户行。不进 Flyway，按需在本机库执行。
+-- 这一行没有登录凭证，客户端不能用它登录。请走注册或微信扫码。
 
 INSERT INTO tenant (tenant_id, name, plan, status)
 VALUES ('demo', '本地联调租户', 'standard', 'ACTIVE')

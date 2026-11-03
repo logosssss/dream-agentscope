@@ -57,6 +57,50 @@ function iconLabel(icon: string, name: string): string {
       附
     </RouterLink>
 
+    <RouterLink
+      to="/kb"
+      class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
+      :class="currentSlug === 'kb'
+        ? 'text-white bg-[var(--color-brand-primary)]'
+        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'"
+      title="知识库"
+    >
+      知
+    </RouterLink>
+
+    <RouterLink
+      to="/todos"
+      class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
+      :class="currentSlug === 'todos'
+        ? 'text-white bg-[var(--color-brand-primary)]'
+        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'"
+      title="待办"
+    >
+      办
+    </RouterLink>
+
+    <RouterLink
+      to="/usage"
+      class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
+      :class="currentSlug === 'usage'
+        ? 'text-white bg-[var(--color-brand-primary)]'
+        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'"
+      title="用量"
+    >
+      用
+    </RouterLink>
+
+    <RouterLink
+      to="/feedback"
+      class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
+      :class="currentSlug === 'feedback'
+        ? 'text-white bg-[var(--color-brand-primary)]'
+        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'"
+      title="反馈"
+    >
+      评
+    </RouterLink>
+
     <button
       type="button"
       class="mt-auto w-10 h-10 rounded-xl text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"

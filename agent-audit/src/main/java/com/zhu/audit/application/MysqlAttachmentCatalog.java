@@ -2,6 +2,7 @@ package com.zhu.audit.application;
 
 import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.audit.api.AttachmentDetail;
+import com.zhu.audit.api.AttachmentRefItem;
 import com.zhu.audit.api.AttachmentRefSummary;
 import com.zhu.audit.api.AttachmentSummary;
 import com.zhu.audit.api.StoredAttachment;
@@ -183,6 +184,34 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
             throw new BusinessException(ErrorCode.CONFLICT, "attachment ref already exists");
         }
         return new AttachmentRefSummary(attachmentId, refType, refId);
+    }
+
+    /**
+     * 先确认本人本租户仍启用。空标识拒绝。
+     * 不核被引用对象是否存在，也不改引用。
+     */
+    @Override
+    public List<AttachmentRefItem> listRefs(String userId, String tenantId, String attachmentId, int limit) {
+        if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT
+                || (tenantId != null && tenantId.length() > TENANT_LIMIT)
+                || attachmentId == null || attachmentId.isBlank() || attachmentId.length() > ATTACHMENT_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "attachment ref is invalid");
+        }
+        String savedTenant = tenantId == null || tenantId.isBlank() ? "" : tenantId;
+        if (attachments.findOwned(userId, savedTenant, attachmentId) == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "attachment not found");
+        }
+        List<AttachmentRef> rows = refs.listByAttachment(attachmentId, AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream().map(MysqlAttachmentCatalog::refItem).toList();
+    }
+
+    /** 创建时间为空时写成空串，避免前端把 null 当成缺字段。 */
+    private static AttachmentRefItem refItem(AttachmentRef row) {
+        String created = row.getCreatedAt() == null ? "" : TIME.format(row.getCreatedAt());
+        return new AttachmentRefItem(row.getRefType(), row.getRefId(), created);
     }
 
     /**

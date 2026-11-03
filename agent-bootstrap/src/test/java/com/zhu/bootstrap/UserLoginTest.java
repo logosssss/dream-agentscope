@@ -14,24 +14,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 登录签发 Redis 会话。不连真实 Redis，也不连 MySQL。
+ * 登录会话签发。不连真实 Redis，也不连 MySQL。密码核对在客户端账号服务里。
  */
 class UserLoginTest {
 
-    /** 核对通过后写入缓存，退出后读不到。 */
+    /** 核对通过后写入缓存，退出后读不到。显示名不进缓存。 */
     @Test
-    void loginStoresSessionAndLogoutClears() {
+    void issueStoresSessionAndLogoutClears() {
         FakeAccessCache cache = new FakeAccessCache();
         AccessLimitProperties limits = new AccessLimitProperties();
         limits.setLoginSessionSeconds(3600);
         UserLoginService logins = new UserLoginService(openTenant(), openUser(), cache, limits);
 
-        LoginResponse session = logins.login("tenant-a", "user-a");
+        LoginResponse session = logins.issue("tenant-a", "user-a", "甲");
 
         assertThat(session.accessToken()).isNotBlank();
         assertThat(session.expiresIn()).isEqualTo(3600);
         assertThat(session.tenantId()).isEqualTo("tenant-a");
         assertThat(session.userId()).isEqualTo("user-a");
+        assertThat(session.displayName()).isEqualTo("甲");
         assertThat(cache.get(LoginSessionCodec.key(session.accessToken())))
                 .isEqualTo(LoginSessionCodec.encode("tenant-a", "user-a"));
 
@@ -44,18 +45,18 @@ class UserLoginTest {
     void rejectsInvalidOrInactive() {
         FakeAccessCache cache = new FakeAccessCache();
         UserLoginService logins = new UserLoginService(openTenant(), openUser(), cache, new AccessLimitProperties());
-        assertThatThrownBy(() -> logins.login("t", " "))
+        assertThatThrownBy(() -> logins.issue("t", " ", "甲"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.BAD_REQUEST);
-        assertThatThrownBy(() -> logins.login("t\nx", "u"))
+        assertThatThrownBy(() -> logins.issue("t\nx", "u", "甲"))
                 .isInstanceOf(BusinessException.class);
 
         TenantUserGate closed = (tenantId, userId) -> {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user is not active");
         };
         UserLoginService denied = new UserLoginService(openTenant(), closed, cache, new AccessLimitProperties());
-        assertThatThrownBy(() -> denied.login("t", "u"))
+        assertThatThrownBy(() -> denied.issue("t", "u", "甲"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);

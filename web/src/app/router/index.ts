@@ -17,6 +17,12 @@ const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/register',
+      name: 'register',
+      component: () => import('@/agents/companion/views/RegisterView.vue'),
+      meta: { public: true },
+    },
+    {
       path: '/',
       component: () => import('@/platform/layout/AppLayout.vue'),
       children: [
@@ -30,6 +36,38 @@ const router = createRouter({
           component: () => import('@/platform/attachments/AttachmentsView.vue'),
           meta: {
             themeColor: '#2563eb',
+          },
+        },
+        {
+          path: 'kb',
+          name: 'kb',
+          component: () => import('@/platform/knowledge/KnowledgeView.vue'),
+          meta: {
+            themeColor: '#0f766e',
+          },
+        },
+        {
+          path: 'todos',
+          name: 'todos',
+          component: () => import('@/platform/todos/TodosView.vue'),
+          meta: {
+            themeColor: '#b45309',
+          },
+        },
+        {
+          path: 'usage',
+          name: 'usage',
+          component: () => import('@/platform/usage/UsageView.vue'),
+          meta: {
+            themeColor: '#475569',
+          },
+        },
+        {
+          path: 'feedback',
+          name: 'feedback',
+          component: () => import('@/platform/feedback/FeedbackView.vue'),
+          meta: {
+            themeColor: '#be123c',
           },
         },
         ...agentList.map((agent) => ({

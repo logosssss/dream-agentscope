@@ -9,8 +9,8 @@ import com.zhu.common.exception.ErrorCode;
 import org.springframework.stereotype.Component;
 
 /**
- * 接入层在对话以外的接口上检查当前请求头里的租户和用户。
- * 对话仍按请求体身份检查，不走这里。
+ * 接入层在对话以外的接口上检查登录会话里的租户和用户。
+ * 没有会话按未登录拒绝。请求头不能再指定身份。
  */
 @Component
 public class AccessAccountGate {
@@ -32,7 +32,7 @@ public class AccessAccountGate {
     public void requireActive() {
         String userId = UserContext.get();
         if (userId == null || userId.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "userId is required");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "login is required");
         }
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         tenants.requireActive(tenantId);

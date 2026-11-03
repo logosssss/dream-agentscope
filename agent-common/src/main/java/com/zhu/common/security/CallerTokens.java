@@ -22,6 +22,13 @@ public final class CallerTokens {
     }
 
     /**
+     * 小程序确认登录不带调用方令牌。票是网站先申请的。
+     */
+    public static boolean isWxConfirm(String path) {
+        return "/api/public/auth/wx/confirm".equals(path);
+    }
+
+    /**
      * 配置为空、请求头为空，或两边字节不一致时都不通过。
      * 用定长比较，避免提前返回把令牌内容露出去。长度不同仍会马上失败，这是 JDK 的行为。
      */

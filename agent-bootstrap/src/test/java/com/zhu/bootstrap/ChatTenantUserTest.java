@@ -7,10 +7,13 @@ import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
+import com.zhu.common.context.TenantContext;
+import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.runtime.api.AgentExecutor;
 import java.time.Clock;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -21,6 +24,13 @@ import static org.mockito.Mockito.verifyNoInteractions;
  * 对话在执行前检查租户用户。不连接 MySQL。
  */
 class ChatTenantUserTest {
+
+    /** 对话会把用户留在线程上，结束时清掉。 */
+    @AfterEach
+    void clearIdentity() {
+        TenantContext.clear();
+        UserContext.clear();
+    }
 
     /** 没登记或不可用时不进模型。 */
     @Test
@@ -46,6 +56,8 @@ class ChatTenantUserTest {
                 },
                 new AbsentChatMessageStore());
 
+        TenantContext.set("t");
+        UserContext.set("u");
         assertThatThrownBy(() -> chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null)))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())

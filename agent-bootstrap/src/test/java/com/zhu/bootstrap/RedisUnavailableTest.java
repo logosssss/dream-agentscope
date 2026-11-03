@@ -12,11 +12,14 @@ import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.access.infrastructure.cache.RedisAccessCache;
 import com.zhu.audit.api.TenantQuotaLookup;
 import com.zhu.common.dto.ApiResult;
+import com.zhu.common.context.TenantContext;
+import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.runtime.api.AgentExecutor;
 import java.time.Clock;
 import java.time.Duration;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -32,6 +35,13 @@ import static org.mockito.Mockito.when;
  * Redis 不可用时额度请求失败，不执行对话，也不改用别的存储。
  */
 class RedisUnavailableTest {
+
+    /** 对话会把用户留在线程上，结束时清掉。 */
+    @AfterEach
+    void clearIdentity() {
+        TenantContext.clear();
+        UserContext.clear();
+    }
 
     /** 计数失败发生在执行之前。 */
     @Test
@@ -59,6 +69,8 @@ class RedisUnavailableTest {
                 },
                 new AbsentChatMessageStore());
 
+        TenantContext.set("t");
+        UserContext.set("u");
         assertThatThrownBy(() -> chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null)))
                 .isInstanceOf(BusinessException.class)
                 .extracting(thrown -> ((BusinessException) thrown).errorCode())

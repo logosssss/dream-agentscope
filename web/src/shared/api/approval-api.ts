@@ -1,5 +1,5 @@
 import { apiJson } from '@/shared/api/http'
-import type { ApprovalDecisionView, PendingApproval } from '@/shared/types/api.types'
+import type { ApprovalDecisionView, ApprovalDetail, PendingApproval } from '@/shared/types/api.types'
 
 /**
  * 用户端待确认与自批。通道由后端固定为 WEB，不执行工具。
@@ -9,6 +9,11 @@ import type { ApprovalDecisionView, PendingApproval } from '@/shared/types/api.t
 export function listPendingApprovals(limit = 50): Promise<PendingApproval[]> {
   const q = new URLSearchParams({ limit: String(limit) })
   return apiJson<PendingApproval[]>(`/api/approvals/pending?${q}`)
+}
+
+/** 本人本租户的一张审批。不改决定，也不执行工具。 */
+export function getApproval(approvalId: string): Promise<ApprovalDetail> {
+  return apiJson<ApprovalDetail>(`/api/approvals/${encodeURIComponent(approvalId)}`)
 }
 
 /**

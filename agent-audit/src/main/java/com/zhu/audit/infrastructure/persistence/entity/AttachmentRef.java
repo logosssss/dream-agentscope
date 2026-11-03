@@ -3,6 +3,7 @@ package com.zhu.audit.infrastructure.persistence.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.time.LocalDateTime;
 
 /**
  * attachment_ref 的一行。只描述关联，不表示文件已经入库。
@@ -20,8 +21,11 @@ public class AttachmentRef {
     /** MESSAGE / RUN / DOCUMENT。 */
     private String refType;
 
-    /** 消息或运行标识。 */
+    /** 消息、运行或文档标识。 */
     private String refId;
+
+    /** 挂上的时间。列表才返回。 */
+    private LocalDateTime createdAt;
 
     /** 主键。 */
     public Long getId() {
@@ -61,5 +65,15 @@ public class AttachmentRef {
     /** 写入被引用的标识。 */
     public void setRefId(String refId) {
         this.refId = refId;
+    }
+
+    /** 挂上的时间。没有时列表返回空串。 */
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    /** 写入挂上的时间。 */
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

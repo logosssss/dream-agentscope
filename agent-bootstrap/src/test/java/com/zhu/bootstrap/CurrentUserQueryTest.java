@@ -10,6 +10,7 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 
@@ -22,6 +23,13 @@ import static org.mockito.Mockito.when;
  * 当前身份先过账号门。登记行可选。不连接 MySQL。
  */
 class CurrentUserQueryTest {
+
+    /** 其它测试可能把用户留在线程上。这里先清掉。 */
+    @BeforeEach
+    void resetIdentity() {
+        UserContext.clear();
+        TenantContext.clear();
+    }
 
     /** 线程身份用完就清，避免串到下一条。 */
     @AfterEach
@@ -40,7 +48,7 @@ class CurrentUserQueryTest {
         assertThatThrownBy(withoutLookup::current)
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
-                .isEqualTo(ErrorCode.BAD_REQUEST);
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
 
         UserContext.set("u");
         TenantContext.set("t");

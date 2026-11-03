@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.AttachmentRefMapper">
+
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.AttachmentRef">
+        <result column="ref_type" property="refType"/>
+        <result column="ref_id" property="refId"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 只列这个附件上的引用。归属由调用方先确认，这里不读附件正文。 -->
+    <select id="listByAttachment" resultMap="ListResultMap">
+        SELECT ref_type, ref_id, created_at
+        FROM attachment_ref
+        WHERE attachment_id = #{attachmentId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

@@ -11,12 +11,15 @@ import com.zhu.access.application.SessionIndex;
 import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.domain.channel.AccessChannel;
+import com.zhu.common.context.TenantContext;
+import com.zhu.common.context.UserContext;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentResponse;
 import com.zhu.runtime.api.AgentStreamEvent;
 import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 
@@ -30,6 +33,13 @@ import static org.mockito.Mockito.when;
  * 运行记录只留短摘要和异常类型。写失败不改变回复。不连接 MySQL。
  */
 class ChatRunTest {
+
+    /** 对话会把用户留在线程上，结束时清掉。 */
+    @AfterEach
+    void clearIdentity() {
+        TenantContext.clear();
+        UserContext.clear();
+    }
 
     /** 成功时记下回复标识，输出超过 40 个字符被截断。 */
     @Test
@@ -161,8 +171,10 @@ class ChatRunTest {
                 new AbsentChatMessageStore());
     }
 
-    /** 最小请求。通道空则按页面。 */
+    /** 最小请求。身份放进登录会话所在的线程，不靠请求体。 */
     private static ChatRequest request(String text, AccessChannel channel) {
+        TenantContext.set("t");
+        UserContext.set("u");
         return new ChatRequest(null, "t", "u", "s", null, text, channel);
     }
 

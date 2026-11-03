@@ -138,6 +138,53 @@ class AttachmentCatalogTest {
                 .isEqualTo(ErrorCode.CONFLICT);
     }
 
+    /** 先确认本人本租户仍启用，再返回引用和挂上的时间。空白租户按空串。 */
+    @Test
+    void listRefsReturnsCreatedAt() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        AttachmentRefMapper refs = mock(AttachmentRefMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, refs);
+        when(attachments.findOwned("u", "t", "att-1")).thenReturn(new Attachment());
+        AttachmentRef row = new AttachmentRef();
+        row.setRefType("RUN");
+        row.setRefId("run-1");
+        row.setCreatedAt(LocalDateTime.of(2026, 11, 2, 1, 2, 3));
+        when(refs.listByAttachment("att-1", 50)).thenReturn(List.of(row));
+
+        assertThat(catalog.listRefs("u", "t", "att-1", 0)).satisfies(items -> {
+            assertThat(items).hasSize(1);
+            assertThat(items.get(0).refType()).isEqualTo("RUN");
+            assertThat(items.get(0).refId()).isEqualTo("run-1");
+            assertThat(items.get(0).createdAt()).isEqualTo("2026-11-02T01:02:03");
+        });
+
+        when(attachments.findOwned("u", "", "att-2")).thenReturn(new Attachment());
+        AttachmentRef blankTime = new AttachmentRef();
+        blankTime.setRefType("MESSAGE");
+        blankTime.setRefId("m-1");
+        when(refs.listByAttachment("att-2", 100)).thenReturn(List.of(blankTime));
+        assertThat(catalog.listRefs("u", " ", "att-2", 200).get(0).createdAt()).isEqualTo("");
+    }
+
+    /** 别人的、停用的或空标识不列引用。停用由 SQL 滤掉，这里按找不到。 */
+    @Test
+    void listRefsRejectsMissingOrBlank() {
+        AttachmentMapper attachments = mock(AttachmentMapper.class);
+        AttachmentRefMapper refs = mock(AttachmentRefMapper.class);
+        MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, refs);
+        when(attachments.findOwned("u", "t", "missing")).thenReturn(null);
+        assertThatThrownBy(() -> catalog.listRefs("u", "t", "missing", 10))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        verify(refs, never()).listByAttachment(eq("missing"), anyInt());
+        assertThatThrownBy(() -> catalog.listRefs("u", "t", " ", 10))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(refs, never()).listByAttachment(any(), anyInt());
+    }
+
     /** 只返回本人本租户挂到该引用上的路径。类型不认识时空列表。 */
     @Test
     void storagePathsListsOwnedDocumentKeys() {

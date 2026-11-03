@@ -1,16 +1,27 @@
 <script setup lang="ts">
 /**
- * 智能搭子主视图。会话栏、待确认与轻提示通过 ChatContainer 插槽注入。
+ * 智能搭子主视图。会话栏、待确认、通知与轻提示通过 ChatContainer 插槽注入。
  */
 import CompanionHint from '@/agents/companion/components/CompanionHint.vue'
 import ChatContainer from '@/platform/chat-core/components/ChatContainer.vue'
 import { useChatStore } from '@/platform/chat-core/stores/useChatStore'
-import { decideApproval, listPendingApprovals } from '@/shared/api/approval-api'
+import { decideApproval, getApproval, listPendingApprovals } from '@/shared/api/approval-api'
+import { getNotification, listNotifications } from '@/shared/api/notification-api'
+import { ApiBusinessError } from '@/shared/api/http'
 import { logout as logoutApi } from '@/shared/api/auth-api'
-import { listMessages, listSessions } from '@/shared/api/session-api'
+import { getSession, listMessages, listSessions } from '@/shared/api/session-api'
+import { getRun } from '@/shared/api/run-api'
 import { clearSession, loadSession } from '@/shared/auth/session'
-import type { PendingApproval, SessionSummary } from '@/shared/types/api.types'
-import { computed, onMounted, ref, unref, type Ref } from 'vue'
+import type {
+  ApprovalDetail,
+  ApprovalNotice,
+  ApprovalNoticeDetail,
+  PendingApproval,
+  RunDetail,
+  SessionDetail,
+  SessionSummary,
+} from '@/shared/types/api.types'
+import { computed, onMounted, ref, unref, watch, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const AGENT_ID = 'companion-v1'
@@ -25,18 +36,47 @@ const historyOpened = ref(false)
 const loadingHistory = ref(false)
 const loadingSessions = ref(false)
 const sessionRows = ref<SessionSummary[]>([])
+const sessionDetail = ref<SessionDetail | null>(null)
+const sessionDetailError = ref('')
+const sessionDetailLoading = ref(false)
+/** 丢掉过期的会话详情，避免慢请求盖住后打开的另一条。 */
+let sessionDetailSeq = 0
+const runDetail = ref<RunDetail | null>(null)
+const runError = ref('')
+const runLoading = ref(false)
+/** 最近运行标识还在，但详情接口说这条运行已经不在。 */
+const runMissing = ref(false)
+/** 丢掉过期的运行详情。 */
+let runSeq = 0
 const chatRef = ref<InstanceType<typeof ChatContainer> | null>(null)
 
 const pendingRows = ref<PendingApproval[]>([])
 const loadingApprovals = ref(false)
 const approvalBusyId = ref('')
 const approvalError = ref('')
+/** 当前展开的待确认。同时只展开一张，再点收起。 */
+const expandedApprovalId = ref('')
+const approvalDetail = ref<ApprovalDetail | null>(null)
+const approvalDetailError = ref('')
+const approvalDetailLoading = ref(false)
+/** 丢掉过期的详情响应，避免慢请求盖住后点开的另一张。 */
+let approvalDetailSeq = 0
+const noticeRows = ref<ApprovalNotice[]>([])
+const loadingNotices = ref(false)
+const noticeError = ref('')
+/** 当前展开的通知。同时只展开一张，再点收起。 */
+const expandedNoticeId = ref<number | null>(null)
+const noticeDetail = ref<ApprovalNoticeDetail | null>(null)
+const noticeDetailError = ref('')
+const noticeDetailLoading = ref(false)
+/** 丢掉过期的通知详情。 */
+let noticeDetailSeq = 0
 /** 批准后提示重发；不自动发。绑原 sessionId。 */
 const resendOffer = ref<PendingApproval | null>(null)
 /** 拒绝二次确认目标；不用 window.confirm。 */
 const rejectTarget = ref<PendingApproval | null>(null)
 
-const identity = computed(() => `${session?.tenantId || ''} / ${session?.userId || ''}`)
+const identity = computed(() => session?.displayName || '已登录')
 const emptyHint = computed(() =>
   historyOpened.value
     ? '该会话还没有已保存的消息（只有成功结束的对话会写入历史）。'
@@ -59,6 +99,7 @@ async function refreshSessions() {
   loadingSessions.value = true
   try {
     sessionRows.value = await listSessions()
+    syncSessionDetail()
   } catch (e) {
     const message = e instanceof Error ? e.message : '会话列表加载失败'
     chatRef.value?.setError(message)
@@ -77,6 +118,12 @@ async function refreshApprovals() {
   approvalError.value = ''
   try {
     pendingRows.value = await listPendingApprovals()
+    if (
+      expandedApprovalId.value
+      && !pendingRows.value.some((row) => row.approvalId === expandedApprovalId.value)
+    ) {
+      collapseApprovalDetail()
+    }
   } catch (e) {
     const message = e instanceof Error ? e.message : '待确认加载失败'
     approvalError.value = message
@@ -86,6 +133,108 @@ async function refreshApprovals() {
     }
   } finally {
     loadingApprovals.value = false
+  }
+}
+
+/** 拉本人通知。失败只写在通知区，不挡对话，也不改发送状态。 */
+async function refreshNotices() {
+  loadingNotices.value = true
+  noticeError.value = ''
+  try {
+    noticeRows.value = await listNotifications()
+    if (
+      expandedNoticeId.value != null
+      && !noticeRows.value.some((row) => row.id === expandedNoticeId.value)
+    ) {
+      collapseNoticeDetail()
+    }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : '通知加载失败'
+    noticeError.value = message.includes('unavailable') || message.includes('503')
+      ? '通知暂不可用'
+      : message
+    if (message.includes('重新登录')) {
+      clearSession()
+      await router.replace('/login')
+    }
+  } finally {
+    loadingNotices.value = false
+  }
+}
+
+/** 收起通知详情。不改列表，也不改发送状态。 */
+function collapseNoticeDetail() {
+  noticeDetailSeq += 1
+  expandedNoticeId.value = null
+  noticeDetail.value = null
+  noticeDetailError.value = ''
+  noticeDetailLoading.value = false
+}
+
+/** 通知状态的短标签。不表示消息已经送到。 */
+function noticeStatusLabel(status: string | null | undefined): string {
+  if (status === 'PENDING') {
+    return '待发送'
+  }
+  if (status === 'SENT') {
+    return '已记录'
+  }
+  if (status === 'FAILED') {
+    return '未送达'
+  }
+  return (status ?? '').trim()
+}
+
+/** 通道的短标签。 */
+function noticeChannelLabel(channel: string | null | undefined): string {
+  if (channel === 'WEB') {
+    return '页面'
+  }
+  return (channel ?? '').trim()
+}
+
+/**
+ * 点通知展开创建时间，再点收起。同时只展开一张。
+ * 找不到就刷新列表。不切换会话，也不发送。
+ */
+async function toggleNoticeDetail(row: ApprovalNotice) {
+  if (expandedNoticeId.value === row.id) {
+    collapseNoticeDetail()
+    return
+  }
+  const seq = ++noticeDetailSeq
+  expandedNoticeId.value = row.id
+  noticeDetail.value = null
+  noticeDetailError.value = ''
+  noticeDetailLoading.value = true
+  try {
+    const detail = await getNotification(row.id)
+    if (seq !== noticeDetailSeq) {
+      return
+    }
+    noticeDetail.value = detail
+  } catch (e) {
+    if (seq !== noticeDetailSeq) {
+      return
+    }
+    const message = e instanceof Error ? e.message : '通知详情加载失败'
+    if (message.includes('重新登录')) {
+      clearSession()
+      await router.replace('/login')
+      return
+    }
+    if (e instanceof ApiBusinessError && e.code === 'NOT_FOUND') {
+      collapseNoticeDetail()
+      await refreshNotices()
+      return
+    }
+    noticeDetailError.value = message.includes('unavailable') || message.includes('503')
+      ? '通知暂不可用'
+      : message
+  } finally {
+    if (seq === noticeDetailSeq) {
+      noticeDetailLoading.value = false
+    }
   }
 }
 
@@ -121,7 +270,7 @@ async function loadHistory(targetSessionId: string) {
   }
 }
 
-/** 侧栏点开已有会话：停流、切 id、拉历史。 */
+/** 侧栏点开已有会话：停流、切 id、拉历史。详情由 sessionId 变化单独拉。 */
 async function openSession(row: SessionSummary) {
   if (row.sessionId === sessionId.value || busy.value) {
     return
@@ -132,7 +281,7 @@ async function openSession(row: SessionSummary) {
   await loadHistory(row.sessionId)
 }
 
-/** 换新 sessionId，不拉历史。 */
+/** 换新 sessionId，不拉历史。未入库的新会话不请求详情。 */
 function newChat() {
   chatRef.value?.abortIfStreaming()
   sessionId.value = crypto.randomUUID()
@@ -171,15 +320,249 @@ function shortSession(id: string): string {
   return `${id.slice(0, 8)}…`
 }
 
+/** 丢掉过期的运行详情。不改会话。 */
+function clearRunDetail() {
+  runSeq += 1
+  runDetail.value = null
+  runError.value = ''
+  runLoading.value = false
+  runMissing.value = false
+}
+
+/** 丢掉过期的会话详情。不改当前会话，也不改列表。 */
+function clearSessionDetail() {
+  sessionDetailSeq += 1
+  sessionDetail.value = null
+  sessionDetailError.value = ''
+  sessionDetailLoading.value = false
+  clearRunDetail()
+}
+
+/**
+ * 只有已经出现在列表里的会话才拉详情。
+ * 新对话的临时 id 还没入库，不请求，避免当成错误。
+ */
+function syncSessionDetail() {
+  if (sessionRows.value.some((row) => row.sessionId === sessionId.value)) {
+    void loadSessionDetail(sessionId.value)
+    return
+  }
+  clearSessionDetail()
+}
+
+/**
+ * 当前选中会话的状态、轮数和最近运行。不拉正文，也不切换会话。
+ * 找不到只刷新列表。其它失败留在这一行。
+ */
+async function loadSessionDetail(id: string) {
+  const seq = ++sessionDetailSeq
+  if (sessionDetail.value?.sessionId !== id) {
+    sessionDetail.value = null
+    clearRunDetail()
+  }
+  sessionDetailError.value = ''
+  sessionDetailLoading.value = true
+  try {
+    const detail = await getSession(id)
+    if (seq !== sessionDetailSeq) {
+      return
+    }
+    sessionDetail.value = detail
+    const runId = (detail.lastRunId || '').trim()
+    if (runId) {
+      void loadRun(runId)
+    } else {
+      clearRunDetail()
+    }
+  } catch (e) {
+    if (seq !== sessionDetailSeq) {
+      return
+    }
+    const message = e instanceof Error ? e.message : '会话详情加载失败'
+    if (message.includes('重新登录')) {
+      clearSession()
+      await router.replace('/login')
+      return
+    }
+    if (e instanceof ApiBusinessError && e.code === 'NOT_FOUND') {
+      clearSessionDetail()
+      try {
+        sessionRows.value = await listSessions()
+      } catch (listError) {
+        const listMessage = listError instanceof Error ? listError.message : '会话列表加载失败'
+        sessionDetailError.value = listMessage
+      }
+      return
+    }
+    sessionDetailError.value = message
+  } finally {
+    if (seq === sessionDetailSeq) {
+      sessionDetailLoading.value = false
+    }
+  }
+}
+
+/** 会话状态的短标签。不认识的原样显示。 */
+function sessionStatusLabel(status: string | null | undefined): string {
+  if (status === 'ACTIVE') {
+    return '进行中'
+  }
+  if (status === 'ARCHIVED') {
+    return '已归档'
+  }
+  return (status ?? '').trim()
+}
+
+/**
+ * 最近一次运行的状态和起止时间。不展示步骤、输入输出摘要。
+ * 找不到只标运行已不在，不刷新会话列表。
+ */
+async function loadRun(runId: string) {
+  const seq = ++runSeq
+  if (runDetail.value?.run.runId !== runId) {
+    runDetail.value = null
+  }
+  runError.value = ''
+  runMissing.value = false
+  runLoading.value = true
+  try {
+    const detail = await getRun(runId)
+    if (seq !== runSeq) {
+      return
+    }
+    runDetail.value = detail
+  } catch (e) {
+    if (seq !== runSeq) {
+      return
+    }
+    const message = e instanceof Error ? e.message : '运行详情加载失败'
+    if (message.includes('重新登录')) {
+      clearSession()
+      await router.replace('/login')
+      return
+    }
+    if (e instanceof ApiBusinessError && e.code === 'NOT_FOUND') {
+      runDetail.value = null
+      runMissing.value = true
+      return
+    }
+    runError.value = message
+  } finally {
+    if (seq === runSeq) {
+      runLoading.value = false
+    }
+  }
+}
+
+/** 运行状态的短标签。不认识的原样显示。 */
+function runStatusLabel(status: string | null | undefined): string {
+  if (status === 'SUCCEEDED') {
+    return '已完成'
+  }
+  if (status === 'FAILED') {
+    return '失败'
+  }
+  if (status === 'CANCELLED') {
+    return '已取消'
+  }
+  return (status ?? '').trim()
+}
+
+/** 毫秒写成可读耗时。没有或负数不占一行。 */
+function formatDuration(durationMs: number | null | undefined): string {
+  if (durationMs == null || !Number.isFinite(durationMs) || durationMs < 0) {
+    return ''
+  }
+  if (durationMs < 1000) {
+    return `${durationMs} 毫秒`
+  }
+  return `${(durationMs / 1000).toFixed(1)} 秒`
+}
+
+/** 收起详情。不改待确认列表。 */
+function collapseApprovalDetail() {
+  approvalDetailSeq += 1
+  expandedApprovalId.value = ''
+  approvalDetail.value = null
+  approvalDetailError.value = ''
+  approvalDetailLoading.value = false
+}
+
+/** 待确认在这张列表里固定写成待确认。其它决定只在接口真返回时出现。 */
+function approvalDecisionLabel(decision: string | null | undefined): string {
+  if (!decision || decision === 'PENDING') {
+    return '待确认'
+  }
+  if (decision === 'APPROVED') {
+    return '已批准'
+  }
+  if (decision === 'REJECTED') {
+    return '已拒绝'
+  }
+  if (decision === 'EXPIRED') {
+    return '已过期'
+  }
+  return decision
+}
+
+/** 空串不占一行。 */
+function filled(value: string | null | undefined): string {
+  return (value ?? '').trim()
+}
+
+/**
+ * 点卡片展开详情，再点收起。同时只展开一张。
+ * 找不到就刷新列表。其它失败留在卡片上，不挡批准和拒绝。不切换会话。
+ */
+async function toggleApprovalDetail(row: PendingApproval) {
+  if (expandedApprovalId.value === row.approvalId) {
+    collapseApprovalDetail()
+    return
+  }
+  const seq = ++approvalDetailSeq
+  expandedApprovalId.value = row.approvalId
+  approvalDetail.value = null
+  approvalDetailError.value = ''
+  approvalDetailLoading.value = true
+  try {
+    const detail = await getApproval(row.approvalId)
+    if (seq !== approvalDetailSeq) {
+      return
+    }
+    approvalDetail.value = detail
+  } catch (e) {
+    if (seq !== approvalDetailSeq) {
+      return
+    }
+    const message = e instanceof Error ? e.message : '审批详情加载失败'
+    if (message.includes('重新登录')) {
+      clearSession()
+      await router.replace('/login')
+      return
+    }
+    if (e instanceof ApiBusinessError && e.code === 'NOT_FOUND') {
+      collapseApprovalDetail()
+      await refreshApprovals()
+      return
+    }
+    approvalDetailError.value = message
+  } finally {
+    if (seq === approvalDetailSeq) {
+      approvalDetailLoading.value = false
+    }
+  }
+}
+
 /** 一轮对话结束后刷新会话与待确认。 */
 async function onSent() {
-  await Promise.all([refreshSessions(), refreshApprovals()])
+  await Promise.all([refreshSessions(), refreshApprovals(), refreshNotices()])
 }
 
 /** 流里出现等待确认等状态时刷新待确认列表。 */
 function onStatus(tip: string) {
   if (tip.includes('等待确认') || tip.includes('等待用户确认')) {
     void refreshApprovals()
+    void refreshNotices()
   }
 }
 
@@ -222,6 +605,7 @@ async function decide(row: PendingApproval, decision: 'APPROVED' | 'REJECTED') {
   try {
     await decideApproval(row.approvalId, decision)
     await refreshApprovals()
+    void refreshNotices()
     if (decision === 'APPROVED') {
       resendOffer.value = row
     } else if (resendOffer.value?.approvalId === row.approvalId) {
@@ -268,6 +652,12 @@ function dismissResend() {
 onMounted(() => {
   void refreshSessions()
   void refreshApprovals()
+  void refreshNotices()
+})
+
+/** 切换会话时补详情。列表刷新也会再对齐一次。 */
+watch(sessionId, () => {
+  syncSessionDetail()
 })
 </script>
 
@@ -322,10 +712,66 @@ onMounted(() => {
           >
             <span class="block truncate font-medium">{{ rowLabel(row) }}</span>
             <span class="block truncate text-xs text-[var(--color-text-muted)]">{{ row.lastActiveAt }}</span>
+            <template v-if="row.sessionId === sessionId">
+              <span
+                v-if="sessionDetailLoading && !sessionDetail"
+                class="block truncate text-xs text-[var(--color-text-muted)]"
+              >
+                加载中…
+              </span>
+              <template v-else-if="sessionDetail">
+                <span class="block truncate text-xs text-[var(--color-text-muted)]">
+                  {{ sessionStatusLabel(sessionDetail.status) }} · {{ sessionDetail.messageCount }} 轮
+                </span>
+                <span
+                  v-if="filled(sessionDetail.lastRunId)"
+                  class="block truncate text-xs text-[var(--color-text-muted)]"
+                >
+                  最近运行 {{ shortSession(sessionDetail.lastRunId || '') }}
+                </span>
+                <template v-if="filled(sessionDetail.lastRunId)">
+                  <span
+                    v-if="runLoading && !runDetail"
+                    class="block truncate text-xs text-[var(--color-text-muted)]"
+                  >
+                    运行加载中…
+                  </span>
+                  <template v-else-if="runDetail">
+                    <span class="block truncate text-xs text-[var(--color-text-muted)]">
+                      {{ runStatusLabel(runDetail.run.status) }}
+                      <template v-if="formatDuration(runDetail.run.durationMs)">
+                        · {{ formatDuration(runDetail.run.durationMs) }}
+                      </template>
+                    </span>
+                    <span
+                      v-if="filled(runDetail.startedAt)"
+                      class="block truncate text-xs text-[var(--color-text-muted)]"
+                    >
+                      开始 {{ runDetail.startedAt }}
+                    </span>
+                    <span
+                      v-if="filled(runDetail.finishedAt)"
+                      class="block truncate text-xs text-[var(--color-text-muted)]"
+                    >
+                      结束 {{ runDetail.finishedAt }}
+                    </span>
+                  </template>
+                  <span v-if="runMissing" class="block truncate text-xs text-[var(--color-text-muted)]">
+                    运行已不在
+                  </span>
+                  <span v-if="runError" class="block truncate text-xs text-[var(--color-danger)]">
+                    {{ runError }}
+                  </span>
+                </template>
+              </template>
+              <span v-if="sessionDetailError" class="block truncate text-xs text-[var(--color-danger)]">
+                {{ sessionDetailError }}
+              </span>
+            </template>
           </button>
         </div>
 
-        <div class="border-t border-[var(--color-border)] flex flex-col max-h-[42%] min-h-[8rem]">
+        <div class="border-t border-[var(--color-border)] flex flex-col max-h-[34%] min-h-[7rem]">
           <div class="px-3 py-2 flex items-center justify-between gap-2">
             <p class="text-sm font-semibold text-[var(--color-brand-primary)]">
               待确认
@@ -354,19 +800,52 @@ onMounted(() => {
             <div
               v-for="row in pendingRows"
               :key="row.approvalId"
-              class="rounded-lg border border-[var(--color-border)] px-2.5 py-2 space-y-1.5"
+              class="rounded-lg border border-[var(--color-border)] px-2.5 py-2 space-y-1.5 cursor-pointer"
               :class="row.sessionId === sessionId
                 ? 'border-[var(--color-brand-primary)]'
                 : ''"
+              @click="toggleApprovalDetail(row)"
             >
               <p class="text-sm font-medium text-[var(--color-text-main)] truncate">{{ row.toolId }}</p>
               <p class="text-xs text-[var(--color-text-muted)] truncate">会话 {{ shortSession(row.sessionId) }}</p>
+              <div
+                v-if="expandedApprovalId === row.approvalId"
+                class="space-y-0.5"
+              >
+                <p v-if="approvalDetailLoading" class="text-xs text-[var(--color-text-muted)]">加载中…</p>
+                <template v-else-if="approvalDetail">
+                  <p class="text-xs text-[var(--color-text-main)]">
+                    {{ approvalDecisionLabel(approvalDetail.decision) }}
+                  </p>
+                  <p
+                    v-if="filled(approvalDetail.requestedAt)"
+                    class="text-xs text-[var(--color-text-muted)] truncate"
+                  >
+                    申请 {{ approvalDetail.requestedAt }}
+                  </p>
+                  <p
+                    v-if="filled(approvalDetail.reason)"
+                    class="text-xs text-[var(--color-text-muted)] break-words"
+                  >
+                    意见 {{ approvalDetail.reason }}
+                  </p>
+                  <p
+                    v-if="filled(approvalDetail.decidedAt)"
+                    class="text-xs text-[var(--color-text-muted)] truncate"
+                  >
+                    决定 {{ approvalDetail.decidedAt }}
+                  </p>
+                </template>
+                <p v-if="approvalDetailError" class="text-xs text-[var(--color-danger)]">
+                  {{ approvalDetailError }}
+                </p>
+              </div>
               <div class="flex gap-1.5">
                 <button
                   type="button"
                   class="flex-1 rounded-md bg-[var(--color-brand-primary)] px-2 py-1 text-xs text-white disabled:opacity-50"
                   :disabled="busy || !!approvalBusyId"
-                  @click="onApprove(row)"
+                  @click.stop="onApprove(row)"
                 >
                   批准
                 </button>
@@ -374,10 +853,68 @@ onMounted(() => {
                   type="button"
                   class="flex-1 rounded-md border border-[var(--color-border-strong)] px-2 py-1 text-xs hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
                   :disabled="busy || !!approvalBusyId"
-                  @click="onReject(row)"
+                  @click.stop="onReject(row)"
                 >
                   拒绝
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-[var(--color-border)] flex flex-col max-h-[28%] min-h-[6rem]">
+          <div class="px-3 py-2 flex items-center justify-between gap-2">
+            <p class="text-sm font-semibold text-[var(--color-brand-primary)]">
+              通知
+              <span v-if="noticeRows.length" class="font-normal text-[var(--color-text-muted)]">
+                · {{ noticeRows.length }}
+              </span>
+            </p>
+            <button
+              type="button"
+              class="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] disabled:opacity-50"
+              :disabled="loadingNotices"
+              @click="refreshNotices"
+            >
+              刷新
+            </button>
+          </div>
+          <p v-if="noticeError" class="px-3 pb-1 text-xs text-[var(--color-danger)]">{{ noticeError }}</p>
+          <div class="flex-1 overflow-y-auto px-2 pb-2 space-y-1.5">
+            <p v-if="loadingNotices" class="px-1 py-2 text-xs text-[var(--color-text-muted)]">加载中…</p>
+            <p
+              v-else-if="noticeRows.length === 0"
+              class="px-1 py-2 text-xs text-[var(--color-text-muted)]"
+            >
+              暂无通知
+            </p>
+            <div
+              v-for="row in noticeRows"
+              :key="row.id"
+              class="rounded-lg border border-[var(--color-border)] px-2.5 py-2 space-y-1 cursor-pointer"
+              @click="toggleNoticeDetail(row)"
+            >
+              <p class="text-sm font-medium text-[var(--color-text-main)] truncate">
+                审批 {{ shortSession(row.approvalId) }}
+              </p>
+              <p class="text-xs text-[var(--color-text-muted)] truncate">
+                {{ noticeStatusLabel(row.sendStatus) }}
+                <template v-if="noticeChannelLabel(row.channel)"> · {{ noticeChannelLabel(row.channel) }}</template>
+              </p>
+              <div v-if="expandedNoticeId === row.id" class="space-y-0.5">
+                <p v-if="noticeDetailLoading" class="text-xs text-[var(--color-text-muted)]">加载中…</p>
+                <template v-else-if="noticeDetail">
+                  <p
+                    v-if="filled(noticeDetail.createdAt)"
+                    class="text-xs text-[var(--color-text-muted)] truncate"
+                  >
+                    创建 {{ noticeDetail.createdAt }}
+                  </p>
+                  <p v-else class="text-xs text-[var(--color-text-muted)]">没有创建时间</p>
+                </template>
+                <p v-if="noticeDetailError" class="text-xs text-[var(--color-danger)]">
+                  {{ noticeDetailError }}
+                </p>
               </div>
             </div>
           </div>

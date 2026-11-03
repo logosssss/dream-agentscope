@@ -40,6 +40,18 @@ export const useChatStore = defineStore('chat', () => {
     sessions.value[`${agentId}:${sessionId}`] = []
   }
 
+  /** 按 id 去掉一条。发送失败且助手还没正文时用，避免留下空白气泡。 */
+  function dropMessage(agentId: string, sessionId: string, messageId: string): void {
+    const list = sessions.value[`${agentId}:${sessionId}`]
+    if (!list) {
+      return
+    }
+    const index = list.findIndex((item) => item.id === messageId)
+    if (index >= 0) {
+      list.splice(index, 1)
+    }
+  }
+
   /**
    * 用服务端历史整表替换本地气泡。
    * 切会话时调用，避免和内存里未完成的流式半截混在一起。
@@ -48,5 +60,5 @@ export const useChatStore = defineStore('chat', () => {
     sessions.value[`${agentId}:${sessionId}`] = messages.map((m) => ({ ...m }))
   }
 
-  return { sessions, getMessages, appendMessage, clearMessages, replaceMessages }
+  return { sessions, getMessages, appendMessage, clearMessages, dropMessage, replaceMessages }
 })

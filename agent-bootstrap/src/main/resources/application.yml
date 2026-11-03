@@ -54,6 +54,17 @@ agentscope:
     per-minute: 0
     # 登录会话在 Redis 的有效秒数。小于 1 时按一天。
     login-session-seconds: ${AGENTSCOPE_LOGIN_SESSION_SECONDS:86400}
+  auth:
+    # 自助注册和微信建号进入的租户。必须已经登记且为 ACTIVE。
+    tenant-id: ${AGENTSCOPE_AUTH_TENANT_ID:demo}
+  wx:
+    mini:
+      # 小程序 AppID 和密钥只来自环境变量。没配时网页不显示扫码。
+      app-id: ${WX_MINI_APP_ID:}
+      app-secret: ${WX_MINI_APP_SECRET:}
+      login-page: ${WX_MINI_LOGIN_PAGE:pages/login-confirm/index}
+      env-version: ${WX_MINI_ENV_VERSION:release}
+      ticket-ttl-seconds: ${WX_MINI_TICKET_TTL_SECONDS:300}
   caller:
     # 调用方令牌。空则除存活和就绪外全部拒绝。不是用户登录，仓库不放值。
     token: ${AGENTSCOPE_CALLER_TOKEN:}

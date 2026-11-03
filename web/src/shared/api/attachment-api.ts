@@ -1,6 +1,6 @@
 import { authHeaders, apiJson } from '@/shared/api/http'
 import { clearSession } from '@/shared/auth/session'
-import type { AttachmentSummary } from '@/shared/types/api.types'
+import type { AttachmentDetail, AttachmentRefItem, AttachmentSummary } from '@/shared/types/api.types'
 
 /**
  * 用户附件目录。列表只含仍启用；停用改 DELETED，不删对象。
@@ -10,6 +10,19 @@ import type { AttachmentSummary } from '@/shared/types/api.types'
 export function listAttachments(limit = 50): Promise<AttachmentSummary[]> {
   const q = new URLSearchParams({ limit: String(limit) })
   return apiJson<AttachmentSummary[]>(`/api/attachments?${q}`)
+}
+
+/** 一条仍启用附件的 MIME、大小和登记时间。不下载正文。 */
+export function getAttachment(attachmentId: string): Promise<AttachmentDetail> {
+  return apiJson<AttachmentDetail>(`/api/attachments/${encodeURIComponent(attachmentId)}`)
+}
+
+/** 该附件上的引用，新的在前。不核消息、运行或文档是否存在。 */
+export function listAttachmentRefs(attachmentId: string, limit = 50): Promise<AttachmentRefItem[]> {
+  const q = new URLSearchParams({ limit: String(limit) })
+  return apiJson<AttachmentRefItem[]>(
+    `/api/attachments/${encodeURIComponent(attachmentId)}/refs?${q}`,
+  )
 }
 
 /** multipart 上传；不超过服务端 5MB。不设 JSON Content-Type。 */

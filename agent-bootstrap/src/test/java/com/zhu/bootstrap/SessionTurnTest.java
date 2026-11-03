@@ -7,12 +7,15 @@ import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.application.SessionTurnGuard;
 import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.access.config.AccessLimitProperties;
+import com.zhu.common.context.TenantContext;
+import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentResponse;
 import java.time.Clock;
 import java.time.Duration;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +28,13 @@ import static org.mockito.Mockito.when;
  * 同一会话进行中时，第二次对话被拒绝。结束后可以再进入。
  */
 class SessionTurnTest {
+
+    /** 对话会把用户留在线程上，结束时清掉。 */
+    @AfterEach
+    void clearIdentity() {
+        TenantContext.clear();
+        UserContext.clear();
+    }
 
     /** 执行过程中再开一轮同一会话会冲突，结束后锁已释放。 */
     @Test
@@ -55,6 +65,8 @@ class SessionTurnTest {
                 },
                 new AbsentChatMessageStore());
 
+        TenantContext.set("t");
+        UserContext.set("u");
         chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null));
 
         assertThat(cache.lock("turn:t:u:s", "again", Duration.ofMinutes(1))).isTrue();

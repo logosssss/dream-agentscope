@@ -6,17 +6,19 @@ import type { ApiResult } from '@/shared/types/api.types'
  * 聊天流式请走 useStreaming，不要用本模块的 json 解析。
  */
 
-/** 组装鉴权头。缺 Caller Token 直接抛错，避免静默 401。 */
-export function authHeaders(extra?: HeadersInit): Headers {
+/** 组装鉴权头。缺 Caller Token 直接抛错。登录和出码可以不带旧会话。 */
+export function authHeaders(extra?: HeadersInit, bearer = true): Headers {
   const headers = new Headers(extra)
   const caller = import.meta.env.VITE_CALLER_TOKEN
   if (!caller || caller.trim() === '') {
     throw new Error('未配置 VITE_CALLER_TOKEN，请复制 web/.env.example 为 .env.local 并填写')
   }
   headers.set('X-Caller-Token', caller.trim())
-  const session = loadSession()
-  if (session) {
-    headers.set('Authorization', `Bearer ${session.accessToken}`)
+  if (bearer) {
+    const session = loadSession()
+    if (session) {
+      headers.set('Authorization', `Bearer ${session.accessToken}`)
+    }
   }
   if (!headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
@@ -25,12 +27,28 @@ export function authHeaders(extra?: HeadersInit): Headers {
 }
 
 /**
- * JSON API 调用。HTTP 401 清会话；503 与 ok=false 都转成 Error。
+ * 业务失败。HTTP 往往仍是 200，调用方看 code。
+ * 503 不走这里，仍是普通 Error。
  */
-export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
+export class ApiBusinessError extends Error {
+  readonly code: string
+
+  constructor(code: string, message: string) {
+    super(message)
+    this.name = 'ApiBusinessError'
+    this.code = code
+  }
+}
+
+/** JSON API 调用。HTTP 401 清会话；503 与 ok=false 都转成 Error。业务失败带 code。 */
+export async function apiJson<T>(
+  path: string,
+  init?: RequestInit,
+  options?: { bearer?: boolean },
+): Promise<T> {
   const response = await fetch(path, {
     ...init,
-    headers: authHeaders(init?.headers),
+    headers: authHeaders(init?.headers, options?.bearer !== false),
   })
 
   if (response.status === 401) {
@@ -64,7 +82,7 @@ export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
     if (body.code === 'UNAUTHORIZED') {
       clearSession()
     }
-    throw new Error(body.message || body.code || '业务失败')
+    throw new ApiBusinessError(body.code || 'ERROR', body.message || body.code || '业务失败')
   }
 
   return body.data

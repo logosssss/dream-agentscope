@@ -41,6 +41,12 @@ public interface AttachmentCatalog {
     AttachmentRefSummary link(String userId, String attachmentId, String refType, String refId);
 
     /**
+     * 本人本租户仍启用的附件上的引用。默认 50 条，最多 100 条。
+     * 别人的或停用按找不到。不核消息、运行或文档是否存在，也不读对象存储。
+     */
+    List<AttachmentRefItem> listRefs(String userId, String tenantId, String attachmentId, int limit);
+
+    /**
      * 当前用户挂到该引用上的存储路径。没有行返回空列表。
      * 空白租户按空串。不核文档、消息或运行是否存在。
      */

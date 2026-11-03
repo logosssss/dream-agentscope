@@ -7,6 +7,12 @@ package com.zhu.access.api.dto;
  * @param expiresIn   有效秒数
  * @param tenantId    登录时核对过的租户
  * @param userId      登录时核对过的用户
+ * @param displayName 页面上显示的名字。会话键里不放
  */
-public record LoginResponse(String accessToken, long expiresIn, String tenantId, String userId) {
+public record LoginResponse(
+        String accessToken,
+        long expiresIn,
+        String tenantId,
+        String userId,
+        String displayName) {
 }

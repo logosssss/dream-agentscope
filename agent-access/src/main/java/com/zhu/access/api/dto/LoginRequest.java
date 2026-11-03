@@ -1,10 +1,10 @@
 package com.zhu.access.api.dto;
 
 /**
- * 用户登录入参。没有密码字段，只核对已登记且仍可用的租户用户。
+ * 客户端密码登录和注册的入参。不接收租户和用户标识。
  *
- * @param tenantId 租户。空串按空租户交给门
- * @param userId   用户业务标识
+ * @param accountName 登录名
+ * @param password    密码。登录失败时不说明是哪一项错了
  */
-public record LoginRequest(String tenantId, String userId) {
+public record LoginRequest(String accountName, String password) {
 }
