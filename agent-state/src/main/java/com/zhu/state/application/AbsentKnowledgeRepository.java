@@ -5,6 +5,7 @@ import com.zhu.common.exception.ErrorCode;
 import com.zhu.state.api.KnowledgeBaseItem;
 import com.zhu.state.api.KnowledgeChunkItem;
 import com.zhu.state.api.KnowledgeDocumentItem;
+import com.zhu.state.api.KnowledgeDocumentVersion;
 import com.zhu.state.api.KnowledgeRepository;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -56,6 +57,12 @@ public class AbsentKnowledgeRepository implements KnowledgeRepository {
 
     @Override
     public KnowledgeDocumentItem findDocument(String docId, int version, String tenantId, String userId) {
+        return null;
+    }
+
+    /** 关闭时不查库。调用方按找不到处理，不改记到内存。 */
+    @Override
+    public KnowledgeDocumentVersion findLatestDocument(String docId, String tenantId, String userId) {
         return null;
     }
 

@@ -12,6 +12,10 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface KbDocumentMapper extends BaseMapper<KbDocument> {
 
+    /** 版本号最大的一行，不含 content。 */
+    KbDocument findLatestOwned(
+            @Param("docId") String docId, @Param("tenantId") String tenantId, @Param("userId") String userId);
+
     KbDocument findOwned(
             @Param("docId") String docId,
             @Param("version") int version,

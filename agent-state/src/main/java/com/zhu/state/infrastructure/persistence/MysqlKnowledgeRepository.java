@@ -5,6 +5,7 @@ import com.zhu.common.exception.ErrorCode;
 import com.zhu.state.api.KnowledgeBaseItem;
 import com.zhu.state.api.KnowledgeChunkItem;
 import com.zhu.state.api.KnowledgeDocumentItem;
+import com.zhu.state.api.KnowledgeDocumentVersion;
 import com.zhu.state.api.KnowledgeRepository;
 import com.zhu.state.infrastructure.persistence.entity.KbChunk;
 import com.zhu.state.infrastructure.persistence.entity.KbDocument;
@@ -160,6 +161,15 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
         return toDoc(documents.findOwned(docId, version, tenant(tenantId), userId));
     }
 
+    /** 不读 content。超长标识按没有这行，避免截断后对上别人的文档。 */
+    @Override
+    public KnowledgeDocumentVersion findLatestDocument(String docId, String tenantId, String userId) {
+        if (blank(docId) || docId.length() > KB_LIMIT || blank(userId)) {
+            return null;
+        }
+        return toVersion(documents.findLatestOwned(docId, tenant(tenantId), userId));
+    }
+
     @Override
     public int latestVersion(String docId, String tenantId, String userId) {
         if (blank(docId) || blank(userId)) {
@@ -291,6 +301,22 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
             return null;
         }
         return new KnowledgeBaseItem(row.getKbId(), row.getTenantId(), row.getUserId(), row.getAgentId(), row.getName());
+    }
+
+    private static KnowledgeDocumentVersion toVersion(KbDocument row) {
+        if (row == null) {
+            return null;
+        }
+        return new KnowledgeDocumentVersion(
+                row.getDocId(),
+                row.getVersion() == null ? 0 : row.getVersion(),
+                row.getKbId(),
+                row.getAgentId(),
+                row.getTitle(),
+                row.getStatus(),
+                row.getErrorMsg(),
+                row.getCreatedAt(),
+                row.getUpdatedAt());
     }
 
     private static KnowledgeDocumentItem toDoc(KbDocument row) {

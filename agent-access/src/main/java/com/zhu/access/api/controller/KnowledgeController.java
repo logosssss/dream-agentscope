@@ -1,6 +1,7 @@
 package com.zhu.access.api.controller;
 
 import com.zhu.access.api.dto.KnowledgeBaseCreateRequest;
+import com.zhu.access.api.dto.KnowledgeDocumentDetail;
 import com.zhu.access.api.dto.KnowledgeDocumentUploadRequest;
 import com.zhu.access.application.AccessAccountGate;
 import com.zhu.access.application.KnowledgeAppService;
@@ -136,6 +137,15 @@ public class KnowledgeController {
             @PathVariable String docId, @RequestParam("version") int version) {
         accounts.requireActive();
         return ApiResult.ok(knowledge.status(TenantContext.get(), UserContext.get(), docId, version));
+    }
+
+    /**
+     * 别人的按找不到。看最新一版的状态和时间，不读正文，也不改状态。
+     */
+    @GetMapping("/api/kb/documents/{docId}")
+    public ApiResult<KnowledgeDocumentDetail> document(@PathVariable String docId) {
+        accounts.requireActive();
+        return ApiResult.ok(knowledge.document(TenantContext.get(), UserContext.get(), docId));
     }
 
     /** 失败或仍 PENDING 时可重试索引。 */

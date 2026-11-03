@@ -1,5 +1,6 @@
 package com.zhu.access.application;
 
+import com.zhu.access.api.dto.KnowledgeDocumentDetail;
 import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
@@ -7,10 +8,12 @@ import com.zhu.common.util.Ids;
 import com.zhu.objectstore.api.ObjectStore;
 import com.zhu.state.api.KnowledgeBaseItem;
 import com.zhu.state.api.KnowledgeDocumentItem;
+import com.zhu.state.api.KnowledgeDocumentVersion;
 import com.zhu.state.api.KnowledgeRepository;
 import com.zhu.vector.api.VectorStore;
 import com.zhu.vector.infrastructure.MilvusCollections;
 import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -30,6 +33,11 @@ public class KnowledgeAppService {
 
     /** 正文 UTF-8 字节上限。在 DTO 入口拒绝。 */
     public static final int MAX_CONTENT_BYTES = 2 * 1024 * 1024;
+
+    /** 文档标识列宽。超长按请求错误，避免截断后对上另一篇。 */
+    private static final int DOC_ID_LIMIT = 64;
+
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private static final String REF_DOCUMENT = "DOCUMENT";
 
@@ -177,6 +185,34 @@ public class KnowledgeAppService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "document not found");
         }
         return stripContent(doc);
+    }
+
+    /**
+     * 本人最新一版。空标识或超长拒绝。别人的按找不到。
+     * 不读正文，不改状态，也不重新索引。
+     */
+    public KnowledgeDocumentDetail document(String tenantId, String userId, String docId) {
+        KnowledgeRepository repo = requireRepo();
+        requireUser(userId);
+        if (blank(docId) || docId.length() > DOC_ID_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "document is invalid");
+        }
+        KnowledgeDocumentVersion latest = repo.findLatestDocument(docId, tenantId, userId);
+        if (latest == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "document not found");
+        }
+        String created = latest.createdAt() == null ? "" : TIME.format(latest.createdAt());
+        String updated = latest.updatedAt() == null ? "" : TIME.format(latest.updatedAt());
+        return new KnowledgeDocumentDetail(
+                latest.docId(),
+                latest.version(),
+                latest.kbId(),
+                latest.agentId(),
+                latest.title(),
+                latest.status(),
+                latest.errorMsg(),
+                created,
+                updated);
     }
 
     /** 失败版可重试索引。 */

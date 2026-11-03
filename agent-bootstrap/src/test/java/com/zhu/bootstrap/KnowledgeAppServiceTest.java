@@ -7,11 +7,14 @@ import com.zhu.audit.api.AttachmentSummary;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.objectstore.api.ObjectStore;
+import com.zhu.access.api.dto.KnowledgeDocumentDetail;
 import com.zhu.state.api.KnowledgeBaseItem;
 import com.zhu.state.api.KnowledgeDocumentItem;
+import com.zhu.state.api.KnowledgeDocumentVersion;
 import com.zhu.state.api.KnowledgeRepository;
 import com.zhu.vector.api.VectorStore;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -19,6 +22,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -197,8 +201,54 @@ class KnowledgeAppServiceTest {
         verify(repo).findBase("missing", "t", "u");
     }
 
+    /** 最新一版带创建和更新时间。不读正文，也不触发索引。 */
+    @Test
+    void documentReturnsLatestTimesWithoutContent() {
+        KnowledgeRepository repo = mock(KnowledgeRepository.class);
+        KnowledgeIndexLauncher indexer = mock(KnowledgeIndexLauncher.class);
+        when(repo.findLatestDocument("doc-1", "t", "u")).thenReturn(new KnowledgeDocumentVersion(
+                "doc-1", 2, "kb1", "agent-a", "readme", "SUCCESS", null,
+                LocalDateTime.of(2026, 11, 2, 1, 2, 3),
+                LocalDateTime.of(2026, 11, 2, 4, 5, 6)));
+        KnowledgeAppService knowledge = service(repo, mock(VectorStore.class), mock(ObjectStore.class), null, indexer);
+
+        KnowledgeDocumentDetail detail = knowledge.document("t", "u", "doc-1");
+
+        assertThat(detail).isEqualTo(new KnowledgeDocumentDetail(
+                "doc-1", 2, "kb1", "agent-a", "readme", "SUCCESS", null,
+                "2026-11-02T01:02:03", "2026-11-02T04:05:06"));
+        verify(indexer, never()).enqueue(any(), any(), any(), any(), anyInt());
+    }
+
+    /** 别人的按找不到。空标识不查库。 */
+    @Test
+    void documentRejectsMissingOrBlank() {
+        KnowledgeRepository repo = mock(KnowledgeRepository.class);
+        when(repo.findLatestDocument("missing", "t", "u")).thenReturn(null);
+        KnowledgeAppService knowledge = service(repo, mock(VectorStore.class), mock(ObjectStore.class), null);
+
+        assertThatThrownBy(() -> knowledge.document("t", "u", "missing"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        assertThatThrownBy(() -> knowledge.document("t", "u", " "))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(repo, never()).findLatestDocument(eq(" "), any(), any());
+    }
+
     private static KnowledgeAppService service(
             KnowledgeRepository repo, VectorStore vectors, ObjectStore objects, AttachmentCatalog catalog) {
+        return service(repo, vectors, objects, catalog, mock(KnowledgeIndexLauncher.class));
+    }
+
+    private static KnowledgeAppService service(
+            KnowledgeRepository repo,
+            VectorStore vectors,
+            ObjectStore objects,
+            AttachmentCatalog catalog,
+            KnowledgeIndexLauncher indexer) {
         @SuppressWarnings("unchecked")
         ObjectProvider<KnowledgeRepository> repos = mock(ObjectProvider.class);
         when(repos.getIfAvailable()).thenReturn(repo);
@@ -206,6 +256,6 @@ class KnowledgeAppServiceTest {
         ObjectProvider<AttachmentCatalog> attachments = mock(ObjectProvider.class);
         when(attachments.getIfAvailable()).thenReturn(catalog);
         return new KnowledgeAppService(
-                repos, mock(KnowledgeIndexLauncher.class), vectors, objects, attachments, "companion-v1");
+                repos, indexer, vectors, objects, attachments, "companion-v1");
     }
 }

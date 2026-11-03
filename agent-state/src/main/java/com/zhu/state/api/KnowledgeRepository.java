@@ -45,6 +45,12 @@ public interface KnowledgeRepository {
     /** 本人文档某一版。找不到返回 null。 */
     KnowledgeDocumentItem findDocument(String docId, int version, String tenantId, String userId);
 
+    /**
+     * 本人该文档版本号最大的一行，不含正文。含已归档。
+     * 空标识、超长或别人的返回 null，不抛找不到。
+     */
+    KnowledgeDocumentVersion findLatestDocument(String docId, String tenantId, String userId);
+
     /** 本人该 doc 最大版本号。没有行返回 0。 */
     int latestVersion(String docId, String tenantId, String userId);
 

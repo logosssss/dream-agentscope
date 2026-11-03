@@ -19,6 +19,18 @@
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
+    <!-- 详情不带 content。版本号最大即最新一版，含 ARCHIVED。 -->
+    <select id="findLatestOwned" resultMap="BaseResultMap">
+        SELECT id, doc_id, version, kb_id, tenant_id, user_id, agent_id, title,
+               NULL AS content, status, error_msg, created_at, updated_at
+        FROM kb_document
+        WHERE doc_id = #{docId}
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+        ORDER BY version DESC
+        LIMIT 1
+    </select>
+
     <select id="findOwned" resultMap="BaseResultMap">
         SELECT id, doc_id, version, kb_id, tenant_id, user_id, agent_id, title, content,
                status, error_msg, created_at, updated_at
