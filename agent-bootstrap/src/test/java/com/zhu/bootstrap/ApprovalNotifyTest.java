@@ -3,6 +3,7 @@ package com.zhu.bootstrap;
 import com.zhu.access.api.controller.ApprovalController;
 import com.zhu.access.api.dto.ApprovalDecisionRequest;
 import com.zhu.access.api.dto.ApprovalDecisionView;
+import com.zhu.access.api.dto.ApprovalDetail;
 import com.zhu.access.api.dto.PendingApproval;
 import com.zhu.access.application.AccessAccountGate;
 import com.zhu.audit.api.ApprovalDecision;
@@ -118,6 +119,51 @@ class ApprovalNotifyTest {
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
         verify(decisions, never()).decide(any(), any(), any(), any(), any());
+    }
+
+    /** 已决定的也返回申请和决定时间。不调用决定口。 */
+    @Test
+    void getReturnsDecidedTimesWithoutExecuting() {
+        AuditQuery audits = mock(AuditQuery.class);
+        ApprovalDecider decisions = mock(ApprovalDecider.class);
+        LocalDateTime requested = LocalDateTime.of(2026, 11, 2, 1, 2, 3);
+        LocalDateTime decidedAt = LocalDateTime.of(2026, 11, 2, 4, 5, 6);
+        when(audits.ownedOne("tenant-a", "user-a", "a-1")).thenReturn(new ApprovalRow(
+                "a-1", "user-a", "session-a", "shell", "APPROVED",
+                requested, "user-a", "WEB", "ok", decidedAt));
+        ApprovalController controller = new ApprovalController(audits, decisions, openAccounts());
+        TenantContext.set("tenant-a");
+        UserContext.set("user-a");
+
+        ApiResult<ApprovalDetail> result = controller.get("a-1");
+
+        assertThat(result.data()).isEqualTo(new ApprovalDetail(
+                "a-1", "shell", "session-a", "APPROVED", "2026-11-02T01:02:03", "2026-11-02T04:05:06", "ok"));
+        verify(decisions, never()).decide(any(), any(), any(), any(), any());
+    }
+
+    /** 待处理的决定时间为空串。别人的或空单号不改库。 */
+    @Test
+    void getRejectsMissingOrBlank() {
+        AuditQuery audits = mock(AuditQuery.class);
+        when(audits.ownedOne("tenant-a", "user-a", "a-2")).thenReturn(null);
+        when(audits.ownedOne("tenant-a", "user-a", "a-3")).thenReturn(new ApprovalRow(
+                "a-3", "user-a", "session-a", "shell", "PENDING",
+                null, null, null, null, null));
+        ApprovalController controller = new ApprovalController(audits, mock(ApprovalDecider.class), openAccounts());
+        TenantContext.set("tenant-a");
+        UserContext.set("user-a");
+
+        assertThat(controller.get("a-3").data().decidedAt()).isEqualTo("");
+        assertThatThrownBy(() -> controller.get("a-2"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
+        assertThatThrownBy(() -> controller.get(" "))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+        verify(audits, never()).ownedOne("tenant-a", "user-a", " ");
     }
 
     /** 测试不查租户表。 */

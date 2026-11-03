@@ -2,6 +2,7 @@ package com.zhu.access.api.controller;
 
 import com.zhu.access.api.dto.ApprovalDecisionRequest;
 import com.zhu.access.api.dto.ApprovalDecisionView;
+import com.zhu.access.api.dto.ApprovalDetail;
 import com.zhu.access.api.dto.PendingApproval;
 import com.zhu.access.application.AccessAccountGate;
 import com.zhu.access.domain.channel.AccessChannel;
@@ -14,6 +15,7 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +32,11 @@ public class ApprovalController {
 
     /** 用户自批通道固定为页面，不接受调用方改通道。 */
     private static final String CHANNEL = AccessChannel.WEB.name();
+
+    /** 审批单标识列宽。超长按请求错误，避免把截断后的单号当成另一张单。 */
+    private static final int APPROVAL_ID_LIMIT = 64;
+
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final AuditQuery audits;
 
@@ -59,6 +66,34 @@ public class ApprovalController {
             result.add(new PendingApproval(row.approvalId(), row.toolName(), row.sessionId()));
         }
         return ApiResult.ok(result);
+    }
+
+    /**
+     * 别人的或找不到的按找不到。含已决定行。
+     * 不读工具参数和执行结果，也不改决定、不执行工具。
+     */
+    @GetMapping("/api/approvals/{approvalId}")
+    public ApiResult<ApprovalDetail> get(@PathVariable String approvalId) {
+        accounts.requireActive();
+        if (approvalId == null || approvalId.isBlank() || approvalId.length() > APPROVAL_ID_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "approval is invalid");
+        }
+        String userId = UserContext.get();
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        ApprovalRow owned = audits.ownedOne(tenantId, userId, approvalId);
+        if (owned == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "approval not found");
+        }
+        String requested = owned.requestedAt() == null ? "" : TIME.format(owned.requestedAt());
+        String decided = owned.decidedAt() == null ? "" : TIME.format(owned.decidedAt());
+        return ApiResult.ok(new ApprovalDetail(
+                owned.approvalId(),
+                owned.toolName(),
+                owned.sessionId(),
+                owned.decision(),
+                requested,
+                decided,
+                owned.reason()));
     }
 
     /**

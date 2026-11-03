@@ -32,7 +32,7 @@
 
 事件放在发布相关的领域包，不放进 `agent-common`。`agent-common` 不承载业务事件。
 
-`approval_record.tenant_id` 由 `V3__approval_tenant.sql` 补上。没有租户时写成空串。
+`approval_record.tenant_id` 由 `V3__approval_tenant.sql` 补上。没有租户时写成空串。`GET /api/approvals/{approvalId}` 先确认本人本租户再返回决定、申请时间和决定时间，含已决定行。不读工具参数和执行结果。别人的标识按找不到。仍不执行工具。
 
 模型调用的 token 用量也记在这张表里，动作名是 `model.usage`。同时写入 `token_usage`：同步对话的 `run_id` 与 `agent_run` 相同，流式对话的 `agent_run` 由接入层另生成，两边可能不同。计价读 `model_price` 里当前生效的一行，按每千 token 的单价计算，保留 6 位小数。没有命中的价格时金额记 0，币种是 `CNY`。用户或模型为空时不写这张表。写失败不改变回复。`GET /api/usage` 列出当前用户在这个租户下的用量，默认 50 条，最多 100 条。`GET /api/usage/{usageId}` 先确认本人本租户再返回 token、金额和记账时间。别人的主键按找不到。不带提示词，也不改金额。管理进程不查询这张表。
 
