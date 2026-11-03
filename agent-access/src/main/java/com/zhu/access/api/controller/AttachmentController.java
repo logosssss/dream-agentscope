@@ -95,7 +95,7 @@ public class AttachmentController {
     }
 
     /**
-     * 别人的或停用的按找不到。不读对象存储，也不带回校验和。
+     * 别人的或停用的按找不到。带创建时间。不读对象存储，也不带回校验和。
      */
     @GetMapping("/api/attachments/{attachmentId}")
     public ApiResult<AttachmentDetail> get(@PathVariable String attachmentId) {

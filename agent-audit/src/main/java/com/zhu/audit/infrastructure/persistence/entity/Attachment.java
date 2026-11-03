@@ -3,6 +3,7 @@ package com.zhu.audit.infrastructure.persistence.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.time.LocalDateTime;
 
 /**
  * attachment 的一行。只描述元数据，不表示文件已经入库。
@@ -46,6 +47,9 @@ public class Attachment {
 
     /** ACTIVE / DELETED。停用只改状态，不删对象。 */
     private String status;
+
+    /** 登记时间。详情才返回，列表不带。 */
+    private LocalDateTime createdAt;
 
     /** 主键。 */
     public Long getId() {
@@ -165,5 +169,15 @@ public class Attachment {
     /** 写入状态。这次只写 ACTIVE。 */
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    /** 登记时间。没有时详情返回空串。 */
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    /** 写入登记时间。 */
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

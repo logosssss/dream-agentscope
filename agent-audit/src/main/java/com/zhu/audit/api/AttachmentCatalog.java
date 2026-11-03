@@ -60,7 +60,7 @@ public interface AttachmentCatalog {
 
     /**
      * 本人本租户仍启用的一条附件。别人的或停用按找不到。
-     * 不读对象存储，也不带回校验和。
+     * 带创建时间。不读对象存储，也不带回校验和。列表仍不带创建时间。
      */
     AttachmentDetail ownedOne(String userId, String tenantId, String attachmentId);
 }

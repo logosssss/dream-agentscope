@@ -12,6 +12,7 @@ import com.zhu.audit.infrastructure.persistence.entity.AttachmentRef;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -28,6 +29,9 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
     private static final String ACTIVE = "ACTIVE";
 
     private static final String DELETED = "DELETED";
+
+    /** 登记时间按本地日期时间写出，不带时区后缀。 */
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private static final String DEFAULT_STORAGE = "LOCAL";
 
@@ -246,6 +250,7 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
 
     /**
      * 空标识拒绝。找不到、别人的或停用按找不到，避免把路径漏出去。
+     * 带创建时间。不读对象存储，也不改状态。
      */
     @Override
     public AttachmentDetail ownedOne(String userId, String tenantId, String attachmentId) {
@@ -296,10 +301,11 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
                 status);
     }
 
-    /** 详情补 MIME 和大小。仍不带回校验和。 */
+    /** 详情补 MIME、大小和创建时间。仍不带回校验和。 */
     private static AttachmentDetail detail(Attachment row) {
         String tenant = row.getTenantId() == null ? "" : row.getTenantId();
         String mime = row.getMimeType() == null || row.getMimeType().isBlank() ? null : row.getMimeType();
+        String created = row.getCreatedAt() == null ? "" : TIME.format(row.getCreatedAt());
         return new AttachmentDetail(
                 row.getAttachmentId(),
                 tenant,
@@ -310,6 +316,7 @@ public class MysqlAttachmentCatalog implements AttachmentCatalog {
                 row.getStoragePath(),
                 mime,
                 row.getSizeBytes(),
-                row.getStatus());
+                row.getStatus(),
+                created);
     }
 }

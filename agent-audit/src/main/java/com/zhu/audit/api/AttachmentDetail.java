@@ -1,7 +1,7 @@
 package com.zhu.audit.api;
 
 /**
- * 一条附件的详情。比列表多 MIME 和大小，仍不带回校验和，也不读对象存储。
+ * 一条附件的详情。比列表多 MIME、大小和创建时间，仍不带回校验和，也不读对象存储。
  *
  * @param attachmentId 附件标识
  * @param tenantId     租户，没有时是空串
@@ -13,6 +13,7 @@ package com.zhu.audit.api;
  * @param mimeType     可以空
  * @param sizeBytes    声称的大小，可以空
  * @param status       这次是 ACTIVE
+ * @param createdAt    登记时间，UTC，没有时区后缀；没有时为空串
  */
 public record AttachmentDetail(
         String attachmentId,
@@ -24,5 +25,6 @@ public record AttachmentDetail(
         String storagePath,
         String mimeType,
         Long sizeBytes,
-        String status) {
+        String status,
+        String createdAt) {
 }

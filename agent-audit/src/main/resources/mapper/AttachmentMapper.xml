@@ -86,7 +86,7 @@
         LIMIT #{limit}
     </select>
 
-    <!-- 详情比列表多 MIME 和大小。仍不带回校验和。 -->
+    <!-- 详情比列表多 MIME、大小和创建时间。仍不带回校验和。 -->
     <resultMap id="DetailResultMap" type="com.zhu.audit.infrastructure.persistence.entity.Attachment">
         <result column="attachment_id" property="attachmentId"/>
         <result column="tenant_id" property="tenantId"/>
@@ -98,12 +98,13 @@
         <result column="mime_type" property="mimeType"/>
         <result column="size_bytes" property="sizeBytes"/>
         <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
     </resultMap>
 
-    <!-- 本人本租户仍启用的一条。不带回校验和。 -->
+    <!-- 本人本租户仍启用的一条。不带回校验和。列表不带创建时间。 -->
     <select id="findOwned" resultMap="DetailResultMap">
         SELECT attachment_id, tenant_id, user_id, session_id, file_name, storage_type, storage_path,
-               mime_type, size_bytes, status
+               mime_type, size_bytes, status, created_at
         FROM attachment
         WHERE attachment_id = #{attachmentId}
           AND user_id = #{userId}

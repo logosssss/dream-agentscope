@@ -8,6 +8,7 @@ import com.zhu.audit.infrastructure.persistence.entity.Attachment;
 import com.zhu.audit.infrastructure.persistence.entity.AttachmentRef;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -24,7 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 附件只登记元数据和引用。详情才带 MIME 和大小。不连接 MySQL，也不收文件。
+ * 附件只登记元数据和引用。详情才带 MIME、大小和创建时间。不连接 MySQL，也不收文件。
  */
 class AttachmentCatalogTest {
 
@@ -231,15 +232,16 @@ class AttachmentCatalogTest {
         verify(attachments, never()).findStored(any());
     }
 
-    /** 先确认归属再带 MIME 和大小。空白租户按空串。 */
+    /** 先确认归属再带 MIME、大小和创建时间。空白租户按空串。 */
     @Test
-    void ownedOneReturnsMimeAndSize() {
+    void ownedOneReturnsMimeSizeAndCreatedAt() {
         AttachmentMapper attachments = mock(AttachmentMapper.class);
         MysqlAttachmentCatalog catalog = new MysqlAttachmentCatalog(attachments, mock(AttachmentRefMapper.class));
         Attachment row = storedRow("att-1", "t", "u", "a.txt", "att/t/u/att-1/a.txt", "text/plain", "ACTIVE");
         row.setSessionId("s1");
         row.setStorageType("OSS");
         row.setSizeBytes(12L);
+        row.setCreatedAt(LocalDateTime.of(2026, 11, 2, 1, 2, 3));
         when(attachments.findOwned("u", "t", "att-1")).thenReturn(row);
         assertThat(catalog.ownedOne("u", "t", "att-1")).satisfies(detail -> {
             assertThat(detail.attachmentId()).isEqualTo("att-1");
@@ -247,10 +249,12 @@ class AttachmentCatalogTest {
             assertThat(detail.storageType()).isEqualTo("OSS");
             assertThat(detail.mimeType()).isEqualTo("text/plain");
             assertThat(detail.sizeBytes()).isEqualTo(12L);
+            assertThat(detail.createdAt()).isEqualTo("2026-11-02T01:02:03");
         });
         when(attachments.findOwned("u", "", "att-2")).thenReturn(storedRow(
                 "att-2", "", "u", "b.txt", "att/_/u/att-2/b.txt", null, "ACTIVE"));
         assertThat(catalog.ownedOne("u", " ", "att-2").mimeType()).isNull();
+        assertThat(catalog.ownedOne("u", " ", "att-2").createdAt()).isEqualTo("");
     }
 
     /** 别人的、停用的或空标识都不查详情。停用由 SQL 滤掉，这里按找不到。 */
