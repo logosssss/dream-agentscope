@@ -21,4 +21,19 @@ public interface ToolRegistryMapper extends BaseMapper<ToolRegistry> {
      * 最近登记的工具，含停用。不读 param_schema。
      */
     List<ToolRegistry> recent(@Param("limit") int limit);
+
+    /**
+     * 按工具标识取一行，含停用。
+     */
+    ToolRegistry findByToolId(@Param("toolId") String toolId);
+
+    /**
+     * 只把仍启用的行改成停用。返回影响行数。
+     */
+    int disableEnabled(@Param("toolId") String toolId);
+
+    /**
+     * 只把停用行改回启用。返回影响行数。
+     */
+    int restoreDisabled(@Param("toolId") String toolId);
 }

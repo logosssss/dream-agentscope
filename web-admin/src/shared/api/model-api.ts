@@ -29,6 +29,22 @@ export function registerModelConfig(body: {
   })
 }
 
+/** 停用仍启用的 1.0.0。 */
+export function disableModelConfig(configId: string): Promise<ModelConfigSummary> {
+  return apiJson<ModelConfigSummary>(
+    `/api/admin/model-configs/${encodeURIComponent(configId)}/disable`,
+    { method: 'POST' },
+  )
+}
+
+/** 恢复已停用的 1.0.0。 */
+export function restoreModelConfig(configId: string): Promise<ModelConfigSummary> {
+  return apiJson<ModelConfigSummary>(
+    `/api/admin/model-configs/${encodeURIComponent(configId)}/restore`,
+    { method: 'POST' },
+  )
+}
+
 /** 最近模型单价。 */
 export function listModelPrices(limit = 50): Promise<ModelPriceEntry[]> {
   const q = new URLSearchParams({ limit: String(limit) })

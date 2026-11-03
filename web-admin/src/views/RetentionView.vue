@@ -1,8 +1,13 @@
 <script setup lang="ts">
 /**
- * 数据保留策略：列表 + 登记。不执行清理，也不改已有行。
+ * 数据保留策略：列表 + 登记 + 停用/恢复。不执行清理。
  */
-import { listRetentionPolicies, registerRetentionPolicy } from '@/shared/api/retention-api'
+import {
+  disableRetentionPolicy,
+  listRetentionPolicies,
+  registerRetentionPolicy,
+  restoreRetentionPolicy,
+} from '@/shared/api/retention-api'
 import { hasAdminToken } from '@/shared/auth/operator'
 import type { RetentionPolicySummary } from '@/shared/types/api.types'
 import { onMounted, ref } from 'vue'
@@ -14,11 +19,17 @@ const rows = ref<RetentionPolicySummary[]>([])
 const loading = ref(false)
 const error = ref('')
 const submitting = ref(false)
+const busyKey = ref('')
 
 const dataType = ref<(typeof DATA_TYPES)[number]>('SESSION')
 const scope = ref('')
 const retainDays = ref('90')
 const action = ref<(typeof ACTIONS)[number]>('ARCHIVE')
+
+/** 行唯一键：类型 + 范围。 */
+function rowKey(row: RetentionPolicySummary) {
+  return `${row.dataType}:${row.scope}`
+}
 
 /** 刷新最近策略。 */
 async function refresh() {
@@ -58,6 +69,45 @@ async function onRegister() {
     error.value = e instanceof Error ? e.message : '登记失败'
   } finally {
     submitting.value = false
+  }
+}
+
+/** 停用仍启用的策略。 */
+async function onDisable(row: RetentionPolicySummary) {
+  const key = rowKey(row)
+  if (busyKey.value) {
+    return
+  }
+  if (!window.confirm(`停用保留策略 ${row.dataType} / ${row.scope}？仍不执行清理。`)) {
+    return
+  }
+  busyKey.value = key
+  error.value = ''
+  try {
+    await disableRetentionPolicy(row.dataType, row.scope)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '停用失败'
+  } finally {
+    busyKey.value = ''
+  }
+}
+
+/** 恢复已停用的策略。 */
+async function onRestore(row: RetentionPolicySummary) {
+  const key = rowKey(row)
+  if (busyKey.value) {
+    return
+  }
+  busyKey.value = key
+  error.value = ''
+  try {
+    await restoreRetentionPolicy(row.dataType, row.scope)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '恢复失败'
+  } finally {
+    busyKey.value = ''
   }
 }
 
@@ -138,21 +188,44 @@ onMounted(() => {
             <th class="px-3 py-2 font-medium">范围</th>
             <th class="px-3 py-2 font-medium">天数</th>
             <th class="px-3 py-2 font-medium">动作</th>
+            <th class="px-3 py-2 font-medium">启用</th>
+            <th class="px-3 py-2 font-medium">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!loading && rows.length === 0">
-            <td colspan="4" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无策略</td>
+            <td colspan="6" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无策略</td>
           </tr>
           <tr
             v-for="row in rows"
-            :key="`${row.dataType}:${row.scope}`"
+            :key="rowKey(row)"
             class="border-t border-slate-100"
           >
             <td class="px-3 py-2 font-mono text-xs">{{ row.dataType }}</td>
             <td class="px-3 py-2 font-mono text-xs">{{ row.scope }}</td>
             <td class="px-3 py-2">{{ row.retainDays }}</td>
             <td class="px-3 py-2">{{ row.action }}</td>
+            <td class="px-3 py-2">{{ row.enabled ? '是' : '否' }}</td>
+            <td class="px-3 py-2 whitespace-nowrap">
+              <button
+                v-if="row.enabled"
+                type="button"
+                class="text-sm text-[var(--color-danger)] disabled:opacity-50"
+                :disabled="busyKey === rowKey(row)"
+                @click="onDisable(row)"
+              >
+                停用
+              </button>
+              <button
+                v-else
+                type="button"
+                class="text-sm text-[var(--color-brand-primary)] disabled:opacity-50"
+                :disabled="busyKey === rowKey(row)"
+                @click="onRestore(row)"
+              >
+                恢复
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>

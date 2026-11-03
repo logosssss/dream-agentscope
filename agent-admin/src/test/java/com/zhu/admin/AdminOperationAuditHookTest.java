@@ -39,14 +39,24 @@ class AdminOperationAuditHookTest {
                 .isEqualTo(new AdminOperationAuditTarget("", "SCORE", "eval_run", "run-1"));
         assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/billing/payments"))
                 .isEqualTo(new AdminOperationAuditTarget("", "PAY", "billing", null));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/model-configs/c/disable"))
+                .isEqualTo(new AdminOperationAuditTarget("", "DISABLE", "model_config", "c"));
         assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/tool-registries"))
                 .isEqualTo(new AdminOperationAuditTarget("", "CREATE", "tool_registry", null));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/tool-registries/echo_text/disable"))
+                .isEqualTo(new AdminOperationAuditTarget("", "DISABLE", "tool_registry", "echo_text"));
         assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/tool-permissions"))
                 .isEqualTo(new AdminOperationAuditTarget("", "CREATE", "tool_permission", null));
         assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/tool-permissions/echo_text/disable"))
                 .isEqualTo(new AdminOperationAuditTarget("", "DISABLE", "tool_permission", "echo_text"));
         assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/tool-permissions/echo_text/priority"))
                 .isEqualTo(new AdminOperationAuditTarget("", "UPDATE", "tool_permission", "echo_text"));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/retention-policies"))
+                .isEqualTo(new AdminOperationAuditTarget("", "CREATE", "retention_policy", null));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/retention-policies/SESSION/disable"))
+                .isEqualTo(new AdminOperationAuditTarget("", "DISABLE", "retention_policy", "SESSION"));
+        assertThat(AdminOperationAuditTarget.parse("POST", "/api/admin/retention-policies/SESSION/restore"))
+                .isEqualTo(new AdminOperationAuditTarget("", "RESTORE", "retention_policy", "SESSION"));
 
         hook.afterSuccess("POST", "/api/admin/tenants", null);
         verify(catalog).record("admin", "", "CREATE", "tenant", null);

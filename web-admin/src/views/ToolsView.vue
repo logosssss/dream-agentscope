@@ -4,11 +4,13 @@
  */
 import {
   disableToolPermission,
+  disableToolRegistry,
   listToolPermissions,
   listToolRegistries,
   registerToolPermission,
   registerToolRegistry,
   restoreToolPermission,
+  restoreToolRegistry,
   updateToolPermissionPriority,
 } from '@/shared/api/tool-api'
 import { hasAdminToken } from '@/shared/auth/operator'
@@ -84,6 +86,43 @@ async function onRegisterRegistry() {
     error.value = e instanceof Error ? e.message : '登记失败'
   } finally {
     submitting.value = false
+  }
+}
+
+/** 停用仍启用的目录。 */
+async function onDisableRegistry(row: ToolRegistrySummary) {
+  if (busyKey.value) {
+    return
+  }
+  if (!window.confirm(`停用工具目录 ${row.toolId}？运行层将不再注册它。`)) {
+    return
+  }
+  busyKey.value = row.toolId
+  error.value = ''
+  try {
+    await disableToolRegistry(row.toolId)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '停用失败'
+  } finally {
+    busyKey.value = ''
+  }
+}
+
+/** 恢复已停用的目录。 */
+async function onRestoreRegistry(row: ToolRegistrySummary) {
+  if (busyKey.value) {
+    return
+  }
+  busyKey.value = row.toolId
+  error.value = ''
+  try {
+    await restoreToolRegistry(row.toolId)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '恢复失败'
+  } finally {
+    busyKey.value = ''
   }
 }
 
@@ -282,11 +321,13 @@ onMounted(() => {
               <th class="px-3 py-2 font-medium">版本</th>
               <th class="px-3 py-2 font-medium">模块</th>
               <th class="px-3 py-2 font-medium">说明</th>
+              <th class="px-3 py-2 font-medium">启用</th>
+              <th class="px-3 py-2 font-medium">动作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!loading && registries.length === 0">
-              <td colspan="5" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无工具</td>
+              <td colspan="7" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无工具</td>
             </tr>
             <tr v-for="row in registries" :key="row.toolId" class="border-t border-slate-100">
               <td class="px-3 py-2 font-mono text-xs">{{ row.toolId }}</td>
@@ -295,6 +336,27 @@ onMounted(() => {
               <td class="px-3 py-2 font-mono text-xs">{{ row.module || '—' }}</td>
               <td class="px-3 py-2 text-[var(--color-text-muted)] max-w-xs truncate">
                 {{ row.description || '—' }}
+              </td>
+              <td class="px-3 py-2">{{ row.enabled ? '是' : '否' }}</td>
+              <td class="px-3 py-2 whitespace-nowrap">
+                <button
+                  v-if="row.enabled"
+                  type="button"
+                  class="text-sm text-[var(--color-danger)] disabled:opacity-50"
+                  :disabled="busyKey === row.toolId"
+                  @click="onDisableRegistry(row)"
+                >
+                  停用
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="text-sm text-[var(--color-brand-primary)] disabled:opacity-50"
+                  :disabled="busyKey === row.toolId"
+                  @click="onRestoreRegistry(row)"
+                >
+                  恢复
+                </button>
               </td>
             </tr>
           </tbody>

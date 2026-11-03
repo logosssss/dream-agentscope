@@ -12,7 +12,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记和列出工具目录。只在存储开关打开时创建。不执行工具，也不写权限。
+ * 登记、停用、恢复和列出工具目录。只在存储开关打开时创建。不执行工具，也不写权限。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -58,7 +58,39 @@ public class MysqlToolRegistryCatalog implements ToolRegistryCatalog {
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.CONFLICT, "tool registry already exists");
         }
-        return new ToolRegistrySummary(toolId, name, VERSION, savedModule, savedDescription);
+        return new ToolRegistrySummary(toolId, name, VERSION, savedModule, savedDescription, true);
+    }
+
+    /**
+     * 先确认存在且启用，再按启用行更新。
+     */
+    @Override
+    public ToolRegistrySummary disable(String toolId) {
+        ToolRegistry existing = require(toolId);
+        if (!Integer.valueOf(1).equals(existing.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tool registry is not enabled");
+        }
+        int updated = registry.disableEnabled(toolId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tool registry is not enabled");
+        }
+        return summary(existing, false);
+    }
+
+    /**
+     * 先确认存在且停用，再按停用行更新。
+     */
+    @Override
+    public ToolRegistrySummary restore(String toolId) {
+        ToolRegistry existing = require(toolId);
+        if (Integer.valueOf(1).equals(existing.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tool registry is already enabled");
+        }
+        int updated = registry.restoreDisabled(toolId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tool registry is already enabled");
+        }
+        return summary(existing, true);
     }
 
     /**
@@ -77,7 +109,31 @@ public class MysqlToolRegistryCatalog implements ToolRegistryCatalog {
                         row.getName() == null ? "" : row.getName(),
                         row.getVersion() == null ? VERSION : row.getVersion(),
                         row.getModule() == null ? "" : row.getModule(),
-                        row.getDescription() == null ? "" : row.getDescription()))
+                        row.getDescription() == null ? "" : row.getDescription(),
+                        Integer.valueOf(1).equals(row.getEnabled())))
                 .toList();
+    }
+
+    /** 工具标识不能空。 */
+    private ToolRegistry require(String toolId) {
+        if (toolId == null || toolId.isBlank() || toolId.length() > ID_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tool registry is invalid");
+        }
+        ToolRegistry existing = registry.findByToolId(toolId);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tool registry not found");
+        }
+        return existing;
+    }
+
+    /** 用库里的展示字段，只改启用标记。 */
+    private static ToolRegistrySummary summary(ToolRegistry existing, boolean enabled) {
+        return new ToolRegistrySummary(
+                existing.getToolId(),
+                existing.getName() == null ? "" : existing.getName(),
+                existing.getVersion() == null ? VERSION : existing.getVersion(),
+                existing.getModule() == null ? "" : existing.getModule(),
+                existing.getDescription() == null ? "" : existing.getDescription(),
+                enabled);
     }
 }

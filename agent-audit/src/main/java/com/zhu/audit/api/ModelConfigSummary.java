@@ -8,11 +8,13 @@ package com.zhu.audit.api;
  * @param provider    供应方
  * @param version     这次固定 1.0.0
  * @param tenantScope 租户范围，* 表示全局
+ * @param enabled     是否启用；停用后对话不再选用
  */
 public record ModelConfigSummary(
         String configId,
         String model,
         String provider,
         String version,
-        String tenantScope) {
+        String tenantScope,
+        boolean enabled) {
 }

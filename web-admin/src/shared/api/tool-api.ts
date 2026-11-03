@@ -29,6 +29,22 @@ export function registerToolRegistry(body: {
   })
 }
 
+/** 停用仍启用的目录行。 */
+export function disableToolRegistry(toolId: string): Promise<ToolRegistrySummary> {
+  return apiJson<ToolRegistrySummary>(
+    `/api/admin/tool-registries/${encodeURIComponent(toolId)}/disable`,
+    { method: 'POST' },
+  )
+}
+
+/** 恢复已停用的目录行。 */
+export function restoreToolRegistry(toolId: string): Promise<ToolRegistrySummary> {
+  return apiJson<ToolRegistrySummary>(
+    `/api/admin/tool-registries/${encodeURIComponent(toolId)}/restore`,
+    { method: 'POST' },
+  )
+}
+
 /** 最近权限规则，含停用。 */
 export function listToolPermissions(limit = 50): Promise<ToolPermissionSummary[]> {
   const q = new URLSearchParams({ limit: String(limit) })

@@ -9,13 +9,14 @@ import com.zhu.common.exception.ErrorCode;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记和查看模型配置。不解析参数。用户进程自己去选用启用行。
+ * 管理进程登记、停用、恢复和查看模型配置。不解析参数。用户进程自己去选用启用行。
  */
 @RestController
 public class AdminModelConfigController {
@@ -44,6 +45,22 @@ public class AdminModelConfigController {
                 ? new ModelConfigRequest(null, null, null, null)
                 : request;
         return ApiResult.ok(catalog().register(body.configId(), body.model(), body.provider(), body.tenantScope()));
+    }
+
+    /**
+     * 停用仍启用的 1.0.0。对话不再选用它。
+     */
+    @PostMapping("/api/admin/model-configs/{configId}/disable")
+    public ApiResult<ModelConfigSummary> disable(@PathVariable String configId) {
+        return ApiResult.ok(catalog().disable(configId));
+    }
+
+    /**
+     * 恢复已停用的 1.0.0。
+     */
+    @PostMapping("/api/admin/model-configs/{configId}/restore")
+    public ApiResult<ModelConfigSummary> restore(@PathVariable String configId) {
+        return ApiResult.ok(catalog().restore(configId));
     }
 
     /** MySQL 关闭时没有目录。 */

@@ -9,13 +9,14 @@ import com.zhu.semantic.api.ToolRegistrySummary;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记和查看工具目录。不执行工具，也不写权限规则。
+ * 管理进程登记、停用、恢复和查看工具目录。不执行工具，也不写权限规则。
  */
 @RestController
 public class AdminToolRegistryController {
@@ -44,6 +45,22 @@ public class AdminToolRegistryController {
                 ? new ToolRegistryRequest(null, null, null, null)
                 : request;
         return ApiResult.ok(catalog().register(body.toolId(), body.name(), body.module(), body.description()));
+    }
+
+    /**
+     * 停用仍启用的目录行。运行层 listEnabled 不再返回它。
+     */
+    @PostMapping("/api/admin/tool-registries/{toolId}/disable")
+    public ApiResult<ToolRegistrySummary> disable(@PathVariable String toolId) {
+        return ApiResult.ok(catalog().disable(toolId));
+    }
+
+    /**
+     * 恢复已停用的目录行。
+     */
+    @PostMapping("/api/admin/tool-registries/{toolId}/restore")
+    public ApiResult<ToolRegistrySummary> restore(@PathVariable String toolId) {
+        return ApiResult.ok(catalog().restore(toolId));
     }
 
     /** MySQL 关闭时没有目录。 */

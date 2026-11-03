@@ -2,7 +2,7 @@ import { apiJson } from '@/shared/api/http'
 import type { RetentionPolicySummary } from '@/shared/types/api.types'
 
 /**
- * 数据保留策略目录。只登记与列表，不触发清理。
+ * 数据保留策略目录。只登记、停用、恢复与列表，不触发清理。
  */
 
 /** 最近保留策略，含停用。 */
@@ -30,4 +30,37 @@ export function registerRetentionPolicy(body: {
       action: body.action || null,
     }),
   })
+}
+
+/** 空白范围按全局。 */
+function scopeBody(scope: string) {
+  return { scope: scope || null }
+}
+
+/** 停用仍启用的策略。 */
+export function disableRetentionPolicy(
+  dataType: string,
+  scope: string,
+): Promise<RetentionPolicySummary> {
+  return apiJson<RetentionPolicySummary>(
+    `/api/admin/retention-policies/${encodeURIComponent(dataType)}/disable`,
+    {
+      method: 'POST',
+      body: JSON.stringify(scopeBody(scope)),
+    },
+  )
+}
+
+/** 恢复已停用的策略。 */
+export function restoreRetentionPolicy(
+  dataType: string,
+  scope: string,
+): Promise<RetentionPolicySummary> {
+  return apiJson<RetentionPolicySummary>(
+    `/api/admin/retention-policies/${encodeURIComponent(dataType)}/restore`,
+    {
+      method: 'POST',
+      body: JSON.stringify(scopeBody(scope)),
+    },
+  )
 }

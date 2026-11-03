@@ -19,4 +19,19 @@ public interface ModelConfigMapper extends BaseMapper<ModelConfig> {
      * 最近登记的模型配置。调用方已经把条数收进 1 到 100。含停用。
      */
     List<ModelConfig> recent(@Param("limit") int limit);
+
+    /**
+     * 按配置标识和版本取一行，含停用。
+     */
+    ModelConfig findByConfigId(@Param("configId") String configId, @Param("version") String version);
+
+    /**
+     * 只把仍启用的指定版本改成停用。返回影响行数。
+     */
+    int disableEnabled(@Param("configId") String configId, @Param("version") String version);
+
+    /**
+     * 只把停用的指定版本改回启用。返回影响行数。
+     */
+    int restoreDisabled(@Param("configId") String configId, @Param("version") String version);
 }

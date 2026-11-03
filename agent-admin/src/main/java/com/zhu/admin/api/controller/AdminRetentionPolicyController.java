@@ -1,6 +1,7 @@
 package com.zhu.admin.api.controller;
 
 import com.zhu.admin.api.dto.RetentionPolicyRequest;
+import com.zhu.admin.api.dto.RetentionPolicyScopeRequest;
 import com.zhu.audit.api.RetentionPolicyCatalog;
 import com.zhu.audit.api.RetentionPolicySummary;
 import com.zhu.common.dto.ApiResult;
@@ -9,13 +10,14 @@ import com.zhu.common.exception.ErrorCode;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程登记和查看数据保留策略。不执行清理，也不改已有数据。
+ * 管理进程登记、停用、恢复和查看数据保留策略。不执行清理，也不改已有业务数据。
  */
 @RestController
 public class AdminRetentionPolicyController {
@@ -44,6 +46,30 @@ public class AdminRetentionPolicyController {
                 ? new RetentionPolicyRequest(null, null, null, null)
                 : request;
         return ApiResult.ok(catalog().register(body.dataType(), body.scope(), body.retainDays(), body.action()));
+    }
+
+    /**
+     * 停用仍启用的策略。空白范围按全局。不执行清理。
+     */
+    @PostMapping("/api/admin/retention-policies/{dataType}/disable")
+    public ApiResult<RetentionPolicySummary> disable(
+            @PathVariable String dataType, @RequestBody RetentionPolicyScopeRequest request) {
+        RetentionPolicyScopeRequest body = request == null
+                ? new RetentionPolicyScopeRequest(null)
+                : request;
+        return ApiResult.ok(catalog().disable(dataType, body.scope()));
+    }
+
+    /**
+     * 恢复已停用的策略。空白范围按全局。不执行清理。
+     */
+    @PostMapping("/api/admin/retention-policies/{dataType}/restore")
+    public ApiResult<RetentionPolicySummary> restore(
+            @PathVariable String dataType, @RequestBody RetentionPolicyScopeRequest request) {
+        RetentionPolicyScopeRequest body = request == null
+                ? new RetentionPolicyScopeRequest(null)
+                : request;
+        return ApiResult.ok(catalog().restore(dataType, body.scope()));
     }
 
     /** MySQL 关闭时没有目录。 */

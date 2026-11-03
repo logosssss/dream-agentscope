@@ -81,6 +81,28 @@ class ModelConfigCatalogTest {
             assertThat(saved.configId()).isEqualTo("cfg-a");
             assertThat(saved.tenantScope()).isEqualTo("*");
             assertThat(saved.version()).isEqualTo("1.0.0");
+            assertThat(saved.enabled()).isFalse();
+        });
+    }
+
+    /** 停用只打仍启用的 1.0.0。 */
+    @Test
+    void disableEnabledConfig() {
+        ModelConfigMapper configs = mock(ModelConfigMapper.class);
+        MysqlModelConfigCatalog catalog = new MysqlModelConfigCatalog(configs);
+        ModelConfig existing = new ModelConfig();
+        existing.setConfigId("cfg-a");
+        existing.setModel("qwen-plus");
+        existing.setProvider("dashscope");
+        existing.setVersion("1.0.0");
+        existing.setTenantScope("*");
+        existing.setEnabled(1);
+        when(configs.findByConfigId("cfg-a", "1.0.0")).thenReturn(existing);
+        when(configs.disableEnabled("cfg-a", "1.0.0")).thenReturn(1);
+
+        assertThat(catalog.disable("cfg-a")).satisfies(saved -> {
+            assertThat(saved.configId()).isEqualTo("cfg-a");
+            assertThat(saved.enabled()).isFalse();
         });
     }
 }

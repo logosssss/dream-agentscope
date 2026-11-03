@@ -17,6 +17,7 @@
         <result column="provider" property="provider"/>
         <result column="version" property="version"/>
         <result column="tenant_scope" property="tenantScope"/>
+        <result column="enabled" property="enabled"/>
     </resultMap>
 
     <!-- 只取启用的 1.0.0。不读参数 JSON。 -->
@@ -41,9 +42,33 @@
 
     <!-- 管理列表看全部启用状态。不读参数 JSON。 -->
     <select id="recent" resultMap="ListResultMap">
-        SELECT id, config_id, model, provider, version, tenant_scope
+        SELECT id, config_id, model, provider, version, tenant_scope, enabled
         FROM model_config
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <select id="findByConfigId" resultMap="ListResultMap">
+        SELECT id, config_id, model, provider, version, tenant_scope, enabled
+        FROM model_config
+        WHERE config_id = #{configId}
+          AND version = #{version}
+        LIMIT 1
+    </select>
+
+    <update id="disableEnabled">
+        UPDATE model_config
+        SET enabled = 0
+        WHERE config_id = #{configId}
+          AND version = #{version}
+          AND enabled = 1
+    </update>
+
+    <update id="restoreDisabled">
+        UPDATE model_config
+        SET enabled = 1
+        WHERE config_id = #{configId}
+          AND version = #{version}
+          AND enabled = 0
+    </update>
 </mapper>

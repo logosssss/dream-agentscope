@@ -17,7 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 数据保留策略只登记和列出目录。不连接 MySQL，也不执行清理。
+ * 数据保留策略登记、停用、恢复和列表。不连接 MySQL，也不执行清理。
  */
 class RetentionPolicyCatalogTest {
 
@@ -31,6 +31,7 @@ class RetentionPolicyCatalogTest {
             assertThat(saved.scope()).isEqualTo("*");
             assertThat(saved.action()).isEqualTo("ARCHIVE");
             assertThat(saved.retainDays()).isEqualTo(30);
+            assertThat(saved.enabled()).isTrue();
         });
         verify(policies).insert(any(DataRetentionPolicy.class));
 
@@ -39,6 +40,48 @@ class RetentionPolicyCatalogTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
+    }
+
+    /** 停用只动仍启用的行；恢复只动已停用的行。空白范围按全局。 */
+    @Test
+    void disableAndRestoreToggleEnabled() {
+        DataRetentionPolicyMapper policies = mock(DataRetentionPolicyMapper.class);
+        MysqlRetentionPolicyCatalog catalog = new MysqlRetentionPolicyCatalog(policies);
+
+        DataRetentionPolicy enabled = new DataRetentionPolicy();
+        enabled.setDataType("SESSION");
+        enabled.setScope("*");
+        enabled.setRetainDays(30);
+        enabled.setAction("ARCHIVE");
+        enabled.setEnabled(1);
+        when(policies.findByKey("SESSION", "*")).thenReturn(enabled);
+        when(policies.disableEnabled("SESSION", "*")).thenReturn(1);
+        assertThat(catalog.disable("SESSION", " ")).satisfies(saved -> {
+            assertThat(saved.enabled()).isFalse();
+            assertThat(saved.scope()).isEqualTo("*");
+        });
+
+        DataRetentionPolicy disabled = new DataRetentionPolicy();
+        disabled.setDataType("SESSION");
+        disabled.setScope("*");
+        disabled.setRetainDays(30);
+        disabled.setAction("ARCHIVE");
+        disabled.setEnabled(0);
+        when(policies.findByKey("SESSION", "*")).thenReturn(disabled);
+        when(policies.restoreDisabled("SESSION", "*")).thenReturn(1);
+        assertThat(catalog.restore("SESSION", null).enabled()).isTrue();
+
+        when(policies.findByKey("SESSION", "*")).thenReturn(disabled);
+        assertThatThrownBy(() -> catalog.disable("SESSION", "*"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+
+        when(policies.findByKey("MESSAGE", "t1")).thenReturn(null);
+        assertThatThrownBy(() -> catalog.restore("MESSAGE", "t1"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.NOT_FOUND);
     }
 
     /** 列表含停用。空结果原样返回。不执行清理。 */
@@ -61,6 +104,7 @@ class RetentionPolicyCatalogTest {
             assertThat(saved.scope()).isEqualTo("*");
             assertThat(saved.retainDays()).isEqualTo(30);
             assertThat(saved.action()).isEqualTo("ARCHIVE");
+            assertThat(saved.enabled()).isFalse();
         });
     }
 }

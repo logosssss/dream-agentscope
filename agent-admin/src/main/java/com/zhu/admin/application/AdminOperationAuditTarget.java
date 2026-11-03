@@ -38,10 +38,10 @@ public record AdminOperationAuditTarget(
             case "tenant-cost-quotas" -> tenantQuota(parts);
             case "tenant-concurrent-quotas" -> tenantQuota(parts);
             case "model-prices" -> createOnly(parts, "model_price");
-            case "model-configs" -> createOnly(parts, "model_config");
-            case "tool-registries" -> createOnly(parts, "tool_registry");
+            case "model-configs" -> modelConfig(parts);
+            case "tool-registries" -> toolRegistry(parts);
             case "tool-permissions" -> toolPermission(parts);
-            case "retention-policies" -> createOnly(parts, "retention_policy");
+            case "retention-policies" -> retentionPolicy(parts);
             case "task-schedules" -> createOnly(parts, "task_schedule");
             case "eval-datasets" -> evalDataset(parts);
             case "eval-runs" -> evalRun(parts);
@@ -139,6 +139,28 @@ public record AdminOperationAuditTarget(
         return null;
     }
 
+    /** 登记没有路径标识。停用和恢复带配置标识。 */
+    private static AdminOperationAuditTarget modelConfig(String[] parts) {
+        if (parts.length == 1) {
+            return new AdminOperationAuditTarget("", "CREATE", "model_config", null);
+        }
+        if (parts.length == 3 && ("disable".equals(parts[2]) || "restore".equals(parts[2]))) {
+            return identified("", parts[2].toUpperCase(), "model_config", parts[1]);
+        }
+        return null;
+    }
+
+    /** 登记没有路径标识。停用和恢复带工具标识。 */
+    private static AdminOperationAuditTarget toolRegistry(String[] parts) {
+        if (parts.length == 1) {
+            return new AdminOperationAuditTarget("", "CREATE", "tool_registry", null);
+        }
+        if (parts.length == 3 && ("disable".equals(parts[2]) || "restore".equals(parts[2]))) {
+            return identified("", parts[2].toUpperCase(), "tool_registry", parts[1]);
+        }
+        return null;
+    }
+
     /** 登记没有路径标识。停用、恢复和改优先级带工具标识。 */
     private static AdminOperationAuditTarget toolPermission(String[] parts) {
         if (parts.length == 1) {
@@ -148,6 +170,17 @@ public record AdminOperationAuditTarget(
                 && ("disable".equals(parts[2]) || "restore".equals(parts[2]) || "priority".equals(parts[2]))) {
             String operation = "priority".equals(parts[2]) ? "UPDATE" : parts[2].toUpperCase();
             return identified("", operation, "tool_permission", parts[1]);
+        }
+        return null;
+    }
+
+    /** 登记没有路径标识。停用和恢复带数据类型。范围在请求体里，不进路径。 */
+    private static AdminOperationAuditTarget retentionPolicy(String[] parts) {
+        if (parts.length == 1) {
+            return new AdminOperationAuditTarget("", "CREATE", "retention_policy", null);
+        }
+        if (parts.length == 3 && ("disable".equals(parts[2]) || "restore".equals(parts[2]))) {
+            return identified("", parts[2].toUpperCase(), "retention_policy", parts[1]);
         }
         return null;
     }

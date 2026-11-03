@@ -96,6 +96,16 @@ class AdminContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/admin/tool-registries/echo_text/disable")
+                        .header(CallerTokens.HEADER, "test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/admin/tool-registries/echo_text/restore")
+                        .header(CallerTokens.HEADER, "test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(get("/api/admin/tool-permissions").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
@@ -239,6 +249,20 @@ class AdminContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/admin/retention-policies/SESSION/disable")
+                        .header(CallerTokens.HEADER, "test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scope\":\"*\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/admin/retention-policies/SESSION/restore")
+                        .header(CallerTokens.HEADER, "test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(get("/api/admin/task-schedules").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
@@ -258,6 +282,14 @@ class AdminContextTest {
                         .header(CallerTokens.HEADER, "test-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"configId\":\"cfg-a\",\"model\":\"qwen-plus\",\"provider\":\"dashscope\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/admin/model-configs/cfg-a/disable").header(CallerTokens.HEADER, "test-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+        mvc.perform(post("/api/admin/model-configs/cfg-a/restore").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));

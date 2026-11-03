@@ -13,7 +13,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记和列出数据保留策略。只在存储开关打开时创建。不跑清理任务。
+ * 登记、停用、恢复和列出数据保留策略。只在存储开关打开时创建。不跑清理任务。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -44,18 +44,15 @@ public class MysqlRetentionPolicyCatalog implements RetentionPolicyCatalog {
      */
     @Override
     public RetentionPolicySummary register(String dataType, String scope, Integer retainDays, String action) {
-        if (dataType == null || dataType.isBlank() || dataType.length() > TYPE_LIMIT
-                || !DATA_TYPES.contains(dataType)
-                || (scope != null && scope.length() > SCOPE_LIMIT)
-                || retainDays == null || retainDays < 1
+        ScopeKey key = scopeKey(dataType, scope);
+        if (retainDays == null || retainDays < 1
                 || (action != null && !action.isBlank() && !ACTIONS.contains(action))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "retention policy is invalid");
         }
-        String savedScope = scope == null || scope.isBlank() ? GLOBAL_SCOPE : scope;
         String savedAction = action == null || action.isBlank() ? DEFAULT_ACTION : action;
         DataRetentionPolicy row = new DataRetentionPolicy();
-        row.setDataType(dataType);
-        row.setScope(savedScope);
+        row.setDataType(key.dataType());
+        row.setScope(key.scope());
         row.setRetainDays(retainDays);
         row.setAction(savedAction);
         row.setEnabled(1);
@@ -64,7 +61,43 @@ public class MysqlRetentionPolicyCatalog implements RetentionPolicyCatalog {
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.CONFLICT, "retention policy already exists");
         }
-        return new RetentionPolicySummary(dataType, savedScope, retainDays, savedAction);
+        return new RetentionPolicySummary(key.dataType(), key.scope(), retainDays, savedAction, true);
+    }
+
+    /**
+     * 先确认存在且启用，再按启用行更新，避免覆盖已停用行。
+     * 不执行清理。
+     */
+    @Override
+    public RetentionPolicySummary disable(String dataType, String scope) {
+        ScopeKey key = scopeKey(dataType, scope);
+        DataRetentionPolicy existing = require(key);
+        if (!Integer.valueOf(1).equals(existing.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "retention policy is not enabled");
+        }
+        int updated = policies.disableEnabled(key.dataType(), key.scope());
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "retention policy is not enabled");
+        }
+        return summary(existing, false);
+    }
+
+    /**
+     * 先确认存在且停用，再按停用行更新，避免覆盖已启用行。
+     * 不执行清理。
+     */
+    @Override
+    public RetentionPolicySummary restore(String dataType, String scope) {
+        ScopeKey key = scopeKey(dataType, scope);
+        DataRetentionPolicy existing = require(key);
+        if (Integer.valueOf(1).equals(existing.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "retention policy is already enabled");
+        }
+        int updated = policies.restoreDisabled(key.dataType(), key.scope());
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "retention policy is already enabled");
+        }
+        return summary(existing, true);
     }
 
     /**
@@ -82,7 +115,42 @@ public class MysqlRetentionPolicyCatalog implements RetentionPolicyCatalog {
                         row.getDataType(),
                         row.getScope(),
                         row.getRetainDays() == null ? 0 : row.getRetainDays(),
-                        row.getAction()))
+                        row.getAction(),
+                        Integer.valueOf(1).equals(row.getEnabled())))
                 .toList();
+    }
+
+    /** 只认已登记的数据类型；空白范围按全局。 */
+    private ScopeKey scopeKey(String dataType, String scope) {
+        if (dataType == null || dataType.isBlank() || dataType.length() > TYPE_LIMIT
+                || !DATA_TYPES.contains(dataType)
+                || (scope != null && scope.length() > SCOPE_LIMIT)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "retention policy is invalid");
+        }
+        String savedScope = scope == null || scope.isBlank() ? GLOBAL_SCOPE : scope;
+        return new ScopeKey(dataType, savedScope);
+    }
+
+    /** 按类型和范围定位一行。 */
+    private DataRetentionPolicy require(ScopeKey key) {
+        DataRetentionPolicy existing = policies.findByKey(key.dataType(), key.scope());
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "retention policy not found");
+        }
+        return existing;
+    }
+
+    /** 用库里的字段，只改启用标记。 */
+    private static RetentionPolicySummary summary(DataRetentionPolicy existing, boolean enabled) {
+        return new RetentionPolicySummary(
+                existing.getDataType(),
+                existing.getScope() == null ? GLOBAL_SCOPE : existing.getScope(),
+                existing.getRetainDays() == null ? 0 : existing.getRetainDays(),
+                existing.getAction(),
+                enabled);
+    }
+
+    /** 唯一键上的类型与范围。 */
+    private record ScopeKey(String dataType, String scope) {
     }
 }

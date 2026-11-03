@@ -11,7 +11,7 @@
         <result column="description" property="description"/>
     </resultMap>
 
-    <!-- 管理列表含版本和模块。不读 param_schema。 -->
+    <!-- 管理列表含版本、模块和启用。不读 param_schema。 -->
     <resultMap id="ListResultMap" type="com.zhu.semantic.infrastructure.persistence.entity.ToolRegistry">
         <id column="id" property="id"/>
         <result column="tool_id" property="toolId"/>
@@ -19,6 +19,7 @@
         <result column="version" property="version"/>
         <result column="module" property="module"/>
         <result column="description" property="description"/>
+        <result column="enabled" property="enabled"/>
     </resultMap>
 
     <select id="listEnabled" resultMap="BaseResultMap">
@@ -29,9 +30,30 @@
     </select>
 
     <select id="recent" resultMap="ListResultMap">
-        SELECT id, tool_id, name, version, module, description
+        SELECT id, tool_id, name, version, module, description, enabled
         FROM tool_registry
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <select id="findByToolId" resultMap="ListResultMap">
+        SELECT id, tool_id, name, version, module, description, enabled
+        FROM tool_registry
+        WHERE tool_id = #{toolId}
+        LIMIT 1
+    </select>
+
+    <update id="disableEnabled">
+        UPDATE tool_registry
+        SET enabled = 0
+        WHERE tool_id = #{toolId}
+          AND enabled = 1
+    </update>
+
+    <update id="restoreDisabled">
+        UPDATE tool_registry
+        SET enabled = 1
+        WHERE tool_id = #{toolId}
+          AND enabled = 0
+    </update>
 </mapper>

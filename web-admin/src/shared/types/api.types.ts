@@ -61,6 +61,7 @@ export interface ModelConfigSummary {
   provider: string
   version: string
   tenantScope: string
+  enabled: boolean
 }
 
 /** GET /api/admin/model-prices 一行。 */
@@ -99,6 +100,7 @@ export interface RetentionPolicySummary {
   scope: string
   retainDays: number
   action: string
+  enabled: boolean
 }
 
 /** GET /api/admin/task-schedules 一行。不表示已触发。 */
@@ -164,6 +166,7 @@ export interface ToolRegistrySummary {
   version: string
   module: string
   description: string
+  enabled: boolean
 }
 
 /** GET /api/admin/tool-permissions 一行。不含 conditions。 */

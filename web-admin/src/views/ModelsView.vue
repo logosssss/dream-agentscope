@@ -4,9 +4,11 @@
  */
 import {
   addModelPrice,
+  disableModelConfig,
   listModelConfigs,
   listModelPrices,
   registerModelConfig,
+  restoreModelConfig,
 } from '@/shared/api/model-api'
 import { hasAdminToken } from '@/shared/auth/operator'
 import type { ModelConfigSummary, ModelPriceEntry } from '@/shared/types/api.types'
@@ -32,6 +34,7 @@ const inputPer1k = ref('')
 const outputPer1k = ref('')
 const effectiveFrom = ref('')
 const effectiveTo = ref('')
+const busyId = ref('')
 
 /** 按当前页签刷新。 */
 async function refresh() {
@@ -79,6 +82,43 @@ async function onRegisterConfig() {
     error.value = e instanceof Error ? e.message : '登记失败'
   } finally {
     submitting.value = false
+  }
+}
+
+/** 停用仍启用的配置。 */
+async function onDisableConfig(row: ModelConfigSummary) {
+  if (busyId.value) {
+    return
+  }
+  if (!window.confirm(`停用模型配置 ${row.configId}？对话将不再选用它。`)) {
+    return
+  }
+  busyId.value = row.configId
+  error.value = ''
+  try {
+    await disableModelConfig(row.configId)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '停用失败'
+  } finally {
+    busyId.value = ''
+  }
+}
+
+/** 恢复已停用的配置。 */
+async function onRestoreConfig(row: ModelConfigSummary) {
+  if (busyId.value) {
+    return
+  }
+  busyId.value = row.configId
+  error.value = ''
+  try {
+    await restoreModelConfig(row.configId)
+    await refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '恢复失败'
+  } finally {
+    busyId.value = ''
   }
 }
 
@@ -207,11 +247,13 @@ onMounted(() => {
               <th class="px-3 py-2 font-medium">供应方</th>
               <th class="px-3 py-2 font-medium">版本</th>
               <th class="px-3 py-2 font-medium">租户范围</th>
+              <th class="px-3 py-2 font-medium">启用</th>
+              <th class="px-3 py-2 font-medium">动作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!loading && configs.length === 0">
-              <td colspan="5" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无配置</td>
+              <td colspan="7" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无配置</td>
             </tr>
             <tr v-for="row in configs" :key="`${row.configId}:${row.version}`" class="border-t border-slate-100">
               <td class="px-3 py-2 font-mono text-xs">{{ row.configId }}</td>
@@ -219,6 +261,27 @@ onMounted(() => {
               <td class="px-3 py-2">{{ row.provider }}</td>
               <td class="px-3 py-2">{{ row.version }}</td>
               <td class="px-3 py-2 font-mono text-xs">{{ row.tenantScope }}</td>
+              <td class="px-3 py-2">{{ row.enabled ? '是' : '否' }}</td>
+              <td class="px-3 py-2 whitespace-nowrap">
+                <button
+                  v-if="row.enabled"
+                  type="button"
+                  class="text-sm text-[var(--color-danger)] disabled:opacity-50"
+                  :disabled="busyId === row.configId"
+                  @click="onDisableConfig(row)"
+                >
+                  停用
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="text-sm text-[var(--color-brand-primary)] disabled:opacity-50"
+                  :disabled="busyId === row.configId"
+                  @click="onRestoreConfig(row)"
+                >
+                  恢复
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>

@@ -9,13 +9,38 @@
         <result column="scope" property="scope"/>
         <result column="retain_days" property="retainDays"/>
         <result column="action" property="action"/>
+        <result column="enabled" property="enabled"/>
     </resultMap>
 
     <!-- 管理列表看全部启用状态。创建时间只用于排序。不执行清理。 -->
     <select id="recent" resultMap="ListResultMap">
-        SELECT id, data_type, scope, retain_days, action
+        SELECT id, data_type, scope, retain_days, action, enabled
         FROM data_retention_policy
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
+
+    <select id="findByKey" resultMap="ListResultMap">
+        SELECT id, data_type, scope, retain_days, action, enabled
+        FROM data_retention_policy
+        WHERE data_type = #{dataType}
+          AND scope = #{scope}
+        LIMIT 1
+    </select>
+
+    <update id="disableEnabled">
+        UPDATE data_retention_policy
+        SET enabled = 0
+        WHERE data_type = #{dataType}
+          AND scope = #{scope}
+          AND enabled = 1
+    </update>
+
+    <update id="restoreDisabled">
+        UPDATE data_retention_policy
+        SET enabled = 1
+        WHERE data_type = #{dataType}
+          AND scope = #{scope}
+          AND enabled = 0
+    </update>
 </mapper>
