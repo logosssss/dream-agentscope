@@ -2,6 +2,7 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.api.dto.SessionDetail;
 import com.zhu.access.api.dto.SessionSummary;
+import com.zhu.access.application.AbsentChatMessageStore;
 import com.zhu.access.application.SessionListService;
 import com.zhu.access.application.SessionMetaStore;
 import com.zhu.access.infrastructure.cache.AccessCache;
@@ -26,7 +27,7 @@ class SessionListTest {
         FakeAccessCache cache = new FakeAccessCache();
         CountingStore store = new CountingStore();
         store.rows.add(new SessionSummary("s", "你好", "WEB", "2026-10-31T01:02:03"));
-        SessionListService sessions = new SessionListService(store, cache);
+        SessionListService sessions = new SessionListService(store, cache, new AbsentChatMessageStore());
 
         assertThat(sessions.list("t", "u")).containsExactly(store.rows.get(0));
         assertThat(sessions.list("t", "u")).containsExactly(store.rows.get(0));
@@ -48,7 +49,7 @@ class SessionListTest {
                 "[{\"sessionId\":\"cached\",\"title\":\"c\",\"channel\":\"WEB\",\"lastActiveAt\":\"\"}]",
                 Duration.ofMinutes(5));
         CountingStore store = new CountingStore();
-        SessionListService sessions = new SessionListService(store, cache);
+        SessionListService sessions = new SessionListService(store, cache, new AbsentChatMessageStore());
 
         assertThat(sessions.list("a:b", "u")).extracting(SessionSummary::sessionId).containsExactly("cached");
         assertThat(store.lists).isZero();
@@ -59,7 +60,7 @@ class SessionListTest {
     void redisOutageFallsBackToStore() {
         CountingStore store = new CountingStore();
         store.rows.add(new SessionSummary("s", "hi", "API", "2026-10-31T00:00:00"));
-        SessionListService sessions = new SessionListService(store, new ThrowingCache());
+        SessionListService sessions = new SessionListService(store, new ThrowingCache(), new AbsentChatMessageStore());
 
         assertThat(sessions.list("t", "u")).containsExactly(store.rows.get(0));
         sessions.record("t", "u", "s", "API", "x".repeat(50));
@@ -72,7 +73,7 @@ class SessionListTest {
     void getReadsStoreAndRejectsBlank() {
         CountingStore store = new CountingStore();
         store.detail = new SessionDetail("s", "hi", "WEB", "ACTIVE", "run-1", 3, "2026-10-31T01:02:03");
-        SessionListService sessions = new SessionListService(store, new FakeAccessCache());
+        SessionListService sessions = new SessionListService(store, new FakeAccessCache(), new AbsentChatMessageStore());
         assertThat(sessions.get("t", "u", "s")).isEqualTo(store.detail);
         assertThat(store.owned).isEqualTo(1);
         assertThatThrownBy(() -> sessions.get("t", "u", " "))
@@ -90,7 +91,7 @@ class SessionListTest {
     @Test
     void blankIdentityIsSkipped() {
         CountingStore store = new CountingStore();
-        SessionListService sessions = new SessionListService(store, new FakeAccessCache());
+        SessionListService sessions = new SessionListService(store, new FakeAccessCache(), new AbsentChatMessageStore());
         sessions.record("t", " ", "s", "WEB", "hi");
         sessions.record("t", "u", "", "WEB", "hi");
         assertThat(store.touches).isZero();

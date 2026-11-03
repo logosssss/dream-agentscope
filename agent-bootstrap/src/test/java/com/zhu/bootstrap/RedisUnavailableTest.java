@@ -2,6 +2,7 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.api.controller.AccessExceptionHandler;
 import com.zhu.access.api.dto.ChatRequest;
+import com.zhu.access.application.AbsentChatMessageStore;
 import com.zhu.access.application.ChatAppService;
 import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
@@ -55,7 +56,8 @@ class RedisUnavailableTest {
                 (tenantId, userId) -> {
                 },
                 (tenantId, userId, sessionId) -> {
-                });
+                },
+                new AbsentChatMessageStore());
 
         assertThatThrownBy(() -> chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null)))
                 .isInstanceOf(BusinessException.class)

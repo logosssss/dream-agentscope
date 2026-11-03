@@ -19,7 +19,7 @@
 | `api.controller` | `ChatController` | `POST /api/chat` 同步 JSON；`POST /api/chat/stream` 输出 SSE。不覆盖过滤器写入的线程身份 |
 | `api.controller` | `ApprovalController` | `GET /api/approvals/pending`。只返回当前请求头用户和租户的待确认，不带工具参数 |
 | `api.controller` | `NotificationController` | `GET /api/notifications` 列出本人审批通知。不发送，也不改状态 |
-| `api.controller` | `SessionController` | `GET /api/sessions` 列出活动会话；`GET /api/sessions/{sessionId}` 看一次会话的最近运行和轮数。不含正文 |
+| `api.controller` | `SessionController` | `GET /api/sessions` 列出活动会话；`GET /api/sessions/{sessionId}` 看元数据（不含正文）；`GET /api/sessions/{sessionId}/messages` 按 seq 升序拉气泡 |
 | `api.dto` | `SessionDetail` | 详情一行：状态、最近运行、轮数和最近活动时间 |
 | `api.controller` | `RunController` | `GET /api/runs` 列出本人本租户已经结束的运行；`GET /api/runs/{runId}` 看一次运行和步骤。不返回全文 |
 | `api.dto` | `RunSummary` / `RunDetail` / `RunStepSummary` | 列表一行短摘要；详情另带步骤类型、工具名和状态 |
@@ -71,7 +71,7 @@
 
 `agentscope.access.daily-limit` 和 `per-minute` 默认是 0，表示不限制。MySQL 打开且该租户有启用的 `REQUESTS` / `DAILY` 行时，当日请求用这一行的上限，0 仍表示不限额；没有行时用进程配置。有启用的 `TOKENS` / `DAILY` 时，入口只读 Redis 当日已用量（`quota-tokens:{tenant}:{user}:{day}`），达到上限拒绝对话；用量在模型记账后由 `RedisDailyTokenAccumulator` 累加 input+output。有启用的 `COST` / `DAILY` 时同理读 `quota-cost:...`（金额微单位 ×1e6）；计价写 `token_usage` 后由 `RedisDailyCostAccumulator` 累加。分钟限流仍是进程配置。计数仍在 Redis，不把已用量写回这张表。查这行失败返回 `UNAVAILABLE`，不改用进程配置。当日请求计数通过后写 `quota_usage_log`，数量是 1，不填运行标识。不限额时不写。流水写失败不改变这次请求，超限的那一次不记。带了 `X-Request-Id` 时，十分钟内的重复提交返回冲突，不再执行第二次。同一租户、用户、会话进行中时，再来一轮也返回冲突，调用结束就释放。有启用的 `CONCURRENT_RUNS` / `CURRENT` 时，同一租户同时进行的对话不能超过这一行；占位键 `concurrent:{tenant}`，结束减一，进程崩溃后靠过期放开。Redis 不保存 Agent 状态或沙箱快照。`GET /api/quota` 只读这些 Redis 计数和租户上限，不增加计数，也不写流水。没有租户行时请求上限用进程配置，其它项上限为空。Redis 在额度、幂等、限流、占锁或并发占位时失败，请求返回 HTTP 503，错误码 `UNAVAILABLE`，不执行对话，也不改查 MySQL 或内存。释放锁或归还占位失败不改变已经生成的回复，键靠过期时间放开。
 
-会话列表是另一条路。`agent_session_meta` 由用户进程的 Flyway 建立，标题最多 40 个字符，不存正文。`GET /api/sessions` 先过账号门，再读 Redis，没有或 Redis 不可用时查这张表。`GET /api/sessions/{sessionId}` 不走列表缓存，直接查库，带最近运行和轮数。别人的标识按找不到处理。对话在占锁成功后写入；删缓存失败不改变已经开始的对话。MySQL 打开时，同一租户下的 `sessionId` 已被其他用户占用则返回冲突。MySQL 关闭时不查归属，这只出现在测试里。
+会话列表是另一条路。`agent_session_meta` 由用户进程的 Flyway 建立，标题最多 40 个字符，不存正文。`GET /api/sessions` 先过账号门，再读 Redis，没有或 Redis 不可用时查这张表。`GET /api/sessions/{sessionId}` 不走列表缓存，直接查库，带最近运行和轮数。别人的标识按找不到处理。对话在占锁成功后写入；删缓存失败不改变已经开始的对话。MySQL 打开时，同一租户下的 `sessionId` 已被其他用户占用则返回冲突。MySQL 关闭时不查归属，这只出现在测试里。成功对话会双写 `chat_message`（user + assistant）；写失败不改变回复。`GET /api/sessions/{sessionId}/messages` 先确认本人会话，再按 seq 升序返回，默认 100 条、最多 200。
 
 同一次对话结束时写 `agent_run`。同步路径用回复上的运行标识；流式路径由接入层生成，因为事件里没有标识。输入和输出只留 40 个字符的摘要，异常只留类型名。写失败不改变回复。成功、失败或取消后，把这个标识填进会话的 `last_run_id`。`API` 通道的触发类型是 `API`，页面和即时通讯是 `USER`。`GET /api/runs` 列出当前用户在这个租户下已经结束的运行，默认 50 条，最多 100 条。只带短摘要，不读步骤，也不返回异常原文。`GET /api/runs/{runId}` 先确认这次运行属于当前用户和租户，再读 `agent_run_step`。别人的标识按找不到处理。步骤只带序号、类型、工具名和状态，不带回参数、耗时或 token。MySQL 关闭时返回不可用。
 

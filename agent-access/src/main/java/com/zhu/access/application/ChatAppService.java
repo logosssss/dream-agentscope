@@ -57,6 +57,8 @@ public class ChatAppService {
 
     private final SessionOwnerGate owners;
 
+    private final ChatMessageStore messages;
+
     /**
      * 租户、租户用户和会话归属在额度和占锁之前。MySQL 关闭时这三项放行。
      */
@@ -71,7 +73,8 @@ public class ChatAppService {
             RunLog runs,
             TenantGate tenants,
             TenantUserGate tenantUsers,
-            SessionOwnerGate owners) {
+            SessionOwnerGate owners,
+            ChatMessageStore messages) {
         this.executor = executor;
         this.prompts = prompts;
         this.semantics = semantics;
@@ -83,6 +86,7 @@ public class ChatAppService {
         this.tenants = tenants;
         this.tenantUsers = tenantUsers;
         this.owners = owners;
+        this.messages = messages;
     }
 
     /**
@@ -150,16 +154,23 @@ public class ChatAppService {
                     .doOnNext(event -> keep(seen, output, event))
                     .doOnError(error -> errorCode.set(error.getClass().getSimpleName()))
                     .doFinally(signal -> {
-                        concurrent.close(held);
-                        turns.close(turn);
-                        String status = streamStatus(signal);
-                        String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
-                        finish(request, agentRequest, status, runId, output.get(), code, started, stepsFrom(seen, status));
+                        try {
+                            String status = streamStatus(signal);
+                            String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
+                            // 先落库再放锁，避免同会话下一轮抢到锁后 seq 交错。
+                            finish(request, agentRequest, status, runId, output.get(), code, started, stepsFrom(seen, status));
+                        } finally {
+                            concurrent.close(held);
+                            turns.close(turn);
+                        }
                     });
         } catch (RuntimeException error) {
-            concurrent.close(slot);
-            turns.close(turn);
-            finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), started, reasoning(RunLog.FAILED));
+            try {
+                finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), started, reasoning(RunLog.FAILED));
+            } finally {
+                concurrent.close(slot);
+                turns.close(turn);
+            }
             throw error;
         }
     }
@@ -179,6 +190,7 @@ public class ChatAppService {
 
     /**
      * 运行记录写失败只打固定日志，不改变回复，也不把异常原文打出来。
+     * 成功时再双写 chat_message；消息写失败同样不改变回复。
      * 摘要沿用列表标题的长度，换行压成空格。步骤只带类型和工具名。
      */
     private void finish(
@@ -190,8 +202,8 @@ public class ChatAppService {
             String errorCode,
             long startedNanos,
             List<RunStep> steps) {
+        String id = runId == null || runId.isBlank() ? Ids.newId() : runId;
         try {
-            String id = runId == null || runId.isBlank() ? Ids.newId() : runId;
             runs.complete(
                     agentRequest.tenantId(),
                     agentRequest.userId(),
@@ -207,6 +219,20 @@ public class ChatAppService {
             sessions.attachRun(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId(), id);
         } catch (RuntimeException error) {
             log.warning("run record failed");
+        }
+        if (!RunLog.SUCCEEDED.equals(status)) {
+            return;
+        }
+        try {
+            messages.appendTurn(
+                    agentRequest.tenantId(),
+                    agentRequest.userId(),
+                    agentRequest.sessionId(),
+                    id,
+                    request.text() == null ? "" : request.text(),
+                    output == null ? "" : output);
+        } catch (RuntimeException error) {
+            log.warning("chat message record failed");
         }
     }
 

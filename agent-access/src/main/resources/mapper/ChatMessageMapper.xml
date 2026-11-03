@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.access.infrastructure.persistence.ChatMessageMapper">
+
+    <select id="maxSeq" resultType="long">
+        SELECT COALESCE(MAX(seq), 0)
+        FROM chat_message
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND session_id = #{sessionId}
+    </select>
+
+    <insert id="insertMessage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_message
+            (tenant_id, user_id, session_id, seq, role, content, run_id, created_at)
+        VALUES
+            (#{tenantId}, #{userId}, #{sessionId}, #{seq}, #{role}, #{content}, #{runId}, #{createdAt})
+    </insert>
+
+    <select id="listOwned" resultType="com.zhu.access.infrastructure.persistence.entity.ChatMessage">
+        SELECT seq, role, content, run_id, created_at
+        FROM chat_message
+        WHERE tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND session_id = #{sessionId}
+        ORDER BY seq ASC
+        LIMIT #{limit}
+    </select>
+</mapper>

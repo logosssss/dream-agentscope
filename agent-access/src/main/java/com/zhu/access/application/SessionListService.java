@@ -3,6 +3,7 @@ package com.zhu.access.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhu.access.api.dto.ChatMessageItem;
 import com.zhu.access.api.dto.SessionDetail;
 import com.zhu.access.api.dto.SessionSummary;
 import com.zhu.access.infrastructure.cache.AccessCache;
@@ -28,12 +29,15 @@ public class SessionListService implements SessionIndex {
 
     private final AccessCache cache;
 
+    private final ChatMessageStore chatMessages;
+
     private final ObjectMapper json = new ObjectMapper();
 
     /** 存储和缓存都由启动模块注入。测试关掉 MySQL 时存储是空实现。 */
-    public SessionListService(SessionMetaStore store, AccessCache cache) {
+    public SessionListService(SessionMetaStore store, AccessCache cache, ChatMessageStore chatMessages) {
         this.store = store;
         this.cache = cache;
+        this.chatMessages = chatMessages;
     }
 
     /**
@@ -98,6 +102,14 @@ public class SessionListService implements SessionIndex {
             throw new BusinessException(ErrorCode.NOT_FOUND, "session not found");
         }
         return detail;
+    }
+
+    /**
+     * 先确认本人会话，再按 seq 升序拉气泡。limit 由仓储夹紧。
+     */
+    public List<ChatMessageItem> messages(String tenantId, String userId, String sessionId, int limit) {
+        get(tenantId, userId, sessionId);
+        return chatMessages.list(tenantId, userId, sessionId, limit);
     }
 
     /** 键带租户，避免不同租户的同名用户共用一份列表。冒号换成下划线。 */

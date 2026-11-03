@@ -1,5 +1,6 @@
 package com.zhu.access.api.controller;
 
+import com.zhu.access.api.dto.ChatMessageItem;
 import com.zhu.access.api.dto.SessionDetail;
 import com.zhu.access.api.dto.SessionSummary;
 import com.zhu.access.application.AccessAccountGate;
@@ -10,10 +11,11 @@ import com.zhu.common.dto.ApiResult;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 当前用户的会话。列表走缓存；详情走库，仍不含正文。
+ * 当前用户的会话。列表与详情不含正文；消息历史单独拉。
  */
 @RestController
 public class SessionController {
@@ -47,5 +49,16 @@ public class SessionController {
         accounts.requireActive();
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         return ApiResult.ok(sessions.get(tenantId, UserContext.get(), sessionId));
+    }
+
+    /**
+     * 本人会话的气泡，按 seq 升序。默认 100 条，最多 200。别人的会话按找不到。
+     */
+    @GetMapping("/api/sessions/{sessionId}/messages")
+    public ApiResult<List<ChatMessageItem>> messages(
+            @PathVariable String sessionId, @RequestParam(defaultValue = "100") int limit) {
+        accounts.requireActive();
+        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        return ApiResult.ok(sessions.messages(tenantId, UserContext.get(), sessionId, limit));
     }
 }

@@ -1,6 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.api.dto.ChatRequest;
+import com.zhu.access.application.AbsentChatMessageStore;
 import com.zhu.access.application.ChatAppService;
 import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
@@ -156,7 +157,8 @@ class ChatRunTest {
                 (tenantId, userId) -> {
                 },
                 (tenantId, userId, sessionId) -> {
-                });
+                },
+                new AbsentChatMessageStore());
     }
 
     /** 最小请求。通道空则按页面。 */

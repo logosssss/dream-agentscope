@@ -1,6 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.api.dto.ChatRequest;
+import com.zhu.access.application.AbsentChatMessageStore;
 import com.zhu.access.application.ChatAppService;
 import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
@@ -58,7 +59,7 @@ class AccessIdentityTest {
         }, tenantId -> {
         }, (tenantId, userId) -> {
         }, (tenantId, userId, sessionId) -> {
-        }).chat(request);
+        }, new AbsentChatMessageStore()).chat(request);
 
         ArgumentCaptor<AgentRequest> sent = ArgumentCaptor.forClass(AgentRequest.class);
         verify(executor).execute(sent.capture());

@@ -1,5 +1,6 @@
 package com.zhu.bootstrap;
 
+import com.zhu.access.application.AbsentChatMessageStore;
 import com.zhu.access.application.ChatAppService;
 import com.zhu.access.application.ConcurrentRunGuard;
 import com.zhu.access.application.QuotaGuard;
@@ -51,7 +52,8 @@ class SessionTurnTest {
                 (tenantId, userId) -> {
                 },
                 (tenantId, userId, sessionId) -> {
-                });
+                },
+                new AbsentChatMessageStore());
 
         chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null));
 
