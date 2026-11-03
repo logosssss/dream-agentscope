@@ -68,6 +68,20 @@
         LIMIT 1
     </select>
 
+    <!-- 同会话同工具已有 PENDING 时复用最早一张，避免 max-iters 多轮各插一行。 -->
+    <select id="findPendingUnused" resultMap="BaseResultMap">
+        SELECT id, approval_id, tenant_id, user_id, session_id, run_id, tool_name, action, decision,
+               approver, channel, reason, requested_at, decided_at, executed_at, result, created_at
+        FROM approval_record
+        WHERE decision = 'PENDING'
+          AND tenant_id = #{tenantId}
+          AND user_id = #{userId}
+          AND session_id = #{sessionId}
+          AND tool_name = #{toolName}
+        ORDER BY requested_at ASC, id ASC
+        LIMIT 1
+    </select>
+
     <!-- 只占仍未执行的已批准单据。返回 0 表示被别人先占了。 -->
     <update id="claimExecution">
         UPDATE approval_record

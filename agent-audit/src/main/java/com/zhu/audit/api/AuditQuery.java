@@ -27,4 +27,9 @@ public interface AuditQuery {
      * @param limit 条数。小于 1 时按 50，大于 100 时截断到 100
      */
     List<ApprovalRow> pendingFor(String tenantId, String userId, int limit);
+
+    /**
+     * 本人本租户的一张审批。含已决定行。找不到或不属于本人时返回 null，不抛异常。
+     */
+    ApprovalRow ownedOne(String tenantId, String userId, String approvalId);
 }

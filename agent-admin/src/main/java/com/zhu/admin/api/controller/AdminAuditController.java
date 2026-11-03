@@ -49,19 +49,28 @@ public class AdminAuditController {
         return ApiResult.ok(audits.pendingApprovals(limit));
     }
 
+    /** 操作人空白时与后台审计一致，记成 admin。 */
+    private static final String DEFAULT_APPROVER = "admin";
+
     /**
      * 把一张待审批改成通过或拒绝。关掉对应待办，仍不触发工具执行。
-     * 单据不存在或已经决定过时，由决定口返回失败。
+     * 审批人可空，空则按 admin。单据不存在或已经决定过时，由决定口返回失败。
      */
     @PostMapping("/api/admin/approvals/{approvalId}/decision")
     public ApiResult<ApprovalRow> decide(
             @PathVariable String approvalId,
             @RequestBody ApprovalDecisionRequest request) {
+        ApprovalDecisionRequest body = request == null
+                ? new ApprovalDecisionRequest(null, null, null)
+                : request;
+        String approver = body.approver() == null || body.approver().isBlank()
+                ? DEFAULT_APPROVER
+                : body.approver().strip();
         return ApiResult.ok(decisions.decide(
                 approvalId,
-                ApprovalDecision.parse(request.decision()),
-                request.approver(),
+                ApprovalDecision.parse(body.decision()),
+                approver,
                 CHANNEL,
-                request.reason()));
+                body.reason()));
     }
 }

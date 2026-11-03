@@ -25,6 +25,14 @@ public interface ApprovalRecorder {
     }
 
     /**
+     * 同租户、用户、会话和工具上仍待处理的单号。没有时返回 null。
+     * 默认没有。ASK 多轮推理时先查这个，避免重复插单和重复通知。
+     */
+    default String findPending(String tenantId, String userId, String sessionId, String toolId) {
+        return null;
+    }
+
+    /**
      * 回写执行结果。只接受 SUCCEEDED、FAILED、CANCELLED，不存工具输出。
      * 默认空操作。写库失败由调用方接住，不能把已经结束的工具调用改成失败。
      */

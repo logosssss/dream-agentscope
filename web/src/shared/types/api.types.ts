@@ -59,3 +59,18 @@ export interface AttachmentSummary {
   storagePath: string
   status: string
 }
+
+/** GET /api/approvals/pending 一行。不带工具参数。 */
+export interface PendingApproval {
+  approvalId: string
+  toolId: string
+  sessionId: string
+}
+
+/** POST /api/approvals/{id}/decision 回传摘要。 */
+export interface ApprovalDecisionView {
+  approvalId: string
+  toolId: string
+  sessionId: string
+  decision: string
+}

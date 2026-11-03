@@ -78,7 +78,8 @@ public class ApprovalMiddleware implements MiddlewareBase {
 
     /**
      * 工具名为空无法匹配规则，原样留下。DENY 不记审批，也不交给后续执行。
-     * 有未执行的批准单时原样放行。否则 ASK 记单、发事件，并把状态标成等待确认。
+     * 有未执行的批准单时原样放行。已有同会话同工具的 PENDING 只标 ASKING，不插新单、不发事件。
+     * 否则 ASK 记单、发事件，并把状态标成等待确认。
      */
     private void keep(ToolUseBlock use, CallIdentity identity, List<ToolUseBlock> out, List<String> claimed) {
         if (use == null || use.getName() == null || use.getName().isBlank()) {
@@ -100,6 +101,11 @@ public class ApprovalMiddleware implements MiddlewareBase {
         if (approved != null) {
             claimed.add(approved);
             out.add(use);
+            return;
+        }
+        String pending = approvals.findPending(tenantId, userId, sessionId, use.getName());
+        if (pending != null) {
+            out.add(use.withState(ToolCallState.ASKING));
             return;
         }
         String approvalId = Ids.newId();

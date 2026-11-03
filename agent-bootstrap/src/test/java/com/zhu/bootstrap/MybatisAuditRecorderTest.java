@@ -66,4 +66,19 @@ class MybatisAuditRecorderTest {
         assertThat(claimed).isEqualTo("ap-9");
         verify(approvals).writeExecutionResult("ap-9", "{\"status\":\"SUCCEEDED\"}");
     }
+
+    /** 同会话同工具的 PENDING 单号交出去，空工具名不查。 */
+    @Test
+    void findPendingReturnsExistingId() {
+        ApprovalRecordMapper approvals = mock(ApprovalRecordMapper.class);
+        ApprovalRecord pending = new ApprovalRecord();
+        pending.setApprovalId("ap-pending");
+        when(approvals.findPendingUnused("tenant-a", "user-a", "session-a", "shell")).thenReturn(pending);
+
+        MybatisApprovalRecorder recorder = new MybatisApprovalRecorder(approvals);
+
+        assertThat(recorder.findPending("tenant-a", "user-a", "session-a", "shell")).isEqualTo("ap-pending");
+        assertThat(recorder.findPending("tenant-a", "user-a", "session-a", "")).isNull();
+        verify(approvals).findPendingUnused("tenant-a", "user-a", "session-a", "shell");
+    }
 }

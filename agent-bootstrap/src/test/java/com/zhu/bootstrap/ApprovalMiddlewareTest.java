@@ -52,6 +52,43 @@ class ApprovalMiddlewareTest {
         assertThat(seen.getState()).isEqualTo(ToolCallState.ASKING);
     }
 
+    /** 同会话同工具已有 PENDING 时只标 ASKING，不插新单、不发事件。 */
+    @Test
+    void existingPendingReusesWithoutNewRecord() {
+        List<ApprovalRequestedEvent> published = new ArrayList<>();
+        List<String> recorded = new ArrayList<>();
+        PermissionRuleService permissions = (toolId, tenantId, roleId) -> PermissionDecision.ASK;
+        ApprovalRecorder approvals = new ApprovalRecorder() {
+            @Override
+            public void requested(String approvalId, String toolId, String userId, String sessionId, String tenantId) {
+                recorded.add(toolId);
+            }
+
+            @Override
+            public String findPending(String tenantId, String userId, String sessionId, String toolId) {
+                return "ap-pending";
+            }
+        };
+        ApprovalMiddleware middleware = new ApprovalMiddleware(
+                permissions, approvals, event -> published.add((ApprovalRequestedEvent) event));
+        ToolUseBlock use = new ToolUseBlock.Builder().id("tool-1").name("shell").input(Map.of()).build();
+        RuntimeContext context = RuntimeContext.builder()
+                .userId("user-a")
+                .sessionId("session-a")
+                .put("tenantId", "tenant-a")
+                .build();
+        AtomicReference<ToolUseBlock> forwarded = new AtomicReference<>();
+        middleware.onActing(mock(Agent.class), context, new ActingInput(List.of(use)), input -> {
+                    forwarded.set(input.toolCalls().get(0));
+                    return Flux.empty();
+                })
+                .blockLast();
+
+        assertThat(recorded).isEmpty();
+        assertThat(published).isEmpty();
+        assertThat(forwarded.get().getState()).isEqualTo(ToolCallState.ASKING);
+    }
+
     /** 已批准的单放行同名工具，结束后回写成功，不再记一张新单。 */
     @Test
     void approvedClaimRunsToolAndRecordsSuccess() {

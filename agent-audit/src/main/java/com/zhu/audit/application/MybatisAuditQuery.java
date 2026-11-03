@@ -70,6 +70,28 @@ public class MybatisAuditQuery implements AuditQuery {
         return result;
     }
 
+    /**
+     * 按单号读一行，再核对本租户和发起人。别人的单按空返回，避免暴露存在性。
+     */
+    @Override
+    public ApprovalRow ownedOne(String tenantId, String userId, String approvalId) {
+        if (approvalId == null || approvalId.isBlank()) {
+            return null;
+        }
+        ApprovalRecord row = approvals.findByApprovalId(approvalId);
+        if (row == null) {
+            return null;
+        }
+        String tenant = tenantId == null ? "" : tenantId;
+        String user = userId == null ? "" : userId;
+        String rowTenant = row.getTenantId() == null ? "" : row.getTenantId();
+        String rowUser = row.getUserId() == null ? "" : row.getUserId();
+        if (!tenant.equals(rowTenant) || !user.equals(rowUser)) {
+            return null;
+        }
+        return toRow(row);
+    }
+
     /** 查询行转成给管理端和用户端共用的记录。 */
     private static ApprovalRow toRow(ApprovalRecord row) {
         return new ApprovalRow(

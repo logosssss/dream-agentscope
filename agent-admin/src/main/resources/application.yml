@@ -37,8 +37,10 @@ agentscope:
   milvus:
     # 管理进程只探测地址，不建集合。
     uri: ${MILVUS_URI:}
-  caller:
+  admin:
     # 管理进程自己的调用方令牌，和用户进程分开。空则除存活和就绪外全部拒绝。
+    # 不能挂在 agentscope.caller.token：同一份 .env 里的 AGENTSCOPE_CALLER_TOKEN
+    # 会经 Spring 宽松绑定盖掉 AGENTSCOPE_ADMIN_TOKEN。
     token: ${AGENTSCOPE_ADMIN_TOKEN:}
   nacos:
     # 地址为空：不拉启动配置。

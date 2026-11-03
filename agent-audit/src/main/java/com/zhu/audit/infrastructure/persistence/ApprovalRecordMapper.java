@@ -53,6 +53,16 @@ public interface ApprovalRecordMapper extends BaseMapper<ApprovalRecord> {
             @Param("toolName") String toolName);
 
     /**
+     * 取这个用户、会话和工具上最早的一张仍待处理的单据。没有时返回 null。
+     * 给 ASK 复用，避免同一次对话多轮推理插出多张单。
+     */
+    ApprovalRecord findPendingUnused(
+            @Param("tenantId") String tenantId,
+            @Param("userId") String userId,
+            @Param("sessionId") String sessionId,
+            @Param("toolName") String toolName);
+
+    /**
      * 写上执行时间。只更新仍未执行的已批准单据，返回实际更新行数。
      */
     int claimExecution(@Param("approvalId") String approvalId, @Param("executedAt") LocalDateTime executedAt);

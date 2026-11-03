@@ -37,6 +37,12 @@ public class TestDependencyDoubles {
             public List<ApprovalRow> pendingFor(String tenantId, String userId, int limit) {
                 return List.of();
             }
+
+            /** 测试不返回本人审批。 */
+            @Override
+            public ApprovalRow ownedOne(String tenantId, String userId, String approvalId) {
+                return null;
+            }
         };
     }
 

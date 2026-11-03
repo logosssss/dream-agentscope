@@ -36,6 +36,8 @@ const emit = defineEmits<{
   sent: []
   /** 需要重新登录时抛出，外层可清路由 */
   needLogin: []
+  /** 非正文状态提示，例如等待确认；外层可据此刷新待确认 */
+  status: [message: string]
 }>()
 
 const router = useRouter()
@@ -77,15 +79,20 @@ watch(
   },
 )
 
-/** 发送用户输入并消费 SSE。 */
-async function send() {
-  const text = input.value.trim()
+/**
+ * 发送用户输入并消费 SSE。
+ * @param overrideText 有值时用该文案发送（重发上一条），不改输入框草稿
+ */
+async function send(overrideText?: string) {
+  const text = (overrideText ?? input.value).trim()
   if (!text || streaming.value || props.loadingHistory) {
     return
   }
   error.value = ''
   statusTip.value = ''
-  input.value = ''
+  if (overrideText === undefined) {
+    input.value = ''
+  }
 
   chatStore.appendMessage(props.agentId, props.sessionId, {
     id: crypto.randomUUID(),
@@ -120,6 +127,7 @@ async function send() {
         },
         onStatus: (tip) => {
           statusTip.value = tip
+          emit('status', tip)
         },
       },
       abortController.signal,
@@ -143,6 +151,25 @@ async function send() {
   }
 }
 
+/**
+ * 把当前会话最后一条用户消息再发一轮。没有用户气泡时返回 false。
+ * 批准后由外层按钮触发，不自动调用。
+ */
+async function resendLastUserMessage(): Promise<boolean> {
+  if (streaming.value || props.loadingHistory) {
+    return false
+  }
+  const msgs = chatStore.getMessages(props.agentId, props.sessionId)
+  for (let i = msgs.length - 1; i >= 0; i -= 1) {
+    const row = msgs[i]
+    if (row.role === 'user' && row.content.trim()) {
+      await send(row.content)
+      return true
+    }
+  }
+  return false
+}
+
 /** 取消当前流，解锁输入框。 */
 function stop() {
   abortController?.abort()
@@ -158,6 +185,7 @@ function abortIfStreaming() {
 defineExpose({
   streaming,
   abortIfStreaming,
+  resendLastUserMessage,
   /** 外层把列表/历史错误展示到输入区上方。 */
   setError(message: string) {
     error.value = message
@@ -226,7 +254,7 @@ onBeforeUnmount(() => {
         <slot name="before-input" />
         <p v-if="statusTip" class="text-xs text-[var(--color-text-muted)]">{{ statusTip }}</p>
         <p v-if="error" class="text-sm text-[var(--color-danger)]">{{ error }}</p>
-        <form class="flex gap-2" @submit.prevent="send">
+        <form class="flex gap-2" @submit.prevent="send()">
           <input
             v-model="input"
             class="flex-1 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] text-[var(--color-text-main)] px-3 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-primary)] disabled:bg-[var(--color-surface-muted)]"

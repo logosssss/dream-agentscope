@@ -22,9 +22,10 @@ public class AdminCallerTokenFilter extends OncePerRequestFilter {
     private final String expected;
 
     /**
-     * 令牌来自配置。正式环境为空时，除存活和就绪外全部拒绝。
+     * 令牌来自 agentscope.admin.token（环境变量 AGENTSCOPE_ADMIN_TOKEN）。
+     * 正式环境为空时，除存活和就绪外全部拒绝。
      */
-    public AdminCallerTokenFilter(@Value("${agentscope.caller.token:}") String expected) {
+    public AdminCallerTokenFilter(@Value("${agentscope.admin.token:}") String expected) {
         this.expected = expected;
     }
 

@@ -53,6 +53,21 @@ public class MybatisApprovalRecorder implements ApprovalRecorder {
     }
 
     /**
+     * 工具名为空时不查。身份空值写成空串，和申请时的落库一致。
+     */
+    @Override
+    public String findPending(String tenantId, String userId, String sessionId, String toolId) {
+        if (toolId == null || toolId.isBlank()) {
+            return null;
+        }
+        ApprovalRecord row = approvals.findPendingUnused(text(tenantId), text(userId), text(sessionId), toolId);
+        if (row == null || row.getApprovalId() == null || row.getApprovalId().isBlank()) {
+            return null;
+        }
+        return row.getApprovalId();
+    }
+
+    /**
      * 结果固定成状态 JSON。未知状态记成 FAILED，避免把调用方的原文写进 JSON 列。
      */
     @Override

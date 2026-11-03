@@ -30,7 +30,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /api/admin/info` | 角色为 `admin` |
 | `GET /api/admin/audits` | 最近审计，默认 50 条，最多 100 条 |
 | `GET /api/admin/approvals` | 决定为 `PENDING` 的审批，条数规则同上 |
-| `POST /api/admin/approvals/{approvalId}/decision` | 把该单改成 `APPROVED` 或 `REJECTED`。通道固定为 `CONSOLE`。关掉对应待办，仍不执行工具。单据不存在时返回找不到 |
+| `POST /api/admin/approvals/{approvalId}/decision` | 把该单改成 `APPROVED` 或 `REJECTED`。通道固定为 `CONSOLE`；审批人可空，空则 `admin`。关掉对应待办，仍不执行工具。单据不存在时返回找不到 |
 | `POST /api/admin/billing/drafts` | 按租户和区间生成一张草稿账单。MySQL 关闭时返回不可用 |
 | `POST /api/admin/billing/confirmations` | 把对应草稿改成已确认，不重算金额。没有账单时返回找不到 |
 | `POST /api/admin/billing/invoices` | 把已确认的账单改成已开票，不重算金额。草稿要先确认 |
@@ -92,7 +92,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/eval-runs` | 为该数据集的 `1.0.0` 登记一次执行，记下用例条数。状态停在 `RUNNING`。不调用模型 |
 | `POST /api/admin/eval-runs/{evalRunId}/score` | 给仍在跑的执行写入通过数和通过率，改成 `SUCCEEDED`。不调用模型。MySQL 关闭时返回不可用 |
 
-业务接口要带 `X-Caller-Token`，值来自 `AGENTSCOPE_ADMIN_TOKEN`，和用户进程的令牌分开。没配或对不上时 HTTP 401。存活和就绪不校验。这不是用户登录。
+业务接口要带 `X-Caller-Token`，值来自 `AGENTSCOPE_ADMIN_TOKEN`（配置项 `agentscope.admin.token`），和用户进程的 `AGENTSCOPE_CALLER_TOKEN` 分开。不能共用 `agentscope.caller.token`，否则同进程加载的 `AGENTSCOPE_CALLER_TOKEN` 会盖掉管理令牌。没配或对不上时 HTTP 401。存活和就绪不校验。这不是用户登录。
 
 成功的写入接口会再记一行 `operation_audit`。操作人来自 `X-Operator-Id`，没有时是 `admin`。查询、手工 `POST /api/admin/operation-audits` 和业务失败不自动记。审计写失败不改变这次接口结果。MySQL 关闭时跳过。
 

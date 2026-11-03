@@ -12,7 +12,7 @@ export function listPendingApprovals(limit = 50): Promise<ApprovalRow[]> {
 }
 
 /**
- * 批准或拒绝。approver 建议用顶栏操作人；空时仍提交空串，后端可落默认。
+ * 批准或拒绝。approver 建议用顶栏操作人；空则提交 admin，与后端默认一致。
  */
 export function decideApproval(
   approvalId: string,
@@ -26,7 +26,7 @@ export function decideApproval(
       method: 'POST',
       body: JSON.stringify({
         decision,
-        approver: approver || null,
+        approver: (approver || '').trim() || 'admin',
         reason: reason || null,
       }),
     },
