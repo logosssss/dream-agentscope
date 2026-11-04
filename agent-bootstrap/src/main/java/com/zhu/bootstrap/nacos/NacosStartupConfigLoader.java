@@ -13,15 +13,15 @@ import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 
 /**
- * 用户进程启动时从 Nacos 拉业务旋钮。地址为空跳过。
- * 配了地址却拉不到或正文空白时拒绝启动。不做热更新、服务发现和 MCP。
+ * 用户进程启动时从 Nacos 拉 infra 与业务两份配置。地址为空跳过。
+ * 配了地址却缺一份或正文空白时拒绝启动。infra 不热更；业务热更由运行时 Watcher 负责。
  */
 public class NacosStartupConfigLoader implements EnvironmentPostProcessor, Ordered {
 
     private static final Logger log = Logger.getLogger(NacosStartupConfigLoader.class.getName());
 
     /**
-     * 在本地 application.yml 之后合并，低于系统环境变量，避免配置中心盖掉机器上的密钥。
+     * 低于系统环境变量（P1），高于本地 application.yml。
      */
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
@@ -55,11 +55,13 @@ public class NacosStartupConfigLoader implements EnvironmentPostProcessor, Order
                 properties.setProperty(PropertyKeyConst.PASSWORD, password);
             }
             client = NacosFactory.createConfigService(properties);
-            String content = client.getConfig(
-                    NacosStartupConfig.DATA_ID, NacosStartupConfig.GROUP, NacosStartupConfig.TIMEOUT_MS);
-            MapPropertySource source = NacosStartupConfigSupport.parse(content);
-            insert(environment, source);
-            log.info("nacos startup config loaded");
+            String infra = client.getConfig(
+                    NacosStartupConfig.INFRA_DATA_ID, NacosStartupConfig.GROUP, NacosStartupConfig.TIMEOUT_MS);
+            String business = client.getConfig(
+                    NacosStartupConfig.BUSINESS_DATA_ID, NacosStartupConfig.GROUP, NacosStartupConfig.TIMEOUT_MS);
+            insert(environment, NacosStartupConfigSupport.parseInfra(infra));
+            insert(environment, NacosStartupConfigSupport.parseBusiness(business));
+            log.info("nacos infra and business startup config loaded");
         } catch (RuntimeException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -76,6 +78,10 @@ public class NacosStartupConfigLoader implements EnvironmentPostProcessor, Order
     }
 
     private static void insert(ConfigurableEnvironment environment, MapPropertySource source) {
+        if (environment.getPropertySources().contains(source.getName())) {
+            environment.getPropertySources().replace(source.getName(), source);
+            return;
+        }
         if (environment.getPropertySources().contains(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME)) {
             environment.getPropertySources().addAfter(
                     StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, source);

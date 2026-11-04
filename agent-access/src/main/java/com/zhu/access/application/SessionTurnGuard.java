@@ -4,13 +4,15 @@ import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
+import com.zhu.runtime.config.AgentRuntimeProperties;
 import java.time.Duration;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
  * 同一租户、用户、会话同时只允许一轮对话。锁在 Redis，调用结束就释放。
  * 不把对话内容放进缓存。进程崩溃后靠过期时间放开，避免会话被永久占住。
+ * TTL 跟运行超时配置走，热更后新占锁用新值。
  */
 @Service
 public class SessionTurnGuard {
@@ -20,17 +22,35 @@ public class SessionTurnGuard {
 
     private final AccessCache cache;
 
-    private final Duration ttl;
+    private final AgentRuntimeProperties runtime;
+
+    private final Integer fixedTimeoutSeconds;
 
     /**
-     * 超时小于 1 时按 120 秒，和运行配置的缺省一致。
+     * 正式装配：超时从运行配置读取。
      */
-    public SessionTurnGuard(
-            AccessCache cache,
-            @Value("${agentscope.runtime.timeout-seconds:120}") int timeoutSeconds) {
-        int seconds = timeoutSeconds < 1 ? 120 : timeoutSeconds;
+    @Autowired
+    public SessionTurnGuard(AccessCache cache, AgentRuntimeProperties runtime) {
         this.cache = cache;
-        this.ttl = Duration.ofSeconds(seconds).plus(EXTRA);
+        this.runtime = runtime;
+        this.fixedTimeoutSeconds = null;
+    }
+
+    /**
+     * 测试用固定超时。超时小于 1 时按 120 秒。
+     */
+    public SessionTurnGuard(AccessCache cache, int timeoutSeconds) {
+        this.cache = cache;
+        this.runtime = null;
+        this.fixedTimeoutSeconds = timeoutSeconds < 1 ? 120 : timeoutSeconds;
+    }
+
+    /** 当前占锁 TTL。 */
+    private Duration ttl() {
+        int seconds = fixedTimeoutSeconds != null
+                ? fixedTimeoutSeconds
+                : (runtime.getTimeoutSeconds() < 1 ? 120 : runtime.getTimeoutSeconds());
+        return Duration.ofSeconds(seconds).plus(EXTRA);
     }
 
     /**
@@ -43,7 +63,7 @@ public class SessionTurnGuard {
         }
         String token = Ids.newId();
         String key = "turn:" + segment(tenantId) + ":" + segment(userId) + ":" + segment(sessionId);
-        if (!cache.lock(key, token, ttl)) {
+        if (!cache.lock(key, token, ttl())) {
             throw new BusinessException(ErrorCode.CONFLICT, "session is busy");
         }
         return new Turn(key, token);

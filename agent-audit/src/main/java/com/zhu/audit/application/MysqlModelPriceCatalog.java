@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * 从 MySQL 读写模型价格。只在存储开关打开时创建。改价是插入新行。
+ * 单价单位是元/百万 token。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -53,8 +54,8 @@ public class MysqlModelPriceCatalog implements ModelPriceCatalog {
     public ModelPriceEntry add(
             String model,
             String currency,
-            BigDecimal inputPer1k,
-            BigDecimal outputPer1k,
+            BigDecimal inputPer1m,
+            BigDecimal outputPer1m,
             LocalDateTime effectiveFrom,
             LocalDateTime effectiveTo) {
         if (model == null || model.isBlank() || model.length() > MODEL_LIMIT) {
@@ -64,7 +65,7 @@ public class MysqlModelPriceCatalog implements ModelPriceCatalog {
         if (code.length() != 3) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "model price is invalid");
         }
-        if (inputPer1k == null || outputPer1k == null || inputPer1k.signum() < 0 || outputPer1k.signum() < 0) {
+        if (inputPer1m == null || outputPer1m == null || inputPer1m.signum() < 0 || outputPer1m.signum() < 0) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "model price is invalid");
         }
         LocalDateTime from = effectiveFrom == null ? LocalDateTime.now(ZoneOffset.UTC) : effectiveFrom;
@@ -74,8 +75,8 @@ public class MysqlModelPriceCatalog implements ModelPriceCatalog {
         ModelPrice row = new ModelPrice();
         row.setModel(model);
         row.setCurrency(code);
-        row.setInputPer1k(inputPer1k.setScale(6, RoundingMode.HALF_UP));
-        row.setOutputPer1k(outputPer1k.setScale(6, RoundingMode.HALF_UP));
+        row.setInputPer1m(inputPer1m.setScale(6, RoundingMode.HALF_UP));
+        row.setOutputPer1m(outputPer1m.setScale(6, RoundingMode.HALF_UP));
         row.setEffectiveFrom(from);
         row.setEffectiveTo(effectiveTo);
         prices.insert(row);
@@ -88,8 +89,8 @@ public class MysqlModelPriceCatalog implements ModelPriceCatalog {
                 row.getId(),
                 row.getModel(),
                 row.getCurrency(),
-                row.getInputPer1k(),
-                row.getOutputPer1k(),
+                row.getInputPer1m(),
+                row.getOutputPer1m(),
                 row.getEffectiveFrom(),
                 row.getEffectiveTo());
     }

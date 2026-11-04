@@ -1,0 +1,69 @@
+# 粘贴到 Nacos 配置中心时：
+#   Data ID : agent-bootstrap-infra.yaml
+#   Group   : AGENT_PLATFORM
+#   格式    : YAML
+# 用户进程启动拉取一次，不热更新。改完需重启用户进程。
+# 仅当 NACOS_ADDR 有值时生效；环境变量仍可覆盖同名项（P1）。
+# Nacos 自身地址/账号不要写进本文件。键须在 classpath:nacos-allowlist.yml 的 infra.exact 中。
+
+spring:
+  servlet:
+    multipart:
+      # 与通用附件和写文件工具的 5MB 上限对齐。知识库纯文本仍在业务层卡 2MB。
+      max-file-size: 5MB
+      max-request-size: 5MB
+  lifecycle:
+    # 停机等待；容器终止宽限不要短于这个时间。
+    timeout-per-shutdown-phase: 120s
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/agentscope?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+    username: root
+    password: change-me
+    hikari:
+      # 本进程最多 20 个连接。管理进程另有一份。MySQL max_connections 须盖住两份再加运维连接。
+      maximum-pool-size: 20
+      minimum-idle: 5
+
+agentscope:
+  caller:
+    token: change-me-caller
+  cache:
+    redis:
+      enabled: true
+      host: 127.0.0.1
+      port: 6379
+      password: ""
+  milvus:
+    uri: http://127.0.0.1:19530
+    token: ""
+    collection: knowledge
+    dimensions: 1024
+  object-store:
+    # local | oss | s3 | minio。缺密钥启动失败，不回落 local。
+    type: local
+    root: data/objects
+    oss:
+      endpoint: ""
+      region: ""
+      bucket: ""
+      access-key-id: ""
+      access-key-secret: ""
+      prefix: agentscope/
+    s3:
+      endpoint: ""
+      region: ""
+      bucket: ""
+      access-key-id: ""
+      access-key-secret: ""
+      prefix: agentscope/
+      path-style: ""
+  wx:
+    mini:
+      app-id: ""
+      app-secret: ""
+  otel:
+    endpoint: ""
+    service-name: agentscope-user
+
+# 嵌入与对话模型密钥。也可用环境变量 DASHSCOPE_API_KEY 覆盖。
+DASHSCOPE_API_KEY: change-me

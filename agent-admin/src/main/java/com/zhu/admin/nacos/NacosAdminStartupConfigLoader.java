@@ -13,15 +13,15 @@ import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 
 /**
- * 管理进程启动时从 Nacos 拉业务旋钮。地址为空跳过。
- * 配了地址却拉不到或正文空白时拒绝启动。不做热更新、服务发现和 MCP。
+ * 管理进程启动时从 Nacos 拉 infra 与业务两份配置。地址为空跳过。
+ * 配了地址却缺一份或正文空白时拒绝启动。不做热更新、服务发现和 MCP。
  */
 public class NacosAdminStartupConfigLoader implements EnvironmentPostProcessor, Ordered {
 
     private static final Logger log = Logger.getLogger(NacosAdminStartupConfigLoader.class.getName());
 
     /**
-     * 在本地 application.yml 之后合并，低于系统环境变量，避免配置中心盖掉机器上的密钥。
+     * 低于系统环境变量（P1），高于本地 application.yml。
      */
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
@@ -57,13 +57,17 @@ public class NacosAdminStartupConfigLoader implements EnvironmentPostProcessor, 
                 properties.setProperty(PropertyKeyConst.PASSWORD, password);
             }
             client = NacosFactory.createConfigService(properties);
-            String content = client.getConfig(
-                    NacosAdminStartupConfig.DATA_ID,
+            String infra = client.getConfig(
+                    NacosAdminStartupConfig.INFRA_DATA_ID,
                     NacosAdminStartupConfig.GROUP,
                     NacosAdminStartupConfig.TIMEOUT_MS);
-            MapPropertySource source = NacosAdminStartupConfigSupport.parse(content);
-            insert(environment, source);
-            log.info("nacos admin startup config loaded");
+            String business = client.getConfig(
+                    NacosAdminStartupConfig.BUSINESS_DATA_ID,
+                    NacosAdminStartupConfig.GROUP,
+                    NacosAdminStartupConfig.TIMEOUT_MS);
+            insert(environment, NacosAdminStartupConfigSupport.parseInfra(infra));
+            insert(environment, NacosAdminStartupConfigSupport.parseBusiness(business));
+            log.info("nacos admin infra and business startup config loaded");
         } catch (RuntimeException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -80,6 +84,10 @@ public class NacosAdminStartupConfigLoader implements EnvironmentPostProcessor, 
     }
 
     private static void insert(ConfigurableEnvironment environment, MapPropertySource source) {
+        if (environment.getPropertySources().contains(source.getName())) {
+            environment.getPropertySources().replace(source.getName(), source);
+            return;
+        }
         if (environment.getPropertySources().contains(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME)) {
             environment.getPropertySources().addAfter(
                     StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, source);

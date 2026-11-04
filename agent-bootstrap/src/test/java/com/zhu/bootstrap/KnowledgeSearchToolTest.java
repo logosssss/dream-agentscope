@@ -41,7 +41,8 @@ class KnowledgeSearchToolTest {
         when(knowledge.searchSuccessByFulltext(eq("t1"), eq("u1"), eq("a1"), eq("请假"), anyInt()))
                 .thenReturn(List.of(chunk("c1", "全文重复"), chunk("c2", "全文补缺")));
 
-        KnowledgeSearchTool tool = new KnowledgeSearchTool(vectors, knowledge, embedder, passthroughReranker());
+        KnowledgeSearchTool tool =
+                new KnowledgeSearchTool(vectors, knowledge, embedder, passthroughReranker(), "knowledge");
         String out = tool.search("请假", context());
 
         assertThat(out).contains("向量命中正文").contains("全文补缺").doesNotContain("全文重复");
@@ -57,8 +58,8 @@ class KnowledgeSearchToolTest {
                 .thenReturn(List.of(chunk("c9", "制度全文")));
         when(knowledge.findSuccessChunksByIds(any(), any(), any(), anyList())).thenReturn(List.of());
 
-        KnowledgeSearchTool tool =
-                new KnowledgeSearchTool(mock(VectorStore.class), knowledge, embedder, passthroughReranker());
+        KnowledgeSearchTool tool = new KnowledgeSearchTool(
+                mock(VectorStore.class), knowledge, embedder, passthroughReranker(), "knowledge");
         String out = tool.search("制度", context());
 
         assertThat(out).contains("制度全文");
@@ -71,7 +72,8 @@ class KnowledgeSearchToolTest {
                 mock(VectorStore.class),
                 mock(KnowledgeRepository.class),
                 mock(TextEmbedder.class),
-                passthroughReranker());
+                passthroughReranker(),
+                "knowledge");
         assertThat(tool.search("  ", context())).isEqualTo("未找到相关知识。");
         assertThat(tool.search("q", RuntimeContext.builder().userId("u1").sessionId("s1").build()))
                 .isEqualTo("未找到相关知识。");

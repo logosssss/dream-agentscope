@@ -5,11 +5,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 /**
- * 按每千 token 单价算金额。与 token_usage.cost_amount 同公式。
+ * 按每百万 token 单价算金额。与 token_usage.cost_amount 同公式。
  */
 public final class ModelCosting {
 
-    private static final BigDecimal THOUSAND = BigDecimal.valueOf(1000);
+    private static final BigDecimal MILLION = BigDecimal.valueOf(1_000_000L);
 
     /** 金额小数位，与落库一致。 */
     public static final int SCALE = 6;
@@ -19,14 +19,15 @@ public final class ModelCosting {
 
     /**
      * 金额。没有价格或单价为空时为 0。
+     * 公式：(input×单价_百万 + output×单价_百万) / 1_000_000，保留 6 位。
      */
     public static BigDecimal amount(long inputTokens, long outputTokens, ModelPrice price) {
         if (price == null) {
             return BigDecimal.ZERO;
         }
-        BigDecimal inputCost = rate(price.getInputPer1k()).multiply(BigDecimal.valueOf(Math.max(0L, inputTokens)));
-        BigDecimal outputCost = rate(price.getOutputPer1k()).multiply(BigDecimal.valueOf(Math.max(0L, outputTokens)));
-        return inputCost.add(outputCost).divide(THOUSAND, SCALE, RoundingMode.HALF_UP);
+        BigDecimal inputCost = rate(price.getInputPer1m()).multiply(BigDecimal.valueOf(Math.max(0L, inputTokens)));
+        BigDecimal outputCost = rate(price.getOutputPer1m()).multiply(BigDecimal.valueOf(Math.max(0L, outputTokens)));
+        return inputCost.add(outputCost).divide(MILLION, SCALE, RoundingMode.HALF_UP);
     }
 
     /**

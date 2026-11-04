@@ -45,15 +45,18 @@ class TokenUsageWriterTest {
         assertThat(row.getCurrency()).isEqualTo("CNY");
     }
 
-    /** 1500 输入和 500 输出按每千 token 单价相加，并累加微单位。 */
+    /**
+     * 1500 输入和 500 输出按每百万 token 单价相加，并累加微单位。
+     * 单价 2 / 6 元每百万，与旧「每千 0.002 / 0.006」等价，金额仍是 0.006。
+     */
     @Test
     void currentPriceSetsCostAndAccumulatesMicros() {
         TokenUsageMapper usages = mock(TokenUsageMapper.class);
         ModelPriceMapper prices = mock(ModelPriceMapper.class);
         ModelPrice price = new ModelPrice();
         price.setCurrency("USD");
-        price.setInputPer1k(new BigDecimal("0.002000"));
-        price.setOutputPer1k(new BigDecimal("0.006000"));
+        price.setInputPer1m(new BigDecimal("2.000000"));
+        price.setOutputPer1m(new BigDecimal("6.000000"));
         when(prices.selectCurrent(eq("m"), any(LocalDateTime.class))).thenReturn(price);
         AtomicLong micros = new AtomicLong();
         DailyCostAccumulator costs = (tenantId, userId, value) -> micros.set(value);
@@ -77,5 +80,22 @@ class TokenUsageWriterTest {
 
         verify(usages, never()).insert(any(TokenUsage.class));
         verify(prices, never()).selectCurrent(any(), any());
+    }
+
+    /** 查价抛错时仍写入 token 行，金额记 0，不挡对话后记账。 */
+    @Test
+    void priceLookupFailureStillInsertsWithZeroCost() {
+        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        ModelPriceMapper prices = mock(ModelPriceMapper.class);
+        when(prices.selectCurrent(eq("m"), any(LocalDateTime.class)))
+                .thenThrow(new RuntimeException("Unknown column 'input_per_1m'"));
+
+        new MysqlTokenUsageWriter(usages, prices, null).record("t", "u", "s", "run-3", "m", 10, 2);
+
+        ArgumentCaptor<TokenUsage> saved = ArgumentCaptor.forClass(TokenUsage.class);
+        verify(usages).insert(saved.capture());
+        assertThat(saved.getValue().getTotalTokens()).isEqualTo(12L);
+        assertThat(saved.getValue().getCostAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(saved.getValue().getCurrency()).isEqualTo("CNY");
     }
 }

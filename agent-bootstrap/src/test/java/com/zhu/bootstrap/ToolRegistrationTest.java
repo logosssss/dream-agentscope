@@ -41,7 +41,8 @@ class ToolRegistrationTest {
                 mock(VectorStore.class),
                 mock(KnowledgeRepository.class),
                 mock(TextEmbedder.class),
-                mock(ChunkReranker.class));
+                mock(ChunkReranker.class),
+                "knowledge");
         assertThat(search.toolId()).isEqualTo(KnowledgeSearchTool.TOOL_ID);
         Toolkit toolkit = new Toolkit();
         new CatalogToolRegistrar().register(

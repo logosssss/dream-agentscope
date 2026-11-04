@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.boot.env.OriginTrackedMapPropertySource;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.MapPropertySource;
@@ -12,7 +13,7 @@ import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.InputStreamResource;
 
 /**
- * 把 Nacos 拉下来的 yaml 收成白名单属性源。不访问网络。
+ * 把管理进程 Nacos yaml 收成白名单属性源。不访问网络。
  */
 public final class NacosAdminStartupConfigSupport {
 
@@ -20,48 +21,93 @@ public final class NacosAdminStartupConfigSupport {
     }
 
     /**
-     * 空白正文拒绝。解析后只保留允许的键，其它键静默丢掉。
-     * 允许的键一个都没有时仍返回空属性源，表示 Nacos 可达但没覆盖任何旋钮。
+     * 业务 yaml：正文非空；白名单外键丢掉。白名单为空时得到空属性源。
      */
-    public static MapPropertySource parse(String yaml) {
+    public static MapPropertySource parseBusiness(String yaml) {
+        return parse(
+                yaml,
+                NacosAdminStartupConfig.BUSINESS_PROPERTY_SOURCE,
+                NacosAdminAllowlist.businessExact(),
+                NacosAdminAllowlist.businessPrefixes(),
+                "nacos admin startup config");
+    }
+
+    /**
+     * infra yaml：正文非空；只留连接与管理令牌。
+     */
+    public static MapPropertySource parseInfra(String yaml) {
+        return parse(
+                yaml,
+                NacosAdminStartupConfig.INFRA_PROPERTY_SOURCE,
+                NacosAdminAllowlist.infraExact(),
+                Set.of(),
+                "nacos admin infra config");
+    }
+
+    private static MapPropertySource parse(
+            String yaml,
+            String sourceName,
+            Set<String> allowedKeys,
+            Set<String> allowedPrefixes,
+            String label) {
         if (yaml == null || yaml.isBlank()) {
-            throw new IllegalStateException("nacos admin startup config is blank");
+            throw new IllegalStateException(label + " is blank");
         }
         try {
             YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
             List<PropertySource<?>> loaded = loader.load(
-                    NacosAdminStartupConfig.PROPERTY_SOURCE,
+                    sourceName,
                     new InputStreamResource(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8))));
             Map<String, Object> filtered = new LinkedHashMap<>();
             for (PropertySource<?> source : loaded) {
-                copyAllowed(source, filtered);
+                copyAllowed(source, filtered, allowedKeys, allowedPrefixes);
             }
-            return new MapPropertySource(NacosAdminStartupConfig.PROPERTY_SOURCE, filtered);
+            return new MapPropertySource(sourceName, filtered);
         } catch (IllegalStateException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new IllegalStateException("nacos admin startup config is invalid", ex);
+            throw new IllegalStateException(label + " is invalid", ex);
         }
     }
 
-    /** 只拷贝白名单键。嵌套 map 由 Yaml 加载器展平后再进来。 */
-    private static void copyAllowed(PropertySource<?> source, Map<String, Object> filtered) {
-        if (!(source instanceof OriginTrackedMapPropertySource tracked)) {
-            if (source instanceof MapPropertySource mapSource) {
-                for (String name : mapSource.getPropertyNames()) {
-                    putIfAllowed(filtered, name, mapSource.getProperty(name));
-                }
+    private static void copyAllowed(
+            PropertySource<?> source,
+            Map<String, Object> filtered,
+            Set<String> allowedKeys,
+            Set<String> allowedPrefixes) {
+        if (source instanceof OriginTrackedMapPropertySource tracked) {
+            for (String name : tracked.getPropertyNames()) {
+                putIfAllowed(filtered, name, tracked.getProperty(name), allowedKeys, allowedPrefixes);
             }
             return;
         }
-        for (String name : tracked.getPropertyNames()) {
-            putIfAllowed(filtered, name, tracked.getProperty(name));
+        if (source instanceof MapPropertySource mapSource) {
+            for (String name : mapSource.getPropertyNames()) {
+                putIfAllowed(filtered, name, mapSource.getProperty(name), allowedKeys, allowedPrefixes);
+            }
         }
     }
 
-    private static void putIfAllowed(Map<String, Object> filtered, String name, Object value) {
-        if (name != null && NacosAdminStartupConfig.ALLOWED_KEYS.contains(name) && value != null) {
+    private static void putIfAllowed(
+            Map<String, Object> filtered,
+            String name,
+            Object value,
+            Set<String> allowedKeys,
+            Set<String> allowedPrefixes) {
+        if (name == null || value == null) {
+            return;
+        }
+        if (allowedKeys.contains(name)) {
             filtered.put(name, value);
+            return;
+        }
+        for (String prefix : allowedPrefixes) {
+            if (name.equals(prefix)
+                    || name.startsWith(prefix + ".")
+                    || name.startsWith(prefix + "[")) {
+                filtered.put(name, value);
+                return;
+            }
         }
     }
 }

@@ -11,5 +11,7 @@ node_modules/
 .env.*
 !.env.example
 !**/.env.example
+# 本机 OSS 密钥草稿（勿提交）
+oss.env
 data/
 .agentscope/

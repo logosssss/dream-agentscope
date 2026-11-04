@@ -4,15 +4,16 @@ import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.audit.api.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import com.zhu.runtime.config.AgentRuntimeProperties;
 import java.time.Duration;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
  * 租户同时进行中的对话上限。计数在 Redis，对话结束就减一。
  * 没有行或上限 0 时不占位。进程崩溃后靠过期放开，避免永久占满。
+ * TTL 跟运行超时配置走，热更后新占位用新值。
  */
 @Service
 public class ConcurrentRunGuard {
@@ -22,33 +23,46 @@ public class ConcurrentRunGuard {
 
     private final AccessCache cache;
 
-    private final Duration ttl;
+    private final AgentRuntimeProperties runtime;
+
+    private final Integer fixedTimeoutSeconds;
 
     /** MySQL 关闭时为空，不限额。 */
     private final TenantQuotaLookup quotas;
 
     /**
-     * 超时小于 1 时按 120 秒，和运行配置的缺省一致。
+     * 正式装配：超时从运行配置读取。
      */
     @Autowired
     public ConcurrentRunGuard(
             AccessCache cache,
-            @Value("${agentscope.runtime.timeout-seconds:120}") int timeoutSeconds,
+            AgentRuntimeProperties runtime,
             ObjectProvider<TenantQuotaLookup> quotas) {
-        this(cache, timeoutSeconds, quotas.getIfAvailable());
+        this.cache = cache;
+        this.runtime = runtime;
+        this.fixedTimeoutSeconds = null;
+        this.quotas = quotas.getIfAvailable();
     }
 
-    /** 测试注入上限。没有上限时不占位。 */
+    /** 测试注入固定超时。没有上限时不占位。 */
     public ConcurrentRunGuard(AccessCache cache, int timeoutSeconds, TenantQuotaLookup quotas) {
-        int seconds = timeoutSeconds < 1 ? 120 : timeoutSeconds;
         this.cache = cache;
-        this.ttl = Duration.ofSeconds(seconds).plus(EXTRA);
+        this.runtime = null;
+        this.fixedTimeoutSeconds = timeoutSeconds < 1 ? 120 : timeoutSeconds;
         this.quotas = quotas;
     }
 
     /** 测试不查租户上限。 */
     public ConcurrentRunGuard(AccessCache cache, int timeoutSeconds) {
         this(cache, timeoutSeconds, (TenantQuotaLookup) null);
+    }
+
+    /** 当前占位 TTL。超时小于 1 时按 120 秒。 */
+    private Duration ttl() {
+        int seconds = fixedTimeoutSeconds != null
+                ? fixedTimeoutSeconds
+                : (runtime.getTimeoutSeconds() < 1 ? 120 : runtime.getTimeoutSeconds());
+        return Duration.ofSeconds(seconds).plus(EXTRA);
     }
 
     /**
@@ -63,6 +77,7 @@ public class ConcurrentRunGuard {
             return Slot.idle();
         }
         String key = "concurrent:" + segment(tenantId);
+        Duration ttl = ttl();
         long used = cache.add(key, 1L, ttl);
         if (used > limit) {
             rollback(key);
@@ -80,7 +95,7 @@ public class ConcurrentRunGuard {
             return;
         }
         try {
-            cache.add(slot.key(), -1L, ttl);
+            cache.add(slot.key(), -1L, ttl());
         } catch (BusinessException error) {
             if (error.errorCode() != ErrorCode.UNAVAILABLE) {
                 throw error;
@@ -90,7 +105,7 @@ public class ConcurrentRunGuard {
 
     private void rollback(String key) {
         try {
-            cache.add(key, -1L, ttl);
+            cache.add(key, -1L, ttl());
         } catch (BusinessException error) {
             if (error.errorCode() != ErrorCode.UNAVAILABLE) {
                 throw error;

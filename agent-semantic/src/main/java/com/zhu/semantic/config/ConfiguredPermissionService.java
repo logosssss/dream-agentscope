@@ -12,23 +12,19 @@ import org.springframework.stereotype.Service;
 /**
  * 按配置匹配工具权限。MySQL 关闭或没写开关时使用，测试走这条。
  * MySQL 打开后由数据表实现接管，容器里仍然只有一个 PermissionRuleService。
+ * 每次判定现编规则，便于 Nacos 热更 permission.rules。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "false", matchIfMissing = true)
 public class ConfiguredPermissionService implements PermissionRuleService {
 
-    private final List<PermissionRule> rules;
+    private final PermissionProperties properties;
 
     /**
-     * 装配时检查每条规则。决定写错、工具名为空、租户或角色为空，都拒绝启动。
+     * 只保存配置引用。坏规则在第一次判定或热更校验时暴露。
      */
     public ConfiguredPermissionService(PermissionProperties properties) {
-        List<PermissionRule> compiled = new ArrayList<>();
-        List<PermissionProperties.Rule> source = properties.getRules();
-        for (int i = 0; i < source.size(); i++) {
-            compiled.add(compile(i, source.get(i)));
-        }
-        this.rules = List.copyOf(compiled);
+        this.properties = properties;
     }
 
     /**
@@ -36,7 +32,19 @@ public class ConfiguredPermissionService implements PermissionRuleService {
      */
     @Override
     public PermissionDecision decide(String toolId, String tenantId, String roleId) {
-        return PermissionMatcher.decide(rules, toolId, tenantId, roleId);
+        return PermissionMatcher.decide(compileAll(), toolId, tenantId, roleId);
+    }
+
+    private List<PermissionRule> compileAll() {
+        List<PermissionRule> compiled = new ArrayList<>();
+        List<PermissionProperties.Rule> source = properties.getRules();
+        if (source == null || source.isEmpty()) {
+            return List.of();
+        }
+        for (int i = 0; i < source.size(); i++) {
+            compiled.add(compile(i, source.get(i)));
+        }
+        return List.copyOf(compiled);
     }
 
     /** 把一条配置收成不可变规则。下标只用于报错，方便看出是第几条。 */

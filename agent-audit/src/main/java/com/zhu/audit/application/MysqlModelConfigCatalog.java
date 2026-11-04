@@ -44,6 +44,7 @@ public class MysqlModelConfigCatalog implements ModelConfigCatalog, ModelConfigL
 
     /**
      * 空白范围按全局处理。不写 params。
+     * 同标识已启用：拒绝。同标识已停用：覆盖模型/供应方/范围并启用（改登，不硬删）。
      */
     @Override
     public ModelConfigSummary register(String configId, String model, String provider, String tenantScope) {
@@ -54,6 +55,17 @@ public class MysqlModelConfigCatalog implements ModelConfigCatalog, ModelConfigL
             throw new BusinessException(ErrorCode.BAD_REQUEST, "model config is invalid");
         }
         String scope = tenantScope == null || tenantScope.isBlank() ? GLOBAL_SCOPE : tenantScope;
+        ModelConfig existing = configs.findByConfigId(configId, VERSION);
+        if (existing != null) {
+            if (Integer.valueOf(1).equals(existing.getEnabled())) {
+                throw new BusinessException(ErrorCode.CONFLICT, "model config already exists");
+            }
+            int updated = configs.replaceDisabled(configId, VERSION, model, provider, scope);
+            if (updated != 1) {
+                throw new BusinessException(ErrorCode.CONFLICT, "model config already exists");
+            }
+            return new ModelConfigSummary(configId, model, provider, VERSION, scope, true);
+        }
         ModelConfig row = new ModelConfig();
         row.setConfigId(configId);
         row.setModel(model);

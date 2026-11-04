@@ -260,6 +260,6 @@ class KnowledgeAppServiceTest {
         ObjectProvider<AttachmentCatalog> attachments = mock(ObjectProvider.class);
         when(attachments.getIfAvailable()).thenReturn(catalog);
         return new KnowledgeAppService(
-                repos, indexer, vectors, objects, attachments, "companion-v1");
+                repos, indexer, vectors, objects, attachments, "companion-v1", "knowledge");
     }
 }

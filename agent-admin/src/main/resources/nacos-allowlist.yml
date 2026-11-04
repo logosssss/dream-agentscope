@@ -1,0 +1,21 @@
+# 管理进程 Nacos 白名单。改这里即可扩键。
+# business.exact 为空：启动仍要求 agent-admin.yaml 非空，但不合并任何业务键。
+
+business:
+  exact: []
+  prefixes: []
+
+infra:
+  exact:
+    - spring.lifecycle.timeout-per-shutdown-phase
+    - spring.datasource.url
+    - spring.datasource.username
+    - spring.datasource.password
+    - spring.datasource.hikari.maximum-pool-size
+    - spring.datasource.hikari.minimum-idle
+    - agentscope.cache.redis.host
+    - agentscope.cache.redis.port
+    - agentscope.cache.redis.password
+    - agentscope.cache.redis.enabled
+    - agentscope.milvus.uri
+    - agentscope.admin.token

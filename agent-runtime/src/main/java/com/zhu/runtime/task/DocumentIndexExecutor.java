@@ -11,6 +11,7 @@ import com.zhu.vector.infrastructure.MilvusCollections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -29,10 +30,18 @@ public class DocumentIndexExecutor {
 
     private final VectorStore vectors;
 
-    public DocumentIndexExecutor(KnowledgeRepository knowledge, TextEmbedder embedder, VectorStore vectors) {
+    /** 与启动 ensure 同一套集合名，禁止写死 knowledge。 */
+    private final String knowledgeCollection;
+
+    public DocumentIndexExecutor(
+            KnowledgeRepository knowledge,
+            TextEmbedder embedder,
+            VectorStore vectors,
+            @Value("${agentscope.milvus.collection:knowledge}") String knowledgeCollection) {
         this.knowledge = knowledge;
         this.embedder = embedder;
         this.vectors = vectors;
+        this.knowledgeCollection = MilvusCollections.resolveKnowledge(knowledgeCollection);
     }
 
     /**
@@ -72,7 +81,7 @@ public class DocumentIndexExecutor {
                         userId,
                         doc.agentId());
                 vectors.upsert(new VectorRecord(
-                        MilvusCollections.DEFAULT_KNOWLEDGE,
+                        knowledgeCollection,
                         chunkId,
                         vector,
                         "",
@@ -82,9 +91,16 @@ public class DocumentIndexExecutor {
             }
             knowledge.updateDocumentStatus(docId, version, tenantId, userId, KnowledgeRepository.SUCCESS, null);
         } catch (RuntimeException ex) {
-            log.warning("document index failed");
+            // 只记类名加短消息，方便联调对上 Milvus/嵌入失败原因；不带正文与密钥。
+            String detail = ex.getClass().getSimpleName();
+            String message = ex.getMessage();
+            if (message != null && !message.isBlank()) {
+                String clipped = message.length() > 200 ? message.substring(0, 200) : message;
+                detail = detail + ": " + clipped;
+            }
+            log.warning("document index failed: " + detail);
             knowledge.updateDocumentStatus(
-                    docId, version, tenantId, userId, KnowledgeRepository.FAILED, ex.getClass().getSimpleName());
+                    docId, version, tenantId, userId, KnowledgeRepository.FAILED, detail);
             throw ex;
         }
     }

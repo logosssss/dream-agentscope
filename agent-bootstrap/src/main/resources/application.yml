@@ -1,25 +1,14 @@
-# 正式启动必须连上 MySQL、Redis、Milvus。地址和账号只从环境变量来，仓库里不写死。
-# Flyway 在本进程执行。Redis 自动配置排除，改由 agentscope.cache.redis 创建连接。
-# 停机时先不再接新 HTTP，等待时间与单次调用超时对齐。容器的终止宽限不要短于这个时间。
+# 用户进程骨架配置。业务旋钮与连接/进程参数以 Nacos 为准（见 deploy/nacos/）。
+# - agent-bootstrap.yaml      业务（可热更）
+# - agent-bootstrap-infra.yaml 连接、密钥、multipart/lifecycle/hikari（启动一次）
+# NACOS_ADDR 为空时不拉 Nacos：请取消注释文末「无 Nacos 本地兜底」。
+# Flyway 在本进程执行。Redis 自动配置排除，改由 agentscope.cache.redis 建连。
+
 server:
   shutdown: graceful
 
 spring:
-  servlet:
-    multipart:
-      # 与通用附件和写文件工具的 5MB 上限对齐。知识库纯文本仍在业务层卡 2MB。
-      max-file-size: 5MB
-      max-request-size: 5MB
-  lifecycle:
-    timeout-per-shutdown-phase: 120s
-  datasource:
-    url: ${SPRING_DATASOURCE_URL:}
-    username: ${SPRING_DATASOURCE_USERNAME:}
-    password: ${SPRING_DATASOURCE_PASSWORD:}
-    hikari:
-      # 本进程最多 20 个连接。管理进程另有一份同样大小的池。MySQL max_connections 必须盖住这两份，再留运维连接。
-      maximum-pool-size: 20
-      minimum-idle: 5
+  # servlet.multipart / lifecycle / datasource.* → agent-bootstrap-infra.yaml
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
@@ -27,103 +16,33 @@ spring:
 
 agentscope:
   runtime:
-    # 模型坐标。密钥走环境变量，不写进仓库。
-    # 嵌入固定 text-embedding-v4 / 1024。密钥读 DASHSCOPE_API_KEY，没有或失败只打日志，不挡启动。
-    model: ${AGENTSCOPE_MODEL:dashscope:qwen-plus}
-    # 状态命名空间。和下面的展示名分开，改名不会把会话指到空库。
+    # 状态命名空间与展示名不进 Nacos 热更白名单；改身份请升 agent-id。
     agent-id: companion-v1
     name: companion
-    max-iters: 20
-    timeout-seconds: 120
-    # 单次写文件的 UTF-8 字节上限。超过的 write_file / write_text_file / insert_text_file 不会执行。
-    max-write-bytes: 5242880
-    # 用户输入的字符上限。系统提示词里的 {{变量}} 未替换时拒绝进入模型。
-    max-user-chars: 32768
+    # model / max-iters / timeout-seconds / max-user-chars / max-write-bytes
+    # → agent-bootstrap.yaml（Java 字段自带缺省，无 Nacos 时用类默认值）
   startup:
     dependencies:
-      # 正式启动探测三个依赖。测试配置把它关掉。
+      # 正式启动探测 MySQL、Redis、Milvus。测试配置关掉。
       enabled: true
   distributed:
     mysql:
-      # 必须打开。没有进程内审计。表由 Flyway 创建，MyBatis-Plus 不建表。
+      # 必须打开。表由 Flyway 创建，MyBatis-Plus 不建表。
       enabled: true
       create-if-not-exist: false
-  access:
-    # 0 表示不限制。打开后按租户用户计当日次数和每分钟次数。
-    daily-limit: 0
-    per-minute: 0
-    # 登录会话在 Redis 的有效秒数。小于 1 时按一天。
-    login-session-seconds: ${AGENTSCOPE_LOGIN_SESSION_SECONDS:86400}
-  auth:
-    # 自助注册和微信建号进入的租户。必须已经登记且为 ACTIVE。
-    tenant-id: ${AGENTSCOPE_AUTH_TENANT_ID:demo}
-  wx:
-    mini:
-      # 小程序 AppID 和密钥只来自环境变量。没配时网页不显示扫码。
-      app-id: ${WX_MINI_APP_ID:}
-      app-secret: ${WX_MINI_APP_SECRET:}
-      login-page: ${WX_MINI_LOGIN_PAGE:pages/login-confirm/index}
-      env-version: ${WX_MINI_ENV_VERSION:release}
-      ticket-ttl-seconds: ${WX_MINI_TICKET_TTL_SECONDS:300}
-  caller:
-    # 调用方令牌。空则除存活和就绪外全部拒绝。不是用户登录，仓库不放值。
-    token: ${AGENTSCOPE_CALLER_TOKEN:}
-  cache:
-    redis:
-      # 必须打开。主机来自环境变量，为空则拒绝启动。
-      enabled: true
-      host: ${AGENTSCOPE_REDIS_HOST:}
-      port: ${AGENTSCOPE_REDIS_PORT:6379}
-  milvus:
-    # 地址为空或连不上就退出。连通后创建 knowledge 和 episodic_memory 集合。不写入，也不检索。
-    uri: ${MILVUS_URI:}
-    token: ${MILVUS_TOKEN:}
-    collection: ${MILVUS_COLLECTION:knowledge}
-    dimensions: ${MILVUS_DIMENSIONS:1024}
-  object-store:
-    # local：写本地目录。oss：写阿里云 OSS。s3 / minio：写 S3 兼容桶。缺密钥启动失败，不回落 local。
-    type: ${AGENTSCOPE_OBJECT_STORE_TYPE:local}
-    # 本地对象根目录。已在 .gitignore。type=local 时生效。
-    root: ${AGENTSCOPE_OBJECT_STORE_ROOT:data/objects}
-    oss:
-      endpoint: ${AGENTSCOPE_OSS_ENDPOINT:}
-      region: ${AGENTSCOPE_OSS_REGION:}
-      bucket: ${AGENTSCOPE_OSS_BUCKET:}
-      access-key-id: ${AGENTSCOPE_OSS_ACCESS_KEY_ID:}
-      access-key-secret: ${AGENTSCOPE_OSS_ACCESS_KEY_SECRET:}
-      # 桶内前缀；对外业务键不含此前缀。
-      prefix: ${AGENTSCOPE_OSS_PREFIX:agentscope/}
-    s3:
-      endpoint: ${AGENTSCOPE_S3_ENDPOINT:}
-      region: ${AGENTSCOPE_S3_REGION:}
-      bucket: ${AGENTSCOPE_S3_BUCKET:}
-      access-key-id: ${AGENTSCOPE_S3_ACCESS_KEY_ID:}
-      access-key-secret: ${AGENTSCOPE_S3_ACCESS_KEY_SECRET:}
-      prefix: ${AGENTSCOPE_S3_PREFIX:agentscope/}
-      # 空则 minio 开 path-style、s3 关。true / false 可覆盖。
-      path-style: ${AGENTSCOPE_S3_PATH_STYLE:}
+  # access / auth / permission / wx 非密钥 → agent-bootstrap.yaml
+  # caller / cache / milvus / object-store / wx 密钥 / otel / spring 进程参数 → infra
   task:
     # sync 在当前线程执行。改成 mq 会拒绝启动，RocketMQ 依赖还没引入。
     mode: sync
-  otel:
-    # 空则不导出 span。地址只来自环境变量，不写死采集器。
-    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:}
-    service-name: ${OTEL_SERVICE_NAME:agentscope-user}
   nacos:
-    # 地址为空：不建提示词客户端，也不拉启动配置。
-    # 配了地址：启动必须拉到 agent-bootstrap.yaml（group=AGENT_PLATFORM），失败退出。
-    # 提示词监听仍弱依赖，拉失败用兜底。不做热更新、服务发现和 MCP。
-    # 账号和命名空间没配就不传。
+    # 仅 Nacos 自身留环境变量。配了地址必须拉到 infra + 业务两份。
     server-addr: ${NACOS_ADDR:}
     namespace: ${NACOS_NAMESPACE:}
     username: ${NACOS_USERNAME:}
     password: ${NACOS_PASSWORD:}
-  permission:
-    # 没写规则时一律 ALLOW。tenant-id、role-id 用 * 表示全部，priority 越小越优先。
-    # 决定只能是 ALLOW、ASK、DENY。写错会拒绝启动。
-    rules: []
 
-# 空字段不插入，让表默认值生效。没有数据源时这套配置不会启动。
+# 空字段不插入，让表默认值生效。
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   global-config:
@@ -133,3 +52,78 @@ mybatis-plus:
       insert-strategy: not_null
   configuration:
     map-underscore-to-camel-case: true
+
+# ---------------------------------------------------------------------------
+# 无 Nacos 本地兜底（NACOS_ADDR 为空时取消注释整段）。有 Nacos 时不要打开。
+# ---------------------------------------------------------------------------
+#spring:
+#  servlet:
+#    multipart:
+#      max-file-size: 5MB
+#      max-request-size: 5MB
+#  lifecycle:
+#    timeout-per-shutdown-phase: 120s
+#  datasource:
+#    url: ${SPRING_DATASOURCE_URL:}
+#    username: ${SPRING_DATASOURCE_USERNAME:}
+#    password: ${SPRING_DATASOURCE_PASSWORD:}
+#    hikari:
+#      maximum-pool-size: 20
+#      minimum-idle: 5
+#
+#agentscope:
+#  runtime:
+#    model: ${AGENTSCOPE_MODEL:dashscope:qwen-plus}
+#    max-iters: 20
+#    timeout-seconds: 120
+#    max-write-bytes: 5242880
+#    max-user-chars: 32768
+#  access:
+#    daily-limit: 0
+#    per-minute: 0
+#    login-session-seconds: ${AGENTSCOPE_LOGIN_SESSION_SECONDS:86400}
+#  auth:
+#    tenant-id: ${AGENTSCOPE_AUTH_TENANT_ID:demo}
+#  wx:
+#    mini:
+#      app-id: ${WX_MINI_APP_ID:}
+#      app-secret: ${WX_MINI_APP_SECRET:}
+#      login-page: ${WX_MINI_LOGIN_PAGE:pages/login-confirm/index}
+#      env-version: ${WX_MINI_ENV_VERSION:release}
+#      ticket-ttl-seconds: ${WX_MINI_TICKET_TTL_SECONDS:300}
+#  caller:
+#    token: ${AGENTSCOPE_CALLER_TOKEN:}
+#  cache:
+#    redis:
+#      enabled: true
+#      host: ${AGENTSCOPE_REDIS_HOST:}
+#      port: ${AGENTSCOPE_REDIS_PORT:6379}
+#      password: ${AGENTSCOPE_REDIS_PASSWORD:}
+#  milvus:
+#    uri: ${MILVUS_URI:}
+#    token: ${MILVUS_TOKEN:}
+#    collection: ${MILVUS_COLLECTION:knowledge}
+#    dimensions: ${MILVUS_DIMENSIONS:1024}
+#  object-store:
+#    type: ${AGENTSCOPE_OBJECT_STORE_TYPE:local}
+#    root: ${AGENTSCOPE_OBJECT_STORE_ROOT:data/objects}
+#    oss:
+#      endpoint: ${AGENTSCOPE_OSS_ENDPOINT:}
+#      region: ${AGENTSCOPE_OSS_REGION:}
+#      bucket: ${AGENTSCOPE_OSS_BUCKET:}
+#      access-key-id: ${AGENTSCOPE_OSS_ACCESS_KEY_ID:}
+#      access-key-secret: ${AGENTSCOPE_OSS_ACCESS_KEY_SECRET:}
+#      prefix: ${AGENTSCOPE_OSS_PREFIX:agentscope/}
+#    s3:
+#      endpoint: ${AGENTSCOPE_S3_ENDPOINT:}
+#      region: ${AGENTSCOPE_S3_REGION:}
+#      bucket: ${AGENTSCOPE_S3_BUCKET:}
+#      access-key-id: ${AGENTSCOPE_S3_ACCESS_KEY_ID:}
+#      access-key-secret: ${AGENTSCOPE_S3_ACCESS_KEY_SECRET:}
+#      prefix: ${AGENTSCOPE_S3_PREFIX:agentscope/}
+#      path-style: ${AGENTSCOPE_S3_PATH_STYLE:}
+#  otel:
+#    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:}
+#    service-name: ${OTEL_SERVICE_NAME:agentscope-user}
+#  permission:
+#    rules: []

@@ -7,7 +7,7 @@
 ## 依赖
 
 依赖 `agent-common`、`agent-audit`、`agent-semantic`、Web、Redis、`nacos-client` 和 `mysql-connector-j`。用审计模块的查询接口读库；工具目录登记走语义模块。不依赖 `agent-runtime`、`agent-access`、`agent-state`，也不依赖 Harness。Redis 只用于启动探测。
-`NACOS_ADDR` 有值时启动必须拉到 `agent-admin.yaml`（`AGENT_PLATFORM`），失败退出；当前无业务旋钮白名单，正文非空即可。地址为空不连。不做热更新、服务发现和 MCP。
+`NACOS_ADDR` 有值时启动必须拉到 `agent-admin-infra.yaml`（连接/密钥，不热更）与 `agent-admin.yaml`（业务白名单可空，正文非空即可），group `AGENT_PLATFORM`，缺一退出。地址为空不连，连接可读环境变量。不做业务热更监听、服务发现和 MCP。
 
 `agent-bootstrap` 不依赖本模块。用户进程扫描 `com.zhu` 时，classpath 上没有这些类，管理接口不会混进对话进程。
 
@@ -100,4 +100,4 @@ mvn -pl agent-admin -am spring-boot:run
 
 ## 还没有
 
-用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。仓库不放模型单价，也不放调用方令牌。管理端可覆盖的业务旋钮白名单仍为空，需要时再往 `NacosAdminStartupConfig.ALLOWED_KEYS` 加键。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。仓库不放模型单价，也不放调用方令牌。管理端业务旋钮白名单仍为空，扩键改 `classpath:nacos-allowlist.yml`；连接与密钥见 `agent-admin-infra.yaml`。

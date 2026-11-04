@@ -69,8 +69,8 @@ export interface ModelPriceEntry {
   id: number
   model: string
   currency: string
-  inputPer1k: number | string
-  outputPer1k: number | string
+  inputPer1m: number | string
+  outputPer1m: number | string
   effectiveFrom: string | null
   effectiveTo: string | null
 }

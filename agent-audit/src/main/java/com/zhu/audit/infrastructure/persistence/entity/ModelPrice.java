@@ -1,6 +1,7 @@
 package com.zhu.audit.infrastructure.persistence.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
@@ -8,6 +9,8 @@ import java.time.LocalDateTime;
 
 /**
  * model_price 的一行。改价是再插入一行，不覆盖旧行。
+ * 单价单位是元/百万 token。
+ * 字段名含数字时，驼峰转下划线会变成 input_per1m，必须显式写列名。
  */
 @TableName("model_price")
 public class ModelPrice {
@@ -22,11 +25,13 @@ public class ModelPrice {
     /** 币种。空时用量仍记 CNY。 */
     private String currency;
 
-    /** 每千输入 token 的单价。 */
-    private BigDecimal inputPer1k;
+    /** 每百万输入 token 的单价。 */
+    @TableField("input_per_1m")
+    private BigDecimal inputPer1m;
 
-    /** 每千输出 token 的单价。 */
-    private BigDecimal outputPer1k;
+    /** 每百万输出 token 的单价。 */
+    @TableField("output_per_1m")
+    private BigDecimal outputPer1m;
 
     /** 开始生效，含这一刻。 */
     private LocalDateTime effectiveFrom;
@@ -64,24 +69,24 @@ public class ModelPrice {
         this.currency = currency;
     }
 
-    /** 输入单价。 */
-    public BigDecimal getInputPer1k() {
-        return inputPer1k;
+    /** 输入单价（元/百万 token）。 */
+    public BigDecimal getInputPer1m() {
+        return inputPer1m;
     }
 
     /** 写入输入单价。 */
-    public void setInputPer1k(BigDecimal inputPer1k) {
-        this.inputPer1k = inputPer1k;
+    public void setInputPer1m(BigDecimal inputPer1m) {
+        this.inputPer1m = inputPer1m;
     }
 
-    /** 输出单价。 */
-    public BigDecimal getOutputPer1k() {
-        return outputPer1k;
+    /** 输出单价（元/百万 token）。 */
+    public BigDecimal getOutputPer1m() {
+        return outputPer1m;
     }
 
     /** 写入输出单价。 */
-    public void setOutputPer1k(BigDecimal outputPer1k) {
-        this.outputPer1k = outputPer1k;
+    public void setOutputPer1m(BigDecimal outputPer1m) {
+        this.outputPer1m = outputPer1m;
     }
 
     /** 开始生效时间。 */

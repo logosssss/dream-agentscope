@@ -91,7 +91,7 @@ AgentStreamEvent   接入层再写成 SSE
 
 `userId`、`sessionId`、`userText` 缺任何一个，抛 `BusinessException(BAD_REQUEST)`。
 
-一次调用结束且回复带 token 用量时，`AuditUsageMeter` 写一条动作名为 `model.usage` 的审计，并写入 `token_usage`；若有 `DailyTokenAccumulator` 再累加当日 Redis token 计数。明细只有模型名、输入 token、输出 token 和耗时，不放提示词。没有用量就不记。审计或用量表写失败不改变已经生成的回复。命中 `model_price` 时按每千 token 计价，没有命中时金额记 0。
+一次调用结束且回复带 token 用量时，`AuditUsageMeter` 写一条动作名为 `model.usage` 的审计，并写入 `token_usage`；若有 `DailyTokenAccumulator` 再累加当日 Redis token 计数。明细只有模型名、输入 token、输出 token 和耗时，不放提示词。没有用量就不记。审计或用量表写失败不改变已经生成的回复。命中 `model_price` 时按每百万 token 计价，没有命中时金额记 0。
 
 每个 Agent 挂 `OtelTracingMiddleware`。`agentscope.otel.endpoint` 为空时不导出，默认对应环境变量 `OTEL_EXPORTER_OTLP_ENDPOINT`。配了才按 OTLP 上报 trace，服务名用 `OTEL_SERVICE_NAME`，缺省是 `agentscope-user`。度量和日志不导出。导出装不上时对话继续。
 

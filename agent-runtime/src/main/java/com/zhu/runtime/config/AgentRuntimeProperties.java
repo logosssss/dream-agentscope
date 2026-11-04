@@ -3,7 +3,8 @@ package com.zhu.runtime.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 执行内核的稳定配置。这些值在进程启动时确定，不放进可热更新的产品配置。
+ * 执行内核配置。model / 超时 / 轮数 / 字数 / 写文件上限可由 Nacos 业务 yaml 热更；
+ * agentId / name / workspace 不在热更白名单，改身份仍要升版本。
  */
 @ConfigurationProperties(prefix = "agentscope.runtime")
 public class AgentRuntimeProperties {
@@ -28,6 +29,9 @@ public class AgentRuntimeProperties {
 
     /** 用户输入的字符上限。小于 1 时按 32768，避免配成 0 后不再限制。 */
     private int maxUserChars = 32768;
+
+    /** 单次写文件 UTF-8 字节上限。小于 1 时按 5MB。 */
+    private int maxWriteBytes = 5 * 1024 * 1024;
 
     /** 模型坐标。 */
     public String getModel() {
@@ -90,5 +94,15 @@ public class AgentRuntimeProperties {
 
     public void setMaxUserChars(int maxUserChars) {
         this.maxUserChars = maxUserChars;
+    }
+
+    /** 单次写文件字节上限。 */
+    public int getMaxWriteBytes() {
+        return maxWriteBytes;
+    }
+
+    /** 写入单次写文件字节上限。 */
+    public void setMaxWriteBytes(int maxWriteBytes) {
+        this.maxWriteBytes = maxWriteBytes;
     }
 }

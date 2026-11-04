@@ -3,32 +3,32 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.zhu.audit.infrastructure.persistence.ModelPriceMapper">
 
-    <!-- 结束时间为空表示仍有效。同一时刻有多行时取最晚开始的一行。 -->
+    <!-- 结束时间为空表示仍有效。同一时刻有多行时取最晚开始的一行。单价单位是元/百万 token。 -->
     <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.ModelPrice">
         <result column="currency" property="currency"/>
-        <result column="input_per_1k" property="inputPer1k"/>
-        <result column="output_per_1k" property="outputPer1k"/>
+        <result column="input_per_1m" property="inputPer1m"/>
+        <result column="output_per_1m" property="outputPer1m"/>
     </resultMap>
 
     <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.ModelPrice">
         <id column="id" property="id"/>
         <result column="model" property="model"/>
         <result column="currency" property="currency"/>
-        <result column="input_per_1k" property="inputPer1k"/>
-        <result column="output_per_1k" property="outputPer1k"/>
+        <result column="input_per_1m" property="inputPer1m"/>
+        <result column="output_per_1m" property="outputPer1m"/>
         <result column="effective_from" property="effectiveFrom"/>
         <result column="effective_to" property="effectiveTo"/>
     </resultMap>
 
     <select id="recent" resultMap="ListResultMap">
-        SELECT id, model, currency, input_per_1k, output_per_1k, effective_from, effective_to
+        SELECT id, model, currency, input_per_1m, output_per_1m, effective_from, effective_to
         FROM model_price
         ORDER BY effective_from DESC, id DESC
         LIMIT #{limit}
     </select>
 
     <select id="selectCurrent" resultMap="BaseResultMap">
-        SELECT currency, input_per_1k, output_per_1k
+        SELECT currency, input_per_1m, output_per_1m
         FROM model_price
         WHERE model = #{model}
           AND effective_from &lt;= #{now}

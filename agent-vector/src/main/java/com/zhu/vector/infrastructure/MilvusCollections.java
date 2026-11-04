@@ -22,6 +22,16 @@ public final class MilvusCollections {
     /** 没配知识集合名时用这个。和指南里的 knowledge 对齐。 */
     public static final String DEFAULT_KNOWLEDGE = "knowledge";
 
+    /**
+     * 把环境里的集合名收成实际写入/检索名。空串回落默认，避免硬编码 knowledge 与启动 ensure 不一致。
+     */
+    public static String resolveKnowledge(String configured) {
+        if (configured == null || configured.isBlank()) {
+            return DEFAULT_KNOWLEDGE;
+        }
+        return configured.trim();
+    }
+
     /** 情景记忆集合。id 对应 MySQL 行 id。 */
     public static final String EPISODIC_MEMORY = "episodic_memory";
 

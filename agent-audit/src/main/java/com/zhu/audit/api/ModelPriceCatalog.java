@@ -6,6 +6,7 @@ import java.util.List;
 
 /**
  * 模型价格的查询和新增。不修改已经写下的旧行。
+ * 单价单位是元/百万 token。
  */
 public interface ModelPriceCatalog {
 
@@ -21,8 +22,8 @@ public interface ModelPriceCatalog {
     ModelPriceEntry add(
             String model,
             String currency,
-            BigDecimal inputPer1k,
-            BigDecimal outputPer1k,
+            BigDecimal inputPer1m,
+            BigDecimal outputPer1m,
             LocalDateTime effectiveFrom,
             LocalDateTime effectiveTo);
 }

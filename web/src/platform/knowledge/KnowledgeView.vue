@@ -336,6 +336,13 @@ function fileErrorMessage(message: string): string {
 }
 
 /**
+ * 打开隐藏的文件选择器。input 不能放在 v-for 里用同名 ref，否则会变成数组，click 不是函数。
+ */
+function pickFile() {
+  fileInput.value?.click()
+}
+
+/**
  * 选中文本文件后立即上传。标题框有字就当作标题，否则用文件名。
  * 不传文档标识。成功后刷新当前库的文档列表。
  */
@@ -630,6 +637,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="h-full flex flex-col bg-[var(--color-surface-bg)]">
+    <!-- 单例文件选择，挂在页根；上传目标用当前 expandedId。 -->
+    <input
+      ref="fileInput"
+      type="file"
+      class="hidden"
+      accept=".txt,.md,.markdown,.csv,.json,.log,.yml,.yaml,.xml,text/plain"
+      @change="onFile"
+    />
     <header
       class="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-3 flex flex-wrap items-center gap-3"
     >
@@ -811,18 +826,11 @@ onBeforeUnmount(() => {
                       >
                         {{ uploadingDoc ? '写入中…' : '写入' }}
                       </button>
-                      <input
-                        ref="fileInput"
-                        type="file"
-                        class="hidden"
-                        accept=".txt,.md,.markdown,.csv,.json,.log,.yml,.yaml,.xml,text/plain"
-                        @change="onFile"
-                      />
                       <button
                         type="button"
                         class="rounded-lg border border-[var(--color-border-strong)] px-3 py-1.5 text-sm hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
                         :disabled="uploadingDoc"
-                        @click="fileInput?.click()"
+                        @click="pickFile"
                       >
                         上传文本
                       </button>

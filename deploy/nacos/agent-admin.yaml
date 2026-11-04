@@ -2,8 +2,8 @@
 #   Data ID : agent-admin.yaml
 #   Group   : AGENT_PLATFORM
 #   格式    : YAML
-# 仅管理进程启动拉取。改完需重启进程。不要写入数据源、Redis、Milvus、密钥。
-# 当前管理进程无可覆盖业务旋钮，正文非空即可；未列入白名单的键会被丢掉。
+# 管理进程启动拉取。当前业务白名单为空：正文非空即可，键不会合并进 Environment。
+# 连接与密钥写到 agent-admin-infra.yaml。
 
 agentscope:
   admin:

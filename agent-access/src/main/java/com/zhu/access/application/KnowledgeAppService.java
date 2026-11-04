@@ -58,19 +58,24 @@ public class KnowledgeAppService {
 
     private final String defaultAgentId;
 
+    /** 删向量时与索引/检索同一集合，跟 agentscope.milvus.collection 对齐。 */
+    private final String knowledgeCollection;
+
     public KnowledgeAppService(
             ObjectProvider<KnowledgeRepository> repositories,
             KnowledgeIndexLauncher indexer,
             VectorStore vectors,
             ObjectStore objects,
             ObjectProvider<AttachmentCatalog> attachments,
-            @Value("${agentscope.runtime.agent-id:companion-v1}") String defaultAgentId) {
+            @Value("${agentscope.runtime.agent-id:companion-v1}") String defaultAgentId,
+            @Value("${agentscope.milvus.collection:knowledge}") String knowledgeCollection) {
         this.repositories = repositories;
         this.indexer = indexer;
         this.vectors = vectors;
         this.objects = objects;
         this.attachments = attachments;
         this.defaultAgentId = defaultAgentId == null || defaultAgentId.isBlank() ? "companion-v1" : defaultAgentId;
+        this.knowledgeCollection = MilvusCollections.resolveKnowledge(knowledgeCollection);
     }
 
     /** 显式建库。 */
@@ -391,7 +396,7 @@ public class KnowledgeAppService {
                 continue;
             }
             try {
-                vectors.deleteById(MilvusCollections.DEFAULT_KNOWLEDGE, id);
+                vectors.deleteById(knowledgeCollection, id);
             } catch (RuntimeException ex) {
                 // 向量删失败不挡 MySQL 清理；检索回表仍要求 SUCCESS，孤儿向量不可见正文。
                 log.warning("knowledge vector delete failed");

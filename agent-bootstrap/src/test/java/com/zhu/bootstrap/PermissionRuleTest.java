@@ -44,11 +44,12 @@ class PermissionRuleTest {
         assertThat(service.decide("shell", "tenant-a", "ops")).isEqualTo(PermissionDecision.ASK);
     }
 
-    /** 决定写错时拒绝启动，不能把拒绝配成一个不认识的词后静默放行。 */
+    /** 决定写错时第一次判定就失败，不能把拒绝配成一个不认识的词后静默放行。 */
     @Test
-    void unknownDecisionFailsStartup() {
+    void unknownDecisionFailsOnDecide() {
         PermissionProperties.Rule broken = rule("shell", "*", "*", "NOPE", 100, true);
-        assertThatThrownBy(() -> new ConfiguredPermissionService(properties(broken)))
+        ConfiguredPermissionService service = new ConfiguredPermissionService(properties(broken));
+        assertThatThrownBy(() -> service.decide("shell", "tenant-a", null))
                 .isInstanceOf(IllegalStateException.class);
     }
 

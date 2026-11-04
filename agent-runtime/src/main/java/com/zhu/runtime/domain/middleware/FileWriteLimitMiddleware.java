@@ -1,6 +1,7 @@
 package com.zhu.runtime.domain.middleware;
 
 import com.zhu.audit.api.AuditRecorder;
+import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.domain.CallIdentity;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
@@ -13,13 +14,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
 /**
  * 限制一次写文件的体积。大文件进沙箱后会把 MySQL 快照撑大，所以在执行前丢掉超限调用。
- * 顺序靠前，审批中间件看不到已经被丢掉的写入。
+ * 顺序靠前，审批中间件看不到已经被丢掉的写入。上限每次从运行配置读取，便于热更。
  */
 @Component
 public class FileWriteLimitMiddleware implements MiddlewareBase {
@@ -29,19 +30,41 @@ public class FileWriteLimitMiddleware implements MiddlewareBase {
 
     private static final Set<String> WRITE_TOOLS = Set.of("write_file", "write_text_file", "insert_text_file");
 
-    private final int maxBytes;
+    private final AgentRuntimeProperties properties;
+
+    private final Integer fixedMaxBytes;
 
     private final AuditRecorder audits;
 
     /**
+     * 正式装配：上限跟 Nacos 热更走。
+     */
+    @Autowired
+    public FileWriteLimitMiddleware(AgentRuntimeProperties properties, AuditRecorder audits) {
+        this.properties = properties;
+        this.fixedMaxBytes = null;
+        this.audits = audits;
+    }
+
+    /**
+     * 测试用固定上限。
+     *
      * @param maxBytes 单次 content 的字节上限。未配置时是 5MB
      * @param audits   只记工具名和字节数，不记文件内容
      */
-    public FileWriteLimitMiddleware(
-            @Value("${agentscope.runtime.max-write-bytes:5242880}") int maxBytes,
-            AuditRecorder audits) {
-        this.maxBytes = maxBytes < 1 ? DEFAULT_MAX_BYTES : maxBytes;
+    public FileWriteLimitMiddleware(int maxBytes, AuditRecorder audits) {
+        this.properties = null;
+        this.fixedMaxBytes = maxBytes < 1 ? DEFAULT_MAX_BYTES : maxBytes;
         this.audits = audits;
+    }
+
+    /** 当前生效的字节上限。 */
+    private int maxBytes() {
+        if (fixedMaxBytes != null) {
+            return fixedMaxBytes;
+        }
+        int configured = properties.getMaxWriteBytes();
+        return configured < 1 ? DEFAULT_MAX_BYTES : configured;
     }
 
     /** 比默认顺序更早执行，先丢掉超限写入，再进入审批。 */
@@ -91,6 +114,7 @@ public class FileWriteLimitMiddleware implements MiddlewareBase {
 
     /** 文本按 UTF-8 字节计，字节数组按长度计。其它类型这里不估。 */
     private boolean exceeds(Object content) {
+        int maxBytes = maxBytes();
         if (content instanceof byte[] bytes) {
             return bytes.length > maxBytes;
         }

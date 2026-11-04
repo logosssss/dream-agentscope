@@ -34,4 +34,15 @@ public interface ModelConfigMapper extends BaseMapper<ModelConfig> {
      * 只把停用的指定版本改回启用。返回影响行数。
      */
     int restoreDisabled(@Param("configId") String configId, @Param("version") String version);
+
+    /**
+     * 覆盖停用行的模型、供应方、租户范围并启用。返回影响行数。
+     * 已启用行不受影响，避免误改线上配置。
+     */
+    int replaceDisabled(
+            @Param("configId") String configId,
+            @Param("version") String version,
+            @Param("model") String model,
+            @Param("provider") String provider,
+            @Param("tenantScope") String tenantScope);
 }

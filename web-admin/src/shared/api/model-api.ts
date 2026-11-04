@@ -67,8 +67,8 @@ function toLocalDateTime(value: string): string | null {
 export function addModelPrice(body: {
   model: string
   currency: string
-  inputPer1k: string
-  outputPer1k: string
+  inputPer1m: string
+  outputPer1m: string
   effectiveFrom: string
   effectiveTo: string
 }): Promise<ModelPriceEntry> {
@@ -77,8 +77,8 @@ export function addModelPrice(body: {
     body: JSON.stringify({
       model: body.model,
       currency: body.currency || null,
-      inputPer1k: body.inputPer1k,
-      outputPer1k: body.outputPer1k,
+      inputPer1m: body.inputPer1m,
+      outputPer1m: body.outputPer1m,
       effectiveFrom: toLocalDateTime(body.effectiveFrom),
       effectiveTo: toLocalDateTime(body.effectiveTo),
     }),

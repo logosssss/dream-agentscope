@@ -8,7 +8,7 @@ import java.util.List;
 public interface ModelConfigCatalog {
 
     /**
-     * 新增 1.0.0。同一标识再登记这个版本是冲突。
+     * 新增 1.0.0。同一标识已启用则冲突；已停用则覆盖模型/供应方/范围并启用（改登）。
      */
     ModelConfigSummary register(String configId, String model, String provider, String tenantScope);
 

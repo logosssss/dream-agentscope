@@ -36,10 +36,10 @@ class ModelPriceCatalogTest {
         verify(prices).insert(row.capture());
         assertThat(row.getValue().getModel()).isEqualTo("dashscope:qwen-plus");
         assertThat(row.getValue().getCurrency()).isEqualTo("CNY");
-        assertThat(row.getValue().getInputPer1k()).isEqualByComparingTo("0.002000");
+        assertThat(row.getValue().getInputPer1m()).isEqualByComparingTo("0.002000");
         assertThat(row.getValue().getEffectiveFrom()).isEqualTo(from);
         assertThat(row.getValue().getEffectiveTo()).isNull();
-        assertThat(saved.outputPer1k()).isEqualByComparingTo("0.006000");
+        assertThat(saved.outputPer1m()).isEqualByComparingTo("0.006000");
     }
 
     /** 结束时间不晚于开始时间时不插入。 */

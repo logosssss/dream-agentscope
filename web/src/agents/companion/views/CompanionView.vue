@@ -21,7 +21,7 @@ import type {
   SessionDetail,
   SessionSummary,
 } from '@/shared/types/api.types'
-import { computed, onMounted, ref, unref, watch, type Ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, unref, watch, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const AGENT_ID = 'companion-v1'
@@ -77,11 +77,22 @@ const resendOffer = ref<PendingApproval | null>(null)
 const rejectTarget = ref<PendingApproval | null>(null)
 
 const identity = computed(() => session?.displayName || '已登录')
-const emptyHint = computed(() =>
-  historyOpened.value
-    ? '该会话还没有已保存的消息（只有成功结束的对话会写入历史）。'
-    : '发送一条消息开始对话，或从左侧打开历史会话。',
+/** 当前 id 还不在历史列表里：空白新对话草稿。 */
+const isDraftSession = computed(
+  () => !sessionRows.value.some((row) => row.sessionId === sessionId.value),
 )
+const emptyHint = computed(() => {
+  if (historyOpened.value) {
+    return '该会话还没有已保存的消息（只有成功结束的对话会写入历史）。'
+  }
+  if (isDraftSession.value) {
+    return '这是新对话。发送第一条消息后，左侧会出现历史记录。'
+  }
+  return '发送一条消息开始对话，或从左侧打开历史会话。'
+})
+/** 点「新对话」后的短暂顶栏提示，约 2 秒消失。 */
+const newChatFlash = ref('')
+let newChatFlashTimer: ReturnType<typeof setTimeout> | null = null
 
 /** 当前会话仍待确认条数，给输入区轻提示。 */
 const currentPendingCount = computed(
@@ -281,14 +292,45 @@ async function openSession(row: SessionSummary) {
   await loadHistory(row.sessionId)
 }
 
-/** 换新 sessionId，不拉历史。未入库的新会话不请求详情。 */
+/**
+ * 换新 sessionId，不拉历史。未入库的新会话不请求详情。
+ * 已在空白草稿上再点时不换 id，只给反馈，避免「点了没反应」。
+ */
 function newChat() {
   chatRef.value?.abortIfStreaming()
-  sessionId.value = crypto.randomUUID()
-  historyOpened.value = false
-  chatStore.clearMessages(AGENT_ID, sessionId.value)
   chatRef.value?.clearError()
   resendOffer.value = null
+  const alreadyDraft =
+    isDraftSession.value && chatStore.getMessages(AGENT_ID, sessionId.value).length === 0
+  if (alreadyDraft) {
+    flashNewChat('已是空白新对话，直接输入即可')
+    return
+  }
+  const previousId = sessionId.value
+  sessionId.value = crypto.randomUUID()
+  historyOpened.value = false
+  sessionDetail.value = null
+  sessionDetailError.value = ''
+  runDetail.value = null
+  runError.value = ''
+  runMissing.value = false
+  // 清掉刚离开的会话本地气泡，避免占内存；新 id 本来就是空的。
+  if (previousId) {
+    chatStore.clearMessages(AGENT_ID, previousId)
+  }
+  flashNewChat('已开始新对话')
+}
+
+/** 顶栏短提示。重复点击会重置计时。 */
+function flashNewChat(message: string) {
+  newChatFlash.value = message
+  if (newChatFlashTimer) {
+    clearTimeout(newChatFlashTimer)
+  }
+  newChatFlashTimer = setTimeout(() => {
+    newChatFlash.value = ''
+    newChatFlashTimer = null
+  }, 2200)
 }
 
 /** 调退出接口并回登录页。 */
@@ -655,6 +697,13 @@ onMounted(() => {
   void refreshNotices()
 })
 
+onBeforeUnmount(() => {
+  if (newChatFlashTimer) {
+    clearTimeout(newChatFlashTimer)
+    newChatFlashTimer = null
+  }
+})
+
 /** 切换会话时补详情。列表刷新也会再对齐一次。 */
 watch(sessionId, () => {
   syncSessionDetail()
@@ -681,17 +730,37 @@ watch(sessionId, () => {
           <p class="text-sm font-semibold text-[var(--color-brand-primary)]">会话</p>
           <button
             type="button"
-            class="w-full rounded-lg bg-[var(--color-brand-primary)] px-3 py-2 text-sm text-white disabled:opacity-50"
+            class="w-full rounded-lg px-3 py-2 text-sm disabled:opacity-50 transition-colors"
+            :class="isDraftSession
+              ? 'border-2 border-[var(--color-brand-primary)] bg-[color-mix(in_srgb,var(--color-brand-primary)_14%,var(--color-surface-card))] text-[var(--color-brand-primary)] font-medium'
+              : 'bg-[var(--color-brand-primary)] text-white'"
             :disabled="busy"
             @click="newChat"
           >
-            新对话
+            {{ isDraftSession ? '新对话（当前）' : '新对话' }}
           </button>
+          <p
+            v-if="newChatFlash"
+            class="text-xs text-[var(--color-brand-primary)] leading-snug"
+            role="status"
+          >
+            {{ newChatFlash }}
+          </p>
         </div>
         <div class="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
+          <div
+            v-if="isDraftSession"
+            class="w-full text-left rounded-lg px-2.5 py-2 text-sm font-medium text-[var(--color-brand-primary)] ring-1 ring-[var(--color-brand-primary)]"
+            :style="{ backgroundColor: 'color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-surface-card))' }"
+          >
+            <span class="block truncate">新对话（未发送）</span>
+            <span class="block truncate text-xs text-[var(--color-text-muted)] font-normal">
+              {{ shortSession(sessionId) }} · 草稿
+            </span>
+          </div>
           <p v-if="loadingSessions" class="px-2 py-2 text-xs text-[var(--color-text-muted)]">加载中…</p>
           <p
-            v-else-if="sessionRows.length === 0"
+            v-else-if="sessionRows.length === 0 && !isDraftSession"
             class="px-2 py-2 text-xs text-[var(--color-text-muted)]"
           >
             还没有历史会话

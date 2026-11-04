@@ -55,18 +55,18 @@ public class AuditUsageMeter implements UsageMeter {
         try {
             audits.record("model.usage", userId == null ? "" : userId, detail(model, inputTokens, outputTokens, latencyMillis));
         } catch (RuntimeException ex) {
-            log.warning("usage record failed");
+            log.warning("usage audit failed: " + ex.getMessage());
         }
         try {
             tokens.record(tenantId, userId, sessionId, runId, model, inputTokens, outputTokens);
         } catch (RuntimeException ex) {
-            log.warning("usage record failed");
+            log.warning("usage record failed: " + ex.getMessage());
         }
         if (dailyTokens != null) {
             try {
                 dailyTokens.add(tenantId, userId, safeSum(inputTokens, outputTokens));
             } catch (RuntimeException ex) {
-                log.warning("daily token accumulate failed");
+                log.warning("daily token accumulate failed: " + ex.getMessage());
             }
         }
     }

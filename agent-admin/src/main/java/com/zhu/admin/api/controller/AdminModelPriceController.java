@@ -46,8 +46,8 @@ public class AdminModelPriceController {
         return ApiResult.ok(catalog().add(
                 body.model(),
                 body.currency(),
-                body.inputPer1k(),
-                body.outputPer1k(),
+                body.inputPer1m(),
+                body.outputPer1m(),
                 body.effectiveFrom(),
                 body.effectiveTo()));
     }

@@ -1,0 +1,31 @@
+# 粘贴到 Nacos 配置中心时：
+#   Data ID : agent-admin-infra.yaml
+#   Group   : AGENT_PLATFORM
+#   格式    : YAML
+# 管理进程启动拉取一次，不热更新。改完需重启管理进程。
+# 环境变量仍可覆盖同名项。Nacos 自身地址/账号不要写进本文件。
+
+spring:
+  lifecycle:
+    # 管理进程无长对话，停机等待短于用户进程。
+    timeout-per-shutdown-phase: 30s
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/agentscope?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+    username: root
+    password: change-me
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+
+agentscope:
+  admin:
+    token: change-me-admin
+  cache:
+    redis:
+      enabled: true
+      host: 127.0.0.1
+      port: 6379
+      password: ""
+  milvus:
+    # 管理进程只探测，不建集合。
+    uri: http://127.0.0.1:19530

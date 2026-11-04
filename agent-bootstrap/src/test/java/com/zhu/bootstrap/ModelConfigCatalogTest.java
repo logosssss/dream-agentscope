@@ -7,12 +7,13 @@ import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -21,7 +22,7 @@ import static org.mockito.Mockito.when;
  */
 class ModelConfigCatalogTest {
 
-    /** 空白范围按全局。同一标识再写一次按冲突处理。 */
+    /** 空白范围按全局。同一标识仍启用再写一次按冲突处理。 */
     @Test
     void registerInsertsVersionOne() {
         ModelConfigMapper configs = mock(ModelConfigMapper.class);
@@ -33,11 +34,39 @@ class ModelConfigCatalogTest {
         });
         verify(configs).insert(any(ModelConfig.class));
 
-        when(configs.insert(any(ModelConfig.class))).thenThrow(new DataIntegrityViolationException("dup"));
+        ModelConfig enabled = new ModelConfig();
+        enabled.setConfigId("cfg-a");
+        enabled.setEnabled(1);
+        when(configs.findByConfigId("cfg-a", "1.0.0")).thenReturn(enabled);
         assertThatThrownBy(() -> catalog.register("cfg-a", "qwen-plus", "dashscope", null))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.CONFLICT);
+        verify(configs, never()).replaceDisabled(any(), any(), any(), any(), any());
+    }
+
+    /** 停用行再次登记会改登并启用，不硬删。 */
+    @Test
+    void registerReplacesDisabledRow() {
+        ModelConfigMapper configs = mock(ModelConfigMapper.class);
+        MysqlModelConfigCatalog catalog = new MysqlModelConfigCatalog(configs);
+        ModelConfig disabled = new ModelConfig();
+        disabled.setConfigId("qwen-plus");
+        disabled.setModel("qwen-plus");
+        disabled.setProvider("百炼");
+        disabled.setVersion("1.0.0");
+        disabled.setTenantScope("*");
+        disabled.setEnabled(0);
+        when(configs.findByConfigId("qwen-plus", "1.0.0")).thenReturn(disabled);
+        when(configs.replaceDisabled("qwen-plus", "1.0.0", "qwen-plus", "dashscope", "*")).thenReturn(1);
+
+        assertThat(catalog.register("qwen-plus", "qwen-plus", "dashscope", "")).satisfies(saved -> {
+            assertThat(saved.provider()).isEqualTo("dashscope");
+            assertThat(saved.model()).isEqualTo("qwen-plus");
+            assertThat(saved.enabled()).isTrue();
+        });
+        verify(configs).replaceDisabled(eq("qwen-plus"), eq("1.0.0"), eq("qwen-plus"), eq("dashscope"), eq("*"));
+        verify(configs, never()).insert(any(ModelConfig.class));
     }
 
     /** 租户范围优先于全局。没有启用行时没有单独模型。 */

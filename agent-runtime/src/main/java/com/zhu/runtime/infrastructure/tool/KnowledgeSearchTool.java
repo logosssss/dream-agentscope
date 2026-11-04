@@ -16,6 +16,7 @@ import io.agentscope.core.tool.ToolParam;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -42,6 +43,9 @@ public class KnowledgeSearchTool implements ProductTool {
 
     private final ChunkReranker reranker;
 
+    /** 与索引写入同一集合，须跟 agentscope.milvus.collection / 启动 ensure 一致。 */
+    private final String knowledgeCollection;
+
     /**
      * @param vectors   向量近邻；失败时本工具降级全文
      * @param knowledge 回表 SUCCESS 切块与 FULLTEXT
@@ -52,11 +56,13 @@ public class KnowledgeSearchTool implements ProductTool {
             VectorStore vectors,
             KnowledgeRepository knowledge,
             TextEmbedder embedder,
-            ChunkReranker reranker) {
+            ChunkReranker reranker,
+            @Value("${agentscope.milvus.collection:knowledge}") String knowledgeCollection) {
         this.vectors = vectors;
         this.knowledge = knowledge;
         this.embedder = embedder;
         this.reranker = reranker;
+        this.knowledgeCollection = MilvusCollections.resolveKnowledge(knowledgeCollection);
     }
 
     @Override
@@ -118,7 +124,7 @@ public class KnowledgeSearchTool implements ProductTool {
                 return List.of();
             }
             List<VectorHit> hits = vectors.search(new VectorQuery(
-                    MilvusCollections.DEFAULT_KNOWLEDGE, vector, "", userId, agentId, CANDIDATE_LIMIT));
+                    knowledgeCollection, vector, "", userId, agentId, CANDIDATE_LIMIT));
             List<String> ids = new ArrayList<>();
             if (hits != null) {
                 for (VectorHit hit : hits) {

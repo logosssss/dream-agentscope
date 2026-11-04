@@ -71,4 +71,16 @@
           AND version = #{version}
           AND enabled = 0
     </update>
+
+    <!-- 停用行允许改登：改坐标并重新启用。不覆盖启用行。 -->
+    <update id="replaceDisabled">
+        UPDATE model_config
+        SET model = #{model},
+            provider = #{provider},
+            tenant_scope = #{tenantScope},
+            enabled = 1
+        WHERE config_id = #{configId}
+          AND version = #{version}
+          AND enabled = 0
+    </update>
 </mapper>

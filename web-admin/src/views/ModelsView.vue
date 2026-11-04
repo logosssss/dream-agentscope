@@ -12,7 +12,7 @@ import {
 } from '@/shared/api/model-api'
 import { hasAdminToken } from '@/shared/auth/operator'
 import type { ModelConfigSummary, ModelPriceEntry } from '@/shared/types/api.types'
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 type Tab = 'configs' | 'prices'
 
@@ -28,10 +28,25 @@ const model = ref('')
 const provider = ref('')
 const tenantScope = ref('')
 
+/** 与运行层 resolveModel 一致：供应方:模型。 */
+const configCoordPreview = computed(() => {
+  const p = provider.value.trim()
+  const m = model.value.trim()
+  if (!p || !m) {
+    return ''
+  }
+  return `${p}:${m}`
+})
+
+/** 列表行上的运行坐标。 */
+function runtimeCoord(row: ModelConfigSummary): string {
+  return `${row.provider}:${row.model}`
+}
+
 const priceModel = ref('')
 const currency = ref('CNY')
-const inputPer1k = ref('')
-const outputPer1k = ref('')
+const inputPer1m = ref('')
+const outputPer1m = ref('')
 const effectiveFrom = ref('')
 const effectiveTo = ref('')
 const busyId = ref('')
@@ -122,10 +137,23 @@ async function onRestoreConfig(row: ModelConfigSummary) {
   }
 }
 
+/**
+ * 表单值转成可 trim 的字符串。
+ * type=number 的 v-model 可能是 number，直接 .trim 会报错。
+ */
+function asTrimmed(value: string | number | null | undefined): string {
+  if (value == null) {
+    return ''
+  }
+  return String(value).trim()
+}
+
 /** 追加模型单价。 */
 async function onAddPrice() {
-  const m = priceModel.value.trim()
-  if (!m || !inputPer1k.value.trim() || !outputPer1k.value.trim() || submitting.value) {
+  const m = asTrimmed(priceModel.value)
+  const input = asTrimmed(inputPer1m.value)
+  const output = asTrimmed(outputPer1m.value)
+  if (!m || !input || !output || submitting.value) {
     return
   }
   submitting.value = true
@@ -133,15 +161,15 @@ async function onAddPrice() {
   try {
     await addModelPrice({
       model: m,
-      currency: currency.value.trim(),
-      inputPer1k: inputPer1k.value.trim(),
-      outputPer1k: outputPer1k.value.trim(),
-      effectiveFrom: effectiveFrom.value.trim(),
-      effectiveTo: effectiveTo.value.trim(),
+      currency: asTrimmed(currency.value),
+      inputPer1m: input,
+      outputPer1m: output,
+      effectiveFrom: asTrimmed(effectiveFrom.value),
+      effectiveTo: asTrimmed(effectiveTo.value),
     })
     priceModel.value = ''
-    inputPer1k.value = ''
-    outputPer1k.value = ''
+    inputPer1m.value = ''
+    outputPer1m.value = ''
     effectiveFrom.value = ''
     effectiveTo.value = ''
     await refresh()
@@ -202,8 +230,11 @@ onMounted(() => {
     <p v-if="loading" class="text-sm text-[var(--color-text-muted)]">加载中…</p>
 
     <template v-if="tab === 'configs'">
-      <p class="text-xs text-[var(--color-text-muted)]">
+      <p class="text-xs text-[var(--color-text-muted)] leading-relaxed">
         版本固定 1.0.0；租户范围空表示全局 `*`。不写参数 JSON。
+        运行时会拼成 <code class="font-mono">供应方:模型</code>，必须是 AgentScope 能识别的英文坐标（如
+        <code class="font-mono">dashscope:qwen-plus</code>），不要写「百炼」这类展示名。
+        同配置 ID 若已停用，再次登记会<strong>改登并启用</strong>（覆盖供应方/模型/范围），无需删除；仍启用则拒绝重复。
       </p>
       <form
         class="flex flex-wrap gap-2 items-end bg-white border border-slate-200 rounded-lg p-3"
@@ -215,11 +246,21 @@ onMounted(() => {
         </label>
         <label class="text-sm space-y-1">
           <span class="text-[var(--color-text-muted)]">模型</span>
-          <input v-model="model" class="block w-44 rounded-md border border-slate-300 px-2 py-1.5" required />
+          <input
+            v-model="model"
+            class="block w-44 rounded-md border border-slate-300 px-2 py-1.5"
+            placeholder="qwen-plus"
+            required
+          />
         </label>
         <label class="text-sm space-y-1">
-          <span class="text-[var(--color-text-muted)]">供应方</span>
-          <input v-model="provider" class="block w-36 rounded-md border border-slate-300 px-2 py-1.5" required />
+          <span class="text-[var(--color-text-muted)]">供应方（英文）</span>
+          <input
+            v-model="provider"
+            class="block w-40 rounded-md border border-slate-300 px-2 py-1.5"
+            placeholder="dashscope"
+            required
+          />
         </label>
         <label class="text-sm space-y-1">
           <span class="text-[var(--color-text-muted)]">租户范围</span>
@@ -236,6 +277,13 @@ onMounted(() => {
         >
           登记
         </button>
+        <p
+          v-if="configCoordPreview"
+          class="basis-full text-xs text-[var(--color-text-muted)]"
+        >
+          运行坐标预览：
+          <code class="font-mono text-[var(--color-brand-primary)]">{{ configCoordPreview }}</code>
+        </p>
       </form>
 
       <div class="overflow-x-auto bg-white border border-slate-200 rounded-lg">
@@ -245,6 +293,7 @@ onMounted(() => {
               <th class="px-3 py-2 font-medium">配置 ID</th>
               <th class="px-3 py-2 font-medium">模型</th>
               <th class="px-3 py-2 font-medium">供应方</th>
+              <th class="px-3 py-2 font-medium">运行坐标</th>
               <th class="px-3 py-2 font-medium">版本</th>
               <th class="px-3 py-2 font-medium">租户范围</th>
               <th class="px-3 py-2 font-medium">启用</th>
@@ -253,12 +302,13 @@ onMounted(() => {
           </thead>
           <tbody>
             <tr v-if="!loading && configs.length === 0">
-              <td colspan="7" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无配置</td>
+              <td colspan="8" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无配置</td>
             </tr>
             <tr v-for="row in configs" :key="`${row.configId}:${row.version}`" class="border-t border-slate-100">
               <td class="px-3 py-2 font-mono text-xs">{{ row.configId }}</td>
               <td class="px-3 py-2">{{ row.model }}</td>
               <td class="px-3 py-2">{{ row.provider }}</td>
+              <td class="px-3 py-2 font-mono text-xs">{{ runtimeCoord(row) }}</td>
               <td class="px-3 py-2">{{ row.version }}</td>
               <td class="px-3 py-2 font-mono text-xs">{{ row.tenantScope }}</td>
               <td class="px-3 py-2">{{ row.enabled ? '是' : '否' }}</td>
@@ -290,24 +340,31 @@ onMounted(() => {
 
     <template v-else>
       <p class="text-xs text-[var(--color-text-muted)]">
-        只追加新行，不改旧价。生效开始空则用服务端现在；结束空表示仍有效。单价为每千 token。
+        只追加新行，不改旧价。生效开始空则用服务端现在；结束空表示仍有效。单价为元/百万 token（与百炼等一致）。
+        「模型」填完整运行坐标，须与配置页一致，例如
+        <code class="font-mono">dashscope:qwen-plus</code>。
       </p>
       <form
         class="flex flex-wrap gap-2 items-end bg-white border border-slate-200 rounded-lg p-3"
         @submit.prevent="onAddPrice"
       >
         <label class="text-sm space-y-1">
-          <span class="text-[var(--color-text-muted)]">模型</span>
-          <input v-model="priceModel" class="block w-44 rounded-md border border-slate-300 px-2 py-1.5" required />
+          <span class="text-[var(--color-text-muted)]">模型（运行坐标）</span>
+          <input
+            v-model="priceModel"
+            class="block w-56 rounded-md border border-slate-300 px-2 py-1.5"
+            placeholder="dashscope:qwen-plus"
+            required
+          />
         </label>
         <label class="text-sm space-y-1">
           <span class="text-[var(--color-text-muted)]">币种</span>
           <input v-model="currency" class="block w-20 rounded-md border border-slate-300 px-2 py-1.5" />
         </label>
         <label class="text-sm space-y-1">
-          <span class="text-[var(--color-text-muted)]">输入/千</span>
+          <span class="text-[var(--color-text-muted)]">输入/百万</span>
           <input
-            v-model="inputPer1k"
+            v-model="inputPer1m"
             type="number"
             min="0"
             step="0.000001"
@@ -316,9 +373,9 @@ onMounted(() => {
           />
         </label>
         <label class="text-sm space-y-1">
-          <span class="text-[var(--color-text-muted)]">输出/千</span>
+          <span class="text-[var(--color-text-muted)]">输出/百万</span>
           <input
-            v-model="outputPer1k"
+            v-model="outputPer1m"
             type="number"
             min="0"
             step="0.000001"
@@ -358,8 +415,8 @@ onMounted(() => {
               <th class="px-3 py-2 font-medium">ID</th>
               <th class="px-3 py-2 font-medium">模型</th>
               <th class="px-3 py-2 font-medium">币种</th>
-              <th class="px-3 py-2 font-medium">输入/千</th>
-              <th class="px-3 py-2 font-medium">输出/千</th>
+              <th class="px-3 py-2 font-medium">输入/百万</th>
+              <th class="px-3 py-2 font-medium">输出/百万</th>
               <th class="px-3 py-2 font-medium">生效</th>
             </tr>
           </thead>
@@ -371,8 +428,8 @@ onMounted(() => {
               <td class="px-3 py-2 font-mono text-xs">{{ row.id }}</td>
               <td class="px-3 py-2">{{ row.model }}</td>
               <td class="px-3 py-2">{{ row.currency }}</td>
-              <td class="px-3 py-2">{{ row.inputPer1k }}</td>
-              <td class="px-3 py-2">{{ row.outputPer1k }}</td>
+              <td class="px-3 py-2">{{ row.inputPer1m }}</td>
+              <td class="px-3 py-2">{{ row.outputPer1m }}</td>
               <td class="px-3 py-2 text-xs text-[var(--color-text-muted)]">
                 {{ row.effectiveFrom || '—' }}
                 ~

@@ -1,0 +1,60 @@
+# 用户进程 Nacos 白名单。改这里即可扩键，不必改 Java 常量。
+# exact：精确属性名。prefixes：前缀（含 list 下标，如 permission.rules[0].tool-id）。
+# 未列出的键在合并时丢掉。infra 与 business 分开，避免热更误收连接串。
+
+business:
+  exact:
+    - agentscope.access.daily-limit
+    - agentscope.access.per-minute
+    - agentscope.access.login-session-seconds
+    - agentscope.runtime.max-user-chars
+    - agentscope.runtime.timeout-seconds
+    - agentscope.runtime.model
+    - agentscope.runtime.max-iters
+    - agentscope.runtime.max-write-bytes
+    - agentscope.wx.mini.login-page
+    - agentscope.wx.mini.env-version
+    - agentscope.wx.mini.ticket-ttl-seconds
+    - agentscope.auth.tenant-id
+  prefixes:
+    - agentscope.permission.rules
+
+infra:
+  exact:
+    - spring.servlet.multipart.max-file-size
+    - spring.servlet.multipart.max-request-size
+    - spring.lifecycle.timeout-per-shutdown-phase
+    - spring.datasource.url
+    - spring.datasource.username
+    - spring.datasource.password
+    - spring.datasource.hikari.maximum-pool-size
+    - spring.datasource.hikari.minimum-idle
+    - agentscope.cache.redis.host
+    - agentscope.cache.redis.port
+    - agentscope.cache.redis.password
+    - agentscope.cache.redis.enabled
+    - agentscope.milvus.uri
+    - agentscope.milvus.token
+    - agentscope.milvus.collection
+    - agentscope.milvus.dimensions
+    - agentscope.caller.token
+    - DASHSCOPE_API_KEY
+    - agentscope.object-store.type
+    - agentscope.object-store.root
+    - agentscope.object-store.oss.endpoint
+    - agentscope.object-store.oss.region
+    - agentscope.object-store.oss.bucket
+    - agentscope.object-store.oss.access-key-id
+    - agentscope.object-store.oss.access-key-secret
+    - agentscope.object-store.oss.prefix
+    - agentscope.object-store.s3.endpoint
+    - agentscope.object-store.s3.region
+    - agentscope.object-store.s3.bucket
+    - agentscope.object-store.s3.access-key-id
+    - agentscope.object-store.s3.access-key-secret
+    - agentscope.object-store.s3.prefix
+    - agentscope.object-store.s3.path-style
+    - agentscope.wx.mini.app-id
+    - agentscope.wx.mini.app-secret
+    - agentscope.otel.endpoint
+    - agentscope.otel.service-name

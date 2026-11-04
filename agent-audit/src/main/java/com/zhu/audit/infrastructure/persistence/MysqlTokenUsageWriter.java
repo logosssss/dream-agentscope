@@ -16,7 +16,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 /**
- * 把 token 用量写入 MySQL。有当前价格时按每千 token 计价，没有则金额记 0。
+ * 把 token 用量写入 MySQL。有当前价格时按每百万 token 计价，没有则金额记 0。
  * 计价后若有费用累加器，再写入当日 Redis 微单位计数。
  */
 @Service
@@ -47,7 +47,8 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
     /**
      * 用户或模型为空时不写，避免违反非空约束。
      * 负数 token 记成 0。运行标识为空时现生成一个。
-     * 价格按 UTC 现在取当前生效行。没有行、或单价为空时金额记 0。
+     * 价格按 UTC 现在取当前生效行。没有行、查价失败、或单价为空时金额记 0，
+     * 查价异常不能挡住 token 行落库。
      */
     @Override
     public void record(
@@ -64,7 +65,7 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
         long input = Math.max(0L, inputTokens);
         long output = Math.max(0L, outputTokens);
         String name = model.length() <= MODEL_LIMIT ? model : model.substring(0, MODEL_LIMIT);
-        ModelPrice price = prices.selectCurrent(name, LocalDateTime.now(ZoneOffset.UTC));
+        ModelPrice price = currentPrice(name);
         BigDecimal amount = ModelCosting.amount(input, output, price);
         TokenUsage row = new TokenUsage();
         row.setRunId(runId == null || runId.isBlank() ? Ids.newId() : runId);
@@ -79,6 +80,18 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
         row.setCurrency(currency(price));
         usages.insert(row);
         accumulate(tenantId, userId, input, output, price);
+    }
+
+    /**
+     * 取当前生效单价。表结构未迁完或 SQL 失败时返回 null，由调用方按金额 0 落库。
+     */
+    private ModelPrice currentPrice(String model) {
+        try {
+            return prices.selectCurrent(model, LocalDateTime.now(ZoneOffset.UTC));
+        } catch (RuntimeException ex) {
+            log.warning("model price lookup failed: " + ex.getMessage());
+            return null;
+        }
     }
 
     private void accumulate(String tenantId, String userId, long input, long output, ModelPrice price) {

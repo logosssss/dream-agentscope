@@ -2,8 +2,9 @@
 #   Data ID : agent-bootstrap.yaml
 #   Group   : AGENT_PLATFORM
 #   格式    : YAML
-# 仅用户进程启动拉取。改完需重启进程。不要写入数据源、Redis、Milvus、密钥。
-# 未列出的键会被进程丢掉。
+# 用户进程启动拉取；配了 NACOS_ADDR 后进程内监听热更新。
+# 非法推送会拒收并保留上一份。只影响之后新请求。
+# 连接与密钥请写到 agent-bootstrap-infra.yaml。键须在 classpath:nacos-allowlist.yml。
 
 agentscope:
   access:
@@ -14,13 +15,20 @@ agentscope:
     # 登录会话在 Redis 的有效秒数。小于 1 时进程按一天处理。
     login-session-seconds: 86400
   runtime:
-    # 无 model_config 行时的模型坐标。密钥仍用环境变量 DASHSCOPE_API_KEY。
+    # 无 model_config 行时的模型坐标。密钥在 infra / 环境变量。
     model: dashscope:qwen-plus
-    # 单次执行最大推理轮数。
     max-iters: 20
-    # 等待模型返回的最长时间，单位秒。
     timeout-seconds: 120
-    # 用户输入字符上限。
     max-user-chars: 32768
-    # 单次写文件 UTF-8 字节上限。
     max-write-bytes: 5242880
+  auth:
+    # 自助注册进入的租户。必须已登记且 ACTIVE。
+    tenant-id: demo
+  wx:
+    mini:
+      login-page: pages/login-confirm/index
+      env-version: release
+      ticket-ttl-seconds: 300
+  permission:
+    # MySQL 打开时以 tool_permission 表为准；mysql 关闭时用这里。
+    rules: []

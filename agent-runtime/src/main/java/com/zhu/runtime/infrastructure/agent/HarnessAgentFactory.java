@@ -123,8 +123,15 @@ public class HarnessAgentFactory {
         return agent;
     }
 
-    /** 产品域没给出有效轮数时按 20，避免 0 轮直接结束。 */
+    /**
+     * 优先用运行配置（可 Nacos 热更），再退回产品域 completion。
+     * 都无效时按 20，避免 0 轮直接结束。
+     */
     private int maxIterations() {
+        int configured = properties.getMaxIters();
+        if (configured >= 1) {
+            return configured;
+        }
         CompletionCriteria completion = semantics.completion();
         if (completion == null || completion.maxIterations() < 1) {
             return 20;
