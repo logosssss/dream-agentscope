@@ -1,0 +1,4 @@
+# Spring Boot 3.5 的 EnvironmentPostProcessorsFactory 仍只读 META-INF/spring.factories。
+# 仅写 META-INF/spring/org.springframework.boot.env.EnvironmentPostProcessor 时不会被发现。
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.zhu.admin.nacos.NacosAdminStartupConfigLoader

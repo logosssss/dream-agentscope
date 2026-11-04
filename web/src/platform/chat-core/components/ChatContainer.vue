@@ -24,12 +24,15 @@ const props = withDefaults(
     loadingHistory?: boolean
     /** 空列表提示 */
     emptyHint?: string
+    /** 空态副文案；没有就不渲染 */
+    emptySubHint?: string
   }>(),
   {
     identity: '',
     title: '对话',
     loadingHistory: false,
     emptyHint: '发送一条消息开始对话。',
+    emptySubHint: '',
   },
 )
 
@@ -93,9 +96,9 @@ function meterPart(label: string, meter: QuotaMeter | null | undefined, always: 
   const over = meter.limit != null && meter.limit > 0 && meter.used >= meter.limit
   let text = `${label} ${meter.used}`
   if (meter.limit != null && meter.limit > 0) {
-    text += `/${meter.limit}`
+    text += ` / ${meter.limit}`
   } else if (meter.limit === 0) {
-    text += ' · 不限额'
+    text += '（不限额）'
   }
   return { text, over }
 }
@@ -277,35 +280,45 @@ onBeforeUnmount(() => {
 
     <div class="flex-1 min-w-0 h-full flex flex-col">
       <header class="flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-card)] px-4 py-3">
-        <div>
-          <h1 class="text-lg font-semibold text-[var(--color-brand-primary)]">{{ title }}</h1>
-          <p class="text-xs text-[var(--color-text-muted)]">
-            <span v-if="identity">{{ identity }} · </span>{{ shortSession }}…
+        <div class="min-w-0 space-y-1">
+          <h1 class="text-lg font-semibold text-[var(--color-brand-primary)] truncate">{{ title }}</h1>
+          <p v-if="identity" class="text-sm text-[var(--color-text-main)] truncate">
+            {{ identity }}
           </p>
           <p v-if="quotaError" class="text-xs text-[var(--color-danger)]">{{ quotaError }}</p>
           <p v-else-if="quotaParts.length" class="text-xs text-[var(--color-text-muted)]">
-            今日
+            今日用量
             <template v-for="(part, index) in quotaParts" :key="part.text">
-              <span v-if="index > 0"> · </span>
-              <span :class="part.over ? 'text-[var(--color-danger)]' : ''">{{ part.text }}</span>
+              <span v-if="index === 0">：</span>
+              <span v-else> · </span>
+              <span :class="part.over ? 'text-[var(--color-danger)] font-medium' : ''">{{ part.text }}</span>
             </template>
           </p>
+          <p class="text-[11px] text-[var(--color-text-muted)]/80 font-mono truncate" :title="sessionId">
+            会话 {{ shortSession }}
+          </p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 shrink-0">
           <slot name="header-actions" />
         </div>
       </header>
 
-      <div ref="listEl" class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div ref="listEl" class="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
         <p v-if="loadingHistory" class="text-sm text-[var(--color-text-muted)] text-center mt-12">
           正在加载历史消息…
         </p>
-        <p
+        <div
           v-else-if="messages.length === 0"
-          class="text-sm text-[var(--color-text-muted)] text-center mt-12"
+          class="flex flex-col items-center justify-center text-center px-6 pt-16 pb-8 gap-2"
         >
-          {{ emptyHint }}
-        </p>
+          <p class="text-base text-[var(--color-text-main)]">{{ emptyHint }}</p>
+          <p
+            v-if="emptySubHint"
+            class="text-sm text-[var(--color-text-muted)] max-w-sm leading-relaxed"
+          >
+            {{ emptySubHint }}
+          </p>
+        </div>
         <div
           v-for="msg in messages"
           :key="msg.id"

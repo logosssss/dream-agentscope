@@ -15,3 +15,5 @@ node_modules/
 oss.env
 data/
 .agentscope/
+# 内部交接，不进公开默认分支
+.cursor/handoff*

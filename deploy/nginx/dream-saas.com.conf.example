@@ -1,0 +1,55 @@
+# 示例：www.dream-saas.com 托管 web/dist，并把 /api /health 反代到用户进程。
+# 用法概要：
+#   1) cd web && npm ci && npm run build   （构建时不要设置 VITE_CALLER_TOKEN）
+#   2) 将 web/dist 同步到下方 root
+#   3) 把 CALLER_TOKEN 换成与 agentscope.caller.token 一致的值（仅服务端可见）
+#   4) 配好 TLS 后 include 本文件或改成站点配置
+#
+# 证书路径、upstream 端口按机器修改。
+
+upstream agentscope_user {
+    server 127.0.0.1:8080;
+    keepalive 16;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name www.dream-saas.com dream-saas.com;
+
+    # ssl_certificate     /path/to/fullchain.pem;
+    # ssl_certificate_key /path/to/privkey.pem;
+
+    root /var/www/dream-saas/web;
+    index index.html;
+
+    # 浏览器包内不放 Caller Token；由网关代填。
+    set $caller_token "REPLACE_WITH_AGENTSCOPE_CALLER_TOKEN";
+
+    location /api/ {
+        proxy_pass http://agentscope_user;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Caller-Token $caller_token;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+    }
+
+    location /health/ {
+        proxy_pass http://agentscope_user;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+server {
+    listen 80;
+    server_name www.dream-saas.com dream-saas.com;
+    return 301 https://www.dream-saas.com$request_uri;
+}

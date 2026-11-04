@@ -12,3 +12,12 @@ VALUES ('demo', 'demo-user', '联调用户', 'ACTIVE')
 ON DUPLICATE KEY UPDATE
   display_name = VALUES(display_name),
   status = 'ACTIVE';
+
+-- 公开演示额度：有启用行时覆盖进程 daily-limit。按需改数字后在目标库执行。
+INSERT INTO tenant_quota (tenant_id, quota_type, period, limit_value, enabled)
+VALUES
+  ('demo', 'REQUESTS', 'DAILY', 30, 1),
+  ('demo', 'TOKENS', 'DAILY', 100000, 1)
+ON DUPLICATE KEY UPDATE
+  limit_value = VALUES(limit_value),
+  enabled = 1;

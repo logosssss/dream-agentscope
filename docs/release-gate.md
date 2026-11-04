@@ -60,9 +60,9 @@ cd ../web-admin && pnpm build
 
 - [x] 工作区 / 将公开的分支中**没有** `.env`、真实 Token、模型 Key、内网账号密码
 - [x] `.gitignore` 已忽略 `.env`、`.env.local` 等；历史中若曾误提交，已轮换密钥并清理
-- [x] 存在可用的 `.env.example` / 前端 `.env.example`（仅占位，无真实值）（`web/.env.example`、`web-admin/.env.example` 已跟踪；根目录 `.env.example` 仍缺，开源前补）
-- [ ] `.cursor/handoff*` 等内部交接私货已从将公开默认分支移除或停止跟踪（开源清理步骤）— **仍跟踪** `.cursor/handoff-vector-memory.md`
-- [ ] 计划补充：根目录 `LICENSE`（Apache-2.0）、面向陌生人的 README 启动说明（可在门禁后、开源前完成）
+- [x] 存在可用的 `.env.example` / 前端 `.env.example`（仅占位，无真实值）（根目录与 `web/`、`web-admin/` 均有）
+- [x] `.cursor/handoff*` 等内部交接私货已从将公开默认分支移除或停止跟踪（已 `git rm --cached` 并写入 `.gitignore`）
+- [x] 根目录 `LICENSE`（Apache-2.0）、面向陌生人的 README 启动说明
 
 ---
 

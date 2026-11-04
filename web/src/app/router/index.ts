@@ -3,13 +3,17 @@ import { hasSession } from '@/shared/auth/session'
 import { createRouter, createWebHistory } from 'vue-router'
 
 /**
- * 应用路由。登录页独立；业务页挂在 AppLayout 下，由 registry 生成。
+ * 应用路由。`/` 公开介绍页；登录/注册公开；业务页挂在 AppLayout 下。
  */
-const defaultAgentPath = agentList[0] ? `/${agentList[0].slug}` : '/companion'
-
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    {
+      path: '/',
+      name: 'landing',
+      component: () => import('@/platform/landing/LandingView.vue'),
+      meta: { public: true },
+    },
     {
       path: '/login',
       name: 'login',
@@ -26,10 +30,6 @@ const router = createRouter({
       path: '/',
       component: () => import('@/platform/layout/AppLayout.vue'),
       children: [
-        {
-          path: '',
-          redirect: defaultAgentPath,
-        },
         {
           path: 'attachments',
           name: 'attachments',

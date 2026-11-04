@@ -8,10 +8,10 @@
 
 agentscope:
   access:
-    # 每个租户用户每天可发起的对话次数。0 表示不限制。
-    daily-limit: 0
-    # 每个用户每分钟同一入口次数。0 表示不限制。
-    per-minute: 0
+    # 公开演示建议收紧；0 表示不限制。租户表有启用 REQUESTS/DAILY 时以表为准。
+    daily-limit: 30
+    # 每个用户每分钟同一入口次数。公开演示建议 6，防刷。
+    per-minute: 6
     # 登录会话在 Redis 的有效秒数。小于 1 时进程按一天处理。
     login-session-seconds: 86400
   runtime:

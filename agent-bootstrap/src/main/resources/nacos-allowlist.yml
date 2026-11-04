@@ -29,6 +29,9 @@ infra:
     - spring.datasource.password
     - spring.datasource.hikari.maximum-pool-size
     - spring.datasource.hikari.minimum-idle
+    # 跨公网连库时默认 30s 可能不够；可在 infra 里调大。
+    - spring.datasource.hikari.connection-timeout
+    - spring.datasource.hikari.initialization-fail-timeout
     - agentscope.cache.redis.host
     - agentscope.cache.redis.port
     - agentscope.cache.redis.password

@@ -18,6 +18,7 @@ import java.util.logging.Logger;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
@@ -26,8 +27,10 @@ import org.springframework.stereotype.Component;
 /**
  * 监听用户进程业务 yaml。合法变更覆盖属性源并 rebind Properties；非法推送保留上一份（R1）。
  * 只影响之后新请求（L1）。infra 不在这里听。
+ * 必须排在 Flyway 之后：本机实测 Watcher 的 Nacos gRPC 若先于 Hikari 建连，会导致 MySQL 握手一直读超时。
  */
 @Component
+@DependsOn("flywayInitializer")
 @ConditionalOnExpression("T(org.springframework.util.StringUtils).hasText('${agentscope.nacos.server-addr:}')")
 public class NacosBusinessConfigWatcher {
 

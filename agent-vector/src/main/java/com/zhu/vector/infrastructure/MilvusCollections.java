@@ -132,22 +132,31 @@ public final class MilvusCollections {
 
     /**
      * 旧集合必须仍是同一维度，并且带齐身份字段。对不上就退出，避免检索串数据。
+     * 不会改表或删集合；运维需在 Attu/控制台删掉旧集合后再启，启动会按当前 schema 重建。
      */
     private static void checkExisting(
             MilvusClientV2 client, String name, int dimensions, List<String> required) {
         DescribeCollectionResp described = client.describeCollection(
                 DescribeCollectionReq.builder().collectionName(name).build());
-        List<String> fields = described.getFieldNames();
-        if (fields == null || !fields.contains(KnowledgeFilter.VECTOR) || !fields.containsAll(required)) {
-            throw new IllegalStateException("milvus collection is missing required fields");
+        List<String> fields = described.getFieldNames() == null
+                ? List.of() : described.getFieldNames();
+        if (!fields.contains(KnowledgeFilter.VECTOR) || !fields.containsAll(required)) {
+            throw new IllegalStateException(
+                    "milvus collection '" + name + "' is missing required fields; actual="
+                            + fields + ", required=[" + KnowledgeFilter.VECTOR + ", "
+                            + String.join(", ", required) + "]; drop the collection and restart");
         }
         CreateCollectionReq.CollectionSchema schema = described.getCollectionSchema();
         if (schema == null || schema.getField(KnowledgeFilter.VECTOR) == null) {
-            throw new IllegalStateException("milvus collection dimension does not match");
+            throw new IllegalStateException(
+                    "milvus collection '" + name + "' has no vector field; drop it and restart");
         }
         Integer actual = schema.getField(KnowledgeFilter.VECTOR).getDimension();
         if (actual == null || actual != dimensions) {
-            throw new IllegalStateException("milvus collection dimension does not match");
+            throw new IllegalStateException(
+                    "milvus collection '" + name + "' dimension does not match; actual="
+                            + actual + ", expected=" + dimensions
+                            + "; drop the collection and restart");
         }
     }
 }

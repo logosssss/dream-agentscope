@@ -3,6 +3,7 @@
  * 客户端登录。账号密码，密钥配齐时再显示微信扫码。
  * 不填写租户和用户标识。
  */
+import SiteComplianceFooter from '@/platform/compliance/SiteComplianceFooter.vue'
 import { authConfig, createWxTicket, login, pollWxTicket } from '@/shared/api/auth-api'
 import { saveSession } from '@/shared/auth/session'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
@@ -113,7 +114,8 @@ onBeforeUnmount(() => stopPoll())
 </script>
 
 <template>
-  <div class="min-h-full flex items-center justify-center p-6">
+  <div class="min-h-full flex flex-col">
+    <div class="flex-1 flex items-center justify-center p-6">
     <div
       class="w-full max-w-md rounded-2xl bg-[var(--color-surface-card)] p-6 shadow-sm border border-[var(--color-border)] space-y-4"
     >
@@ -193,5 +195,7 @@ onBeforeUnmount(() => stopPoll())
         <RouterLink class="text-[var(--color-brand-primary)]" :to="{ path: '/register', query: route.query }">去注册</RouterLink>
       </p>
     </div>
+    </div>
+    <SiteComplianceFooter />
   </div>
 </template>

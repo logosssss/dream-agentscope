@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * 登录后的平台骨架：左侧 Agent 切换 + 右侧当前 Agent 视图。
+ * 登录后的平台骨架：上排 Agent 轨 + 主区，底栏整宽合规脚注。
  * 根据路由 meta.themeColor 写入品牌色 CSS 变量。
  */
+import SiteComplianceFooter from '@/platform/compliance/SiteComplianceFooter.vue'
 import AgentSwitcher from '@/platform/layout/AgentSwitcher.vue'
 import { watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -26,10 +27,17 @@ watch(
 </script>
 
 <template>
-  <div class="h-full flex">
-    <AgentSwitcher />
-    <div class="flex-1 min-w-0 h-full">
-      <RouterView />
+  <div class="h-full flex flex-col min-h-0">
+    <div class="flex-1 min-h-0 flex">
+      <AgentSwitcher />
+      <div class="flex-1 min-w-0 min-h-0 h-full">
+        <RouterView />
+      </div>
+    </div>
+    <div
+      class="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface-muted)]"
+    >
+      <SiteComplianceFooter />
     </div>
   </div>
 </template>

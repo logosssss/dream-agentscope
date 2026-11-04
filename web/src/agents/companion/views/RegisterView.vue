@@ -2,6 +2,7 @@
 /**
  * 客户端注册。只要账号和密码，成功后直接进入系统。
  */
+import SiteComplianceFooter from '@/platform/compliance/SiteComplianceFooter.vue'
 import { register } from '@/shared/api/auth-api'
 import { saveSession } from '@/shared/auth/session'
 import { ref } from 'vue'
@@ -38,7 +39,8 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="min-h-full flex items-center justify-center p-6">
+  <div class="min-h-full flex flex-col">
+    <div class="flex-1 flex items-center justify-center p-6">
     <form
       class="w-full max-w-md rounded-2xl bg-[var(--color-surface-card)] p-6 shadow-sm border border-[var(--color-border)] space-y-4"
       @submit.prevent="onSubmit"
@@ -79,5 +81,7 @@ async function onSubmit() {
         <RouterLink class="text-[var(--color-brand-primary)]" :to="{ path: '/login', query: route.query }">去登录</RouterLink>
       </p>
     </form>
+    </div>
+    <SiteComplianceFooter />
   </div>
 </template>

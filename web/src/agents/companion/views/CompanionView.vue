@@ -10,14 +10,12 @@ import { getNotification, listNotifications } from '@/shared/api/notification-ap
 import { ApiBusinessError } from '@/shared/api/http'
 import { logout as logoutApi } from '@/shared/api/auth-api'
 import { getSession, listMessages, listSessions } from '@/shared/api/session-api'
-import { getRun } from '@/shared/api/run-api'
 import { clearSession, loadSession } from '@/shared/auth/session'
 import type {
   ApprovalDetail,
   ApprovalNotice,
   ApprovalNoticeDetail,
   PendingApproval,
-  RunDetail,
   SessionDetail,
   SessionSummary,
 } from '@/shared/types/api.types'
@@ -41,13 +39,6 @@ const sessionDetailError = ref('')
 const sessionDetailLoading = ref(false)
 /** 丢掉过期的会话详情，避免慢请求盖住后打开的另一条。 */
 let sessionDetailSeq = 0
-const runDetail = ref<RunDetail | null>(null)
-const runError = ref('')
-const runLoading = ref(false)
-/** 最近运行标识还在，但详情接口说这条运行已经不在。 */
-const runMissing = ref(false)
-/** 丢掉过期的运行详情。 */
-let runSeq = 0
 const chatRef = ref<InstanceType<typeof ChatContainer> | null>(null)
 
 const pendingRows = ref<PendingApproval[]>([])
@@ -89,6 +80,13 @@ const emptyHint = computed(() => {
     return '这是新对话。发送第一条消息后，左侧会出现历史记录。'
   }
   return '发送一条消息开始对话，或从左侧打开历史会话。'
+})
+/** 新对话空态副文案；历史空会话不打扰。 */
+const emptySubHint = computed(() => {
+  if (historyOpened.value) {
+    return ''
+  }
+  return '直接输入问题即可；知识库与待确认入口在左侧。'
 })
 /** 点「新对话」后的短暂顶栏提示，约 2 秒消失。 */
 const newChatFlash = ref('')
@@ -311,9 +309,6 @@ function newChat() {
   historyOpened.value = false
   sessionDetail.value = null
   sessionDetailError.value = ''
-  runDetail.value = null
-  runError.value = ''
-  runMissing.value = false
   // 清掉刚离开的会话本地气泡，避免占内存；新 id 本来就是空的。
   if (previousId) {
     chatStore.clearMessages(AGENT_ID, previousId)
@@ -362,22 +357,12 @@ function shortSession(id: string): string {
   return `${id.slice(0, 8)}…`
 }
 
-/** 丢掉过期的运行详情。不改会话。 */
-function clearRunDetail() {
-  runSeq += 1
-  runDetail.value = null
-  runError.value = ''
-  runLoading.value = false
-  runMissing.value = false
-}
-
 /** 丢掉过期的会话详情。不改当前会话，也不改列表。 */
 function clearSessionDetail() {
   sessionDetailSeq += 1
   sessionDetail.value = null
   sessionDetailError.value = ''
   sessionDetailLoading.value = false
-  clearRunDetail()
 }
 
 /**
@@ -393,14 +378,13 @@ function syncSessionDetail() {
 }
 
 /**
- * 当前选中会话的状态、轮数和最近运行。不拉正文，也不切换会话。
+ * 当前选中会话的状态与轮数。不拉运行详情、不拉正文。
  * 找不到只刷新列表。其它失败留在这一行。
  */
 async function loadSessionDetail(id: string) {
   const seq = ++sessionDetailSeq
   if (sessionDetail.value?.sessionId !== id) {
     sessionDetail.value = null
-    clearRunDetail()
   }
   sessionDetailError.value = ''
   sessionDetailLoading.value = true
@@ -410,12 +394,6 @@ async function loadSessionDetail(id: string) {
       return
     }
     sessionDetail.value = detail
-    const runId = (detail.lastRunId || '').trim()
-    if (runId) {
-      void loadRun(runId)
-    } else {
-      clearRunDetail()
-    }
   } catch (e) {
     if (seq !== sessionDetailSeq) {
       return
@@ -456,69 +434,41 @@ function sessionStatusLabel(status: string | null | undefined): string {
 }
 
 /**
- * 最近一次运行的状态和起止时间。不展示步骤、输入输出摘要。
- * 找不到只标运行已不在，不刷新会话列表。
+ * 列表用相对时间；解析失败则退回原文。
+ * title 悬停仍可用原始 lastActiveAt。
  */
-async function loadRun(runId: string) {
-  const seq = ++runSeq
-  if (runDetail.value?.run.runId !== runId) {
-    runDetail.value = null
-  }
-  runError.value = ''
-  runMissing.value = false
-  runLoading.value = true
-  try {
-    const detail = await getRun(runId)
-    if (seq !== runSeq) {
-      return
-    }
-    runDetail.value = detail
-  } catch (e) {
-    if (seq !== runSeq) {
-      return
-    }
-    const message = e instanceof Error ? e.message : '运行详情加载失败'
-    if (message.includes('重新登录')) {
-      clearSession()
-      await router.replace('/login')
-      return
-    }
-    if (e instanceof ApiBusinessError && e.code === 'NOT_FOUND') {
-      runDetail.value = null
-      runMissing.value = true
-      return
-    }
-    runError.value = message
-  } finally {
-    if (seq === runSeq) {
-      runLoading.value = false
-    }
-  }
-}
-
-/** 运行状态的短标签。不认识的原样显示。 */
-function runStatusLabel(status: string | null | undefined): string {
-  if (status === 'SUCCEEDED') {
-    return '已完成'
-  }
-  if (status === 'FAILED') {
-    return '失败'
-  }
-  if (status === 'CANCELLED') {
-    return '已取消'
-  }
-  return (status ?? '').trim()
-}
-
-/** 毫秒写成可读耗时。没有或负数不占一行。 */
-function formatDuration(durationMs: number | null | undefined): string {
-  if (durationMs == null || !Number.isFinite(durationMs) || durationMs < 0) {
+function formatRelativeActiveAt(raw: string | null | undefined): string {
+  const text = (raw ?? '').trim()
+  if (!text) {
     return ''
   }
-  if (durationMs < 1000) {
-    return `${durationMs} 毫秒`
+  const time = Date.parse(text)
+  if (!Number.isFinite(time)) {
+    return text
   }
-  return `${(durationMs / 1000).toFixed(1)} 秒`
+  const delta = Date.now() - time
+  if (delta < 0) {
+    return text
+  }
+  const minute = 60_000
+  const hour = 60 * minute
+  const day = 24 * hour
+  if (delta < minute) {
+    return '刚刚'
+  }
+  if (delta < hour) {
+    return `${Math.floor(delta / minute)} 分钟前`
+  }
+  if (delta < day) {
+    return `${Math.floor(delta / hour)} 小时前`
+  }
+  if (delta < 7 * day) {
+    return `${Math.floor(delta / day)} 天前`
+  }
+  const date = new Date(time)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const dayOfMonth = String(date.getDate()).padStart(2, '0')
+  return `${month}-${dayOfMonth}`
 }
 
 /** 收起详情。不改待确认列表。 */
@@ -720,6 +670,7 @@ watch(sessionId, () => {
     :identity="identity"
     :loading-history="loadingHistory"
     :empty-hint="emptyHint"
+    :emptySubHint="emptySubHint"
     @sent="onSent"
     @status="onStatus"
     @need-login="() => {}"
@@ -747,15 +698,15 @@ watch(sessionId, () => {
             {{ newChatFlash }}
           </p>
         </div>
-        <div class="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
+        <div class="flex-1 min-h-0 overflow-y-auto p-2 space-y-1.5">
           <div
             v-if="isDraftSession"
-            class="w-full text-left rounded-lg px-2.5 py-2 text-sm font-medium text-[var(--color-brand-primary)] ring-1 ring-[var(--color-brand-primary)]"
+            class="w-full text-left rounded-lg px-2.5 py-2.5 text-sm font-medium text-[var(--color-brand-primary)] ring-1 ring-[var(--color-brand-primary)]"
             :style="{ backgroundColor: 'color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-surface-card))' }"
           >
             <span class="block truncate">新对话（未发送）</span>
             <span class="block truncate text-xs text-[var(--color-text-muted)] font-normal">
-              {{ shortSession(sessionId) }} · 草稿
+              草稿
             </span>
           </div>
           <p v-if="loadingSessions" class="px-2 py-2 text-xs text-[var(--color-text-muted)]">加载中…</p>
@@ -769,7 +720,7 @@ watch(sessionId, () => {
             v-for="row in sessionRows"
             :key="row.sessionId"
             type="button"
-            class="w-full text-left rounded-lg px-2.5 py-2 text-sm hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+            class="w-full text-left rounded-lg px-2.5 py-2.5 text-sm hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
             :class="row.sessionId === sessionId
               ? 'text-[var(--color-brand-primary)] font-medium'
               : 'text-[var(--color-text-main)]'"
@@ -780,7 +731,12 @@ watch(sessionId, () => {
             @click="openSession(row)"
           >
             <span class="block truncate font-medium">{{ rowLabel(row) }}</span>
-            <span class="block truncate text-xs text-[var(--color-text-muted)]">{{ row.lastActiveAt }}</span>
+            <span
+              class="block truncate text-xs text-[var(--color-text-muted)]"
+              :title="row.lastActiveAt || undefined"
+            >
+              {{ formatRelativeActiveAt(row.lastActiveAt) }}
+            </span>
             <template v-if="row.sessionId === sessionId">
               <span
                 v-if="sessionDetailLoading && !sessionDetail"
@@ -788,51 +744,12 @@ watch(sessionId, () => {
               >
                 加载中…
               </span>
-              <template v-else-if="sessionDetail">
-                <span class="block truncate text-xs text-[var(--color-text-muted)]">
-                  {{ sessionStatusLabel(sessionDetail.status) }} · {{ sessionDetail.messageCount }} 轮
-                </span>
-                <span
-                  v-if="filled(sessionDetail.lastRunId)"
-                  class="block truncate text-xs text-[var(--color-text-muted)]"
-                >
-                  最近运行 {{ shortSession(sessionDetail.lastRunId || '') }}
-                </span>
-                <template v-if="filled(sessionDetail.lastRunId)">
-                  <span
-                    v-if="runLoading && !runDetail"
-                    class="block truncate text-xs text-[var(--color-text-muted)]"
-                  >
-                    运行加载中…
-                  </span>
-                  <template v-else-if="runDetail">
-                    <span class="block truncate text-xs text-[var(--color-text-muted)]">
-                      {{ runStatusLabel(runDetail.run.status) }}
-                      <template v-if="formatDuration(runDetail.run.durationMs)">
-                        · {{ formatDuration(runDetail.run.durationMs) }}
-                      </template>
-                    </span>
-                    <span
-                      v-if="filled(runDetail.startedAt)"
-                      class="block truncate text-xs text-[var(--color-text-muted)]"
-                    >
-                      开始 {{ runDetail.startedAt }}
-                    </span>
-                    <span
-                      v-if="filled(runDetail.finishedAt)"
-                      class="block truncate text-xs text-[var(--color-text-muted)]"
-                    >
-                      结束 {{ runDetail.finishedAt }}
-                    </span>
-                  </template>
-                  <span v-if="runMissing" class="block truncate text-xs text-[var(--color-text-muted)]">
-                    运行已不在
-                  </span>
-                  <span v-if="runError" class="block truncate text-xs text-[var(--color-danger)]">
-                    {{ runError }}
-                  </span>
-                </template>
-              </template>
+              <span
+                v-else-if="sessionDetail"
+                class="block truncate text-xs text-[var(--color-text-muted)]"
+              >
+                {{ sessionStatusLabel(sessionDetail.status) }} · {{ sessionDetail.messageCount }} 轮
+              </span>
               <span v-if="sessionDetailError" class="block truncate text-xs text-[var(--color-danger)]">
                 {{ sessionDetailError }}
               </span>
