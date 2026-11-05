@@ -25,27 +25,39 @@ public class ClientAccountService {
 
     private final ClientAuthProperties auth;
 
+    /** 没有额度门时跳过注册/登录分钟限流（单测构造）。 */
+    private final QuotaGuard quotas;
+
     /** 存储没开时 store 为空，注册和登录按不可用处理。 */
     @Autowired
     public ClientAccountService(
             ObjectProvider<ClientLoginStore> stores,
             UserLoginService sessions,
-            ClientAuthProperties auth) {
+            ClientAuthProperties auth,
+            ObjectProvider<QuotaGuard> quotas) {
         this.store = stores == null ? null : stores.getIfAvailable();
         this.sessions = sessions;
         this.auth = auth;
+        this.quotas = quotas == null ? null : quotas.getIfAvailable();
     }
 
-    /** 测试直接传入存储，不经过 Spring。 */
+    /** 测试直接传入存储，不经过 Spring。不限流。 */
     public ClientAccountService(ClientLoginStore store, UserLoginService sessions, ClientAuthProperties auth) {
+        this(store, sessions, auth, null);
+    }
+
+    /** 测试注入额度门，验证注册/登录限流。 */
+    public ClientAccountService(
+            ClientLoginStore store, UserLoginService sessions, ClientAuthProperties auth, QuotaGuard quotas) {
         this.store = store;
         this.sessions = sessions;
         this.auth = auth;
+        this.quotas = quotas;
     }
 
     /**
      * 校验账号和密码后建号，并立刻登录。
-     * 账号已存在时不签发会话。
+     * 账号已存在时不签发会话。先过分钟限流再写库。
      */
     public LoginResponse register(String accountName, String password) {
         String name;
@@ -56,6 +68,7 @@ public class ClientAccountService {
         } catch (IllegalArgumentException ex) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, ex.getMessage());
         }
+        rate("register", name);
         String userId = Ids.newId();
         String salt = Passwords.salt();
         RegisteredClient client = requireStore().registerPassword(
@@ -65,15 +78,24 @@ public class ClientAccountService {
 
     /**
      * 账号、密码或停用都回答同一句。短密码也走这句，不说明是格式问题。
+     * 先过分钟限流，避免撞库刷接口。
      */
     public LoginResponse login(String accountName, String password) {
         String name = accountName == null ? "" : accountName.trim();
         String secret = password == null ? "" : password;
+        rate("login", name.isEmpty() ? "_" : name);
         RegisteredClient client = requireStore().matchPassword(auth.getTenantId(), name, secret);
         if (client == null || !client.active()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "账号或密码不正确");
         }
         return sessions.issue(client.tenantId(), client.userId(), shown(client.displayName()));
+    }
+
+    /** 额度门缺失时跳过。 */
+    private void rate(String action, String accountKey) {
+        if (quotas != null) {
+            quotas.checkAuthRate(action, accountKey);
+        }
     }
 
     /**

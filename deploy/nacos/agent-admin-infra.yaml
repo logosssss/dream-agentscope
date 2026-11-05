@@ -19,7 +19,9 @@ spring:
 
 agentscope:
   admin:
-    token: change-me-admin
+    # 必填，且必须与用户进程 Caller 不同。留空或写 change-me-admin 时管理进程拒绝启动。
+    # 可用环境变量 AGENTSCOPE_ADMIN_TOKEN 覆盖。
+    token: ""
   cache:
     redis:
       enabled: true

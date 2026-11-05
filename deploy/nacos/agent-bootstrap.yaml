@@ -31,4 +31,17 @@ agentscope:
       ticket-ttl-seconds: 300
   permission:
     # MySQL 打开时以 tool_permission 表为准；mysql 关闭时用这里。
-    rules: []
+    # 内置 web 工具已在代码侧关闭；这里再 DENY 一道，防止以后误开。
+    rules:
+      - tool-id: web_fetch
+        tenant-id: "*"
+        role-id: "*"
+        decision: DENY
+        priority: 1
+        enabled: true
+      - tool-id: web_search
+        tenant-id: "*"
+        role-id: "*"
+        decision: DENY
+        priority: 1
+        enabled: true

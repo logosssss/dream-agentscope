@@ -79,8 +79,9 @@ mybatis-plus:
 #    max-write-bytes: 5242880
 #    max-user-chars: 32768
 #  access:
-#    daily-limit: 0
-#    per-minute: 0
+#    # 无 Nacos 时也不要用 0（不限制）；与 deploy/nacos 公开演示口径对齐。
+#    daily-limit: 30
+#    per-minute: 6
 #    login-session-seconds: ${AGENTSCOPE_LOGIN_SESSION_SECONDS:86400}
 #  auth:
 #    tenant-id: ${AGENTSCOPE_AUTH_TENANT_ID:demo}

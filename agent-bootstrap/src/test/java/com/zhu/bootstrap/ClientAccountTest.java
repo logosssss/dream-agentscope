@@ -1,6 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.application.ClientAccountService;
+import com.zhu.access.application.QuotaGuard;
 import com.zhu.access.application.UserLoginService;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.config.ClientAuthProperties;
@@ -8,6 +9,9 @@ import com.zhu.audit.api.ClientLoginStore;
 import com.zhu.audit.api.RegisteredClient;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,6 +71,42 @@ class ClientAccountTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.UNAVAILABLE);
+    }
+
+    /** 同一账号登录超过每分钟上限时拒收，不进入验密。 */
+    @Test
+    void loginIsRateLimited() {
+        FakeAccessCache cache = new FakeAccessCache();
+        AccessLimitProperties limits = new AccessLimitProperties();
+        limits.setPerMinute(1);
+        QuotaGuard quotas = new QuotaGuard(cache, limits, Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC));
+        ClientLoginStore store = new ClientLoginStore() {
+            @Override
+            public RegisteredClient registerPassword(
+                    String tenantId, String loginName, String salt, String passwordHash, String userId, String displayName) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public RegisteredClient matchPassword(String tenantId, String loginName, String password) {
+                return new RegisteredClient(tenantId, "u1", loginName, true);
+            }
+
+            @Override
+            public RegisteredClient wechat(String tenantId, String openId, String userId, String displayName) {
+                throw new UnsupportedOperationException();
+            }
+        };
+        UserLoginService sessions = new UserLoginService(tenantId -> {
+        }, (tenantId, userId) -> {
+        }, cache, limits);
+        ClientAccountService accounts = new ClientAccountService(store, sessions, new ClientAuthProperties(), quotas);
+
+        accounts.login("cat", "secret1");
+        assertThatThrownBy(() -> accounts.login("cat", "secret1"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).errorCode())
+                .isEqualTo(ErrorCode.QUOTA_EXCEEDED);
     }
 
     /** 门在测试里放行。租户用默认 demo。 */

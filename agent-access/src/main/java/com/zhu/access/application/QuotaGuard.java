@@ -129,6 +129,23 @@ public class QuotaGuard {
     }
 
     /**
+     * 注册/登录等未登录入口的分钟限流。键按动作和账号名（或匿名）分桶，不占对话日额度。
+     * per-minute 为 0 时跳过。Redis 失败按不可用抛出。
+     */
+    public void checkAuthRate(String action, String accountKey) {
+        int perMinute = limits.getPerMinute();
+        if (perMinute < 1) {
+            return;
+        }
+        String window = MINUTE.format(clock.instant());
+        String key = "auth-rate:" + segment(action) + ":" + segment(accountKey) + ":" + window;
+        long used = cache.increment(key, RATE_TTL);
+        if (used > perMinute) {
+            throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "rate limit exceeded");
+        }
+    }
+
+    /**
      * 只读当日已用量和上限。不增加计数，也不写流水。
      * Redis 失败按不可用抛出，不改走内存。
      */

@@ -99,6 +99,10 @@ public class HarnessAgentFactory {
                 .model(chatModel.resolve(request.tenantId()))
                 .sysPrompt(blank(request.systemPrompt()) ? semantics.promptFallback(null) : request.systemPrompt())
                 .maxIters(maxIterations());
+        // 未做出口白名单前关掉内置 web 工具，避免会话内 SSRF（元数据/内网）。
+        // 远程工作区路径下 shell 本就不注册；显式关掉防止以后换沙箱文件系统时裸奔。
+        builder.disableWebTools();
+        builder.disableShellTool();
         if (!blank(properties.getWorkspace())) {
             builder.workspace(properties.getWorkspace());
         }

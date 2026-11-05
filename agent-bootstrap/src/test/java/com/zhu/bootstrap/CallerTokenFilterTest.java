@@ -30,6 +30,22 @@ class CallerTokenFilterTest {
         assertThat(response.getContentAsString()).contains("UNAUTHORIZED");
     }
 
+    /** 样例占位串即使请求头对上也拒收，避免复制部署后裸奔。 */
+    @Test
+    void placeholderConfigurationRejects() throws Exception {
+        CallerTokenFilter filter = new CallerTokenFilter("change-me-caller");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/sessions");
+        request.setServletPath("/api/sessions");
+        request.addHeader(CallerTokens.HEADER, "change-me-caller");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        boolean[] called = new boolean[1];
+
+        filter.doFilter(request, response, (req, res) -> called[0] = true);
+
+        assertThat(called[0]).isFalse();
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
     /** 存活检查不看令牌。 */
     @Test
     void healthSkipsToken() throws Exception {

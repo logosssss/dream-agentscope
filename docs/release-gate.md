@@ -63,6 +63,8 @@ cd ../web-admin && pnpm build
 - [x] 存在可用的 `.env.example` / 前端 `.env.example`（仅占位，无真实值）（根目录与 `web/`、`web-admin/` 均有）
 - [x] `.cursor/handoff*` 等内部交接私货已从将公开默认分支移除或停止跟踪（已 `git rm --cached` 并写入 `.gitignore`）
 - [x] 根目录 `LICENSE`（Apache-2.0）、面向陌生人的 README 启动说明
+- [x] G2：`HarnessAgent` 默认 `disableWebTools` + `disableShellTool`；Caller/Admin 令牌空白或 `change-me*` 启动失败且请求拒收
+- [x] G2：Nacos infra 样例令牌留空；业务样例对 `web_fetch`/`web_search` DENY；注册/登录走 `per-minute` 限流
 
 ---
 

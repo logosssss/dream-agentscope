@@ -21,8 +21,8 @@ Dream-SaaS 开源仓库：基于 AgentScope 的 Java 多 Agent 平台底座（�
 
 前置：JDK 21、Maven、Node；本机可连 MySQL / Redis / Milvus；建议配 Nacos。
 
-1. 复制根目录 `.env.example` 为 `.env`，填写 `NACOS_*`（以及未放进 Nacos 时的令牌兜底）。
-2. 确认 Nacos `AGENT_PLATFORM` 组内有用户侧 `agent-bootstrap-infra.yaml` + `agent-bootstrap.yaml`（管理侧对称）。
+1. 复制根目录 `.env.example` 为 `.env`，填写 `NACOS_*`（以及未放进 Nacos 时的令牌兜底）。Caller / Admin 令牌勿用 `change-me*`。
+2. 确认 Nacos `AGENT_PLATFORM` 组内有用户侧 `agent-bootstrap-infra.yaml` + `agent-bootstrap.yaml`（管理侧对称）；infra 里令牌先留空再用环境变量覆盖。
 3. 执行演示租户种子（如 `deploy/mysql/seed-demo-tenant-user.sql`）。
 4. 启动用户进程（模块 `agent-bootstrap`）与可选管理进程（`agent-admin`）。
 5. 前端：
