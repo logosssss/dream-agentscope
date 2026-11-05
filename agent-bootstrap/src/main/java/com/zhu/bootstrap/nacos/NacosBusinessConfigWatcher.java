@@ -14,11 +14,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
-import org.springframework.context.annotation.DependsOn;
+import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
@@ -27,12 +30,12 @@ import org.springframework.stereotype.Component;
 /**
  * 监听用户进程业务 yaml。合法变更覆盖属性源并 rebind Properties；非法推送保留上一份（R1）。
  * 只影响之后新请求（L1）。infra 不在这里听。
- * 必须排在 Flyway 之后：本机实测 Watcher 的 Nacos gRPC 若先于 Hikari 建连，会导致 MySQL 握手一直读超时。
+ * 用 ApplicationRunner 且靠后执行：等 DataSource/Flyway 建连完成后再开 Nacos gRPC，
+ * 避免构造期 @DependsOn("flywayInitializer") 在 Flyway 未装配时直接启动失败。
  */
 @Component
-@DependsOn("flywayInitializer")
 @ConditionalOnExpression("T(org.springframework.util.StringUtils).hasText('${agentscope.nacos.server-addr:}')")
-public class NacosBusinessConfigWatcher {
+public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
 
     private static final Logger log = Logger.getLogger(NacosBusinessConfigWatcher.class.getName());
 
@@ -48,24 +51,33 @@ public class NacosBusinessConfigWatcher {
 
     private final ClientAuthProperties auth;
 
-    private final ConfigService client;
+    private final AtomicReference<ConfigService> client = new AtomicReference<>();
 
-    private final Listener listener;
+    private final AtomicReference<Listener> listener = new AtomicReference<>();
 
-    /** 地址非空时由条件装配创建。构造抛错会让启动失败，与「配了 Nacos 必须可用」一致。 */
+    /**
+     * 只保存依赖。真正连 Nacos 放到 {@link #run(ApplicationArguments)}，排在基础设施之后。
+     */
     public NacosBusinessConfigWatcher(
             ConfigurableEnvironment environment,
             AccessLimitProperties accessLimits,
             AgentRuntimeProperties runtime,
             PermissionProperties permissions,
             WxMiniProperties wxMini,
-            ClientAuthProperties auth) throws Exception {
+            ClientAuthProperties auth) {
         this.environment = environment;
         this.accessLimits = accessLimits;
         this.runtime = runtime;
         this.permissions = permissions;
         this.wxMini = wxMini;
         this.auth = auth;
+    }
+
+    /**
+     * 晚于 Flyway / 就绪探测一类 Order(0) 的 runner。连不上 Nacos 仍让启动失败。
+     */
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
         String serverAddr = text(environment.getProperty("agentscope.nacos.server-addr"));
         if (serverAddr == null) {
             throw new IllegalStateException("nacos server-addr is blank");
@@ -76,8 +88,8 @@ public class NacosBusinessConfigWatcher {
         putIfPresent(properties, PropertyKeyConst.NAMESPACE, environment.getProperty("agentscope.nacos.namespace"));
         putIfPresent(properties, PropertyKeyConst.USERNAME, environment.getProperty("agentscope.nacos.username"));
         putIfPresent(properties, PropertyKeyConst.PASSWORD, environment.getProperty("agentscope.nacos.password"));
-        this.client = NacosFactory.createConfigService(properties);
-        this.listener = new Listener() {
+        ConfigService configService = NacosFactory.createConfigService(properties);
+        Listener configListener = new Listener() {
             @Override
             public Executor getExecutor() {
                 return null;
@@ -88,9 +100,17 @@ public class NacosBusinessConfigWatcher {
                 onChange(configInfo);
             }
         };
-        this.client.addListener(
-                NacosStartupConfig.BUSINESS_DATA_ID, NacosStartupConfig.GROUP, this.listener);
+        configService.addListener(
+                NacosStartupConfig.BUSINESS_DATA_ID, NacosStartupConfig.GROUP, configListener);
+        this.client.set(configService);
+        this.listener.set(configListener);
         log.info("nacos business config watcher started");
+    }
+
+    /** 排在 RequiredInfrastructureRunner（Order 0）之后。 */
+    @Override
+    public int getOrder() {
+        return 100;
     }
 
     /**
@@ -178,10 +198,17 @@ public class NacosBusinessConfigWatcher {
 
     @PreDestroy
     public void shutdown() {
+        ConfigService configService = client.get();
+        Listener configListener = listener.get();
+        if (configService == null) {
+            return;
+        }
         try {
-            client.removeListener(
-                    NacosStartupConfig.BUSINESS_DATA_ID, NacosStartupConfig.GROUP, listener);
-            client.shutDown();
+            if (configListener != null) {
+                configService.removeListener(
+                        NacosStartupConfig.BUSINESS_DATA_ID, NacosStartupConfig.GROUP, configListener);
+            }
+            configService.shutDown();
         } catch (Exception ex) {
             log.warning("nacos business config watcher shutdown failed");
         }
