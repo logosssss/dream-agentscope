@@ -11,6 +11,9 @@ import com.zhu.state.api.KnowledgeRepository;
 import com.zhu.state.infrastructure.persistence.entity.KbChunk;
 import com.zhu.state.infrastructure.persistence.entity.KbDocument;
 import com.zhu.state.infrastructure.persistence.entity.KbKnowledgeBase;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -49,6 +52,9 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
         this.chunks = chunks;
     }
 
+    /**
+     * 建库并带回建库时间。时间在插入前写成 UTC 毫秒，避免只靠列默认值时回执拿不到这一列。
+     */
     @Override
     public KnowledgeBaseItem createBase(String kbId, String tenantId, String userId, String agentId, String name) {
         requireIds(kbId, userId, agentId);
@@ -65,8 +71,10 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
         row.setUserId(userId);
         row.setAgentId(agentId);
         row.setName(name.trim());
+        LocalDateTime created = LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+        row.setCreatedAt(created);
         bases.insert(row);
-        return new KnowledgeBaseItem(kbId, tenant, userId, agentId, row.getName());
+        return new KnowledgeBaseItem(kbId, tenant, userId, agentId, row.getName(), created);
     }
 
     @Override
@@ -87,6 +95,7 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
         return toOwned(bases.findOwned(kbId, tenant(tenantId), userId));
     }
 
+    /** 按创建时间倒序。每行带建库时间，不读文档。 */
     @Override
     public List<KnowledgeBaseItem> listBases(String tenantId, String userId) {
         if (blank(userId)) {
@@ -306,11 +315,18 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
         return bases.deleteOwned(kbId, tenant, userId);
     }
 
+    /** 列表和按主键查找共用。没有行返回 null，建库时间原样带出。 */
     private static KnowledgeBaseItem toBase(KbKnowledgeBase row) {
         if (row == null) {
             return null;
         }
-        return new KnowledgeBaseItem(row.getKbId(), row.getTenantId(), row.getUserId(), row.getAgentId(), row.getName());
+        return new KnowledgeBaseItem(
+                row.getKbId(),
+                row.getTenantId(),
+                row.getUserId(),
+                row.getAgentId(),
+                row.getName(),
+                row.getCreatedAt());
     }
 
     private static KnowledgeBaseOwned toOwned(KbKnowledgeBase row) {

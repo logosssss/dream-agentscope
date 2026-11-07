@@ -1,0 +1,21 @@
+# 模板：现网默认仍用 nohup（见 deploy/scripts/remote-restart-agentscope.sh）。
+# 迁移时复制到 /etc/systemd/system/ 后 daemon-reload && enable --now。
+# 勿在未切换技能 Restart 逻辑前启用，避免与手工进程双开抢端口。
+[Unit]
+Description=dream-agentscope user process (agent-bootstrap)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/dream-agentscope
+EnvironmentFile=-/opt/dream-agentscope/run.env
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -XX:+UseG1GC -jar /opt/dream-agentscope/boot.jar --server.port=8093
+Restart=on-failure
+RestartSec=5
+# 日志也可改 journald；与现网 boot.out 对齐时用 StandardOutput=append
+StandardOutput=append:/opt/dream-agentscope/logs/boot.out
+StandardError=append:/opt/dream-agentscope/logs/boot.out
+
+[Install]
+WantedBy=multi-user.target

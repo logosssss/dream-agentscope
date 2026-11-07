@@ -1,0 +1,18 @@
+# 模板：现网默认仍用 nohup。迁移步骤与 agentscope-user.service 相同。
+[Unit]
+Description=dream-agentscope admin process (agent-admin)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/dream-agentscope
+EnvironmentFile=-/opt/dream-agentscope/run.env
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -XX:+UseG1GC -jar /opt/dream-agentscope/admin.jar --server.port=8100
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/opt/dream-agentscope/logs/admin.out
+StandardError=append:/opt/dream-agentscope/logs/admin.out
+
+[Install]
+WantedBy=multi-user.target

@@ -2,14 +2,23 @@
 
 面向 `https://www.dream-saas.com/`：介绍页 + 登录后产品，同一套 `web/dist`。
 
-## 发布步骤（手动）
+## 发布步骤
 
-1. 本机或 CI：`cd web && npm ci && npm run build`  
-   - **不要**在生产构建里设置 `VITE_CALLER_TOKEN`。
-2. 把 `web/dist/*` 同步到服务器 Nginx `root`（见 `dream-saas.com.conf.example`）。
-3. 在 Nginx 配置里填入与 Nacos / 进程一致的 Caller Token，仅用于 `proxy_set_header X-Caller-Token`。
-4. 把 `deploy/nacos/agent-bootstrap.yaml` 里的演示额度同步到线上 Nacos，并按需执行 `deploy/mysql/seed-demo-tenant-user.sql` 中的 `tenant_quota`。
-5. `nginx -t && systemctl reload nginx`（或等价命令）。
+日常发版优先用关卡脚本（Agent 技能同入口）：
+
+```powershell
+.\deploy\scripts\agent-deploy.ps1 -Target frontend   # 或 user / admin / full
+```
+
+说明见 `deploy/AGENT-DEPLOY-USAGE.md`。脚本**不会**改 Nginx / `run.env` / Nacos。
+
+手动备忘：
+
+1. 本机或 CI：`cd web && npm ci && npm run build`（**不要**设 `VITE_CALLER_TOKEN`）。
+2. 把 `web/dist/*` 同步到 Nginx `root`（现网为 `/opt/dream-saas/web-dist`）。
+3. Nginx 里 Caller Token 仅用于 `proxy_set_header X-Caller-Token`（与进程一致）。
+4. 演示额度：同步 Nacos `agent-bootstrap.yaml`，并按需执行 `seed-demo-tenant-user.sql` 中 `tenant_quota`。
+5. 若改了 Nginx：`nginx -t && systemctl reload nginx`。
 
 管理端不要挂到同一公开 CTA；可另端口或内网。
 

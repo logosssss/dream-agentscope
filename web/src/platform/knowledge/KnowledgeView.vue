@@ -691,11 +691,12 @@ onBeforeUnmount(() => {
             <tr>
               <th class="px-3 py-2 font-medium">名称</th>
               <th class="px-3 py-2 font-medium">Agent</th>
+              <th class="px-3 py-2 font-medium">创建</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!loading && rows.length === 0">
-              <td colspan="2" class="px-3 py-6 text-center text-[var(--color-text-muted)]">还没有知识库</td>
+              <td colspan="3" class="px-3 py-6 text-center text-[var(--color-text-muted)]">还没有知识库</td>
             </tr>
             <template v-for="row in rows" :key="row.kbId">
               <tr
@@ -709,9 +710,12 @@ onBeforeUnmount(() => {
                   </span>
                 </td>
                 <td class="px-3 py-2 font-mono text-xs">{{ row.agentId }}</td>
+                <td class="px-3 py-2 text-xs text-[var(--color-text-muted)] whitespace-nowrap">
+                  {{ filled(row.createdAt) || '—' }}
+                </td>
               </tr>
               <tr v-if="expandedId === row.kbId" class="border-t border-[var(--color-border)]">
-                <td colspan="2" class="px-3 py-2 space-y-0.5 bg-[var(--color-surface-muted)]">
+                <td colspan="3" class="px-3 py-2 space-y-0.5 bg-[var(--color-surface-muted)]">
                   <p v-if="detailLoading" class="text-xs text-[var(--color-text-muted)]">加载中…</p>
                   <template v-else-if="detail">
                     <p v-if="filled(detail.createdAt)" class="text-xs text-[var(--color-text-muted)]">

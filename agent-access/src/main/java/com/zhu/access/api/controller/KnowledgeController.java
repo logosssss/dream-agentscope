@@ -51,7 +51,7 @@ public class KnowledgeController {
                 TenantContext.get(), UserContext.get(), body.name(), body.agentId()));
     }
 
-    /** 本人知识库列表。 */
+    /** 本人知识库列表。每行带建库时间，不读文档。 */
     @GetMapping("/api/kb")
     public ApiResult<List<KnowledgeBaseItem>> listBases() {
         accounts.requireActive();

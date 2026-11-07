@@ -3,7 +3,7 @@ package com.zhu.state.api;
 import java.time.LocalDateTime;
 
 /**
- * 本人一个知识库的详情。比列表多创建时间，仍不含文档。
+ * 本人一个知识库。带建库时间，仍不含文档。详情接口用它做归属确认。
  *
  * @param kbId      业务主键
  * @param tenantId  租户

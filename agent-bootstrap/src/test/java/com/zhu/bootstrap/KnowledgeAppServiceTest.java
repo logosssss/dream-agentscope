@@ -57,7 +57,7 @@ class KnowledgeAppServiceTest {
         AttachmentCatalog catalog = mock(AttachmentCatalog.class);
         ObjectStore objects = mock(ObjectStore.class);
         when(repo.findBase("kb1", "t", "u"))
-                .thenReturn(new KnowledgeBaseItem("kb1", "t", "u", "agent-a", "n"));
+                .thenReturn(new KnowledgeBaseItem("kb1", "t", "u", "agent-a", "n", null));
         when(repo.insertDocumentVersion(
                         anyString(),
                         eq(1),
@@ -142,7 +142,7 @@ class KnowledgeAppServiceTest {
         AttachmentCatalog catalog = mock(AttachmentCatalog.class);
         ObjectStore objects = mock(ObjectStore.class);
         when(repo.findBase("kb1", "t", "u"))
-                .thenReturn(new KnowledgeBaseItem("kb1", "t", "u", "agent-a", "n"));
+                .thenReturn(new KnowledgeBaseItem("kb1", "t", "u", "agent-a", "n", null));
         when(repo.listChunkIdsByBase("kb1", "t", "u")).thenReturn(List.of());
         when(repo.listLatestDocuments("kb1", "t", "u"))
                 .thenReturn(List.of(new KnowledgeDocumentItem(
@@ -166,12 +166,16 @@ class KnowledgeAppServiceTest {
                 .isEqualTo(ErrorCode.NOT_FOUND);
     }
 
+    /** 列表把仓储里的建库时间原样带回，不读文档。 */
     @Test
-    void listBasesDelegates() {
+    void listBasesKeepsCreatedAt() {
         KnowledgeRepository repo = mock(KnowledgeRepository.class);
-        when(repo.listBases("t", "u")).thenReturn(List.of());
+        LocalDateTime created = LocalDateTime.of(2026, 11, 2, 1, 2, 3);
+        when(repo.listBases("t", "u")).thenReturn(List.of(
+                new KnowledgeBaseItem("kb1", "t", "u", "agent-a", "n", created)));
         assertThat(service(repo, mock(VectorStore.class), mock(ObjectStore.class), null).listBases("t", "u"))
-                .isEmpty();
+                .containsExactly(new KnowledgeBaseItem("kb1", "t", "u", "agent-a", "n", created));
+        verify(repo, never()).listLatestDocuments(any(), any(), any());
     }
 
     /** 先确认归属再返回库名和创建时间。不读文档。 */

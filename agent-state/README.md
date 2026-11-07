@@ -61,4 +61,4 @@
 
 ## 还没有
 
-`AgentStateRepository`、`WorkspaceFileRepository`、`ExecutionLockService` 的实现。本地对象存储在 `agent-object-store`，不由本模块持有。工作区文件在挂上 `DistributedStore` 后走远程文件系统，进 `agentscope_store`。情景记忆和画像由运行层在对话成功结束后写入，`append` 回自增 id。最近 3 条、按 id 回表和短画像查找已经有。知识库正文与切块已落 `kb_*`；列表、单库详情（含创建时间）、文档最新版详情与级联删除已有。文档详情不带正文。列表仍不带建库时间。`kb_chunk` 已加 ngram FULLTEXT；仓储提供 `searchSuccessByFulltext`。Redis 只做额度、幂等和限流，不存 Agent 状态。
+`AgentStateRepository`、`WorkspaceFileRepository`、`ExecutionLockService` 的实现。本地对象存储在 `agent-object-store`，不由本模块持有。工作区文件在挂上 `DistributedStore` 后走远程文件系统，进 `agentscope_store`。情景记忆和画像由运行层在对话成功结束后写入，`append` 回自增 id。最近 3 条、按 id 回表和短画像查找已经有。知识库正文与切块已落 `kb_*`；列表、单库详情（含创建时间）、文档最新版详情与级联删除已有。文档详情不带正文。列表带建库时间。`kb_chunk` 已加 ngram FULLTEXT；仓储提供 `searchSuccessByFulltext`。Redis 只做额度、幂等和限流，不存 Agent 状态。

@@ -264,16 +264,17 @@ export interface QuotaSnapshot {
   concurrent: QuotaMeter
 }
 
-/** GET /api/kb 一行。不含文档。 */
+/** GET /api/kb 与建库回执。带建库时间，不含文档。时间为空表示这一行没有记下。 */
 export interface KnowledgeBaseItem {
   kbId: string
   tenantId: string
   userId: string
   agentId: string
   name: string
+  createdAt: string | null
 }
 
-/** GET /api/kb/{kbId}。比列表多创建时间，不读文档。 */
+/** GET /api/kb/{kbId}。带创建时间，不读文档。 */
 export interface KnowledgeBaseDetail {
   kbId: string
   tenantId: string

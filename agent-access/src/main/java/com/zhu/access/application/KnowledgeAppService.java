@@ -86,7 +86,7 @@ public class KnowledgeAppService {
         return repo.createBase(Ids.newId(), tenantId, userId, agent, name);
     }
 
-    /** 本人名下的库。 */
+    /** 本人名下的库。每行带建库时间，不读文档。 */
     public List<KnowledgeBaseItem> listBases(String tenantId, String userId) {
         KnowledgeRepository repo = requireRepo();
         requireUser(userId);
