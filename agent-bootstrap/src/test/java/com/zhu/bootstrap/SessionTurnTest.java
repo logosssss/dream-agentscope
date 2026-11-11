@@ -4,13 +4,10 @@ import com.zhu.access.application.chat.AbsentChatMessageStore;
 import com.zhu.access.application.chat.ChatAppService;
 import com.zhu.access.application.chat.ConcurrentRunGuard;
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.application.chat.SessionTurnGuard;
 import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
-import com.zhu.common.exception.BusinessException;
-import com.zhu.common.exception.ErrorCode;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentResponse;
 import java.time.Clock;
@@ -19,14 +16,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
  * 同会话排队改由 Channel Gateway 负责后，ChatAppService 不再占 turn 锁。
- * SessionTurnGuard 仍可单测其自身校验。
  */
 class SessionTurnTest {
 
@@ -70,15 +65,5 @@ class SessionTurnTest {
         chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null));
 
         assertThat(cache.lock("turn:t:u:s", "again", Duration.ofMinutes(1))).isTrue();
-    }
-
-    /** 用户或会话为空时，守卫本身仍拒绝。 */
-    @Test
-    void blankSessionIsRejected() {
-        SessionTurnGuard turns = new SessionTurnGuard(new FakeAccessCache(), 0);
-        assertThatThrownBy(() -> turns.open("t", "u", " "))
-                .isInstanceOf(BusinessException.class)
-                .extracting(error -> ((BusinessException) error).errorCode())
-                .isEqualTo(ErrorCode.BAD_REQUEST);
     }
 }

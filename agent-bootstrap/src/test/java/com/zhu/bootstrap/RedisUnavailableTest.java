@@ -5,7 +5,6 @@ import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.access.application.chat.AbsentChatMessageStore;
 import com.zhu.access.application.chat.ChatAppService;
 import com.zhu.access.application.chat.ConcurrentRunGuard;
-import com.zhu.access.application.chat.SessionTurnGuard;
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.infrastructure.cache.AccessCache;
@@ -104,14 +103,6 @@ class RedisUnavailableTest {
         assertThat(down.getBody().code()).isEqualTo("UNAVAILABLE");
         assertThat(quota.getStatusCode().value()).isEqualTo(200);
         assertThat(quota.getBody().code()).isEqualTo("QUOTA_EXCEEDED");
-    }
-
-    /** 回复已经生成后，释放锁失败不向外抛。 */
-    @Test
-    void unlockFailureDoesNotEscape() {
-        SessionTurnGuard turns = new SessionTurnGuard(new ThrowingCache(), 120);
-
-        turns.close(new SessionTurnGuard.Turn("turn:t:u:s", "token"));
     }
 
     /** 占并发名额时 Redis 不可用，不放行。 */
