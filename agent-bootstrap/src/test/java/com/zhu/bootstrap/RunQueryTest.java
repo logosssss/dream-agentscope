@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.MysqlRunQuery;
+import com.zhu.access.application.chat.MysqlRunQuery;
 import com.zhu.access.infrastructure.persistence.AgentRunMapper;
 import com.zhu.access.infrastructure.persistence.AgentRunStepMapper;
 import com.zhu.access.infrastructure.persistence.entity.AgentRun;

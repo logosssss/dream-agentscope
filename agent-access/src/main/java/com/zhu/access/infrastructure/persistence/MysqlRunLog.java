@@ -1,7 +1,7 @@
 package com.zhu.access.infrastructure.persistence;
 
-import com.zhu.access.application.RunLog;
-import com.zhu.access.application.RunStep;
+import com.zhu.access.application.chat.RunLog;
+import com.zhu.access.application.chat.RunStep;
 import com.zhu.access.infrastructure.persistence.entity.AgentRun;
 import com.zhu.access.infrastructure.persistence.entity.AgentRunStep;
 import com.zhu.common.util.Ids;

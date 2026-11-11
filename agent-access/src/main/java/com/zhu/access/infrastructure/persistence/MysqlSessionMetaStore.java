@@ -2,7 +2,7 @@ package com.zhu.access.infrastructure.persistence;
 
 import com.zhu.access.api.dto.SessionDetail;
 import com.zhu.access.api.dto.SessionSummary;
-import com.zhu.access.application.SessionMetaStore;
+import com.zhu.access.application.chat.SessionMetaStore;
 import com.zhu.access.infrastructure.persistence.entity.SessionMeta;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;

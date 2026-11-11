@@ -1,11 +1,11 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.controller.ApprovalController;
+import com.zhu.access.api.controller.chat.ApprovalController;
 import com.zhu.access.api.dto.ApprovalDecisionRequest;
 import com.zhu.access.api.dto.ApprovalDecisionView;
 import com.zhu.access.api.dto.ApprovalDetail;
 import com.zhu.access.api.dto.PendingApproval;
-import com.zhu.access.application.AccessAccountGate;
+import com.zhu.access.application.auth.AccessAccountGate;
 import com.zhu.audit.api.ApprovalDecision;
 import com.zhu.audit.api.ApprovalDecider;
 import com.zhu.audit.api.ApprovalRow;

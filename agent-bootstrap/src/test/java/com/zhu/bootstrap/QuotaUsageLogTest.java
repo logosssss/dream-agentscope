@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.QuotaGuard;
+import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.audit.api.QuotaUsageWriter;
 import com.zhu.audit.application.MysqlQuotaUsageWriter;

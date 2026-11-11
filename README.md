@@ -8,6 +8,7 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 - **管理进程**（`agent-admin`，默认 `8100`）：租户、额度、工具权限、审批等运维 API（不跑对话）
 - **用户端** `web`、**管理端** `web-admin`
 
+仓库：<https://github.com/logosssss/dream-agentscope>  
 在线站点：<https://www.dream-saas.com/>  
 默认分支：`main`  
 许可证：[Apache-2.0](./LICENSE)
@@ -382,6 +383,7 @@ mvn test
 |------|------|
 | [`doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`](./doc/AgentScope%20Java%202.0.4%20产品级架构与工程落地指南%20(2).md) | 架构与工程设计长文 |
 | [`doc/企业级多 Agent 平台前端工程开发方案 (1).md`](./doc/企业级多%20Agent%20平台前端工程开发方案%20(1).md) | 前端方案 |
+| [`docs/tutorial/series-plan.md`](./docs/tutorial/series-plan.md) | 系列教程《AgentScope 落地实战》：选题池、进度与双平台发布约定 |
 
 以上偏设计与历史口径；**行为以当前代码与各模块 README 为准**。
 

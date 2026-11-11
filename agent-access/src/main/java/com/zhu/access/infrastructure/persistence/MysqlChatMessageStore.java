@@ -1,7 +1,7 @@
 package com.zhu.access.infrastructure.persistence;
 
 import com.zhu.access.api.dto.ChatMessageItem;
-import com.zhu.access.application.ChatMessageStore;
+import com.zhu.access.application.chat.ChatMessageStore;
 import com.zhu.access.infrastructure.persistence.entity.ChatMessage;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;

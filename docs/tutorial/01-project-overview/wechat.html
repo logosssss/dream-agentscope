@@ -1,0 +1,294 @@
+<section style="font-size:15px;line-height:1.8;color:#333;letter-spacing:0.4px;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Microsoft YaHei',sans-serif;">
+
+  <section style="background:#E6F1FB;border-radius:8px;padding:14px 16px;margin-bottom:24px;">
+    <p style="margin:0;font-size:13px;color:#185FA5;line-height:1.7;">AgentScope 落地实战 01｜Dream-SaaS</p>
+    <p style="margin:6px 0 0;font-size:13px;color:#5F5E5A;line-height:1.7;">项目概览 · 阅读约 8–10 分钟</p>
+  </section>
+
+  <p style="margin:0 0 18px;">dream-agentscope 是 Dream-SaaS 的开源仓库，基于 <strong>AgentScope Java 2.0.4</strong> 构建的多 Agent 平台底座，Apache-2.0 许可，在线站点 https://www.dream-saas.com/。</p>
+
+  <p style="margin:0 0 18px;">它处理的问题不是"如何调用大模型"，而是"Agent 能力如何进入一个有租户、有计费、有审批、有审计的生产系统"。在 AgentScope 之上，仓库补齐了六类产品化组件：</p>
+
+  <table style="width:100%;border-collapse:collapse;word-break:break-word;font-size:13px;margin:0 0 20px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:26%;">组件</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:74%;">作用</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">身份</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">密码注册登录、微信扫码登录、会话令牌</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">隔离</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">租户与用户维度贯穿对话、知识库、附件、配额</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">成本</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">日请求 / token / 费用 / 并发运行四类上限，分钟级限流</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">管控</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">工具权限三态（ALLOW / ASK / DENY）与审批流</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">留痕</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">运行、步骤、审计、用量四类记录</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">运维</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">配置中心热更、管理端、保留策略登记</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 18px;">以一次对话为例：请求先由 <strong>CallerTokenFilter</strong> 校验 X-Caller-Token，再由 <strong>AccessIdentityFilter</strong> 解析 Bearer 并写入线程身份，接着在 <strong>ChatAppService</strong> 完成额度判断、运行占位与幂等检查，最后交给 runtime 构建 Agent 实例、把流式事件转成 SSE。多租户隔离与成本约束都压在这条链上，也是后续各篇逐段拆解的对象。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">一、仓库结构</h2>
+
+  <p style="margin:0 0 14px;">两个后端进程、两个前端工程、十个 Maven 模块。</p>
+
+  <table style="width:100%;border-collapse:collapse;word-break:break-word;font-size:12.5px;margin:0 0 18px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:26%;">组成</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:14%;">端口</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:60%;">说明</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">用户进程</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">8080</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">对话、登录、知识库、附件；执行 Flyway</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;background:#fafbfc;">管理进程</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">8100</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">租户、额度、工具权限、审批、审计；不执行迁移、不跑对话</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">用户前端</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">5173</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">介绍页、对话、附件、知识库</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;background:#fafbfc;">管理前端</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">5174</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">运维界面</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 18px;">十个模块中，<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-access</code> 提供 HTTP 入口，<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-runtime</code> 为执行内核，<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-semantic</code> 存放提示词与工具目录，<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-common</code> / <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-audit</code> / <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-state</code> / <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-vector</code> / <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-object-store</code> 为横切支撑；<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-bootstrap</code> 与 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-admin</code> 是可独立启动的进程入口。合起来共十个模块，依赖方向见第 13 篇。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">二、已具备的产品能力</h2>
+
+  <table style="width:100%;border-collapse:collapse;word-break:break-word;font-size:12.5px;margin:0 0 18px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:30%;">能力</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:70%;">实现要点</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">注册 / 登录</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">会话存于 Redis；身份只认 Bearer，不采用请求头中的租户与用户</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">对话</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">同步 JSON 与 SSE 流式两条路径；Agent 按请求创建、结束关闭</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">待确认</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">ASK 时产生站内确认；批准后需重发上一条消息，下一轮才执行工具</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">会话与运行查询</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">会话列表、消息、运行与步骤只读查询，范围限定本人本租户</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">附件</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">上传、下载、停用与恢复；对象存储可落 local / OSS / S3 / MinIO</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">知识库</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">建库、文本与文件入库、索引状态、对话侧 knowledge_search</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">额度与限流</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">日请求、token、费用、并发运行四类上限；注册登录同样受限</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">管理端</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">租户、额度、工具权限、审批、模型单价、审计只读、账单状态机</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">微信扫码</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">密钥配齐后可用；小程序确认不校验 Caller Token，仍校验票据与 code</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">配置中心</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;background:#fafbfc;">Nacos 双份 yaml：infra 启动加载一次，业务配置白名单内热更</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">三、技术栈与运行依赖</h2>
+
+    <section style="margin:0 0 18px;padding:2px 12px;background:#fafbfc;border:1px solid #e8e8ea;border-radius:6px;">
+    <p style="margin:0;padding:9px 0;border-bottom:1px solid #eef0f2;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">JDK</span> <span style="color:#24292e;">21</span></p>
+    <p style="margin:0;padding:9px 0;border-bottom:1px solid #eef0f2;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">Spring Boot</span> <span style="color:#24292e;">3.5.5</span></p>
+    <p style="margin:0;padding:9px 0;border-bottom:1px solid #eef0f2;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">AgentScope</span> <span style="color:#24292e;">2.0.4</span></p>
+    <p style="margin:0;padding:9px 0;border-bottom:1px solid #eef0f2;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">持久层</span> <span style="color:#24292e;">MyBatis-Plus 3.5.17</span></p>
+    <p style="margin:0;padding:9px 0;border-bottom:1px solid #eef0f2;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">向量库</span> <span style="color:#24292e;">Milvus 2.6.17</span></p>
+    <p style="margin:0;padding:9px 0;border-bottom:1px solid #eef0f2;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">配置中心</span> <span style="color:#24292e;">Nacos Client 3.2.1</span></p>
+    <p style="margin:0;padding:9px 0;border-bottom:1px solid #eef0f2;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">可观测</span> <span style="color:#24292e;">OpenTelemetry 1.61.0（可选）</span></p>
+    <p style="margin:0;padding:9px 0;border-bottom:1px solid #eef0f2;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">模块约束</span> <span style="color:#24292e;">ArchUnit 1.4.1</span></p>
+    <p style="margin:0;padding:9px 0;border-bottom:1px solid #eef0f2;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">前端</span> <span style="color:#24292e;">Node 20+，包管理器统一 pnpm</span></p>
+    <p style="margin:0;padding:9px 0;border-bottom:1px solid #eef0f2;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">中间件</span> <span style="color:#24292e;">MySQL、Redis、Milvus 三项必须可达</span></p>
+    <p style="margin:0;padding:9px 0;font-size:12.5px;line-height:1.75;"><span style="display:inline-block;width:92px;color:#6b7280;">模型</span> <span style="color:#24292e;">默认 dashscope:qwen-plus，密钥读 DASHSCOPE_API_KEY</span></p>
+  </section>
+
+  <p style="margin:0 0 10px;">三类外部依赖的启动行为不同：</p>
+
+  <section style="border-left:3px solid #d0d7de;background:#f7f8fa;padding:12px 14px;margin:0 0 18px;border-radius:0 4px 4px 0;">
+    <p style="margin:0 0 10px;font-size:13.5px;color:#57606a;line-height:1.8;"><strong style="color:#24292e;">MySQL / Redis / Milvus</strong>：两个进程启动即探测，任一不可达则抛异常退出（RequiredInfrastructureRunner），避免"启动成功但对外随机 503"。</p>
+    <p style="margin:0 0 10px;font-size:13.5px;color:#57606a;line-height:1.8;"><strong style="color:#24292e;">Nacos</strong>：NACOS_ADDR 为空时跳过连接，回落到本地 application.yml；有值才连配置中心。</p>
+    <p style="margin:0;font-size:13.5px;color:#57606a;line-height:1.8;"><strong style="color:#24292e;">模型服务</strong>：坐标与密钥在请求期解析，DASHSCOPE_API_KEY 缺失不阻断启动，首次对话或向量化时才失败。</p>
+  </section>
+
+  <p style="margin:0 0 18px;">测试阶段把 agentscope.startup.dependencies.enabled 置为 false，不连接真实中间件。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">四、部署拓扑与请求路径</h2>
+
+  <section style="margin:0 0 8px;">
+    <table style="width:100%;border-collapse:collapse;word-break:break-word;table-layout:fixed;">
+      <tr>
+        <td style="width:50%;padding:0 4px 0 0;vertical-align:top;">
+          <section style="background:#E6F1FB;border:1px solid #b5d4f4;border-radius:6px;padding:10px 8px;text-align:center;">
+            <p style="margin:0;font-size:13px;font-weight:600;color:#0C447C;">web :5173</p>
+            <p style="margin:3px 0 0;font-size:11px;color:#185FA5;">用户前端</p>
+          </section>
+        </td>
+        <td style="width:50%;padding:0 0 0 4px;vertical-align:top;">
+          <section style="background:#E1F5EE;border:1px solid #9fe1cb;border-radius:6px;padding:10px 8px;text-align:center;">
+            <p style="margin:0;font-size:13px;font-weight:600;color:#085041;">web-admin :5174</p>
+            <p style="margin:3px 0 0;font-size:11px;color:#0F6E56;">管理前端</p>
+          </section>
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <p style="margin:0;text-align:center;color:#b4b2a9;font-size:14px;line-height:1.2;">↓</p>
+
+  <section style="margin:0 0 8px;">
+    <table style="width:100%;border-collapse:collapse;word-break:break-word;table-layout:fixed;">
+      <tr>
+        <td style="width:50%;padding:0 4px 0 0;vertical-align:top;">
+          <section style="background:#E6F1FB;border:1px solid #b5d4f4;border-radius:6px;padding:10px 8px;text-align:center;">
+            <p style="margin:0;font-size:13px;font-weight:600;color:#0C447C;">agent-bootstrap</p>
+            <p style="margin:3px 0 0;font-size:11px;color:#185FA5;">8080 · 对话与业务</p>
+          </section>
+        </td>
+        <td style="width:50%;padding:0 0 0 4px;vertical-align:top;">
+          <section style="background:#E1F5EE;border:1px solid #9fe1cb;border-radius:6px;padding:10px 8px;text-align:center;">
+            <p style="margin:0;font-size:13px;font-weight:600;color:#085041;">agent-admin</p>
+            <p style="margin:3px 0 0;font-size:11px;color:#0F6E56;">8100 · 运维</p>
+          </section>
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <p style="margin:0;text-align:center;color:#b4b2a9;font-size:14px;line-height:1.2;">↓</p>
+
+  <section style="margin:0 0 10px;">
+    <section style="background:#F1EFE8;border:1px solid #d3d1c7;border-radius:6px;padding:10px 12px;text-align:center;">
+      <p style="margin:0;font-size:12px;font-weight:600;color:#2C2C2A;line-height:1.7;">MySQL + Redis + Milvus</p>
+      <p style="margin:3px 0 0;font-size:11px;color:#5F5E5A;">启动即探测，三项必须可达，否则进程退出</p>
+      <p style="margin:10px 0 0;padding-top:10px;border-top:1px dashed #d3d1c7;font-size:11px;color:#5F5E5A;line-height:1.7;">Nacos：NACOS_ADDR 有值才连，group 为 AGENT_PLATFORM<br/>模型服务：请求期校验密钥，不阻断启动</p>
+    </section>
+  </section>
+
+  <p style="margin:0 0 18px;font-size:12.5px;color:#888780;text-align:center;">图 1：部署拓扑。生产环境可选 Nginx 代填 X-Caller-Token</p>
+
+  <p style="margin:0 0 16px;">一次对话请求的模块路径：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:11.5px;line-height:1.9;color:#24292e;white-space:pre;">POST /api/chat/stream
+ → CallerTokenFilter    X-Caller-Token
+ → AccessIdentityFilter Bearer → 身份
+ → ChatAppService       额度/占位/幂等
+ → AgentExecutor.stream runtime 入口
+ → HarnessAgentFactory  构建 Agent
+ → AgentStreamEvent     → SSE</pre>
+  </section>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">五、本地启动</h2>
+
+  <p style="margin:0 0 14px;">前置条件：JDK 21、Maven、Node 20+、MySQL、Redis、Milvus，以及一个可用的 Nacos（推荐）。</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:11.5px;line-height:1.9;color:#24292e;white-space:pre;"># 1. 环境变量
+cp .env.example .env
+
+# 2. Nacos 建 group AGENT_PLATFORM
+#    粘贴四份配置：
+#    agent-bootstrap-infra.yaml
+#    agent-bootstrap.yaml
+#    agent-admin-infra.yaml
+#    agent-admin.yaml
+
+# 3. 用户进程首次启动执行 Flyway
+#    随后导入演示租户
+mysql -u ... -p agentscope \
+  &lt; deploy/mysql/seed-demo-tenant-user.sql
+
+# 4. 启动
+mvn -pl agent-bootstrap -am spring-boot:run
+mvn -pl agent-admin -am spring-boot:run
+
+# 5. 探活
+curl -s http://127.0.0.1:8080/health/live
+curl -s http://127.0.0.1:8080/health/ready</pre>
+  </section>
+
+  <p style="margin:0 0 18px;"><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">/health/ready</code> 要求三项中间件可达。配置优先级为<strong>环境变量 &gt; Nacos &gt; 本地 yml</strong>；infra 配置不热更，改连接串与密钥需重启。</p>
+
+  <p style="margin:0 0 18px;">前端分别执行 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">pnpm install &amp;&amp; pnpm dev</code>。生产构建时不设置 VITE_CALLER_TOKEN，由 Nginx 通过 X-Caller-Token 代填。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">六、当前未实现的部分</h2>
+
+  <section style="background:#FAEEDA;border-radius:6px;padding:14px 16px;margin:0 0 20px;">
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;"><strong>RocketMQ</strong>：<code style="background:rgba(255,255,255,0.6);padding:1px 4px;border-radius:3px;font-size:12.5px;font-family:Consolas,Menlo,monospace;">task.mode=mq</code> 为占位实现，切换后进程无法启动；任务当前走 sync。</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;"><strong>服务发现与 MCP</strong>：Nacos 仅作为配置中心。</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;"><strong>infra 热更新</strong>：仅业务 yaml 在白名单内可热更。</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;"><strong>保留策略、删除审批、调度消费</strong>：支持登记与状态变更，不执行实际清理。</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;"><strong>管理端账号登录页</strong>：当前依赖 Admin Token。</p>
+    <p style="margin:0;font-size:14px;color:#633806;line-height:1.8;"><strong>内置 Web 工具</strong>：进程侧已关闭 web_fetch / web_search / shell，业务样例对前两者配置为 DENY。</p>
+  </section>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">七、适用与不适用</h2>
+
+  <p style="margin:0 0 10px;"><strong>适用</strong>：需要把 Agent 接入多租户系统、要求额度与审批可控、需要完整运行记录的后端团队；也可作为 AgentScope Java 的工程化参考实现。</p>
+
+  <p style="margin:0 0 18px;"><strong>不适用</strong>：单机对话 Demo；开箱即用的低代码 Agent 编排平台；需要 MCP 工具生态的场景（当前未接入）。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">八、系列说明</h2>
+
+  <p style="margin:0 0 18px;">《AgentScope 落地实战》分四个部分：项目与框架入门、RAG 落地、多 Agent 编排、上线与运维。全部内容对应仓库中已存在的实现，配置值与默认值取自代码与 deploy 模板。</p>
+
+  <section style="background:#f7f8fa;border-radius:8px;padding:16px;margin:24px 0;">
+    <p style="margin:0 0 8px;font-size:14px;color:#1a1a1a;line-height:1.8;"><strong>下一篇</strong>：AgentScope 2.0.4 概念地图——Agent、Toolkit、Memory、Middleware 的职责边界，以及一个 200 行以内的最小闭环。</p>
+    <p style="margin:0 0 10px;font-size:14px;color:#1a1a1a;line-height:1.8;"><strong>有问题评论区见，欢迎交流~</strong></p>
+    <p style="margin:0 0 4px;font-size:13px;color:#57606a;line-height:1.8;">项目：https://www.dream-saas.com/</p>
+    <p style="margin:0 0 4px;font-size:13px;color:#57606a;line-height:1.8;">源码：https://github.com/logosssss/dream-agentscope</p>
+    <p style="margin:0;font-size:13px;color:#57606a;line-height:1.8;">系列目录：https://github.com/logosssss/dream-agentscope/blob/main/docs/tutorial/series-plan.md</p>
+  </section>
+
+</section>

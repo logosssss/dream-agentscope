@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.MysqlTaskQuery;
+import com.zhu.access.application.account.MysqlTaskQuery;
 import com.zhu.access.infrastructure.persistence.AgentTaskMapper;
 import com.zhu.access.infrastructure.persistence.entity.AgentTaskRow;
 import com.zhu.common.exception.BusinessException;

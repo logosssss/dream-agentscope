@@ -78,7 +78,7 @@ class ArchitectureTest {
                         "com.zhu.objectstore.api.ObjectStore",
                         "com.zhu.objectstore.infrastructure.LocalObjectStore",
                         "com.zhu.objectstore.infrastructure.S3ObjectStore",
-                        "com.zhu.access.api.controller.LivenessController");
+                        "com.zhu.access.api.controller.health.LivenessController");
 
         SEMANTIC_MUST_NOT_DEPEND_ON_RUNTIME_OR_ACCESS.check(classes);
         RUNTIME_ONLY_DEPENDS_ON_SEMANTIC_CONTRACT.check(classes);

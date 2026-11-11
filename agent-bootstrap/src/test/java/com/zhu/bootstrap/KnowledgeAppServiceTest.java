@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.KnowledgeAppService;
-import com.zhu.access.application.KnowledgeIndexLauncher;
+import com.zhu.access.application.knowledge.KnowledgeAppService;
+import com.zhu.access.application.knowledge.KnowledgeIndexLauncher;
 import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.audit.api.AttachmentSummary;
 import com.zhu.common.exception.BusinessException;

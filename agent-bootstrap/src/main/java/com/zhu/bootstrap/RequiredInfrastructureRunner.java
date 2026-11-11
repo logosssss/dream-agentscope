@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.RedisReadiness;
+import com.zhu.access.application.health.RedisReadiness;
 import com.zhu.audit.application.MysqlReadiness;
 import com.zhu.common.health.MilvusProbe;
 import com.zhu.common.health.ReadinessSnapshot;

@@ -1,0 +1,242 @@
+<section style="font-size:15px;line-height:1.8;color:#333;letter-spacing:0.4px;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Microsoft YaHei',sans-serif;">
+
+  <section style="background:#E6F1FB;border-radius:8px;padding:14px 16px;margin-bottom:24px;">
+    <p style="margin:0;font-size:13px;color:#185FA5;line-height:1.7;">《AgentScope 落地实战》 · 加餐篇</p>
+    <p style="margin:6px 0 0;font-size:13px;color:#5F5E5A;line-height:1.7;">代码基线 lesson-01 · 阅读约 9 分钟</p>
+  </section>
+
+  <p style="margin:0 0 18px;">把 Agent 接入一个既有的 Java 后端系统，最先失效的通常不是模型能力，而是六处来自 Web 框架的默认假设。</p>
+
+  <p style="margin:0 0 18px;">以下按假设逐条给出失效机制与仓库中的替代实现，涉及的行为均可在代码与各模块 README 中核对。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">假设一：接口同步返回</h2>
+
+  <p style="margin:0 0 16px;">Spring MVC 的默认形态是请求进入、处理完成、返回响应体。按此形态封装的 Agent 调用如下：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:12px;line-height:1.9;color:#24292e;white-space:pre;">public AgentResponse chat(String text) {
+    return agent.call(text, context);   // 阻塞至生成结束
+}</pre>
+  </section>
+
+  <p style="margin:0 0 10px;">该实现可以运行，但存在三个问题：</p>
+
+  <p style="margin:0 0 10px;"><strong>延迟不可控。</strong>整段生成完成才返回，长回答耗时可达数十秒，网关与浏览器先超时。</p>
+  <p style="margin:0 0 10px;"><strong>进度不可见。</strong>生成过程中无中间状态，前端只能显示 loading。</p>
+  <p style="margin:0 0 18px;"><strong>取消无法传递。</strong>客户端断开后，服务端仍在生成并计费。</p>
+
+  <p style="margin:0 0 16px;">Agent 的原生形态是事件流：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:12px;line-height:1.9;color:#24292e;white-space:pre;">agent.streamEvents(userText, context)
+     .doOnNext(e -&gt; sse.send(e))        // 增量下发
+     .doFinally(sig -&gt; agent.close());  // 完成/取消/异常统一关闭</pre>
+  </section>
+
+  <p style="margin:0 0 14px;">改造后需同步调整三处语义：</p>
+
+  <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 18px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:22%;">项</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:36%;">同步模型</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:42%;">流式模型</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">超时</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">全段耗时上限</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">同上，首字延迟另立指标</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">失败表达</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">HTTP 状态码</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">流建立后恒为 200，失败在事件中</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">资源释放</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">返回值即结束</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">取消与异常路径都必须 close</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 18px;">第三项是主要泄漏来源：<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">Flux</code> 被取消时不走 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">onComplete</code>，只走 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">doFinally</code>。释放逻辑写在前者里，客户端一关页面就漏。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">假设二：事务可回滚</h2>
+
+  <p style="margin:0 0 18px;">数据库操作的思维定式是异常回滚，最坏情况脏一条记录。Agent 调用不具备该性质：token 已消耗、费用已产生、工具可能已对外产生副作用，均不可逆。</p>
+
+  <p style="margin:0 0 16px;">替代方案不是补偿事务，而是<strong>事前占位、事后收敛</strong>：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:12px;line-height:1.9;color:#24292e;white-space:pre;">// 1. 幂等：同一 X-Request-Id 十分钟内重复提交直接拒绝
+// 2. 占位：turn:{tenant}:{user}:{session}，同会话不并行
+// 3. 校验通过才进入模型
+if (!quotaGuard.tryAcquire(...)) throw new BusinessException(CONFLICT);
+try {
+    return executor.stream(request);
+} finally {
+    quotaGuard.release(...);   // 尽力释放，不补偿已发生消耗
+}</pre>
+  </section>
+
+  <p style="margin:0 0 12px;"><strong>Redis 不可用时返回 503，不降级。</strong>额度、限流、幂等、占位四条路径全部依赖 Redis。降级到进程内存后多实例各自计数，额度上限失效；降级到 MySQL 后单次对话增加十余次查询，慢查询进入主链路。两种降级的实际风险都高于直接拒绝服务。</p>
+
+  <p style="margin:0 0 18px;"><strong>释放失败不回滚已有结果。</strong>占位键由 TTL 兜底过期，释放属于尽力而为。此处的一致性目标是最终一致，不是强一致。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">假设三：一次调用对应一次返回</h2>
+
+  <p style="margin:0 0 18px;">服务间调用是一问一答。Agent 的工具调用是循环：模型推理、决定调用工具、读取结果、继续推理，次数由模型决定。项目配置的 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">max-iters</code> 默认 20，该值不是性能参数，而是<strong>单次对话的成本上限</strong>——每轮循环都是一次完整的模型调用。</p>
+
+  <p style="margin:0 0 14px;">由此产生三项必须提前设计的约束：</p>
+
+  <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 18px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:30%;">约束</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:36%;">原因</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:34%;">项目取值</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">超时按整段算</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">N 轮循环累加</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">默认 120 秒</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">工具必须幂等</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">可能以相同参数重复调用</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">工具实现侧保证</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">副作用硬上限</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">单轮可能写入超大内容</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">写文件默认 5MB，超出丢弃</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 18px;">另有一类行为需要提前接受：<strong>模型可能一次都不调用工具</strong>。检索工具是否被使用由模型判断，这是 Agentic 模式的正常行为。工具提供的是能力，不是流程；需要固定流程时应使用工作流而非 Agent。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">假设四：输出确定，可逐段校验</h2>
+
+  <p style="margin:0 0 18px;">内容安全的常规做法是请求进入时校验、通过则放行。将该做法平移到流式输出——对每个增量做敏感词匹配、命中即中断——会产生两类错误：</p>
+
+  <p style="margin:0 0 10px;"><strong>误判。</strong>危险词判定依赖完整句式，片段匹配会命中正常表达的局部。例如输入"了解自杀干预的法律责任"，增量在"自杀"处即触发。</p>
+  <p style="margin:0 0 18px;"><strong>漏判。</strong>违规整句被拆成多个增量，任一片段都不命中。</p>
+
+  <p style="margin:0 0 16px;">原因是流式增量不构成语义单元。可行做法是<strong>缓冲后校验</strong>：</p>
+
+  <section style="border-left:3px solid #b5d4f4;background:#f5f9fe;padding:12px 14px;margin:0 0 18px;border-radius:0 4px 4px 0;">
+    <p style="margin:0;font-size:14px;color:#185FA5;line-height:1.8;">增量先暂存不下发，整段生成结束后对完整文本执行规则校验；命中则整段替换为预设回复。</p>
+  </section>
+
+  <p style="margin:0 0 18px;">代价是首字延迟上升，属于合规与体验之间的直接取舍。项目做了分级：危机档校验输出文本；升高档只追加克制标记、不中断输出——后者误判率更高，中断正常回答的代价大于放过边缘内容。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">假设五：权限是静态注解</h2>
+
+  <p style="margin:0 0 14px;"><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">@PreAuthorize</code> 一类声明的权限在编译期固定。Agent 的工具权限是运行时决策，且有三态：</p>
+
+  <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 18px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:22%;">状态</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:40%;">行为</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:38%;">决策来源</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;font-family:Consolas,Menlo,monospace;font-size:12px;">ALLOW</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">直接执行</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">配置中心 / 权限表</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;font-family:Consolas,Menlo,monospace;font-size:12px;background:#fafbfc;">ASK</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">挂起，等待用户确认</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">运行时中间件</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;font-family:Consolas,Menlo,monospace;font-size:12px;">DENY</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">从本次工具集中移除</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">同上</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 18px;">实现时容易走错的一步是给框架临时追加权限规则。AgentScope 默认权限上下文为 trivial，动态追加有两种结果：本次判定读取不到该规则；或使同一次调用中未匹配到的工具一并变为"询问"。因此执行策略挂在中间件上，不修改权限引擎。</p>
+
+  <p style="margin:0 0 18px;">另一处需要写入产品文档的语义：<strong>审批通过不等于工具执行</strong>。审批只解除拦截，用户需重新发送上一条消息，下一轮循环才会真正调用工具。原因是 Agent 的一轮是"模型决策 + 工具执行"的原子循环，中途插入一次工具执行会产生半个轮次，上下文无法对齐。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">假设六：Bean 单例复用</h2>
+
+  <p style="margin:0 0 18px;">Spring 的默认约定是单例、无状态、共享。Agent 的 Builder 是可变的：注册为单例 Bean 后，并发请求会互相覆盖提示词，造成身份与提示词错配。</p>
+
+  <p style="margin:0 0 16px;">项目容器中不存在 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">HarnessAgent</code> 类型的 Bean，构建发生在请求内：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:12px;line-height:1.9;color:#24292e;white-space:pre;">var agent = factory.newBuilder(request).build();
+try {
+    return agent.call(text, context);
+} finally {
+    agent.close();
+}</pre>
+  </section>
+
+  <p style="margin:0 0 18px;">每次请求新建、结束关闭，以对象创建开销换取并发正确性。随之产生的约束是 Agent 不持有跨请求状态，会话、轮次、记忆必须显式持久化——这也是该结构能够水平扩容的前提。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">替代规则汇总</h2>
+
+  <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 20px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E1F5EE;color:#085041;font-weight:600;padding:9px 8px;border:1px solid #b7e4d4;text-align:left;width:28%;">原假设</th>
+        <th style="background:#E1F5EE;color:#085041;font-weight:600;padding:9px 8px;border:1px solid #b7e4d4;text-align:left;width:34%;">替代做法</th>
+        <th style="background:#E1F5EE;color:#085041;font-weight:600;padding:9px 8px;border:1px solid #b7e4d4;text-align:left;width:38%;">关键约束</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">同步返回</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">事件流为一等公民</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">取消路径必须释放资源</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">事务回滚</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">幂等键 + 占位锁</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">失败只释放占位</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">单次调用</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">按循环设计</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">超时、幂等、副作用上限</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">输出确定</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">缓冲后整段校验</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">接受首字延迟上升</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">静态鉴权</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">运行时三态决策</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">不改权限引擎，挂中间件</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">单例复用</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">每请求构建</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">状态显式持久化</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 18px;">正式系列第 2 篇进入框架本身：Agent、Toolkit、Memory、Middleware 的职责边界，以及一个 200 行以内的最小闭环。</p>
+
+  <section style="background:#f7f8fa;border-radius:8px;padding:16px;margin:24px 0 0;">
+    <p style="margin:0 0 8px;font-size:14px;color:#1a1a1a;line-height:1.8;"><strong>系列</strong>：《AgentScope 落地实战》——基于 Dream-SaaS 项目，覆盖 RAG 与多 Agent 编排的落地过程。</p>
+    <p style="margin:0;font-size:13px;color:#57606a;line-height:1.8;">项目：dream-saas.com ｜ 源码：github.com/logosssss/dream-agentscope</p>
+  </section>
+
+</section>

@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.api.dto.CurrentUser;
-import com.zhu.access.application.AccessAccountGate;
-import com.zhu.access.application.CurrentUserQuery;
+import com.zhu.access.application.auth.AccessAccountGate;
+import com.zhu.access.application.auth.CurrentUserQuery;
 import com.zhu.audit.api.TenantUserLookup;
 import com.zhu.audit.api.TenantUserSummary;
 import com.zhu.common.context.TenantContext;

@@ -1,11 +1,11 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.api.dto.ChatRequest;
-import com.zhu.access.application.AbsentChatMessageStore;
-import com.zhu.access.application.ChatAppService;
-import com.zhu.access.application.ConcurrentRunGuard;
-import com.zhu.access.application.QuotaGuard;
-import com.zhu.access.application.SessionTurnGuard;
+import com.zhu.access.application.chat.AbsentChatMessageStore;
+import com.zhu.access.application.chat.ChatAppService;
+import com.zhu.access.application.chat.ConcurrentRunGuard;
+import com.zhu.access.application.account.QuotaGuard;
+import com.zhu.access.application.chat.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
@@ -80,7 +80,7 @@ class ChatCompanionTest {
     }
 
     /** 额度不限制。会话归属由测试传入。 */
-    private static ChatAppService service(AgentExecutor executor, com.zhu.access.application.SessionOwnerGate owners) {
+    private static ChatAppService service(AgentExecutor executor, com.zhu.access.application.chat.SessionOwnerGate owners) {
         return new ChatAppService(
                 executor,
                 (key, variables, fallback) -> fallback,

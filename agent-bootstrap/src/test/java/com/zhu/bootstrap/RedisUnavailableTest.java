@@ -1,12 +1,12 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.controller.AccessExceptionHandler;
+import com.zhu.access.api.advice.AccessExceptionHandler;
 import com.zhu.access.api.dto.ChatRequest;
-import com.zhu.access.application.AbsentChatMessageStore;
-import com.zhu.access.application.ChatAppService;
-import com.zhu.access.application.ConcurrentRunGuard;
-import com.zhu.access.application.QuotaGuard;
-import com.zhu.access.application.SessionTurnGuard;
+import com.zhu.access.application.chat.AbsentChatMessageStore;
+import com.zhu.access.application.chat.ChatAppService;
+import com.zhu.access.application.chat.ConcurrentRunGuard;
+import com.zhu.access.application.account.QuotaGuard;
+import com.zhu.access.application.chat.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.access.infrastructure.cache.RedisAccessCache;

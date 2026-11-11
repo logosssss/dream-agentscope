@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.LoginSessionCodec;
+import com.zhu.access.application.auth.LoginSessionCodec;
 import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.common.security.CallerTokens;
 import com.zhu.runtime.api.AgentExecutor;

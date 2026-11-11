@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.KnowledgeAppService;
-import com.zhu.access.application.KnowledgeTextFileReader;
+import com.zhu.access.application.knowledge.KnowledgeAppService;
+import com.zhu.access.application.knowledge.KnowledgeTextFileReader;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.nio.charset.StandardCharsets;

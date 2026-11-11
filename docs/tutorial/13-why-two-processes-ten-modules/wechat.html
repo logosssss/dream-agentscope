@@ -1,0 +1,171 @@
+<section style="font-size:15px;line-height:1.8;color:#333;letter-spacing:0.4px;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Microsoft YaHei',sans-serif;">
+
+  <section style="background:#E6F1FB;border-radius:8px;padding:14px 16px;margin-bottom:24px;">
+    <p style="margin:0;font-size:13px;color:#185FA5;line-height:1.7;">《AgentScope 落地实战》 · 第 13 篇</p>
+    <p style="margin:6px 0 0;font-size:13px;color:#5F5E5A;line-height:1.7;">代码基线 lesson-13 · 阅读约 8 分钟</p>
+  </section>
+
+  <p style="margin:0 0 18px;">Agent 能力可以全部实现在一个 Spring Boot 应用里，管理接口以 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">/admin/**</code> 前缀区分。该结构在演示阶段无问题，进入生产后会在三处失效。</p>
+
+  <p style="margin:0 0 12px;"><strong>权限面无法收敛。</strong>管理接口校验 Admin Token，业务接口校验 Caller Token 加登录会话。两者在同一进程内，任一处过滤器配置遗漏、任一条路径匹配写错，业务侧请求即可到达管理接口。</p>
+
+  <p style="margin:0 0 12px;"><strong>故障域相互传染。</strong>审计查询、账单状态机、保留策略均消耗数据库连接。与对话共用同一连接池时，一次慢查询会阻塞正在流式输出的对话。</p>
+
+  <p style="margin:0 0 18px;"><strong>发布节奏不一致。</strong>对话内核要求稳定，运维面改动频繁。合并部署时，修改一个审计字段需要重启对话服务。</p>
+
+  <p style="margin:0 0 18px;">代价是双进程部署、双份配置，且数据库迁移只能由其中一个进程执行。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">一、进程切分</h2>
+
+  <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 18px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:22%;">项</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:38%;">用户进程 8080</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:40%;">管理进程 8100</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">职责</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">对话、登录、知识库、附件</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">租户、额度、工具权限、审批</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">迁移</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">执行 Flyway</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">不执行，只读表结构</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">依赖</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">access / runtime / harness</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;">不含 runtime、不含 access</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">令牌</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">Caller Token</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;vertical-align:top;background:#fafbfc;">Admin Token，必须不同</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 18px;">两个进程启动时均要求 MySQL、Redis、Milvus 可达，任一项不可达则退出。该策略的取舍是明确的：<strong>启动失败优于带残缺依赖提供服务</strong>。依赖不可达时启动成功，对外表现为随机 503，排查成本高于直接退出。</p>
+
+  <p style="margin:0 0 18px;">令牌相同会导致管理端持续返回 401。这是设计约束，用于禁止一套凭证同时具备两类权限。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">二、模块切分</h2>
+
+  <p style="margin:0 0 8px;">公众号不支持 mermaid，依赖拓扑以方框表示，箭头方向即依赖方向：</p>
+
+  <section style="margin:0 0 8px;padding-top:8px;">
+    <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+      <tr>
+        <td style="width:50%;padding:0 4px 0 0;vertical-align:top;">
+          <section style="background:#E6F1FB;border:1px solid #b5d4f4;border-radius:6px;padding:10px 8px;text-align:center;">
+            <p style="margin:0;font-size:13px;font-weight:600;color:#0C447C;">agent-bootstrap</p>
+            <p style="margin:3px 0 0;font-size:11px;color:#185FA5;">用户进程 8080</p>
+          </section>
+        </td>
+        <td style="width:50%;padding:0 0 0 4px;vertical-align:top;">
+          <section style="background:#E1F5EE;border:1px solid #9fe1cb;border-radius:6px;padding:10px 8px;text-align:center;">
+            <p style="margin:0;font-size:13px;font-weight:600;color:#085041;">agent-admin</p>
+            <p style="margin:3px 0 0;font-size:11px;color:#0F6E56;">管理进程 8100</p>
+          </section>
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <p style="margin:0;text-align:center;color:#b4b2a9;font-size:14px;line-height:1.2;">↓</p>
+
+  <section style="margin:0 0 8px;">
+    <section style="background:#E6F1FB;border:1px solid #b5d4f4;border-radius:6px;padding:10px 12px;text-align:center;">
+      <p style="margin:0;font-size:13px;font-weight:600;color:#0C447C;">agent-access</p>
+      <p style="margin:3px 0 0;font-size:11px;color:#185FA5;line-height:1.6;">HTTP 入口 · 身份 · 额度 · 限流</p>
+    </section>
+    <section style="background:#F1EFE8;border:1px solid #d3d1c7;border-radius:6px;padding:10px 12px;text-align:center;margin-top:6px;">
+      <p style="margin:0;font-size:12px;font-weight:600;color:#2C2C2A;line-height:1.6;">common · audit · state · vector · object-store</p>
+      <p style="margin:3px 0 0;font-size:11px;color:#5F5E5A;">横切支撑，可被任意模块依赖</p>
+    </section>
+  </section>
+
+  <p style="margin:0;text-align:center;color:#b4b2a9;font-size:14px;line-height:1.2;">↓</p>
+
+  <section style="margin:0 0 8px;">
+    <section style="background:#E6F1FB;border:1px solid #b5d4f4;border-radius:6px;padding:10px 12px;text-align:center;">
+      <p style="margin:0;font-size:13px;font-weight:600;color:#0C447C;">agent-runtime</p>
+      <p style="margin:3px 0 0;font-size:11px;color:#185FA5;line-height:1.6;">Agent 生命周期 · 中间件 · 工具挂载</p>
+    </section>
+  </section>
+
+  <p style="margin:0;text-align:center;color:#b4b2a9;font-size:14px;line-height:1.2;">↓</p>
+
+  <section style="margin:0 0 10px;">
+    <section style="background:#E1F5EE;border:1px solid #9fe1cb;border-radius:6px;padding:10px 12px;text-align:center;">
+      <p style="margin:0;font-size:13px;font-weight:600;color:#085041;">agent-semantic</p>
+      <p style="margin:3px 0 0;font-size:11px;color:#0F6E56;line-height:1.6;">产品语义 · 提示词 · 工具目录与权限</p>
+    </section>
+  </section>
+
+  <p style="margin:0 0 20px;font-size:12.5px;color:#888780;text-align:center;">图 1：依赖方向自上而下单向流动，反向通信走 agent-audit 事件</p>
+
+  <p style="margin:0 0 16px;">依赖关系构成有向无环图，而非分层结构。<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-common</code> 可被任意模块依赖，自身不依赖其他模块；runtime 依赖 semantic 的契约包，反向禁止。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">三、三条被强制的边界</h2>
+
+  <p style="margin:0 0 18px;">架构约束以 ArchUnit 测试实现，<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">mvn test</code> 阶段校验。</p>
+
+  <p style="margin:0 0 12px;"><strong>一、接入层禁止引用 Harness。</strong><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">com.zhu.access</code> 不得 import <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">..harness..</code>。接入层只依赖 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">AgentExecutor</code> 接口，框架替换的影响范围限定在 runtime。</p>
+
+  <p style="margin:0 0 12px;"><strong>二、runtime 禁止依赖 access。</strong>反向依赖会形成循环，且执行内核感知 HTTP 层后，控制器逻辑会逐步内移。工具需要 ASK 审批时的通知路径是：runtime 发布 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-audit</code> 事件，接入层订阅。</p>
+
+  <p style="margin:0 0 18px;"><strong>三、管理端禁止依赖 runtime。</strong>管理端需要的是数据访问，不是执行能力。依赖 runtime 会将模型调用与向量检索引入运维进程。</p>
+
+  <p style="margin:0 0 18px;">三项约束的效果是：不阅读业务代码，仅依据各模块 pom 即可判断改动的影响范围。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">四、一次对话请求的模块路径</h2>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:11.5px;line-height:1.9;color:#24292e;white-space:pre;">POST /api/chat/stream
+  → CallerTokenFilter     校验 X-Caller-Token
+  → AccessIdentityFilter  校验 Bearer，写线程身份
+  → ChatAppService        额度、占位、幂等
+  → AgentExecutor.stream  runtime 唯一入口
+  → HarnessAgentFactory   每次 new Builder 后 build
+  → agent.streamEvents    推理与工具循环
+  → AgentStreamEvent      接入层转为 SSE</pre>
+  </section>
+
+  <p style="margin:0 0 18px;">容器中不存在 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">HarnessAgent</code> 类型的 Bean。原因是 Builder 为可变对象，注册为单例后并发请求会互相覆盖提示词。构建逻辑位于工厂内部，每次请求新建，<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">finally</code> 中关闭。</p>
+
+  <p style="margin:0 0 18px;">该结构的直接约束是 Agent 不持有跨请求状态，会话、轮次、记忆必须显式持久化。这也是水平扩容的前提条件。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">五、当前未实现的部分</h2>
+
+  <section style="background:#FAEEDA;border-radius:6px;padding:14px 16px;margin:0 0 20px;">
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;"><strong>RocketMQ</strong>：<code style="background:rgba(255,255,255,0.6);padding:1px 4px;border-radius:3px;font-size:12.5px;font-family:Consolas,Menlo,monospace;">task.mode=mq</code> 为占位实现，切换后进程无法启动；任务当前走 sync。</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;"><strong>服务发现与 MCP</strong>：Nacos 仅作为配置中心使用。</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;"><strong>infra 热更新</strong>：连接串与密钥变更需重启；仅业务 yaml 在白名单内可热更。</p>
+    <p style="margin:0;font-size:14px;color:#633806;line-height:1.8;"><strong>保留策略、删除审批、调度消费</strong>：支持登记与状态变更，不执行实际清理。</p>
+  </section>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">六、模块阅读顺序</h2>
+
+  <p style="margin:0 0 10px;font-size:14px;"><strong>1.</strong> 根 README 的「架构鸟瞰」与「常见启动失败」，建立依赖拓扑与排障路径；</p>
+  <p style="margin:0 0 10px;font-size:14px;"><strong>2.</strong> <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-runtime/README.md</code> 的「调用链」，约 40 行，为执行内核完整流程；</p>
+  <p style="margin:0 0 18px;font-size:14px;"><strong>3.</strong> <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-access/README.md</code> 的额度段落，覆盖并发与限流全部路径。</p>
+
+  <p style="margin:0 0 18px;">各模块 README 末尾的「还没有」小节给出该模块的改动边界。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">小结</h2>
+
+  <p style="margin:0 0 10px;font-size:14px;">· 进程按故障域切分，模块按依赖方向切分，两者共同限制改动的影响范围。</p>
+  <p style="margin:0 0 10px;font-size:14px;">· 依赖边界以测试固化，文档形式的约定不构成约束。</p>
+  <p style="margin:0 0 20px;font-size:14px;">· 反向通信使用事件而非引用，是 runtime 与 access 彻底分离的前提。</p>
+
+  <section style="background:#f7f8fa;border-radius:8px;padding:16px;margin:24px 0;">
+    <p style="margin:0 0 8px;font-size:14px;color:#1a1a1a;line-height:1.8;"><strong>下一篇</strong>：观测与成本——一次对话的实际开销计算。OTel 仅导出 trace，token 记账按百万单价折算，审计记录不包含提示词。</p>
+    <p style="margin:0;font-size:13px;color:#57606a;line-height:1.8;">项目：dream-saas.com ｜ 源码：github.com/logosssss/dream-agentscope</p>
+  </section>
+
+</section>

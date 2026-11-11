@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.api.dto.AttachmentContent;
-import com.zhu.access.application.AttachmentAppService;
+import com.zhu.access.application.attachment.AttachmentAppService;
 import com.zhu.audit.api.AttachmentCatalog;
 import com.zhu.audit.api.AttachmentSummary;
 import com.zhu.audit.api.StoredAttachment;

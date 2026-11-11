@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.ApprovalNotificationListener;
+import com.zhu.access.application.chat.ApprovalNotificationListener;
 import com.zhu.audit.api.ApprovalNotifier;
 import com.zhu.audit.api.UserTodoCatalog;
 import com.zhu.audit.application.MysqlApprovalNotifier;
