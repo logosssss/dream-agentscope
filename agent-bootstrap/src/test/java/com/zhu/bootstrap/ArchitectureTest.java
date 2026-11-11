@@ -51,9 +51,12 @@ class ArchitectureTest {
                             "..audit..",
                             "..vector..");
 
-    /** 接入层不能直接引用 Harness 类型。 */
-    private static final ArchRule ACCESS_MUST_NOT_TOUCH_HARNESS =
-            noClasses().that().resideInAPackage("..access..")
+    /**
+     * 接入层允许 Channel/Gateway，但 HTTP 控制器不能直接碰 Harness。
+     * Agent 网关装配放在 application 包。
+     */
+    private static final ArchRule CONTROLLERS_MUST_NOT_TOUCH_HARNESS =
+            noClasses().that().resideInAPackage("..access.api.controller..")
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..harness..");
 
@@ -63,7 +66,7 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..infrastructure.persistence..");
 
-    /** 确认规则作用在真实类上，并且六条边界都成立。 */
+    /** 确认规则作用在真实类上，并且边界都成立。 */
     @Test
     void moduleBoundariesHold() {
         JavaClasses classes = new ClassFileImporter().importPackages("com.zhu");
@@ -71,6 +74,7 @@ class ArchitectureTest {
                 .contains(
                         "com.zhu.semantic.contract.ProductSemanticProvider",
                         "com.zhu.runtime.api.AgentExecutor",
+                        "com.zhu.access.application.chat.AccessChannelGateway",
                         "com.zhu.state.config.DistributedStoreConfig",
                         "com.zhu.state.config.StateMapperConfig",
                         "com.zhu.vector.api.VectorStore",
@@ -85,7 +89,7 @@ class ArchitectureTest {
         STATE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         VECTOR_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         OBJECT_STORE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
-        ACCESS_MUST_NOT_TOUCH_HARNESS.check(classes);
+        CONTROLLERS_MUST_NOT_TOUCH_HARNESS.check(classes);
         CONTROLLERS_MUST_NOT_ACCESS_REPOSITORIES.check(classes);
     }
 }

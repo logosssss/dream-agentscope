@@ -5,6 +5,7 @@ import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentStreamEvent;
 import com.zhu.runtime.application.AgentExecutionService;
 import com.zhu.runtime.application.AgentStreamEvents;
+import com.zhu.runtime.application.AgentTurnSupport;
 import com.zhu.runtime.application.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
@@ -50,14 +51,14 @@ class AgentStreamTest {
     void streamRejectsBlankIdentityBeforeBuild() {
         HarnessAgentFactory factory = mock(HarnessAgentFactory.class);
         AgentRuntimeProperties properties = new AgentRuntimeProperties();
-        AgentExecutionService service = new AgentExecutionService(
-                factory,
+        AgentTurnSupport turns = new AgentTurnSupport(
                 properties,
                 new ResolvedChatModel(properties, mock(ObjectProvider.class)),
                 (tenant, user, session, run, model, input, output, latency) -> {
                 },
                 null,
                 null);
+        AgentExecutionService service = new AgentExecutionService(factory, turns);
 
         assertThatThrownBy(() -> service.stream(new AgentRequest(null, null, " ", "session-a", null, "hi")))
                 .isInstanceOf(BusinessException.class);

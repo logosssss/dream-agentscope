@@ -5,8 +5,8 @@ import com.zhu.access.api.dto.ChatRequest;
 import com.zhu.access.application.chat.AbsentChatMessageStore;
 import com.zhu.access.application.chat.ChatAppService;
 import com.zhu.access.application.chat.ConcurrentRunGuard;
-import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.application.chat.SessionTurnGuard;
+import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.access.infrastructure.cache.RedisAccessCache;
@@ -55,7 +55,6 @@ class RedisUnavailableTest {
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
                 new QuotaGuard(cache, limits, Clock.systemUTC()),
-                new SessionTurnGuard(cache, 120),
                 new ConcurrentRunGuard(cache, 120),
                 (tenant, user, session, channel, text) -> {
                 },

@@ -26,6 +26,11 @@
             <groupId>com.zhu</groupId>
             <artifactId>agent-runtime</artifactId>
         </dependency>
+        <!-- Channel / Gateway 在接入层直接使用；版本由父 BOM 管理。 -->
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-harness</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
             <artifactId>agent-audit</artifactId>

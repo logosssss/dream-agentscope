@@ -10,7 +10,6 @@ import com.zhu.access.application.chat.ConcurrentRunGuard;
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.application.chat.SessionListService;
 import com.zhu.access.application.chat.SessionMetaStore;
-import com.zhu.access.application.chat.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
@@ -111,7 +110,6 @@ class ChatMessageHistoryTest {
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
                 new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
-                new SessionTurnGuard(new FakeAccessCache(), 120),
                 new ConcurrentRunGuard(new FakeAccessCache(), 120),
                 (tenant, user, session, channel, text) -> {
                 },

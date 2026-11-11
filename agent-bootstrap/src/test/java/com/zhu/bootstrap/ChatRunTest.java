@@ -8,7 +8,6 @@ import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.application.chat.RunLog;
 import com.zhu.access.application.chat.RunStep;
 import com.zhu.access.application.chat.SessionIndex;
-import com.zhu.access.application.chat.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.common.context.TenantContext;
@@ -158,7 +157,6 @@ class ChatRunTest {
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
                 new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
-                new SessionTurnGuard(new FakeAccessCache(), 120),
                 new ConcurrentRunGuard(new FakeAccessCache(), 120),
                 sessions,
                 runs,

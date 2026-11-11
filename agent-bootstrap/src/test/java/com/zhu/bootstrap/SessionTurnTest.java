@@ -25,7 +25,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 同一会话进行中时，第二次对话被拒绝。结束后可以再进入。
+ * 同会话排队改由 Channel Gateway 负责后，ChatAppService 不再占 turn 锁。
+ * SessionTurnGuard 仍可单测其自身校验。
  */
 class SessionTurnTest {
 
@@ -36,14 +37,14 @@ class SessionTurnTest {
         UserContext.clear();
     }
 
-    /** 执行过程中再开一轮同一会话会冲突，结束后锁已释放。 */
+    /** 对话进行中不再写 turn 键；同会话串行交给 Gateway。 */
     @Test
-    void busySessionRejectsUntilTheCallFinishes() {
+    void chatDoesNotOccupySessionTurnLock() {
         FakeAccessCache cache = new FakeAccessCache();
-        SessionTurnGuard turns = new SessionTurnGuard(cache, 120);
         AgentExecutor executor = mock(AgentExecutor.class);
         when(executor.execute(any())).thenAnswer(invocation -> {
-            assertThat(cache.lock("turn:t:u:s", "other", Duration.ofMinutes(1))).isFalse();
+            assertThat(cache.lock("turn:t:u:s", "probe", Duration.ofMinutes(1))).isTrue();
+            cache.unlock("turn:t:u:s", "probe");
             return new AgentResponse("run-1", "ok");
         });
         ChatAppService chats = new ChatAppService(
@@ -51,7 +52,6 @@ class SessionTurnTest {
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
                 new QuotaGuard(cache, new AccessLimitProperties(), Clock.systemUTC()),
-                turns,
                 new ConcurrentRunGuard(cache, 120),
                 (tenant, user, session, channel, text) -> {
                 },
@@ -72,7 +72,7 @@ class SessionTurnTest {
         assertThat(cache.lock("turn:t:u:s", "again", Duration.ofMinutes(1))).isTrue();
     }
 
-    /** 另一个会话不受影响。用户或会话为空时不占锁。 */
+    /** 用户或会话为空时，守卫本身仍拒绝。 */
     @Test
     void blankSessionIsRejected() {
         SessionTurnGuard turns = new SessionTurnGuard(new FakeAccessCache(), 0);

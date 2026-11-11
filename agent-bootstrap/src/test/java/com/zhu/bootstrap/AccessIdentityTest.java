@@ -5,7 +5,6 @@ import com.zhu.access.application.chat.AbsentChatMessageStore;
 import com.zhu.access.application.chat.ChatAppService;
 import com.zhu.access.application.chat.ConcurrentRunGuard;
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.application.chat.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.access.infrastructure.security.AccessIdentityFilter;
@@ -53,8 +52,7 @@ class AccessIdentityTest {
 
         PromptService prompts = (key, variables, fallback) -> fallback;
         QuotaGuard quota = new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC());
-        SessionTurnGuard turns = new SessionTurnGuard(new FakeAccessCache(), 120);
-        new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, turns, new ConcurrentRunGuard(new FakeAccessCache(), 120), (tenant, user, session, channel, text) -> {
+        new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, new ConcurrentRunGuard(new FakeAccessCache(), 120), (tenant, user, session, channel, text) -> {
         }, (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
         }, tenantId -> {
         }, (tenantId, userId) -> {

@@ -29,7 +29,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.SignalType;
 
 /**
- * 把接入层请求译成 AgentRequest。这里不接触 HarnessAgent。
+ * 把接入层请求译成 AgentRequest，再交给 Channel Gateway（同 session 由框架排队）。
  */
 @Service
 public class ChatAppService {
@@ -43,8 +43,6 @@ public class ChatAppService {
     private final ProductSemanticProvider semantics;
 
     private final QuotaGuard quota;
-
-    private final SessionTurnGuard turns;
 
     private final ConcurrentRunGuard concurrent;
 
@@ -61,14 +59,14 @@ public class ChatAppService {
     private final ChatMessageStore messages;
 
     /**
-     * 租户、租户用户和会话归属在额度和占锁之前。MySQL 关闭时这三项放行。
+     * 租户、租户用户和会话归属在额度和租户并发占位之前。MySQL 关闭时门禁放行。
+     * 同会话串行交给 Gateway，不再用 SessionTurnGuard 忙则拒。
      */
     public ChatAppService(
             AgentExecutor executor,
             PromptService prompts,
             ProductSemanticProvider semantics,
             QuotaGuard quota,
-            SessionTurnGuard turns,
             ConcurrentRunGuard concurrent,
             SessionIndex sessions,
             RunLog runs,
@@ -80,7 +78,6 @@ public class ChatAppService {
         this.prompts = prompts;
         this.semantics = semantics;
         this.quota = quota;
-        this.turns = turns;
         this.concurrent = concurrent;
         this.sessions = sessions;
         this.runs = runs;
@@ -101,14 +98,7 @@ public class ChatAppService {
         tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
         owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
-        SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
-        ConcurrentRunGuard.Slot slot;
-        try {
-            slot = concurrent.open(agentRequest.tenantId());
-        } catch (RuntimeException error) {
-            turns.close(turn);
-            throw error;
-        }
+        ConcurrentRunGuard.Slot slot = concurrent.open(agentRequest.tenantId());
         long started = System.nanoTime();
         try {
             remember(request, agentRequest);
@@ -120,7 +110,6 @@ public class ChatAppService {
             throw error;
         } finally {
             concurrent.close(slot);
-            turns.close(turn);
         }
     }
 
@@ -135,14 +124,7 @@ public class ChatAppService {
         tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
         owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
-        SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
-        ConcurrentRunGuard.Slot slot;
-        try {
-            slot = concurrent.open(agentRequest.tenantId());
-        } catch (RuntimeException error) {
-            turns.close(turn);
-            throw error;
-        }
+        ConcurrentRunGuard.Slot slot = concurrent.open(agentRequest.tenantId());
         long started = System.nanoTime();
         try {
             remember(request, agentRequest);
@@ -158,11 +140,10 @@ public class ChatAppService {
                         try {
                             String status = streamStatus(signal);
                             String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
-                            // 先落库再放锁，避免同会话下一轮抢到锁后 seq 交错。
+                            // 先落库再放租户并发占位，避免同租户下一轮抢名额。
                             finish(request, agentRequest, status, runId, output.get(), code, started, stepsFrom(seen, status));
                         } finally {
                             concurrent.close(held);
-                            turns.close(turn);
                         }
                     });
         } catch (RuntimeException error) {
@@ -170,7 +151,6 @@ public class ChatAppService {
                 finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), started, reasoning(RunLog.FAILED));
             } finally {
                 concurrent.close(slot);
-                turns.close(turn);
             }
             throw error;
         }
