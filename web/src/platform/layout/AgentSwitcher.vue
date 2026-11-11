@@ -20,6 +20,9 @@ function iconLabel(icon: string, name: string): string {
   if (icon === 'Heart') {
     return '搭'
   }
+  if (icon === 'Radar') {
+    return '探'
+  }
   if (icon === 'Pen') {
     return '记'
   }
