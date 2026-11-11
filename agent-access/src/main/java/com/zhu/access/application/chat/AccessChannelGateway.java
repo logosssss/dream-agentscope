@@ -22,20 +22,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 /**
  * 接入层 Agent 网关：长驻 companion + echo，经 ChatUiChannel 进出。
- * 同 session 排队由框架 Gateway 负责。实现 {@link AgentExecutor} 供 ChatAppService 注入。
+ * 同 session 排队由框架 Gateway 负责。实现 {@link AgentExecutor}，是对话执行唯一入口。
  * 模型密钥缺失不阻断进程启动；首次对话才组装长驻 Agent。
  * 业务配置热更后经 {@link #rebuildAll()} 排空再重建。
  */
 @Service
 @Primary
-@ConditionalOnProperty(name = "agentscope.runtime.execution", havingValue = "channel", matchIfMissing = true)
 public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloader {
 
     private static final Logger log = Logger.getLogger(AccessChannelGateway.class.getName());

@@ -60,7 +60,7 @@ public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
 
     /**
      * 只保存依赖。真正连 Nacos 放到 {@link #run(ApplicationArguments)}，排在基础设施之后。
-     * Channel 关闭（legacy）时无 Reloader Bean，热更只改 Properties。
+     * Reloader 未装配时热更只改 Properties。
      */
     public NacosBusinessConfigWatcher(
             ConfigurableEnvironment environment,
@@ -143,7 +143,7 @@ public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
         }
     }
 
-    /** 长驻 Gateway 尚未装配或 legacy 路径时跳过。重建失败不回滚已生效的 Properties。 */
+    /** 长驻 Gateway 尚未装配时跳过。重建失败不回滚已生效的 Properties。 */
     private void rebuildResidents() {
         ResidentAgentReloader reloader = residentAgents.getIfAvailable();
         if (reloader == null) {

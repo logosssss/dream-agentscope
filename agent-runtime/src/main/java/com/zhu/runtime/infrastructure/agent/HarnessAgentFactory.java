@@ -1,6 +1,5 @@
 package com.zhu.runtime.infrastructure.agent;
 
-import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.application.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.semantic.contract.CompletionCriteria;
@@ -20,7 +19,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 /**
- * 组装 HarnessAgent。按请求创建的路径仍每次新建；长驻路径由接入层 Gateway 持有实例。
+ * 组装长驻 HarnessAgent。由接入层 Gateway 持有实例，不要每请求关闭。
  * Builder 可变，不要在线程之间共享同一个 Builder 再改提示词。
  */
 @Component
@@ -91,18 +90,7 @@ public class HarnessAgentFactory {
     }
 
     /**
-     * 按请求创建尚未执行的 Agent。调用方必须在结束时关闭它。
-     * 遗留单次路径仍可用；正式对话应走 {@link #buildCompanionResident()}。
-     */
-    public HarnessAgent build(AgentRequest request) {
-        String agentId = blank(request.agentId()) ? companionAgentId() : request.agentId();
-        String prompt = blank(request.systemPrompt()) ? semantics.promptFallback(null) : request.systemPrompt();
-        String tenantId = request == null ? null : request.tenantId();
-        return buildCompanion(agentId, prompt, tenantId);
-    }
-
-    /**
-     * 长驻搭子：提示词与工具来自产品语义，挂齐中间件。由接入层 Gateway 持有，不要每请求关闭。
+     * 长驻搭子：提示词与工具来自产品语义，挂齐中间件。由接入层 Gateway 持有。
      */
     public HarnessAgent buildCompanionResident() {
         return buildCompanion(companionAgentId(), semantics.promptFallback(null), null);

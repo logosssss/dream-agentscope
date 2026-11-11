@@ -19,9 +19,7 @@ agentscope:
     # 状态命名空间与展示名不进 Nacos 热更白名单；改身份请升 agent-id。
     agent-id: companion-v1
     name: companion
-    # 默认走接入层 Channel Gateway（长驻 companion + echo-v1）。
-    # 设为 legacy 才启用每请求 build/close 的 AgentExecutionService。
-    # execution: channel
+    # 对话经接入层 Channel Gateway（长驻 companion + echo-v1）。
     # model / max-iters / timeout-seconds / max-user-chars / max-write-bytes
     # → agent-bootstrap.yaml（Java 字段自带缺省，无 Nacos 时用类默认值）
   startup:

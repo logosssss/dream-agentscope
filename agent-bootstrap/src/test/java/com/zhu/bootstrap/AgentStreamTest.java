@@ -3,12 +3,10 @@ package com.zhu.bootstrap;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentStreamEvent;
-import com.zhu.runtime.application.AgentExecutionService;
 import com.zhu.runtime.application.AgentStreamEvents;
 import com.zhu.runtime.application.AgentTurnSupport;
 import com.zhu.runtime.application.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
-import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import io.agentscope.core.event.RequireUserConfirmEvent;
 import io.agentscope.core.event.TextBlockDeltaEvent;
@@ -20,10 +18,9 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
- * 流式事件只保留类型和短文本。缺身份时不创建 Agent。
+ * 流式事件只保留类型和短文本。缺身份时护栏先拒，不进 Gateway。
  */
 class AgentStreamTest {
 
@@ -46,10 +43,9 @@ class AgentStreamTest {
         assertThat(event.text()).isEqualTo("shell");
     }
 
-    /** 校验失败发生在 build 之前，避免空请求去连模型。 */
+    /** 校验失败发生在进 Channel 之前，避免空请求去连模型。 */
     @Test
-    void streamRejectsBlankIdentityBeforeBuild() {
-        HarnessAgentFactory factory = mock(HarnessAgentFactory.class);
+    void requireRejectsBlankIdentity() {
         AgentRuntimeProperties properties = new AgentRuntimeProperties();
         AgentTurnSupport turns = new AgentTurnSupport(
                 properties,
@@ -58,10 +54,8 @@ class AgentStreamTest {
                 },
                 null,
                 null);
-        AgentExecutionService service = new AgentExecutionService(factory, turns);
 
-        assertThatThrownBy(() -> service.stream(new AgentRequest(null, null, " ", "session-a", null, "hi")))
+        assertThatThrownBy(() -> turns.require(new AgentRequest(null, null, " ", "session-a", null, "hi")))
                 .isInstanceOf(BusinessException.class);
-        verifyNoInteractions(factory);
     }
 }

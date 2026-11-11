@@ -50,7 +50,7 @@ class BootstrapContextTest {
     private AccessCache cache;
 
     /**
-     * 执行入口只有一个 AgentExecutor。HarnessAgent 不注册成 Bean；Channel 路径首次对话才组装。
+     * 执行入口只有一个 AgentExecutor（Channel Gateway）。HarnessAgent 不注册成 Bean；首次对话才组装。
      * 存活检查不依赖 MySQL。默认开关关闭时就绪检查跳过 MySQL 和 Redis。
      */
     @Test
