@@ -31,11 +31,12 @@ import reactor.core.publisher.Flux;
  * 接入层 Agent 网关：长驻 companion + echo，经 ChatUiChannel 进出。
  * 同 session 排队由框架 Gateway 负责。实现 {@link AgentExecutor} 供 ChatAppService 注入。
  * 模型密钥缺失不阻断进程启动；首次对话才组装长驻 Agent。
+ * 业务配置热更后经 {@link #rebuildAll()} 排空再重建。
  */
 @Service
 @Primary
 @ConditionalOnProperty(name = "agentscope.runtime.execution", havingValue = "channel", matchIfMissing = true)
-public class AccessChannelGateway implements AgentExecutor {
+public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloader {
 
     private static final Logger log = Logger.getLogger(AccessChannelGateway.class.getName());
 
@@ -48,6 +49,8 @@ public class AccessChannelGateway implements AgentExecutor {
     private final ObjectProvider<DistributedStore> stores;
 
     private final Object lock = new Object();
+
+    private final ResidentAgentDrain drain = new ResidentAgentDrain();
 
     private GatewayBootstrap bootstrap;
 
@@ -74,15 +77,20 @@ public class AccessChannelGateway implements AgentExecutor {
     @Override
     public AgentResponse execute(AgentRequest request) {
         turns.require(request);
-        RuntimeContext context = turns.context(request);
-        long started = System.nanoTime();
-        Msg reply = channel()
-                .send(options(request, context), request.userText())
-                .block(Duration.ofSeconds(turns.timeoutSeconds()));
-        String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
-        String runId = AgentTurnSupport.runIdOf(reply);
-        turns.recordUsage(request, runId, reply, started);
-        return new AgentResponse(runId, text);
+        drain.beginTurn();
+        try {
+            RuntimeContext context = turns.context(request);
+            long started = System.nanoTime();
+            Msg reply = channel()
+                    .send(options(request, context), request.userText())
+                    .block(Duration.ofSeconds(turns.timeoutSeconds()));
+            String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
+            String runId = AgentTurnSupport.runIdOf(reply);
+            turns.recordUsage(request, runId, reply, started);
+            return new AgentResponse(runId, text);
+        } finally {
+            drain.endTurn();
+        }
     }
 
     /**
@@ -91,43 +99,62 @@ public class AccessChannelGateway implements AgentExecutor {
     @Override
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
         turns.require(request);
+        drain.beginTurn();
         RuntimeContext context = turns.context(request);
         long started = System.nanoTime();
         AtomicReference<String> runId = new AtomicReference<>(Ids.newId());
-        return channel()
-                .sendStream(options(request, context), request.userText())
-                .doOnNext(event -> {
-                    if (event instanceof AgentResultEvent result) {
-                        Msg message = result.getResult();
-                        runId.set(AgentTurnSupport.runIdOf(message));
-                        turns.recordUsage(request, runId.get(), message, started);
-                    }
-                })
-                .concatMapIterable(event -> turns.mapStreamEvent(event, context))
-                .timeout(Duration.ofSeconds(turns.timeoutSeconds()));
+        try {
+            return channel()
+                    .sendStream(options(request, context), request.userText())
+                    .doOnNext(event -> {
+                        if (event instanceof AgentResultEvent result) {
+                            Msg message = result.getResult();
+                            runId.set(AgentTurnSupport.runIdOf(message));
+                            turns.recordUsage(request, runId.get(), message, started);
+                        }
+                    })
+                    .concatMapIterable(event -> turns.mapStreamEvent(event, context))
+                    .timeout(Duration.ofSeconds(turns.timeoutSeconds()))
+                    .doFinally(signal -> drain.endTurn());
+        } catch (RuntimeException error) {
+            drain.endTurn();
+            throw error;
+        }
+    }
+
+    /**
+     * 排空在途对话后停掉旧 Gateway，再按当前配置重建 companion + echo。
+     * 尚未懒启动过则空操作。排空上限复用运行超时，避免热更卡死。
+     */
+    @Override
+    public void rebuildAll() {
+        Duration timeout = Duration.ofSeconds(Math.max(1, turns.timeoutSeconds()));
+        drain.drainAndRun(timeout, () -> {
+            synchronized (lock) {
+                if (bootstrap == null) {
+                    log.info("channel gateway rebuild skipped: not started yet");
+                    return;
+                }
+                stopLocked();
+                startGatewayLocked();
+                log.info("channel gateway rebuilt main=" + mainAgentId
+                        + " echo=" + HarnessAgentFactory.ECHO_AGENT_ID);
+            }
+        });
     }
 
     /** 进程退出时停 Gateway，并关闭长驻 Agent。 */
     @PreDestroy
     public void shutdown() {
-        synchronized (lock) {
-            if (bootstrap != null) {
-                try {
-                    bootstrap.stop();
-                } catch (RuntimeException error) {
-                    log.warning("channel gateway stop failed: " + error.getMessage());
-                }
-                for (HarnessAgent agent : bootstrap.agents().values()) {
-                    closeQuietly(agent);
-                }
+        drain.drainAndRun(Duration.ofSeconds(Math.max(1, turns.timeoutSeconds())), () -> {
+            synchronized (lock) {
+                stopLocked();
             }
-            bootstrap = null;
-            channel = null;
-        }
+        });
     }
 
-    /** 组装并启动 Gateway。companion 为 main，echo 仅显式 agentId 可达。 */
-    private void startGateway() {
+    /** 组装并启动 Gateway。companion 为 main，echo 仅显式 agentId 可达。调用方须已持有 lock。 */
+    private void startGatewayLocked() {
         HarnessAgent companion = agents.buildCompanionResident();
         HarnessAgent echo = agents.buildEchoResident();
         mainAgentId = companion.getAgentId() == null || companion.getAgentId().isBlank()
@@ -145,11 +172,27 @@ public class AccessChannelGateway implements AgentExecutor {
             builder.distributedStore(store);
         }
         GatewayBootstrap started = builder.build().start();
-        synchronized (lock) {
-            this.bootstrap = started;
-            this.channel = started.chatUiChannel();
-        }
+        this.bootstrap = started;
+        this.channel = started.chatUiChannel();
         log.info("channel gateway started main=" + mainAgentId + " echo=" + HarnessAgentFactory.ECHO_AGENT_ID);
+    }
+
+    /** 停掉当前 Gateway 并关闭 Agent。调用方须已持有 lock。 */
+    private void stopLocked() {
+        if (bootstrap == null) {
+            channel = null;
+            return;
+        }
+        try {
+            bootstrap.stop();
+        } catch (RuntimeException error) {
+            log.warning("channel gateway stop failed: " + error.getMessage());
+        }
+        for (HarnessAgent agent : bootstrap.agents().values()) {
+            closeQuietly(agent);
+        }
+        bootstrap = null;
+        channel = null;
     }
 
     /** 首次对话时再组装 Gateway；已启动则直接返回 Channel。 */
@@ -160,7 +203,7 @@ public class AccessChannelGateway implements AgentExecutor {
         }
         synchronized (lock) {
             if (channel == null) {
-                startGateway();
+                startGatewayLocked();
             }
             open = channel;
         }
