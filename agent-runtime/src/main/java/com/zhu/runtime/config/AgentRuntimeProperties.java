@@ -8,7 +8,7 @@ import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 执行内核配置。model / 超时 / 轮数 / 字数 / 写文件上限 / MCP 清单 / Sandbox 旋钮可由 Nacos 业务 yaml 热更；
+ * 执行内核配置。model / 超时 / 轮数 / 字数 / 写文件上限 / MCP / Sandbox / Wakeup 旋钮可由 Nacos 业务 yaml 热更；
  * agentId / name / workspace 不在热更白名单，改身份仍要升版本。
  */
 @ConfigurationProperties(prefix = "agentscope.runtime")
@@ -49,6 +49,12 @@ public class AgentRuntimeProperties {
      * 白名单前缀 {@code agentscope.runtime.sandbox}。
      */
     private Sandbox sandbox = new Sandbox();
+
+    /**
+     * Wakeup 旋钮。默认关；enabled=true 才启进程内 Bus + Dispatcher，见 docs/wakeup-落地.md。
+     * 白名单前缀 {@code agentscope.runtime.wakeup}；令牌只走环境变量。
+     */
+    private Wakeup wakeup = new Wakeup();
 
     /** 模型坐标。 */
     public String getModel() {
@@ -141,6 +147,35 @@ public class AgentRuntimeProperties {
     /** 写入 Sandbox 根节点；null 按默认关。 */
     public void setSandbox(Sandbox sandbox) {
         this.sandbox = sandbox == null ? new Sandbox() : sandbox;
+    }
+
+    /** Wakeup 根节点。 */
+    public Wakeup getWakeup() {
+        return wakeup;
+    }
+
+    /** 写入 Wakeup 根节点；null 按默认关。 */
+    public void setWakeup(Wakeup wakeup) {
+        this.wakeup = wakeup == null ? new Wakeup() : wakeup;
+    }
+
+    /**
+     * 运行层 Wakeup 配置。enabled 控制接入层 Coordinator 是否启进程内 Bus + Dispatcher。
+     */
+    public static class Wakeup {
+
+        /** false 时不启 Dispatcher；true 才装配进程内 Bus 与 companion Target。 */
+        private boolean enabled;
+
+        /** 是否打开 Harness 唤醒面。 */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** 写入开关。 */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
     }
 
     /**

@@ -55,6 +55,7 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 - **RocketMQ / `agentscope.task.mode=mq`**：依赖未引入；切到 mq 会启动失败
 - **Nacos 服务发现**；**MCP 服务发现**（清单可进用户进程业务配置，companion 已接线；不做把 MCP 当注册中心，见 `docs/mcp-落地.md`）
 - **默认不开 Docker 沙箱**（`sandbox.enabled` 默认 false；打开后仅 companion，缺 Store/Docker CLI 硬失败；见 `docs/sandbox-落地.md`）
+- **默认不开 Wakeup**（`wakeup.enabled` 默认 false；打开后仅 companion + 进程内 Bus；`POST /api/internal/wakeups` 用 `AGENTSCOPE_WAKEUP_TOKEN`；不做调度表消费 / Inbox / TeamWakeups；见 `docs/wakeup-落地.md`）
 - **infra（连接/密钥）热更新**：改完需重启；只有业务 yaml 可热更
 - **管理端账号登录页**：现阶段靠 Admin Token
 - **保留策略真正清理、删除批准后真删、调度真正消费**：可登记/改状态，不执行落地清理
@@ -141,6 +142,9 @@ sequenceDiagram
 | [`web-admin`](./web-admin/README.md) | 管理端 |
 | [`deploy/`](./deploy/) | Nacos / MySQL / Nginx / Milvus 示例 |
 | [`docs/release-gate.md`](./docs/release-gate.md) | 开源前/上线前门禁清单 |
+| [`docs/wakeup-落地.md`](./docs/wakeup-落地.md) | Wakeup 窄专题（进程内 Bus / 内部 HTTP，默认关） |
+| [`docs/sandbox-落地.md`](./docs/sandbox-落地.md) | Sandbox 窄专题（companion Docker，默认关） |
+| [`docs/mcp-落地.md`](./docs/mcp-落地.md) | MCP 清单接线（不做服务发现） |
 
 ---
 

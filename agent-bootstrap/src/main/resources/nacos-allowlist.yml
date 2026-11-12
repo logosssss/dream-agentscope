@@ -22,6 +22,8 @@ business:
     - agentscope.runtime.mcp.servers
     # Sandbox 旋钮（enabled / image 等）；Docker socket/凭证不进 Nacos。见 docs/sandbox-落地.md。
     - agentscope.runtime.sandbox
+    # Wakeup 旋钮（enabled 等）；AGENTSCOPE_WAKEUP_TOKEN 不进 Nacos。见 docs/wakeup-落地.md。
+    - agentscope.runtime.wakeup
 
 infra:
   exact:
@@ -45,6 +47,8 @@ infra:
     - agentscope.milvus.collection
     - agentscope.milvus.dimensions
     - agentscope.caller.token
+    # 用户进程内部唤醒令牌；仅环境变量，不进业务热更。见 docs/wakeup-落地.md。
+    - agentscope.wakeup.token
     - DASHSCOPE_API_KEY
     - agentscope.object-store.type
     - agentscope.object-store.root

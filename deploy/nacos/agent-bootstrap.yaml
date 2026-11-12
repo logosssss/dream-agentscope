@@ -25,6 +25,9 @@ agentscope:
     sandbox:
       enabled: false
       # image: ubuntu:24.04
+    # Wakeup 默认关；仅 companion；令牌环境变量 AGENTSCOPE_WAKEUP_TOKEN。见 docs/wakeup-落地.md。
+    wakeup:
+      enabled: false
   auth:
     # 自助注册进入的租户。必须已登记且 ACTIVE。
     tenant-id: demo

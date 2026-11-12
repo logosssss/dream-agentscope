@@ -16,7 +16,7 @@
 - [x] Node / pnpm；`web`、`web-admin` 可 `pnpm install`
 - [x] 本机可连 **Redis、MySQL、Milvus**（与线上同一类实例配置即可）
 - [x] **Nacos** 已部署且本机 `NACOS_ADDR` 指向同一套；能拉到启动配置（用户：`agent-bootstrap-infra.yaml` + `agent-bootstrap.yaml`；管理：`agent-admin-infra.yaml` + `agent-admin.yaml`，group `AGENT_PLATFORM`）
-- [x] 根目录 `.env` 至少含 Nacos 四件套（及未迁 infra 时的连接/密钥兜底）；`AGENTSCOPE_CALLER_TOKEN` 与 `AGENTSCOPE_ADMIN_TOKEN` 必须不同（可在对应 infra yaml）
+- [x] 根目录 `.env` 至少含 Nacos 四件套（及未迁 infra 时的连接/密钥兜底）；`AGENTSCOPE_CALLER_TOKEN` 与 `AGENTSCOPE_ADMIN_TOKEN` 必须不同（可在对应 infra yaml）；若打开 `wakeup.enabled` 另配 `AGENTSCOPE_WAKEUP_TOKEN`（勿与 Caller/Admin 相同）
 - [x] 模型可用（如百炼）；本地联调注意月额度与租户每人额度
 - [x] MySQL 已迁移；已执行 `deploy/mysql/seed-demo-tenant-user.sql`（或等价演示租户）
 - [x] 用户进程 `8080`、管理进程 `8100` 能起来；`web`（5173）、`web-admin`（5174）能起来
@@ -138,8 +138,7 @@ cd ../web-admin && pnpm build
 
 - RocketMQ、Nacos 服务发现、MCP 服务发现（MCP 清单可进用户进程业务配置且 companion 已接线，见 `docs/mcp-落地.md`；不做服务发现仍不挡门禁）  
 - Docker 沙箱默认关（`sandbox.enabled=false`）；打开后仅 companion、硬失败不回退 Remote；手测环境无 Docker 时保持默认关即可（见 `docs/sandbox-落地.md`）  
-
-
+- Wakeup 默认关（`wakeup.enabled=false`）；打开后仅 companion + 进程内 Bus；内部 HTTP 用独立唤醒令牌；不做调度表消费 / Inbox / TeamWakeups / 跨副本 Bus（见 `docs/wakeup-落地.md`）  
 - Nacos **infra**（连接/密钥）热更新；业务 yaml 热更新已落地（非法拒收、仅影响新请求）
 - 管理员账号登录页（管理端现阶段靠 Admin Token）  
 - 按保留策略真正清理、批准删除后真删、调度真正消费  

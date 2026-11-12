@@ -21,7 +21,8 @@ class NacosStartupConfigSupportTest {
         assertThat(NacosAllowlist.businessPrefixes()).contains(
                 "agentscope.permission.rules",
                 "agentscope.runtime.mcp.servers",
-                "agentscope.runtime.sandbox");
+                "agentscope.runtime.sandbox",
+                "agentscope.runtime.wakeup");
         assertThat(NacosAllowlist.infraExact()).contains(
                 "spring.datasource.url",
                 "spring.servlet.multipart.max-file-size",
@@ -131,6 +132,19 @@ class NacosStartupConfigSupportTest {
 
         assertThat(source.getProperty("agentscope.runtime.sandbox.enabled")).isEqualTo(true);
         assertThat(source.getProperty("agentscope.runtime.sandbox.image")).isEqualTo("ubuntu:24.04");
+    }
+
+    /** Wakeup 旋钮按前缀收下；本块只验白名单，不启 Dispatcher。 */
+    @Test
+    void businessKeepsWakeupPrefix() {
+        MapPropertySource source = NacosStartupConfigSupport.parseBusiness("""
+                agentscope:
+                  runtime:
+                    wakeup:
+                      enabled: true
+                """);
+
+        assertThat(source.getProperty("agentscope.runtime.wakeup.enabled")).isEqualTo(true);
     }
 
     /** infra 收连接与密钥，丢掉业务旋钮。 */

@@ -21,6 +21,7 @@ import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import io.agentscope.harness.agent.gateway.ChannelManager;
 import io.agentscope.harness.agent.gateway.GatewayBootstrap;
+import io.agentscope.harness.agent.gateway.HarnessGateway;
 import io.agentscope.harness.agent.gateway.LocalSessionTurnGate;
 import io.agentscope.harness.agent.gateway.channel.Channel;
 import io.agentscope.harness.agent.gateway.channel.chatui.ChatUiChannel;
@@ -209,6 +210,16 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
                 stopLocked();
             }
         });
+    }
+
+    /**
+     * 供 Wakeup Target 懒解析当前 HarnessGateway；尚未懒启动时返回 null。
+     * 不对外暴露 Bootstrap 其它部件。
+     */
+    public HarnessGateway harnessGatewayOrNull() {
+        synchronized (lock) {
+            return bootstrap == null ? null : bootstrap.gateway();
+        }
     }
 
     /** 组装并启动 Gateway。companion 为 main，echo 仅显式 agentId 可达。调用方须已持有 lock。 */
