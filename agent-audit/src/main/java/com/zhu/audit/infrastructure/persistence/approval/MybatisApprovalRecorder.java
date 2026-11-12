@@ -7,7 +7,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * 用 BaseMapper 写审批单。只在 MySQL 打开时创建。
+ * 用 BaseMapper 写审批单（软退役）。只在 MySQL 打开时创建。
+ * 对话主路径已不再调用；保留给历史单测与过渡读路径。硬删表另块。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")

@@ -6,6 +6,9 @@ import com.zhu.access.api.dto.chat.ApprovalDecisionView;
 import com.zhu.access.api.dto.chat.ApprovalDetail;
 import com.zhu.access.api.dto.chat.PendingApproval;
 import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.access.application.chat.approval.AgentPermissionResume;
+import com.zhu.access.application.chat.approval.ApprovalDecisionAppService;
+import com.zhu.access.application.chat.approval.PendingAskStore;
 import com.zhu.audit.api.approval.ApprovalDecision;
 import com.zhu.audit.api.approval.ApprovalDecider;
 import com.zhu.audit.api.approval.ApprovalRow;
@@ -15,8 +18,12 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import io.agentscope.core.message.ToolUseBlock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 待确认从 MySQL 按当前用户读取；本人决定走 WEB 通道，不执行工具。
+ * Permission Gate 落地 ③：待确认来自进程内 Gate ASK；决定驱动续跑，不再只改库。
  */
 class ApprovalNotifyTest {
 
@@ -41,30 +48,33 @@ class ApprovalNotifyTest {
         TenantContext.clear();
     }
 
-    /** 只把这个租户和用户的单据交给接口，并带上会话。 */
+    /** 列表只读进程内登记，带会话。 */
     @Test
-    void pendingReadsCurrentUser() {
-        AuditQuery audits = mock(AuditQuery.class);
-        when(audits.pendingFor("tenant-a", "user-a", 50)).thenReturn(List.of(row("a-1", "shell", "session-a")));
-        ApprovalController controller = new ApprovalController(audits, mock(ApprovalDecider.class), openAccounts());
+    void pendingReadsLiveAsks() {
+        PendingAskStore store = new PendingAskStore();
+        store.remember("tenant-a", "user-a", "session-a", "companion-v1", List.of(use("a-1", "shell")));
+        ApprovalController controller = controller(store, mock(AuditQuery.class), mock(ApprovalDecider.class), openAccounts(),
+                (ask, approved, reason) -> {
+                });
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
         ApiResult<List<PendingApproval>> result = controller.pending();
 
         assertThat(result.data()).containsExactly(new PendingApproval("a-1", "shell", "session-a"));
-        verify(audits).pendingFor("tenant-a", "user-a", 50);
     }
 
-    /** 没有用户时不查库。 */
+    /** 没有用户时不查。 */
     @Test
     void missingUserIsRejected() {
-        ApprovalController controller = new ApprovalController(
-                mock(AuditQuery.class), mock(ApprovalDecider.class), openAccounts());
+        ApprovalController controller = controller(
+                new PendingAskStore(), mock(AuditQuery.class), mock(ApprovalDecider.class), openAccounts(),
+                (ask, approved, reason) -> {
+                });
         assertThatThrownBy(controller::pending).isInstanceOf(BusinessException.class);
     }
 
-    /** 账号不可用时不查库。 */
+    /** 账号不可用时不查。 */
     @Test
     void inactiveAccountIsRejected() {
         AuditQuery audits = mock(AuditQuery.class);
@@ -74,7 +84,10 @@ class ApprovalNotifyTest {
                 (tenantId, userId) -> {
                     throw new BusinessException(ErrorCode.NOT_FOUND, "tenant user not found");
                 });
-        ApprovalController controller = new ApprovalController(audits, mock(ApprovalDecider.class), accounts);
+        ApprovalController controller = controller(
+                new PendingAskStore(), audits, mock(ApprovalDecider.class), accounts,
+                (ask, approved, reason) -> {
+                });
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
@@ -85,15 +98,23 @@ class ApprovalNotifyTest {
         verify(audits, never()).pendingFor(any(), any(), anyInt());
     }
 
-    /** 本人本租户才能决定；审批人取当前用户，通道固定 WEB。 */
+    /** 本人本租户决定后必须续跑；通道固定 WEB。 */
     @Test
-    void decideWritesCurrentUserOnWebChannel() {
-        AuditQuery audits = mock(AuditQuery.class);
-        ApprovalDecider decisions = mock(ApprovalDecider.class);
-        when(audits.ownedOne("tenant-a", "user-a", "a-1")).thenReturn(row("a-1", "shell", "session-a"));
-        when(decisions.decide("a-1", ApprovalDecision.APPROVED, "user-a", "WEB", "ok"))
-                .thenReturn(decided("a-1", "shell", "session-a", "APPROVED", "user-a"));
-        ApprovalController controller = new ApprovalController(audits, decisions, openAccounts());
+    void decideResumesAndReturnsView() {
+        PendingAskStore store = new PendingAskStore();
+        store.remember("tenant-a", "user-a", "session-a", "companion-v1", List.of(use("a-1", "shell")));
+        AtomicBoolean resumed = new AtomicBoolean();
+        AtomicReference<Boolean> approvedFlag = new AtomicReference<>();
+        ApprovalDecider legacy = mock(ApprovalDecider.class);
+        when(legacy.decide(any(), any(), any(), any(), any()))
+                .thenThrow(new BusinessException(ErrorCode.NOT_FOUND, "legacy gone"));
+        ApprovalController controller = controller(store, mock(AuditQuery.class), legacy, openAccounts(),
+                (ask, approved, reason) -> {
+                    resumed.set(true);
+                    approvedFlag.set(approved);
+                    assertThat(ask.approvalId()).isEqualTo("a-1");
+                    assertThat(reason).isEqualTo("ok");
+                });
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
@@ -101,16 +122,20 @@ class ApprovalNotifyTest {
                 controller.decide("a-1", new ApprovalDecisionRequest("APPROVED", "ok"));
 
         assertThat(result.data()).isEqualTo(new ApprovalDecisionView("a-1", "shell", "session-a", "APPROVED"));
-        verify(decisions).decide("a-1", ApprovalDecision.APPROVED, "user-a", "WEB", "ok");
+        assertThat(resumed.get()).isTrue();
+        assertThat(approvedFlag.get()).isTrue();
+        assertThat(store.ownedOne("tenant-a", "user-a", "a-1")).isNull();
+        verify(legacy).decide("a-1", ApprovalDecision.APPROVED, "user-a", "WEB", "ok");
     }
 
-    /** 别人的单号按找不到，不调用决定口。 */
+    /** 别人的或未登记的单号按找不到，不续跑。 */
     @Test
-    void decideRejectsForeignApproval() {
-        AuditQuery audits = mock(AuditQuery.class);
-        ApprovalDecider decisions = mock(ApprovalDecider.class);
-        when(audits.ownedOne("tenant-a", "user-a", "a-2")).thenReturn(null);
-        ApprovalController controller = new ApprovalController(audits, decisions, openAccounts());
+    void decideRejectsMissingLiveAsk() {
+        AtomicBoolean resumed = new AtomicBoolean();
+        ApprovalDecider legacy = mock(ApprovalDecider.class);
+        ApprovalController controller = controller(
+                new PendingAskStore(), mock(AuditQuery.class), legacy, openAccounts(),
+                (ask, approved, reason) -> resumed.set(true));
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
@@ -118,43 +143,45 @@ class ApprovalNotifyTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
-        verify(decisions, never()).decide(any(), any(), any(), any(), any());
+        assertThat(resumed.get()).isFalse();
+        verify(legacy, never()).decide(any(), any(), any(), any(), any());
     }
 
-    /** 已决定的也返回申请和决定时间。不调用决定口。 */
+    /** 进程内待确认优先；没有再读旧表已决定行。 */
     @Test
-    void getReturnsDecidedTimesWithoutExecuting() {
+    void getPrefersLiveThenLegacy() {
+        PendingAskStore store = new PendingAskStore();
+        store.remember("tenant-a", "user-a", "session-a", "companion-v1", List.of(use("live-1", "shell")));
         AuditQuery audits = mock(AuditQuery.class);
-        ApprovalDecider decisions = mock(ApprovalDecider.class);
         LocalDateTime requested = LocalDateTime.of(2026, 11, 2, 1, 2, 3);
         LocalDateTime decidedAt = LocalDateTime.of(2026, 11, 2, 4, 5, 6);
         when(audits.ownedOne("tenant-a", "user-a", "a-1")).thenReturn(new ApprovalRow(
                 "a-1", "user-a", "session-a", "shell", "APPROVED",
                 requested, "user-a", "WEB", "ok", decidedAt));
-        ApprovalController controller = new ApprovalController(audits, decisions, openAccounts());
+        ApprovalController controller = controller(store, audits, mock(ApprovalDecider.class), openAccounts(),
+                (ask, approved, reason) -> {
+                });
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
-        ApiResult<ApprovalDetail> result = controller.get("a-1");
-
-        assertThat(result.data()).isEqualTo(new ApprovalDetail(
+        assertThat(controller.get("live-1").data()).isEqualTo(new ApprovalDetail(
+                "live-1", "shell", "session-a", "PENDING", "", "", null));
+        assertThat(controller.get("a-1").data()).isEqualTo(new ApprovalDetail(
                 "a-1", "shell", "session-a", "APPROVED", "2026-11-02T01:02:03", "2026-11-02T04:05:06", "ok"));
-        verify(decisions, never()).decide(any(), any(), any(), any(), any());
     }
 
-    /** 待处理的决定时间为空串。别人的或空单号不改库。 */
+    /** 别人的或空单号不续跑。 */
     @Test
     void getRejectsMissingOrBlank() {
         AuditQuery audits = mock(AuditQuery.class);
         when(audits.ownedOne("tenant-a", "user-a", "a-2")).thenReturn(null);
-        when(audits.ownedOne("tenant-a", "user-a", "a-3")).thenReturn(new ApprovalRow(
-                "a-3", "user-a", "session-a", "shell", "PENDING",
-                null, null, null, null, null));
-        ApprovalController controller = new ApprovalController(audits, mock(ApprovalDecider.class), openAccounts());
+        ApprovalController controller = controller(
+                new PendingAskStore(), audits, mock(ApprovalDecider.class), openAccounts(),
+                (ask, approved, reason) -> {
+                });
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
-        assertThat(controller.get("a-3").data().decidedAt()).isEqualTo("");
         assertThatThrownBy(() -> controller.get("a-2"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
@@ -166,6 +193,19 @@ class ApprovalNotifyTest {
         verify(audits, never()).ownedOne("tenant-a", "user-a", " ");
     }
 
+    private static ApprovalController controller(
+            PendingAskStore store,
+            AuditQuery audits,
+            ApprovalDecider legacy,
+            AccessAccountGate accounts,
+            AgentPermissionResume resume) {
+        return new ApprovalController(
+                audits,
+                store,
+                new ApprovalDecisionAppService(store, resume, legacy),
+                accounts);
+    }
+
     /** 测试不查租户表。 */
     private static AccessAccountGate openAccounts() {
         return new AccessAccountGate(tenantId -> {
@@ -173,17 +213,7 @@ class ApprovalNotifyTest {
         });
     }
 
-    /** 构造一条待确认。其余字段接口不返回。 */
-    private static ApprovalRow row(String approvalId, String toolName, String sessionId) {
-        return new ApprovalRow(approvalId, "user-a", sessionId, toolName, "PENDING",
-                LocalDateTime.now(), null, null, null, null);
-    }
-
-    /** 构造决定之后的单据。 */
-    private static ApprovalRow decided(
-            String approvalId, String toolName, String sessionId, String decision, String approver) {
-        return new ApprovalRow(
-                approvalId, "user-a", sessionId, toolName, decision,
-                LocalDateTime.now(), approver, "WEB", null, LocalDateTime.now());
+    private static ToolUseBlock use(String id, String name) {
+        return new ToolUseBlock.Builder().id(id).name(name).input(Map.of()).build();
     }
 }

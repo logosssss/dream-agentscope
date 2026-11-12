@@ -15,7 +15,7 @@
 | 产品条件 | **双闸 B**：无条件规则进引擎；带租户 / 角色 / 时间窗 / `maxLen`·`minLen` 的仍走 `PermissionRuleService` |
 | 双闸合并 | **更严优先**：DENY > ASK > ALLOW；建上下文时尽量只注入无条件规则，减少交叉 |
 | 规则绑定 | **仅 build / 排空重建**注入 `PermissionContextState`；运行中不 `addRule`；热更走现有长驻排空重建 |
-| 运行入口 | **当前 B**：Middleware 显式 `checkPermission` + 产品闸合并。**终态 A（已标注、未切主路径）**：无条件判定交给框架 PermissionGate；Middleware 只做产品条件闸 + 审批闭环，不再对引擎已覆盖的规则二次 `checkPermission` |
+| 运行入口 | **历史 B**（本专题收口时）：Middleware 显式 `checkPermission` + 产品闸合并。**已切当前 A**（框架 Gate + 条件闸 + pendingAsk 续跑）见 [`docs/permission-gate-落地.md`](permission-gate-落地.md) |
 | 已批准 claim | **ASK→ALLOW 覆盖**：仅合并结果为 ASK 且 claim 成功时放行；DENY 不可被批准单救回 |
 | PermissionMode | **主路径用 `BYPASS`**（③ 实测：未匹配 = ALLOW；显式 DENY/ASK 仍先生效）。**不采用 `DONT_ASK`**（未匹配 = DENY）。`DEFAULT` 仅作对照（未匹配 = ASK） |
 | 落地形态 | **文档锁定 + 第一块只做可丢弃 spike 测试**，不接审批表 |
@@ -55,21 +55,18 @@
    「已锁定」运行入口区分当前 B / 终态 A。教程与 runtime README 已改写旧「不要动 PermissionEngine」表述。  
    **切主路径前须另开专题验证**：Gate 给出的 ASK/DENY 与 Middleware 落单、`ToolCallState.ASKING`、claim 是否同轮一致；通过后再去掉 Middleware 内对无条件规则的二次 `checkPermission`，避免双判。
 
-## 终态 A（框架 Gate）切换清单（未开工）
+## 终态 A（框架 Gate）切换清单
 
-1. 用集成测对照：同规则下 Gate 判定 vs 当前 Middleware 引擎侧判定。  
-2. Middleware 收缩为：产品条件闸 + 更严合并（若 Gate 已 DENY/ASK 则只补条件侧）+ 落单/PENDING/claim。  
-3. 确认 BYPASS + 无条件注入在 Gate 路径上行为与 ③④ 一致。  
-4. 更新本表「运行入口」为「当前 A」，并删掉 Middleware 内冗余引擎调用。
+**已废止（本文不再维护）。** 切换顺序与新锁定（`pendingAsk` 闭环、产品 ASK→DENY、续跑改造 approvals API、表软退役）见 [`docs/permission-gate-落地.md`](permission-gate-落地.md)。
 
 ## 验收要点（按块）
 
 - ①～③：测试不连真实 Redis/MySQL/Milvus/Nacos；可直接构造 `PermissionEngine` / `PermissionContextState`  
 - ④：长驻 Agent 重建后规则与权限热更一致；trivial 不再作为生产默认  
 - ⑤：`echo_text` 等现有审批单测与行为不回退；DENY 仍不可 claim  
-- ⑥：终态 A 已写进锁定表与教程；**当前仍为 B**；无代码切 Gate、无双判消除（留给上表切换清单）
+- ⑥：终态叙事已写进本文；**主路径切换**已由 [`permission-gate-落地.md`](permission-gate-落地.md) 收口为 **当前 A**
 
 ## 状态
 
 grill 已结束；①～⑥ 全部收口（⑥ 仅文档/叙事）。  
-PermissionEngine 本专题落地完成。后续若切 Gate，按「终态 A 切换清单」另起一块，勿与 Memory 等其它原生面混做。若改规范，先改本文再动代码。
+PermissionEngine 本专题为历史对照。Gate 主路径 **当前 A** 见 [`docs/permission-gate-落地.md`](permission-gate-落地.md)。若改本专题历史约定，先改本文再动代码。

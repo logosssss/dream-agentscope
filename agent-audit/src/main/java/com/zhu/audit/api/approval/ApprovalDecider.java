@@ -1,8 +1,9 @@
 package com.zhu.audit.api.approval;
 
 /**
- * 审批决定口。只改仍为 PENDING 的单据，不负责批准后的工具执行。
- * 决定成功后关掉对应待办。
+ * 审批决定口（过渡保留）。
+ * 用户侧 Gate ASK 续跑权威在接入层 {@code ApprovalDecisionAppService}；
+ * 本口仍改旧表 PENDING 行（管理端列表、用户决定后尽力同步）。硬删另块。
  */
 public interface ApprovalDecider {
 

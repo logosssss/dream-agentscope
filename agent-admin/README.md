@@ -11,7 +11,7 @@
 | 包 | 作用 |
 | --- | --- |
 | `api.controller.event` / `api.dto.event` | 事件审计查询、后台操作审计 |
-| `api.controller.approval` / `api.dto.approval` | 审批列表与决定（从原 Audit 控制器拆出） |
+| `api.controller.approval` / `api.dto.approval` | 旧表审批列表与决定（过渡保留；不续跑 Gate ASK；硬删另块） |
 | `api.controller.billing` / `api.dto.billing` | 账单与模型单价 |
 | `api.controller.model` / `api.dto.model` | 模型配置 |
 | `api.controller.quota` / `api.dto.quota` | 租户额度与用量流水 |
@@ -51,8 +51,8 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /health/ready` | 探测 MySQL、Redis、Milvus。任一项失败 HTTP 503。测试里三项为 SKIPPED |
 | `GET /api/admin/info` | 角色为 `admin` |
 | `GET /api/admin/audits` | 最近审计，默认 50 条，最多 100 条 |
-| `GET /api/admin/approvals` | 决定为 `PENDING` 的审批，条数规则同上 |
-| `POST /api/admin/approvals/{approvalId}/decision` | 把该单改成 `APPROVED` 或 `REJECTED`。通道固定为 `CONSOLE`；审批人可空，空则 `admin`。关掉对应待办，仍不执行工具。单据不存在时返回找不到 |
+| `GET /api/admin/approvals` | 旧表 `PENDING` 审批（过渡；新 ASK 活单在用户进程 PendingAskStore），条数规则同上 |
+| `POST /api/admin/approvals/{approvalId}/decision` | 改旧表为 `APPROVED` / `REJECTED`，**不**驱动框架续跑。通道固定 `CONSOLE`；审批人可空则 `admin`。关掉对应待办。单据不存在时找不到 |
 | `POST /api/admin/billing/drafts` | 按租户和区间生成一张草稿账单。MySQL 关闭时返回不可用 |
 | `POST /api/admin/billing/confirmations` | 把对应草稿改成已确认，不重算金额。没有账单时返回找不到 |
 | `POST /api/admin/billing/invoices` | 把已确认的账单改成已开票，不重算金额。草稿要先确认 |

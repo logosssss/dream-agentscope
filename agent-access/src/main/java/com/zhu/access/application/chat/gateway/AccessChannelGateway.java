@@ -1,5 +1,8 @@
 package com.zhu.access.application.chat.gateway;
 
+import com.zhu.access.application.chat.approval.AgentPermissionResume;
+import com.zhu.access.application.chat.approval.PendingAsk;
+import com.zhu.access.application.chat.approval.PendingAskStore;
 import com.zhu.common.util.Ids;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentRequest;
@@ -10,7 +13,10 @@ import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentRegistry;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentResultEvent;
+import io.agentscope.core.event.ConfirmResult;
+import io.agentscope.core.event.RequireUserConfirmEvent;
 import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.MsgRole;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import io.agentscope.harness.agent.gateway.ChannelManager;
@@ -22,6 +28,7 @@ import io.agentscope.harness.agent.gateway.channel.chatui.SendOptions;
 import jakarta.annotation.PreDestroy;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
@@ -36,13 +43,13 @@ import reactor.core.publisher.Flux;
  * 同 session 串行由框架 {@link LocalSessionTurnGate} 负责（进程内）；启动时显式挂上。
  * 租户等业务字段经 {@link AccessChannelRuntimeContextResolver} 写入 RuntimeContext。
  * ChatUi 在 Bootstrap 上显式注册，之后只从 {@link ChannelManager} 只读取，不挂第二通道。
- * 实现 {@link AgentExecutor}，是对话执行唯一入口。
+ * 实现 {@link AgentExecutor}，是对话执行唯一入口；并实现 Gate ASK 后续跑。
  * 模型密钥缺失不阻断进程启动；首次对话才组装长驻 Agent。
  * 业务配置热更后经 {@link #rebuildAll()} 排空再重建。
  */
 @Service
 @Primary
-public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloader {
+public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloader, AgentPermissionResume {
 
     private static final Logger log = Logger.getLogger(AccessChannelGateway.class.getName());
 
@@ -51,6 +58,8 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     private final AgentTurnSupport turns;
 
     private final ObjectProvider<DistributedStore> stores;
+
+    private final PendingAskStore pendingAsks;
 
     private final Object lock = new Object();
 
@@ -67,10 +76,12 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     public AccessChannelGateway(
             HarnessAgentFactory agents,
             AgentTurnSupport turns,
-            ObjectProvider<DistributedStore> stores) {
+            ObjectProvider<DistributedStore> stores,
+            PendingAskStore pendingAsks) {
         this.agents = agents;
         this.turns = turns;
         this.stores = stores;
+        this.pendingAsks = pendingAsks;
     }
 
     /**
@@ -98,6 +109,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
 
     /**
      * 流式一轮。事件仍经运行层护栏映射成 SSE 片段。
+     * 遇到 RequireUserConfirm 先写入 {@link PendingAskStore}，再映射给前端。
      */
     @Override
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
@@ -110,6 +122,14 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
             return channel()
                     .sendStream(options(request), request.userText())
                     .doOnNext(event -> {
+                        if (event instanceof RequireUserConfirmEvent confirm) {
+                            pendingAsks.remember(
+                                    request.tenantId(),
+                                    request.userId(),
+                                    request.sessionId(),
+                                    turns.agentId(request),
+                                    confirm.getToolCalls());
+                        }
                         if (event instanceof AgentResultEvent result) {
                             Msg message = result.getResult();
                             runId.set(AgentTurnSupport.runIdOf(message));
@@ -122,6 +142,41 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         } catch (RuntimeException error) {
             drain.endTurn();
             throw error;
+        }
+    }
+
+    /**
+     * Gate ASK 后续跑：用户 Msg 带 {@link Msg#METADATA_CONFIRM_RESULTS}。
+     * 与 spike 面一致；不写审批表。
+     */
+    @Override
+    public void resume(PendingAsk ask, boolean approved, String reason) {
+        if (ask == null || ask.toolCall() == null) {
+            throw new IllegalArgumentException("pending ask is required");
+        }
+        drain.beginTurn();
+        try {
+            ConfirmResult confirmed = new ConfirmResult(approved, ask.toolCall());
+            String text = reason == null || reason.isBlank()
+                    ? (approved ? "approved" : "rejected")
+                    : reason.trim();
+            Msg confirm = Msg.builder()
+                    .role(MsgRole.USER)
+                    .textContent(text)
+                    .metadata(Map.of(Msg.METADATA_CONFIRM_RESULTS, List.of(confirmed)))
+                    .build();
+            // 先确保 Gateway 已起，再比 mainAgentId，避免续跑时尚未懒启动。
+            ChatUiChannel open = channel();
+            SendOptions options = SendOptions.of(ask.userId(), ask.sessionId())
+                    .withRuntimeContext(AccessChannelRuntimeContextResolver.staging(
+                            ask.tenantId(), ask.agentId()));
+            if (ask.agentId() != null && !ask.agentId().isBlank()
+                    && (mainAgentId == null || !ask.agentId().equals(mainAgentId))) {
+                options = options.withAgentId(ask.agentId());
+            }
+            open.send(options, confirm).block(Duration.ofSeconds(turns.timeoutSeconds()));
+        } finally {
+            drain.endTurn();
         }
     }
 
@@ -209,10 +264,11 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         return chatUi;
     }
 
-    /** 停掉当前 Gateway 并关闭 Agent。调用方须已持有 lock。 */
+    /** 停掉当前 Gateway 并关闭 Agent。调用方须已持有 lock。待确认随 Agent 失效一并清掉。 */
     private void stopLocked() {
         if (bootstrap == null) {
             channel = null;
+            pendingAsks.clear();
             return;
         }
         try {
@@ -226,6 +282,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         }
         bootstrap = null;
         channel = null;
+        pendingAsks.clear();
     }
 
     /** 首次对话时再组装 Gateway；已启动则直接返回 Channel。 */

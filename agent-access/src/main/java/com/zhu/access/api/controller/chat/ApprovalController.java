@@ -5,9 +5,11 @@ import com.zhu.access.api.dto.chat.ApprovalDecisionView;
 import com.zhu.access.api.dto.chat.ApprovalDetail;
 import com.zhu.access.api.dto.chat.PendingApproval;
 import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.access.application.chat.approval.ApprovalDecisionAppService;
+import com.zhu.access.application.chat.approval.PendingAsk;
+import com.zhu.access.application.chat.approval.PendingAskStore;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.audit.api.approval.ApprovalDecision;
-import com.zhu.audit.api.approval.ApprovalDecider;
 import com.zhu.audit.api.approval.ApprovalRow;
 import com.zhu.audit.api.event.AuditQuery;
 import com.zhu.common.context.TenantContext;
@@ -25,7 +27,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 把当前用户的待确认从 MySQL 交出去，并接受本人决定。不读进程内存，也不执行工具。
+ * 待确认列表与人批决定。列表主数据源是 Gate ASK 进程内登记；决定后驱动框架续跑。
+ * 旧审批表只读查询仍可看历史行；新 ASK 不再依赖落单。
  */
 @RestController
 public class ApprovalController {
@@ -40,37 +43,44 @@ public class ApprovalController {
 
     private final AuditQuery audits;
 
-    private final ApprovalDecider decisions;
+    private final PendingAskStore pendingAsks;
+
+    private final ApprovalDecisionAppService decisions;
 
     private final AccessAccountGate accounts;
 
-    /** 列表和决定都按请求头里的租户和用户查库。先过账号门。 */
-    public ApprovalController(AuditQuery audits, ApprovalDecider decisions, AccessAccountGate accounts) {
+    /** 列表和决定都按请求头里的租户和用户。先过账号门。 */
+    public ApprovalController(
+            AuditQuery audits,
+            PendingAskStore pendingAsks,
+            ApprovalDecisionAppService decisions,
+            AccessAccountGate accounts) {
         this.audits = audits;
+        this.pendingAsks = pendingAsks;
         this.decisions = decisions;
         this.accounts = accounts;
     }
 
     /**
-     * 只返回这次请求对应的用户。没有用户或账号不可用时拒绝，避免把别人的单据交出去。
-     * 数据在 MySQL。进程重启后仍然能查到未决定的单据。
+     * 只返回这次请求对应用户的进程内待确认（Gate ASKING）。
+     * 不再以审批表 PENDING 为主；表内存量另走详情只读。
      */
     @GetMapping("/api/approvals/pending")
     public ApiResult<List<PendingApproval>> pending() {
         accounts.requireActive();
         String userId = UserContext.get();
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
-        List<ApprovalRow> rows = audits.pendingFor(tenantId, userId, 50);
+        List<PendingAsk> rows = pendingAsks.pendingFor(tenantId, userId, 50);
         List<PendingApproval> result = new ArrayList<>(rows.size());
-        for (ApprovalRow row : rows) {
+        for (PendingAsk row : rows) {
             result.add(new PendingApproval(row.approvalId(), row.toolName(), row.sessionId()));
         }
         return ApiResult.ok(result);
     }
 
     /**
-     * 别人的或找不到的按找不到。含已决定行。
-     * 不读工具参数和执行结果，也不改决定、不执行工具。
+     * 先查进程内待确认；没有再读旧表本人本租户行（含已决定历史）。
+     * 不读工具参数和执行结果。
      */
     @GetMapping("/api/approvals/{approvalId}")
     public ApiResult<ApprovalDetail> get(@PathVariable String approvalId) {
@@ -80,6 +90,17 @@ public class ApprovalController {
         }
         String userId = UserContext.get();
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        PendingAsk live = pendingAsks.ownedOne(tenantId, userId, approvalId);
+        if (live != null) {
+            return ApiResult.ok(new ApprovalDetail(
+                    live.approvalId(),
+                    live.toolName(),
+                    live.sessionId(),
+                    "PENDING",
+                    "",
+                    "",
+                    null));
+        }
         ApprovalRow owned = audits.ownedOne(tenantId, userId, approvalId);
         if (owned == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "approval not found");
@@ -97,31 +118,32 @@ public class ApprovalController {
     }
 
     /**
-     * 把本人本租户的一张待确认改成通过或拒绝。审批人取当前用户，通道固定 WEB。
-     * 别人的或找不到的按找不到处理。关掉对应待办，仍不触发工具执行。
+     * 本人本租户决定后驱动框架续跑（ConfirmResult）。
+     * 找不到进程内单据按找不到；通道固定 WEB。
      */
     @PostMapping("/api/approvals/{approvalId}/decision")
     public ApiResult<ApprovalDecisionView> decide(
             @PathVariable String approvalId,
             @RequestBody ApprovalDecisionRequest request) {
         accounts.requireActive();
+        if (approvalId == null || approvalId.isBlank() || approvalId.length() > APPROVAL_ID_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "approval is invalid");
+        }
         String userId = UserContext.get();
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
-        ApprovalRow owned = audits.ownedOne(tenantId, userId, approvalId);
-        if (owned == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "approval not found");
-        }
         ApprovalDecisionRequest body = request == null ? new ApprovalDecisionRequest(null, null) : request;
-        ApprovalRow decided = decisions.decide(
-                approvalId,
-                ApprovalDecision.parse(body.decision()),
+        ApprovalDecision parsed = ApprovalDecision.parse(body.decision());
+        PendingAsk decided = decisions.decide(
+                tenantId,
                 userId,
+                approvalId,
+                parsed,
                 CHANNEL,
                 body.reason());
         return ApiResult.ok(new ApprovalDecisionView(
                 decided.approvalId(),
                 decided.toolName(),
                 decided.sessionId(),
-                decided.decision()));
+                parsed.name()));
     }
 }

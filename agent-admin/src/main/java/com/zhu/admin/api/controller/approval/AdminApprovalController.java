@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 管理进程上的审批列表与决定。读库和改决定都走审计模块，仍不执行工具。
+ * 管理进程上的审批列表与决定（过渡保留）。
+ * 只读写旧 {@code approval_record}，不驱动框架续跑；新 ASK 活单在用户进程 PendingAskStore。
+ * 表硬删另块。见 {@code docs/permission-gate-落地.md}。
  */
 @RestController
 public class AdminApprovalController {

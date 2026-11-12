@@ -9,8 +9,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * 接入层订阅待确认事件。记下一条未发送通知，并给发起人开一条待办。
- * 不发 IM、邮件或短信，也不关闭待办。
+ * 接入层订阅待确认事件（软退役）。
+ * 主路径已不发布 {@link ApprovalRequestedEvent}；本监听器仅在仍有遗留事件时记通知/待办。
+ * 现行待确认以 {@code PendingAskStore} 为准。硬删通知/待办链路另块。
  */
 @Component
 public class ApprovalNotificationListener {

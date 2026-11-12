@@ -1,7 +1,9 @@
 package com.zhu.audit.api.approval;
 
 /**
- * 审批记录口。ASK 决定落库走这里。接入层另订阅事件，只记未发送通知。
+ * 审批记录口（软退役）。
+ * Permission Gate 主路径已停写停用：无条件 ASK 走框架 pendingAsk，不再经本口落单 / claim。
+ * 实现与表暂留；硬删另块。见 {@code docs/permission-gate-落地.md}。
  */
 public interface ApprovalRecorder {
 

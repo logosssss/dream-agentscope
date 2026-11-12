@@ -6,16 +6,16 @@
 
 ## 依赖
 
-依赖 `agent-common`、Spring 和 `mybatis-plus-spring-boot3-starter`。正式配置打开 MySQL 后，用 `BaseMapper.insert` 写入 `agent_event_audit` 和 `approval_record`。表在 `db/migration`，由用户进程的 Flyway 执行。MyBatis-Plus 不建表。测试关掉开关，不创建 SqlSession。
+依赖 `agent-common`、Spring 和 `mybatis-plus-spring-boot3-starter`。正式配置打开 MySQL 后，用 `BaseMapper.insert` 写入 `agent_event_audit`（及过渡期仍保留的 `approval_record`）。表在 `db/migration`，由用户进程的 Flyway 执行。MyBatis-Plus 不建表。测试关掉开关，不创建 SqlSession。
 
-不能依赖 `agent-runtime`、`agent-access`、`agent-semantic`。运行层需要记审批时调用本模块的接口，或发布本模块定义的事件。
+不能依赖 `agent-runtime`、`agent-access`、`agent-semantic`。Permission Gate **当前 A** 下对话主路径不再经本模块落审批单；`ApprovalRecorder` / `ApprovalRequestedEvent` 软退役，表与决定口暂留。见 `docs/permission-gate-落地.md`。
 
 ## 包
 
 | 包 | 类型 | 作用 |
 | --- | --- | --- |
 | `api.event` | `AuditRecorder`、`AuditQuery`、`AuditEventRow`、`OperationAuditCatalog`、`OperationAuditSummary` | 事件审计与后台操作审计 |
-| `api.approval` | `ApprovalRecorder`、`ApprovalDecider`、`ApprovalDecision`、`ApprovalRow`、`ApprovalNotifier`、`ApprovalNotice`、`ApprovalNoticeDetail`、`UserTodoCatalog`、`UserTodoDetail`、`UserTodoRow` | 审批、通知与待办 |
+| `api.approval` | `ApprovalRecorder`、`ApprovalDecider`、`ApprovalDecision`、`ApprovalRow`、`ApprovalNotifier`、`ApprovalNotice`、`ApprovalNoticeDetail`、`UserTodoCatalog`、`UserTodoDetail`、`UserTodoRow` | 审批、通知与待办。**Recorder 软退役**（主路径停写）；Decider / 查询过渡保留；硬删另块 |
 | `api.safety` | `SafetyInterventionRecorder`、`SafetyInterventionCatalog`、`SafetyInterventionSummary` | 安全干预落库与目录 |
 | `api.attachment` | `AttachmentCatalog`、`AttachmentDetail`、`AttachmentSummary`、`AttachmentRefItem`、`AttachmentRefSummary`、`StoredAttachment` | 附件元数据与引用 |
 | `api.feedback` | `FeedbackRecorder`、`FeedbackDetail`、`FeedbackSummary` | 用户反馈 |
@@ -44,22 +44,18 @@
 | `application.schedule` | `MysqlTaskScheduleCatalog` | 任务调度登记 |
 | `application.health` | `MysqlReadiness` | 校验数据库连接。关闭时跳过，不跑业务 SQL |
 | `application.support` | `AuditQueryLimits` | 列表查询条数上限，给各实现共用 |
-| `domain.event` | `ApprovalRequestedEvent` | ASK 时的跨模块事件。待确认列表不靠订阅它 |
+| `domain.event` | `ApprovalRequestedEvent` | **软退役**：主路径已停发；待确认权威在接入层 PendingAskStore |
 | `infrastructure.persistence.<域>` | 各域 Mapper、`Mybatis*` 写入实现（如 `event.MybatisAuditRecorder`、`approval.MybatisApprovalRecorder`、`usage.MysqlTokenUsageWriter`） | 与 `api.<域>` 对齐。审批新单为 `PENDING`，审计来源为 `EXECUTOR` |
 | `infrastructure.persistence.entity.<域>` | 各域实体 | 表行映射；不放业务规则 |
 | `resources/mapper` | 同名 XML（仍扁平目录） | `namespace` 指向域分包 Mapper；`resultMap`、条件查询和决定更新。不把同一条 `INSERT` 再写一遍 |
 
 事件放在发布相关的领域包，不放进 `agent-common`。`agent-common` 不承载业务事件。
 
-`approval_record.tenant_id` 由 `V3__approval_tenant.sql` 补上。没有租户时写成空串。`GET /api/approvals/{approvalId}` 先确认本人本租户再返回决定、申请时间和决定时间，含已决定行。不读工具参数和执行结果。别人的标识按找不到。仍不执行工具。
+`approval_record`：**软退役**（主路径停写；表与 Flyway 暂留，硬删另块）。`tenant_id` 由 `V3__approval_tenant.sql` 补上。用户侧活单与续跑见接入层 `PendingAskStore` / `docs/permission-gate-落地.md`。管理端仍可读改旧表 PENDING，**不**驱动框架续跑。历史 claim / `findPending` 复用语义已不在对话主路径。
 
-模型调用的 token 用量也记在这张表里，动作名是 `model.usage`。同时写入 `token_usage`：同步对话的 `run_id` 与 `agent_run` 相同，流式对话的 `agent_run` 由接入层另生成，两边可能不同。计价读 `model_price` 里当前生效的一行，按每百万 token 的单价计算，保留 6 位小数。没有命中的价格时金额记 0，币种是 `CNY`。用户或模型为空时不写这张表。写失败不改变回复。`GET /api/usage` 列出当前用户在这个租户下的用量，默认 50 条，最多 100 条。`GET /api/usage/{usageId}` 先确认本人本租户再返回 token、金额和记账时间。别人的主键按找不到。不带提示词，也不改金额。管理进程不查询这张表。
+模型调用的 token 用量也记在 `agent_event_audit` 里，动作名是 `model.usage`。同时写入 `token_usage`：同步对话的 `run_id` 与 `agent_run` 相同，流式对话的 `agent_run` 由接入层另生成，两边可能不同。计价读 `model_price` 里当前生效的一行，按每百万 token 的单价计算，保留 6 位小数。没有命中的价格时金额记 0，币种是 `CNY`。用户或模型为空时不写这张表。写失败不改变回复。`GET /api/usage` 列出当前用户在这个租户下的用量，默认 50 条，最多 100 条。`GET /api/usage/{usageId}` 先确认本人本租户再返回 token、金额和记账时间。别人的主键按找不到。不带提示词，也不改金额。管理进程不查询这张表。
 
-已批准且还没执行的单据，由用户进程在下一次同名工具调用时占上并放行。结束后把 `result` 写成 `{"status":"SUCCEEDED"}`、`FAILED` 或 `CANCELLED`，不存工具输出。管理进程的决定接口仍不执行工具。同一用户、会话和工具上已有 `PENDING` 时，`findPending` 返回该单号，ASK 复用，不插第二张。
-
-待确认事件再写 `approval_notification`。接收人是发起用户，通道是 `WEB`，状态是 `PENDING`。没有接收人时不写。不发送，也不把状态改成已发送。写失败不改变这次询问。`GET /api/notifications` 列出当前接收人的通知，默认 50 条，最多 100 条。`GET /api/notifications/{notificationId}` 先确认接收人再返回通道、状态和创建时间，不带回错误和发送时间。别人的主键按找不到。表没有租户列。管理进程不查询这张表。
-
-同一事件再写 `user_todo`。类型是 `APPROVAL`，状态是 `OPEN`，关联审批单，标题是工具名。同一用户和审批单再开一次不再插一行。`POST /api/todos` 再给当前用户开确认或任务待办，类型只接受 `CONFIRM` / `TASK`。关联运行或任务标识，不核这些对象是否存在。同一用户、类型和关联再开一次返回冲突。不写截止时间。`GET /api/todos` 列出这个用户还开着的待办，含审批、确认和任务。`GET /api/todos/{todoId}` 看一条待办，含已关闭行和创建时间，不带回截止时间。别人的主键按找不到。审批通过后改 `DONE`，拒绝后改 `CANCELLED`。关闭失败不改已经写下的决定。`POST /api/todos/{todoId}/done` 把这个用户还开着的确认或任务改成 `DONE`。`POST /api/todos/{todoId}/cancel` 改成 `CANCELLED`。审批待办不能从这里关。别人的行按找不到处理。
+`approval_notification` / `user_todo`（`APPROVAL`）：随 `ApprovalRequestedEvent` **软退役**（主路径停发后不再新开）；接口与表暂留。`POST /api/todos` 仍可开 `CONFIRM` / `TASK`。`GET /api/notifications`、`GET /api/todos` 行为不变。硬删另块。
 
 `GET /api/feedback` 列出当前用户的 `user_feedback`，默认 50 条，最多 100 条。`GET /api/feedback/{feedbackId}` 先确认本人再返回评分、说明和创建时间，不读对话正文。别人的主键按找不到。表没有租户列。`POST /api/feedback` 追加 `user_feedback`。评分是 1 到 5，说明最长 1000 字。不存标签，也不要求这次运行已经在 `agent_run` 里。
 
