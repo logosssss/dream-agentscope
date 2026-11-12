@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 
@@ -17,7 +18,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 表里的权限规则和配置使用同一套比较。时间窗按 UTC 解释，不能识别的条件仍跳过。
+ * 表里的权限规则和配置使用同一套比较。时间窗与参数长度按条件解释，不能识别的仍跳过。
  */
 class StoredPermissionServiceTest {
 
@@ -77,6 +78,18 @@ class StoredPermissionServiceTest {
                 .isEqualTo(PermissionDecision.DENY);
         assertThat(serviceAt("2026-11-02T06:00:00Z", night).decide("shell", "t", null))
                 .isEqualTo(PermissionDecision.ALLOW);
+    }
+
+    /** maxLen 超界时这条 DENY 不生效，回落到默认允许。 */
+    @Test
+    void maxLenMissSkipsRule() {
+        ToolPermission limited = row("shell", "*", "*", "DENY", "{\"maxLen\":{\"content\":3}}", 1);
+        StoredPermissionService service = service(limited);
+
+        assertThat(service.decide("shell", "t", null, Map.of("content", "abcd")))
+                .isEqualTo(PermissionDecision.ALLOW);
+        assertThat(service.decide("shell", "t", null, Map.of("content", "ab")))
+                .isEqualTo(PermissionDecision.DENY);
     }
 
     /** 命中的决定写错时失败。没命中的坏决定不影响别的租户。 */

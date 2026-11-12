@@ -2,15 +2,15 @@ package com.zhu.runtime.infrastructure.agent;
 
 import com.zhu.runtime.application.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
-import com.zhu.semantic.contract.CompletionCriteria;
-import com.zhu.semantic.contract.ProductSemanticProvider;
-import com.zhu.semantic.contract.ProductTool;
 import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
 import com.zhu.runtime.domain.middleware.AuditMiddleware;
 import com.zhu.runtime.domain.middleware.CompanionMemoryMiddleware;
 import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
 import com.zhu.runtime.domain.middleware.PersonaConsistencyMiddleware;
 import com.zhu.runtime.domain.middleware.SafetyGateMiddleware;
+import com.zhu.semantic.contract.CompletionCriteria;
+import com.zhu.semantic.contract.ProductSemanticProvider;
+import com.zhu.semantic.contract.ProductTool;
 import io.agentscope.core.tracing.OtelTracingMiddleware;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
@@ -19,8 +19,9 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 /**
- * 组装长驻 HarnessAgent。由接入层 Gateway 持有实例，不要每请求关闭。
- * Builder 可变，不要在线程之间共享同一个 Builder 再改提示词。
+ * 长驻 Agent 的 Builder 定制口。真正 {@code build()} 由 {@code GatewayBootstrap} 完成。
+ * 公共项走 {@link #configureCommon}；搭子 / echo 差异走各自 customize。
+ * 不要在线程之间共享同一个 Builder 再改提示词。
  */
 @Component
 public class HarnessAgentFactory {
@@ -90,22 +91,13 @@ public class HarnessAgentFactory {
     }
 
     /**
-     * 长驻搭子：提示词与工具来自产品语义，挂齐中间件。由接入层 Gateway 持有。
+     * 给 Bootstrap {@code configureAllAgents} 用的公共项。
+     * 只放 companion 与 echo 都要的：关 web/shell、追踪、停机闸、状态库与会话文件系统。
+     * 产品中间件和提示词不要放这里。
      */
-    public HarnessAgent buildCompanionResident() {
-        return buildCompanion(companionAgentId(), semantics.promptFallback(null), null);
-    }
-
-    /**
-     * 长驻瘦路由件：真模型、短提示，不挂搭子记忆/人设/危机/业务工具。
-     */
-    public HarnessAgent buildEchoResident() {
-        HarnessAgent.Builder builder = HarnessAgent.builder()
-                .name("echo")
-                .agentId(ECHO_AGENT_ID)
-                .model(chatModel.resolve(null))
-                .sysPrompt(ECHO_SYS_PROMPT)
-                .maxIters(Math.min(8, maxIterations()));
+    public void configureCommon(HarnessAgent.Builder builder) {
+        // 未做出口白名单前关掉内置 web 工具，避免会话内 SSRF（元数据/内网）。
+        // 远程工作区路径下 shell 本就不注册；显式关掉防止以后换沙箱文件系统时裸奔。
         builder.disableWebTools();
         builder.disableShellTool();
         builder.middleware(tracing);
@@ -115,49 +107,55 @@ public class HarnessAgentFactory {
             builder.distributedStore(store);
             builder.filesystem(WorkspaceFilesystem.sessionScoped());
         }
-        return builder.build();
     }
 
     /**
-     * 搭子装配。tenantId 为空时用进程默认模型行。
+     * 搭子差异：标识、模型、提示词、轮数、产品中间件与工作区路径。
+     * 业务工具在 {@link #attachCompanionTools} 里挂，因为 Toolkit 要等 build 之后才有。
      */
-    private HarnessAgent buildCompanion(String agentId, String sysPrompt, String tenantId) {
-        HarnessAgent.Builder builder = HarnessAgent.builder()
-                .name(properties.getName())
+    public void customizeCompanion(HarnessAgent.Builder builder) {
+        String agentId = companionAgentId();
+        builder.name(properties.getName())
                 .agentId(agentId)
-                .model(chatModel.resolve(tenantId))
-                .sysPrompt(sysPrompt)
+                .model(chatModel.resolve(null))
+                .sysPrompt(semantics.promptFallback(null))
                 .maxIters(maxIterations());
-        // 未做出口白名单前关掉内置 web 工具，避免会话内 SSRF（元数据/内网）。
-        // 远程工作区路径下 shell 本就不注册；显式关掉防止以后换沙箱文件系统时裸奔。
-        builder.disableWebTools();
-        builder.disableShellTool();
         if (!blank(properties.getWorkspace())) {
             builder.workspace(properties.getWorkspace());
         }
-        // 审计、写文件上限、审批、安全门和记忆写入走 Middleware。Hook 自 2.0.0 起标成删除，不再挂到 Builder 上。
-        // 追踪放在同顺序中间件的前面。没配导出地址时 span 被丢掉。
-        builder.middleware(tracing);
+        // 审计、写文件上限、审批、安全门和记忆写入走 Middleware。Hook 自 2.0.0 起标成删除。
         builder.middleware(auditMiddleware);
         builder.middleware(fileWriteLimit);
         builder.middleware(approvalMiddleware);
         builder.middleware(safetyGate);
         builder.middleware(personaConsistency);
         builder.middleware(companionMemory);
-        builder.middleware(shutdown.middleware());
-        DistributedStore store = stores.getIfAvailable();
-        if (store != null) {
-            builder.distributedStore(store);
-            builder.filesystem(WorkspaceFilesystem.sessionScoped());
-        }
-        HarnessAgent agent = builder.build();
-        // 加在这次 Agent 自己的 Toolkit 上。目录里没有的业务工具不会出现。
-        toolRegistrar.register(agent.getToolkit(), semantics.tools(), productTools);
-        return agent;
     }
 
-    /** 默认搭子标识：语义 → 运行配置 → companion-v1。 */
-    private String companionAgentId() {
+    /**
+     * echo 差异：固定标识与短提示，轮数封顶 8，不挂搭子产品中间件。
+     */
+    public void customizeEcho(HarnessAgent.Builder builder) {
+        builder.name("echo")
+                .agentId(ECHO_AGENT_ID)
+                .model(chatModel.resolve(null))
+                .sysPrompt(ECHO_SYS_PROMPT)
+                .maxIters(Math.min(8, maxIterations()));
+    }
+
+    /**
+     * 搭子 build 完成后挂目录工具。加在这次 Agent 自己的 Toolkit 上。
+     * 目录里没有的业务工具不会出现。
+     */
+    public void attachCompanionTools(HarnessAgent agent) {
+        if (agent == null) {
+            return;
+        }
+        toolRegistrar.register(agent.getToolkit(), semantics.tools(), productTools);
+    }
+
+    /** 默认搭子标识：语义 → 运行配置 → companion-v1。给 Bootstrap mainAgent / agent 键使用。 */
+    public String companionAgentId() {
         String fromSemantic = semantics.agentId();
         if (!blank(fromSemantic)) {
             return fromSemantic;

@@ -21,7 +21,7 @@
 | `ProductTool` | 业务工具实例。`toolId` 必须和 `@Tool` 的 name、目录标识一致 |
 | `CompletionCriteria` | 何时停止，目前只有最大推理轮数 |
 | `PermissionDecision` | `ALLOW` / `ASK` / `DENY` |
-| `PermissionRuleService` | 按工具、租户、角色给出决定。运行层审批 Hook 用这个契约 |
+| `PermissionRuleService` | 按工具、租户、角色给出决定；可带工具入参。运行层审批中间件用这个契约 |
 | `PersonaContract` | 锁定人格。改核心身份必须升 `agentId` |
 | `RiskLevel` | 安全门档位。`CRITICAL` 换危机话术 |
 | `CrisisPrompt` | 危机话术。只从 classpath 读 |
@@ -41,7 +41,7 @@
 
 `ConfiguredPermissionService`：MySQL 关闭时按 `agentscope.permission.rules` 匹配。没有命中时一律 `ALLOW`。
 
-`StoredPermissionService`：MySQL 打开时改为读 `tool_permission`。配置里的规则不再参与。表由用户进程的 Flyway `V4__tool_permission.sql` 创建。`conditions` 只解释 UTC 时分窗 `after` / `before`；不能识别的 JSON 仍跳过整条。命中的 `decision` 写错时这次调用失败，不当成允许。容器里两种实现不会同时存在。
+`StoredPermissionService`：MySQL 打开时改为读 `tool_permission`。配置里的规则不再参与。表由用户进程的 Flyway `V4__tool_permission.sql` 创建。`conditions` 解释 UTC 时分窗 `after` / `before`，以及参数长度 `maxLen` / `minLen`（与时间窗取与）；不能识别的 JSON 仍跳过整条。缺参数按长度 0。命中的 `decision` 写错时这次调用失败，不当成允许。容器里两种实现不会同时存在。
 
 `NoToolCatalog`：MySQL 关闭时目录为空。
 
@@ -59,10 +59,10 @@
 
 运行层的架构测试禁止依赖本模块的 `application` 和 `infrastructure`。无运行层依赖的业务工具（如 `echo_text`）放本模块 `infrastructure.tool`；需要嵌入或向量的工具（如 `knowledge_search`）放运行层。
 
-`infrastructure.tool.EchoTextTool` 是第一把业务工具。实现 `ProductTool`，`toolId` 与 `@Tool` 的 name、目录标识都是 `echo_text`。方法只原样返回，无副作用。容器里始终有这个 Bean；MySQL 关闭时目录为空，运行层仍不注册。MySQL 打开且种子生效时目录命中，权限为全局 `ASK`，用来跑通审批。时间窗条件按 UTC 解释；参数范围还不看。批准后不自动再执行。
+`infrastructure.tool.EchoTextTool` 是第一把业务工具。实现 `ProductTool`，`toolId` 与 `@Tool` 的 name、目录标识都是 `echo_text`。方法只原样返回，无副作用。容器里始终有这个 Bean；MySQL 关闭时目录为空，运行层仍不注册。MySQL 打开且种子生效时目录命中，权限为全局 `ASK`，用来跑通审批。时间窗按 UTC；`maxLen` / `minLen` 看本次工具入参标量长度。批准后不自动再执行。
 
 `PlatformSemanticProvider` 是 `ProductSemanticProvider` 的默认实现。Agent 标识和最大轮数读 `agentscope.runtime` 的同名配置，无效时分别用 `companion-v1` 和 `20`。`PersonaContract` 由 `CompanionPersona` 提供锁定身份。主对话键是 `prompt.companion.system`。危机话术键是 `prompt.safety.crisis`，由 `ClasspathCrisisPrompt` 从 classpath 读取，不走 Nacos。`AbsentSemanticRiskJudge` 不连网，一律返回普通陪伴。改核心身份必须升 `agentId`，不要把 userId 拼进去。MySQL 关闭时目录为空；打开时目录来自 `tool_registry`。
 
 ## 还没有
 
-`conditions` 已解释 UTC 时分窗（`after` / `before`）。参数范围还不看，因为权限判定没有工具入参。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词发布不在进程启动时发生。主对话话术在 `prompts/prompt.companion.system.md`。危机话术在 `prompts/prompt.safety.crisis.md`，只从 classpath 读。`SemanticRiskJudge` 的生产实现不连网，一律普通陪伴。真正的模型判定以后再换。工具名、JSON 结构和安全护栏留在代码里。管理端可通过 `ToolRegistryCatalog` / `POST /api/admin/tool-registries` 登记目录行，以及 `ToolPermissionCatalog` / `POST /api/admin/tool-permissions` 登记权限（conditions 固定空）。仍不在批准后执行工具。
+`conditions` 已解释 UTC 时分窗（`after` / `before`）和参数长度（`maxLen` / `minLen`）。审批中间件把 `ToolUseBlock` 入参交给判定；配置实现仍忽略入参。`param_schema` 只保存，不参与注册。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词发布不在进程启动时发生。主对话话术在 `prompts/prompt.companion.system.md`。危机话术在 `prompts/prompt.safety.crisis.md`，只从 classpath 读。`SemanticRiskJudge` 的生产实现不连网，一律普通陪伴。真正的模型判定以后再换。工具名、JSON 结构和安全护栏留在代码里。管理端可通过 `ToolRegistryCatalog` / `POST /api/admin/tool-registries` 登记目录行，以及 `ToolPermissionCatalog` / `POST /api/admin/tool-permissions` 登记权限（conditions 固定空，长度条件需直接写表）。仍不在批准后执行工具。

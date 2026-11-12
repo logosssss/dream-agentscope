@@ -6,18 +6,21 @@ import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentResponse;
 import com.zhu.runtime.api.AgentStreamEvent;
 import com.zhu.runtime.application.AgentTurnSupport;
-import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
+import io.agentscope.harness.agent.gateway.ChannelManager;
 import io.agentscope.harness.agent.gateway.GatewayBootstrap;
+import io.agentscope.harness.agent.gateway.LocalSessionTurnGate;
+import io.agentscope.harness.agent.gateway.channel.Channel;
 import io.agentscope.harness.agent.gateway.channel.chatui.ChatUiChannel;
 import io.agentscope.harness.agent.gateway.channel.chatui.SendOptions;
 import jakarta.annotation.PreDestroy;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
@@ -28,7 +31,11 @@ import reactor.core.publisher.Flux;
 
 /**
  * 接入层 Agent 网关：长驻 companion + echo，经 ChatUiChannel 进出。
- * 同 session 排队由框架 Gateway 负责。实现 {@link AgentExecutor}，是对话执行唯一入口。
+ * Agent 由 {@link GatewayBootstrap} 的 Consumer 创建；工厂只提供公共项与各 Agent 定制。
+ * 同 session 串行由框架 {@link LocalSessionTurnGate} 负责（进程内）；启动时显式挂上。
+ * 租户等业务字段经 {@link AccessChannelRuntimeContextResolver} 写入 RuntimeContext。
+ * ChatUi 在 Bootstrap 上显式注册，之后只从 {@link ChannelManager} 只读取，不挂第二通道。
+ * 实现 {@link AgentExecutor}，是对话执行唯一入口。
  * 模型密钥缺失不阻断进程启动；首次对话才组装长驻 Agent。
  * 业务配置热更后经 {@link #rebuildAll()} 排空再重建。
  */
@@ -41,8 +48,6 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     private final HarnessAgentFactory agents;
 
     private final AgentTurnSupport turns;
-
-    private final AgentRuntimeProperties properties;
 
     private final ObjectProvider<DistributedStore> stores;
 
@@ -61,26 +66,25 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     public AccessChannelGateway(
             HarnessAgentFactory agents,
             AgentTurnSupport turns,
-            AgentRuntimeProperties properties,
             ObjectProvider<DistributedStore> stores) {
         this.agents = agents;
         this.turns = turns;
-        this.properties = properties;
         this.stores = stores;
     }
 
     /**
-     * 同步一轮。SendOptions 带上会话与 RuntimeContext，走 Gateway 排队。
+     * 同步一轮。进 Gateway 的是业务暂存；护栏收口仍用本地完整上下文。
      */
     @Override
     public AgentResponse execute(AgentRequest request) {
         turns.require(request);
         drain.beginTurn();
         try {
+            // 本地上下文给 finish/用量；Gateway 侧由 resolver + MsgContext 合并。
             RuntimeContext context = turns.context(request);
             long started = System.nanoTime();
             Msg reply = channel()
-                    .send(options(request, context), request.userText())
+                    .send(options(request), request.userText())
                     .block(Duration.ofSeconds(turns.timeoutSeconds()));
             String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
             String runId = AgentTurnSupport.runIdOf(reply);
@@ -103,7 +107,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         AtomicReference<String> runId = new AtomicReference<>(Ids.newId());
         try {
             return channel()
-                    .sendStream(options(request, context), request.userText())
+                    .sendStream(options(request), request.userText())
                     .doOnNext(event -> {
                         if (event instanceof AgentResultEvent result) {
                             Msg message = result.getResult();
@@ -153,26 +157,50 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
 
     /** 组装并启动 Gateway。companion 为 main，echo 仅显式 agentId 可达。调用方须已持有 lock。 */
     private void startGatewayLocked() {
-        HarnessAgent companion = agents.buildCompanionResident();
-        HarnessAgent echo = agents.buildEchoResident();
-        mainAgentId = companion.getAgentId() == null || companion.getAgentId().isBlank()
-                ? properties.getAgentId()
-                : companion.getAgentId();
-        if (mainAgentId == null || mainAgentId.isBlank()) {
-            mainAgentId = "companion-v1";
-        }
+        mainAgentId = agents.companionAgentId();
+        // configureAllAgents 必须在 agent(Consumer) 之前：框架先跑公共项再跑各 Agent 定制并立刻 build。
+        // 唯一通道在 Builder 上显式挂上；start 后只读 ChannelManager，不再 chatUiChannel() 另造一份。
         GatewayBootstrap.Builder builder = GatewayBootstrap.builder()
-                .agent(mainAgentId, companion)
-                .agent(HarnessAgentFactory.ECHO_AGENT_ID, echo)
-                .mainAgent(mainAgentId);
+                .configureAllAgents(agents::configureCommon)
+                .agent(mainAgentId, agents::customizeCompanion)
+                .agent(HarnessAgentFactory.ECHO_AGENT_ID, agents::customizeEcho)
+                .mainAgent(mainAgentId)
+                .channel(ChatUiChannel.create())
+                .runtimeContextResolver(new AccessChannelRuntimeContextResolver());
         DistributedStore store = stores.getIfAvailable();
         if (store != null) {
             builder.distributedStore(store);
         }
         GatewayBootstrap started = builder.build().start();
+        // 显式挂进程内占轮，避免依赖构造默认值；多副本 / Redis turn 不在本期。
+        started.gateway().setSessionTurnGate(new LocalSessionTurnGate());
+        HarnessAgent companion = started.agents().get(mainAgentId);
+        // Toolkit 在 build 之后才有，业务工具只能这时候挂。
+        agents.attachCompanionTools(companion);
         this.bootstrap = started;
-        this.channel = started.chatUiChannel();
-        log.info("channel gateway started main=" + mainAgentId + " echo=" + HarnessAgentFactory.ECHO_AGENT_ID);
+        this.channel = requireChatUi(started.channelManager());
+        log.info("channel gateway started main=" + mainAgentId + " echo=" + HarnessAgentFactory.ECHO_AGENT_ID
+                + " channels=" + started.channelManager().channelIds());
+    }
+
+    /**
+     * 从 ChannelManager 只读取出默认 ChatUi，并要求名单里只有这一条。
+     * 缺通道或类型不对直接失败，避免静默再 new 一份 ChatUi。
+     */
+    public static ChatUiChannel requireChatUi(ChannelManager manager) {
+        if (manager == null) {
+            throw new IllegalStateException("channel manager is missing");
+        }
+        List<String> ids = manager.channelIds();
+        if (ids.size() != 1 || !ChatUiChannel.CHANNEL_ID.equals(ids.get(0))) {
+            throw new IllegalStateException("expected only chatui channel, got " + ids);
+        }
+        Channel bound = manager.getChannel(ChatUiChannel.CHANNEL_ID)
+                .orElseThrow(() -> new IllegalStateException("chatui channel missing"));
+        if (!(bound instanceof ChatUiChannel chatUi)) {
+            throw new IllegalStateException("chatui channel type mismatch: " + bound.getClass().getName());
+        }
+        return chatUi;
     }
 
     /** 停掉当前 Gateway 并关闭 Agent。调用方须已持有 lock。 */
@@ -211,11 +239,14 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         return open;
     }
 
-    /** 会话用请求里的 sessionId；agentId 空则走 main。 */
-    private SendOptions options(AgentRequest request, RuntimeContext context) {
+    /**
+     * 会话用请求里的 sessionId；caller 只带 tenantId/agentId 暂存。
+     * agentId 空或等于 main 时不改路由，仍走 Bootstrap 的 mainAgent。
+     */
+    private SendOptions options(AgentRequest request) {
         String agentId = turns.agentId(request);
         SendOptions options = SendOptions.of(request.userId(), request.sessionId())
-                .withRuntimeContext(context);
+                .withRuntimeContext(AccessChannelRuntimeContextResolver.staging(request.tenantId(), agentId));
         if (agentId != null && !agentId.isBlank() && !agentId.equals(mainAgentId)) {
             options = options.withAgentId(agentId);
         }

@@ -10,6 +10,7 @@ import com.zhu.semantic.infrastructure.persistence.entity.ToolPermission;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * 按 tool_permission 表匹配工具权限。MySQL 打开时创建，替换配置里的规则。
- * 时间窗条件按 UTC 解释；不能解释的 JSON 仍跳过整条，避免当成无条件生效。
+ * 时间窗按 UTC；参数长度看 maxLen / minLen；不能解释的 JSON 仍跳过整条，避免当成无条件生效。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -42,17 +43,25 @@ public class StoredPermissionService implements PermissionRuleService {
     }
 
     /**
+     * 无入参时按缺参数长度 0 解释条件，和对话前预判一致。
+     */
+    @Override
+    public PermissionDecision decide(String toolId, String tenantId, String roleId) {
+        return decide(toolId, tenantId, roleId, null);
+    }
+
+    /**
      * 只读这个工具仍启用的行。命中的决定写错时拒绝这次调用，不能当成允许。
      * 表是空的则允许，和没写配置时一样。
      */
     @Override
-    public PermissionDecision decide(String toolId, String tenantId, String roleId) {
+    public PermissionDecision decide(String toolId, String tenantId, String roleId, Map<String, ?> params) {
         if (toolId == null || toolId.isBlank()) {
             return PermissionDecision.ALLOW;
         }
         List<PermissionRule> matched = new ArrayList<>();
         for (ToolPermission row : rules.selectEnabled(toolId)) {
-            PermissionRule rule = toRule(row, toolId, tenantId, roleId, clock);
+            PermissionRule rule = toRule(row, toolId, tenantId, roleId, clock, params);
             if (rule != null) {
                 matched.add(rule);
             }
@@ -61,11 +70,16 @@ public class StoredPermissionService implements PermissionRuleService {
     }
 
     /**
-     * 没命中的行直接丢掉。时间窗未到或 JSON 不能解释时也丢掉。
+     * 没命中的行直接丢掉。时间窗未到、参数超界或 JSON 不能解释时也丢掉。
      * 命中且决定写错时抛出，不能把拒绝配错后当成允许。
      */
     private static PermissionRule toRule(
-            ToolPermission row, String toolId, String tenantId, String roleId, Clock clock) {
+            ToolPermission row,
+            String toolId,
+            String tenantId,
+            String roleId,
+            Clock clock,
+            Map<String, ?> params) {
         if (row == null || blank(row.getToolId()) || blank(row.getTenantId()) || blank(row.getRoleId())) {
             return null;
         }
@@ -76,7 +90,7 @@ public class StoredPermissionService implements PermissionRuleService {
         if (!probe.matches(toolId, tenantId, roleId)) {
             return null;
         }
-        PermissionConditions.Outcome outcome = PermissionConditions.evaluate(row.getConditions(), clock);
+        PermissionConditions.Outcome outcome = PermissionConditions.evaluate(row.getConditions(), clock, params);
         if (outcome == PermissionConditions.Outcome.UNKNOWN) {
             log.warning("permission rule with conditions was skipped");
             return null;

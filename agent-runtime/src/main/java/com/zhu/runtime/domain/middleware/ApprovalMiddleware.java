@@ -47,7 +47,7 @@ public class ApprovalMiddleware implements MiddlewareBase {
     }
 
     /**
-     * 逐个工具看产品规则。ASK 的调用换成 ASKING 再交给后续中间件。DENY 的调用从这次输入里拿掉。
+     * 逐个工具看产品规则，入参一并交给判定。ASK 的调用换成 ASKING 再交给后续中间件。DENY 的调用从这次输入里拿掉。
      * 已批准且还没执行的单会放行这次同名工具，结束后回写状态。管理进程不执行工具。
      * 不往 PermissionEngine 追加规则：默认上下文是 trivial，引擎规则这次判定读不到；
      * 一旦把上下文改成非 trivial，没匹配到的工具会走默认 ASK，误伤同一次调用里的其它工具。
@@ -86,7 +86,8 @@ public class ApprovalMiddleware implements MiddlewareBase {
             out.add(use);
             return;
         }
-        PermissionDecision decision = permissions.decide(use.getName(), identity.tenantId(), null);
+        // 入参交给产品条件里的 maxLen / minLen；配置实现会忽略 Map。
+        PermissionDecision decision = permissions.decide(use.getName(), identity.tenantId(), null, use.getInput());
         if (decision == PermissionDecision.DENY) {
             return;
         }
