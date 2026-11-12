@@ -1,10 +1,10 @@
 package com.zhu.admin;
 
-import com.zhu.audit.api.ApprovalDecider;
-import com.zhu.audit.api.ApprovalRecorder;
-import com.zhu.audit.api.AuditQuery;
-import com.zhu.audit.api.AuditRecorder;
-import com.zhu.audit.api.SafetyInterventionRecorder;
+import com.zhu.audit.api.approval.ApprovalDecider;
+import com.zhu.audit.api.approval.ApprovalRecorder;
+import com.zhu.audit.api.event.AuditQuery;
+import com.zhu.audit.api.event.AuditRecorder;
+import com.zhu.audit.api.safety.SafetyInterventionRecorder;
 import com.zhu.common.security.CallerTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

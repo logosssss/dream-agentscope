@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.runtime.domain.RecalledMemories;
-import com.zhu.state.api.EpisodicMemoryItem;
+import com.zhu.state.api.memory.EpisodicMemoryItem;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;

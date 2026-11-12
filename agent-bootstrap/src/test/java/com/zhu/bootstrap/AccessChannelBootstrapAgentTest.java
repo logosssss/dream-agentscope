@@ -2,7 +2,7 @@ package com.zhu.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.zhu.access.application.chat.AccessChannelGateway;
+import com.zhu.access.application.chat.gateway.AccessChannelGateway;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.model.ChatResponse;

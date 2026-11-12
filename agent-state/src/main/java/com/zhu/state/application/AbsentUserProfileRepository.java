@@ -1,7 +1,7 @@
 package com.zhu.state.application;
 
-import com.zhu.state.api.UserProfileItem;
-import com.zhu.state.api.UserProfileRepository;
+import com.zhu.state.api.memory.UserProfileItem;
+import com.zhu.state.api.memory.UserProfileRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 

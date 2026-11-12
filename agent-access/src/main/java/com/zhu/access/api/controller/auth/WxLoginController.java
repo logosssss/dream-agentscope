@@ -1,6 +1,6 @@
 package com.zhu.access.api.controller.auth;
 
-import com.zhu.access.application.auth.WxLoginService;
+import com.zhu.access.application.auth.wx.WxLoginService;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

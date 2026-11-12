@@ -1,9 +1,9 @@
 package com.zhu.access.api.controller.account;
 
-import com.zhu.access.application.auth.AccessAccountGate;
-import com.zhu.audit.api.TokenUsageDetail;
-import com.zhu.audit.api.TokenUsageQuery;
-import com.zhu.audit.api.TokenUsageRow;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.audit.api.usage.TokenUsageDetail;
+import com.zhu.audit.api.usage.TokenUsageQuery;
+import com.zhu.audit.api.usage.TokenUsageRow;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;

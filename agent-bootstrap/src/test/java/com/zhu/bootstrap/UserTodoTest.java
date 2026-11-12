@@ -1,12 +1,12 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.application.chat.ApprovalNotificationListener;
-import com.zhu.audit.api.ApprovalNotifier;
-import com.zhu.audit.api.UserTodoCatalog;
-import com.zhu.audit.application.MysqlUserTodoCatalog;
+import com.zhu.audit.api.approval.ApprovalNotifier;
+import com.zhu.audit.api.approval.UserTodoCatalog;
+import com.zhu.audit.application.approval.MysqlUserTodoCatalog;
 import com.zhu.audit.domain.event.ApprovalRequestedEvent;
-import com.zhu.audit.infrastructure.persistence.UserTodoMapper;
-import com.zhu.audit.infrastructure.persistence.entity.UserTodo;
+import com.zhu.audit.infrastructure.persistence.approval.UserTodoMapper;
+import com.zhu.audit.infrastructure.persistence.entity.approval.UserTodo;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.LocalDateTime;

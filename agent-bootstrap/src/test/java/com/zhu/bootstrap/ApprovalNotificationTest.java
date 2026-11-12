@@ -1,12 +1,12 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.application.chat.ApprovalNotificationListener;
-import com.zhu.audit.api.ApprovalNotifier;
-import com.zhu.audit.api.UserTodoCatalog;
-import com.zhu.audit.application.MysqlApprovalNotifier;
+import com.zhu.audit.api.approval.ApprovalNotifier;
+import com.zhu.audit.api.approval.UserTodoCatalog;
+import com.zhu.audit.application.approval.MysqlApprovalNotifier;
 import com.zhu.audit.domain.event.ApprovalRequestedEvent;
-import com.zhu.audit.infrastructure.persistence.ApprovalNotificationMapper;
-import com.zhu.audit.infrastructure.persistence.entity.ApprovalNotification;
+import com.zhu.audit.infrastructure.persistence.approval.ApprovalNotificationMapper;
+import com.zhu.audit.infrastructure.persistence.entity.approval.ApprovalNotification;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;

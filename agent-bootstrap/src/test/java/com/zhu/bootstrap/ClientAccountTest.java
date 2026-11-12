@@ -1,12 +1,12 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.auth.ClientAccountService;
+import com.zhu.access.application.auth.session.ClientAccountService;
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.application.auth.UserLoginService;
+import com.zhu.access.application.auth.session.UserLoginService;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.config.ClientAuthProperties;
-import com.zhu.audit.api.ClientLoginStore;
-import com.zhu.audit.api.RegisteredClient;
+import com.zhu.audit.api.tenant.ClientLoginStore;
+import com.zhu.audit.api.tenant.RegisteredClient;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;

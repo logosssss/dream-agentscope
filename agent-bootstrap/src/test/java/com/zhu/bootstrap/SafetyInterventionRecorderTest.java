@@ -1,9 +1,9 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.api.SafetyInterventionRecorder;
-import com.zhu.audit.application.MysqlSafetyInterventionRecorder;
-import com.zhu.audit.infrastructure.persistence.SafetyInterventionMapper;
-import com.zhu.audit.infrastructure.persistence.entity.SafetyIntervention;
+import com.zhu.audit.api.safety.SafetyInterventionRecorder;
+import com.zhu.audit.application.safety.MysqlSafetyInterventionRecorder;
+import com.zhu.audit.infrastructure.persistence.safety.SafetyInterventionMapper;
+import com.zhu.audit.infrastructure.persistence.entity.safety.SafetyIntervention;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;

@@ -2,8 +2,8 @@ package com.zhu.state.infrastructure.persistence;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.state.api.UserProfileItem;
-import com.zhu.state.api.UserProfileRepository;
+import com.zhu.state.api.memory.UserProfileItem;
+import com.zhu.state.api.memory.UserProfileRepository;
 import com.zhu.state.infrastructure.persistence.entity.UserProfile;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

@@ -1,10 +1,10 @@
 package com.zhu.access.api.controller.account;
 
-import com.zhu.access.api.dto.DeletionRequest;
-import com.zhu.access.application.auth.AccessAccountGate;
-import com.zhu.audit.api.DeletionRequestCatalog;
-import com.zhu.audit.api.DeletionRequestDetail;
-import com.zhu.audit.api.DeletionRequestSummary;
+import com.zhu.access.api.dto.account.DeletionRequest;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.audit.api.deletion.DeletionRequestCatalog;
+import com.zhu.audit.api.deletion.DeletionRequestDetail;
+import com.zhu.audit.api.deletion.DeletionRequestSummary;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;

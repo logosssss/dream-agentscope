@@ -1,17 +1,17 @@
 package com.zhu.access.application.knowledge;
 
-import com.zhu.access.api.dto.KnowledgeBaseDetail;
-import com.zhu.access.api.dto.KnowledgeDocumentDetail;
-import com.zhu.audit.api.AttachmentCatalog;
+import com.zhu.access.api.dto.knowledge.KnowledgeBaseDetail;
+import com.zhu.access.api.dto.knowledge.KnowledgeDocumentDetail;
+import com.zhu.audit.api.attachment.AttachmentCatalog;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
 import com.zhu.objectstore.api.ObjectStore;
-import com.zhu.state.api.KnowledgeBaseItem;
-import com.zhu.state.api.KnowledgeBaseOwned;
-import com.zhu.state.api.KnowledgeDocumentItem;
-import com.zhu.state.api.KnowledgeDocumentVersion;
-import com.zhu.state.api.KnowledgeRepository;
+import com.zhu.state.api.knowledge.KnowledgeBaseItem;
+import com.zhu.state.api.knowledge.KnowledgeBaseOwned;
+import com.zhu.state.api.knowledge.KnowledgeDocumentItem;
+import com.zhu.state.api.knowledge.KnowledgeDocumentVersion;
+import com.zhu.state.api.knowledge.KnowledgeRepository;
 import com.zhu.vector.api.VectorStore;
 import com.zhu.vector.infrastructure.MilvusCollections;
 import java.nio.charset.StandardCharsets;

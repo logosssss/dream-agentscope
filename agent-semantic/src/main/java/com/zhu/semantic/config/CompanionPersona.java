@@ -1,6 +1,6 @@
 package com.zhu.semantic.config;
 
-import com.zhu.semantic.contract.PersonaContract;
+import com.zhu.semantic.contract.product.PersonaContract;
 import java.util.List;
 import org.springframework.stereotype.Component;
 

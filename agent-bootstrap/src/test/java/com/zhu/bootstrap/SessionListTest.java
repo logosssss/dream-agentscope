@@ -1,10 +1,10 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.dto.SessionDetail;
-import com.zhu.access.api.dto.SessionSummary;
-import com.zhu.access.application.chat.AbsentChatMessageStore;
-import com.zhu.access.application.chat.SessionListService;
-import com.zhu.access.application.chat.SessionMetaStore;
+import com.zhu.access.api.dto.chat.SessionDetail;
+import com.zhu.access.api.dto.chat.SessionSummary;
+import com.zhu.access.application.chat.message.AbsentChatMessageStore;
+import com.zhu.access.application.chat.session.SessionListService;
+import com.zhu.access.application.chat.session.SessionMetaStore;
 import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

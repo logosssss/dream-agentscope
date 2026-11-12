@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.semantic.api.PlatformPrompt;
+import com.zhu.semantic.api.prompt.PlatformPrompt;
 import com.zhu.semantic.infrastructure.prompt.PromptTemplateCheck;
 import java.net.URISyntaxException;
 import java.net.URL;

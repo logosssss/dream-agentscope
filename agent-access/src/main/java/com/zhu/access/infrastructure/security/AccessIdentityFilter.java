@@ -1,6 +1,6 @@
 package com.zhu.access.infrastructure.security;
 
-import com.zhu.access.application.auth.LoginSessionCodec;
+import com.zhu.access.application.auth.session.LoginSessionCodec;
 import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;

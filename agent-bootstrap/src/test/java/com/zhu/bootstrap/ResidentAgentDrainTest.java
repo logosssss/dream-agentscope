@@ -2,7 +2,7 @@ package com.zhu.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.zhu.access.application.chat.ResidentAgentDrain;
+import com.zhu.access.application.chat.gateway.ResidentAgentDrain;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;

@@ -1,7 +1,7 @@
 package com.zhu.state.application;
 
-import com.zhu.state.api.EpisodicMemoryItem;
-import com.zhu.state.api.EpisodicMemoryRepository;
+import com.zhu.state.api.memory.EpisodicMemoryItem;
+import com.zhu.state.api.memory.EpisodicMemoryRepository;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;

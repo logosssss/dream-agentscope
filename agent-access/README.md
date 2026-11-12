@@ -18,45 +18,51 @@
 | `api.controller` | `ReadinessController` | `GET /health/ready`。生产探测 MySQL、Redis、Milvus，任一项失败 HTTP 503 |
 | `api.controller` | `ChatController` | `POST /api/chat` 同步 JSON；`POST /api/chat/stream` 输出 SSE。不覆盖过滤器写入的线程身份 |
 | `api.controller` | `ApprovalController` | `GET /api/approvals/pending` 返回当前用户本租户待确认（含 sessionId）；`GET /api/approvals/{approvalId}` 看一张，含已决定和申请、决定时间；`POST /api/approvals/{approvalId}/decision` 本人决定，通道固定 WEB，不执行工具 |
-| `api.dto` | `PendingApproval` / `ApprovalDecisionRequest` / `ApprovalDecisionView` | 待确认摘要；用户决定入参（无审批人）；决定回传摘要 |
+| `api.dto.chat` | `PendingApproval` / `ApprovalDecisionRequest` / `ApprovalDecisionView` / `ApprovalDetail` | 待确认摘要；用户决定入参（无审批人）；决定回传摘要；单张详情 |
 | `api.controller` | `NotificationController` | `GET /api/notifications` 列出本人审批通知；`GET /api/notifications/{id}` 看一条，含创建时间。不发送，也不改状态 |
 | `api.controller` | `SessionController` | `GET /api/sessions` 列出活动会话；`GET /api/sessions/{sessionId}` 看元数据（不含正文）；`GET /api/sessions/{sessionId}/messages` 按 seq 升序拉气泡 |
-| `api.dto` | `SessionDetail` | 详情一行：状态、最近运行、轮数和最近活动时间 |
+| `api.dto.chat` | `SessionDetail` | 详情一行：状态、最近运行、轮数和最近活动时间 |
 | `api.controller` | `RunController` | `GET /api/runs` 列出本人本租户已经结束的运行；`GET /api/runs/{runId}` 看一次运行、步骤和开始结束时间。不返回全文 |
-| `api.dto` | `RunSummary` / `RunDetail` / `RunStepSummary` | 列表一行短摘要；详情另带步骤类型、工具名、状态和开始结束时间 |
+| `api.dto.chat` | `RunSummary` / `RunDetail` / `RunStepSummary` | 列表一行短摘要；详情另带步骤类型、工具名、状态和开始结束时间 |
 | `application` | `RunQuery` / `MysqlRunQuery` | 按用户和租户读 `agent_run`。详情再读步骤。MySQL 关闭时没有实现 |
 | `api.controller` | `LoginController` | `POST /api/register` 注册并登录；`POST /api/login` 密码登录；`POST /api/logout` 删掉令牌。仍要调用方令牌 |
 | `api.controller` | `WxLoginController` | `GET /api/auth/config`、`POST /api/auth/wx/ticket`、`GET /api/auth/wx/ticket/{ticketId}` 走统一响应。`POST /api/public/auth/wx/confirm` 给小程序，不带调用方令牌 |
 | `api.controller` | `MeController` | `GET /api/me` 看这次请求的租户和用户。不签发令牌 |
-| `api.dto` | `CurrentUser` | 当前身份。显示名和状态在 MySQL 关闭时为空 |
-| `api.dto` | `SessionSummary` | 列表一行：会话、短标题、通道、最近活动时间 |
-| `api.dto` | `ChatRequest` | HTTP 入参。`channel` 空则 `WEB`，不传给运行层 |
-| `api.dto` | `LoginRequest` / `LoginResponse` | 账号和密码。响应带显示名。没有 JWT |
+| `api.dto.auth` | `CurrentUser` | 当前身份。显示名和状态在 MySQL 关闭时为空 |
+| `api.dto.chat` | `SessionSummary` / `ChatMessageItem` / `ChatRequest` | 会话列表一行；气泡；对话 HTTP 入参（`channel` 空则 `WEB`） |
+| `api.dto.auth` | `LoginRequest` / `LoginResponse` | 账号和密码。响应带显示名。没有 JWT |
+| `api.dto.attachment` | `AttachmentRequest` / `AttachmentRefRequest` / `AttachmentContent` | 附件登记、引用与下载回传 |
+| `api.dto.knowledge` | `KnowledgeBaseCreateRequest` / `KnowledgeBaseDetail` / `KnowledgeDocumentDetail` / `KnowledgeDocumentUploadRequest` | 知识库与文档入参、详情 |
 | `domain.channel` | `AccessChannel` | `WEB` / `IM` / `API`。只描述请求从哪进来 |
 | `infrastructure.security` | `CallerTokenFilter` | `X-Caller-Token` 对上 `AGENTSCOPE_CALLER_TOKEN` 才放行。存活、就绪和小程序确认除外 |
 | `infrastructure.security` | `AccessIdentityFilter` | 只认 `Authorization: Bearer` 登录会话。请求头里的租户和用户不采用 |
 | `infrastructure.cache` | `AccessCache` | 额度、幂等、限流、会话列表和登录会话。只走 Redis |
-| `application` | `UserLoginService` | 凭证核对后写入 `login-session:{token}`。Redis 失败 503。不接受自报用户 |
-| `application` | `ClientAccountService` | 密码注册、密码登录、微信建号。进入配置里的那个租户 |
-| `application` | `CurrentUserQuery` | 先过账号门，再可选读 `tenant_user`。不读剩余 TTL |
-| `application` | `ChatAppService` | 身份只取登录会话。空提示词走 `PromptService`，额度通过并占锁后记下会话，再调用 `AgentExecutor` |
-| `application` | `SessionListService` | 列表键 `session-list:{tenant}:{user}`，五分钟。写入后删键。Redis 失败改查 MySQL |
+| `application.auth.session` | `UserLoginService`、`LoginSessionCodec`、`ClientAccountService`、`CurrentUserQuery` | 签发/删除 Redis 登录会话；密码注册登录与微信建号；看当前身份。Redis 失败 503。不接受自报用户，不读剩余 TTL |
+| `application.chat` | `ChatAppService`、`ApprovalNotificationListener` | 对话编排与审批通知订阅。身份只取登录会话，再交给 Channel Gateway |
+| `application.chat.gateway` | `AccessChannelGateway`、`AccessChannelRuntimeContextResolver`、`ResidentAgentDrain`、`ResidentAgentReloader` | ChatUi Channel Gateway、上下文解析与长驻 Agent 排空/重建 |
+| `application.chat.session` | `SessionIndex`、`SessionListService`、`SessionMetaStore`、`SessionOwnerGate` 及空/MySQL 实现 | 会话列表缓存与归属；列表键 `session-list:{tenant}:{user}`，五分钟 |
+| `application.chat.message` | `ChatMessageStore` 及空实现 | 会话气泡读写缝 |
+| `application.chat.run` | `RunLog`、`RunQuery`、`RunStep`、`ConcurrentRunGuard` 及实现 | 运行落库、步骤与租户并发占位 |
 | `api.controller` | `QuotaController` | `GET /api/quota` 看当日已用量和上限。不扣额度 |
-| `api.dto` | `QuotaSnapshot` / `QuotaMeter` | 请求、token、费用微单位和同时运行的已用量与上限 |
+| `api.dto.account` | `QuotaSnapshot` / `QuotaMeter` | 请求、token、费用微单位和同时运行的已用量与上限 |
 | `application` | `QuotaGuard`、`RedisDailyTokenAccumulator`、`RedisDailyCostAccumulator`、`SessionTurnGuard`、`ConcurrentRunGuard` | 请求额度键 `quota:{tenant}:{user}:{yyyyMMdd}`；token 键 `quota-tokens:...`；费用键 `quota-cost:...`。会话短锁 `turn:{tenant}:{user}:{session}`，结束即释放。同时运行键 `concurrent:{tenant}`，结束减一 |
-| `application` | `AccessAccountGate` | 对话以外的接口先过登录会话里的租户和用户。没有会话按未登录。MySQL 关闭时，已有会话则放行 |
+| `application.auth.gate` | `AccessAccountGate`、`OpenTenantGate`、`OpenTenantUserGate` | 对话以外先过登录会话里的租户和用户；MySQL 关闭时已有会话放行、不查 `tenant_user`，打开后改走目录 |
+| `application.auth.wx` | `WxLoginService`、`WxRemote`、`WxWeixin` | 网站出票、小程序确认与微信 HTTP 实现 |
 | `api.controller` | `KnowledgeController` | `POST/GET/DELETE /api/kb`，列表带建库时间；`GET /api/kb/{kbId}` 看一个库，含创建时间；`GET /api/kb/{kbId}/documents`；`GET /api/kb/documents/{docId}` 看最新一版的状态和时间，不读正文；`POST /api/kb/documents` JSON 正文；`POST /api/kb/documents/file` 纯文本 multipart（≤2MB）；status / reindex / `DELETE` 文档。立即返回 PENDING |
 | `api.controller` | `AttachmentController` | `GET /api/attachments` 列出本人本租户仍启用的附件；`GET /api/attachments/{id}` 看 MIME、大小和创建时间；`POST /api/attachments` JSON 只登记元数据；`POST /api/attachments/file` multipart 写入 `ObjectStore`（≤5MB）；`POST /api/attachments/{id}/disable` 改成 `DELETED`；`POST /api/attachments/{id}/restore` 改回 `ACTIVE`；`GET /api/attachments/{id}/content` 下载正文；`GET /api/attachments/{id}/refs` 列出引用和挂上的时间；`POST /api/attachments/{id}/refs` 挂引用 |
 | `api.controller` | `DeletionRequestController` | `GET /api/deletion-requests` 列出本人本租户的删除请求；`GET /api/deletion-requests/{requestId}` 看一条，含提出时间；`POST /api/deletion-requests` 登记待处理。不批准，也不真正删除 |
 | `api.controller` | `FeedbackController` | `GET /api/feedback` 列出本人反馈；`GET /api/feedback/{id}` 看一条，含创建时间；`POST /api/feedback` 登记 1 到 5 的评分。不核运行，也不收文件 |
 | `api.controller` | `UsageController` | `GET /api/usage` 列出本人本租户的 token 用量；`GET /api/usage/{id}` 看一条，含记账时间。不带提示词，也不改金额 |
 | `api.controller` | `TaskController` | `GET /api/tasks` 列出本人本租户的同步任务；`GET /api/tasks/{taskId}` 看一次任务的开始结束时间。不读参数，也不是待办 |
-| `api.dto` | `TaskSummary` / `TaskDetail` | 列表一行：任务标识、类型、状态和异常类型；详情另带开始结束时间 |
+| `api.dto.account` | `TaskSummary` / `TaskDetail` / `TodoRequest` / `FeedbackRequest` / `DeletionRequest` | 任务、待办、反馈与删除请求入参或摘要 |
 | `application` | `TaskQuery` / `MysqlTaskQuery` | 按用户和租户读 `agent_task`。详情再带开始结束时间。MySQL 关闭时没有实现 |
 | `application` | `AttachmentAppService` | 先写对象再登记。`storage_type` 跟实现走。路径 `att/{tenant}/{user}/{id}/{fileName}`。目录不可用或超限不写对象。登记失败尝试回滚对象。下载只读本人 `att/` 或 `kb/` 对象键，JSON 声称的盘路径不读 |
 | `application` | `KnowledgeAppService`、`KnowledgeIndexLauncher`、`KnowledgeTextFileReader` | 落库后 `@Async` 发布 `DOCUMENT_INDEX`。文件只解 UTF-8 纯文本；原始字节写入 `ObjectStore`（local / OSS / S3 / MinIO），附件 `storage_type` 跟实现走，路径为业务对象键并挂 `DOCUMENT`。删除先清向量和对象再删 MySQL。对象删失败不挡删行。MySQL 关闭时建库不可用 |
-| `application` | `OpenTenantUserGate` | MySQL 关闭时不查 `tenant_user`。打开时改走目录 |
-| `infrastructure.persistence` | `MysqlSessionTurnCount` | MySQL 打开时数 `agent_run` 的成功行。人设检查用，不占锁 |
+| `infrastructure.persistence.session` | `SessionMetaMapper`、`MysqlSessionMetaStore`、`MysqlSessionTurnCount` | 会话元数据与成功轮次；轮次人设检查用，不占锁 |
+| `infrastructure.persistence.message` | `ChatMessageMapper`、`MysqlChatMessageStore` | 会话气泡双写与按 seq 查询 |
+| `infrastructure.persistence.run` | `AgentRunMapper`、`AgentRunStepMapper`、`MysqlRunLog` | 运行与步骤落库 |
+| `infrastructure.persistence.task` | `AgentTaskMapper`、`MysqlAgentTaskLog` | 同步任务开始/结束落库 |
+| `infrastructure.persistence.entity.*` | `SessionMeta` / `ChatMessage` / `AgentRun*` / `AgentTaskRow` | 与上列域平行的行映射 |
 
 `/api/chat` 返回 `ApiResult<AgentResponse>`。`/api/chat/stream` 的 `Content-Type` 是 `text/event-stream`，每条 `data` 是 `AgentStreamEvent`（`type`、`text`）。两条路径共用同一份请求体：
 

@@ -1,9 +1,9 @@
 package com.zhu.admin;
 
-import com.zhu.audit.api.ApprovalDecider;
-import com.zhu.audit.api.ApprovalRow;
-import com.zhu.audit.api.AuditEventRow;
-import com.zhu.audit.api.AuditQuery;
+import com.zhu.audit.api.approval.ApprovalDecider;
+import com.zhu.audit.api.approval.ApprovalRow;
+import com.zhu.audit.api.event.AuditEventRow;
+import com.zhu.audit.api.event.AuditQuery;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.util.List;

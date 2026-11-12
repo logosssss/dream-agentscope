@@ -1,10 +1,10 @@
 package com.zhu.access.api.controller.account;
 
-import com.zhu.access.api.dto.TodoRequest;
-import com.zhu.access.application.auth.AccessAccountGate;
-import com.zhu.audit.api.UserTodoCatalog;
-import com.zhu.audit.api.UserTodoDetail;
-import com.zhu.audit.api.UserTodoRow;
+import com.zhu.access.api.dto.account.TodoRequest;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.audit.api.approval.UserTodoCatalog;
+import com.zhu.audit.api.approval.UserTodoDetail;
+import com.zhu.audit.api.approval.UserTodoRow;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;

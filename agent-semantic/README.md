@@ -12,38 +12,29 @@
 
 ## 包
 
-### `contract`：给运行层的缝
+### `contract`：给运行层的缝（按域分包）
 
-| 类型 | 作用 |
-| --- | --- |
-| `ProductSemanticProvider` | 运行层能看见的产品语义：Agent 标识、工具、停止条件、提示词兜底 |
-| `ToolDescriptor` | 一条工具描述。运行层用它决定哪些实现可以注册 |
-| `ProductTool` | 业务工具实例。`toolId` 必须和 `@Tool` 的 name、目录标识一致 |
-| `CompletionCriteria` | 何时停止，目前只有最大推理轮数 |
-| `PermissionDecision` | `ALLOW` / `ASK` / `DENY` |
-| `PermissionRuleService` | 按工具、租户、角色给出决定；可带工具入参。运行层审批中间件用这个契约 |
-| `PersonaContract` | 锁定人格。改核心身份必须升 `agentId` |
-| `RiskLevel` | 安全门档位。`CRITICAL` 换危机话术 |
-| `CrisisPrompt` | 危机话术。只从 classpath 读 |
-| `SemanticRiskJudge` | 语义风险判定。测试注入假实现，生产默认不连网 |
+| 包 | 类型 | 作用 |
+| --- | --- | --- |
+| `contract.product` | `ProductSemanticProvider`、`CompletionCriteria`、`PersonaContract` | 产品语义、停止条件、锁定人格 |
+| `contract.tool` | `ToolDescriptor`、`ProductTool` | 工具描述与可注册实现 |
+| `contract.permission` | `PermissionDecision`、`PermissionRuleService` | 工具权限决定；可带工具入参 |
+| `contract.safety` | `RiskLevel`、`CrisisPrompt`、`SemanticRiskJudge` | 安全档、危机话术、语义风险判定 |
 
 `agentId()` 是状态命名空间，不是展示名。改展示名不能改这个值，否则旧会话会对到空状态。
 
-### `api`：给接入层的缝
+### `api`：给接入层的缝（按域分包）
 
-| 类型 | 作用 |
-| --- | --- |
-| `PromptService` | 按 key 取提示词。外部配置失败时必须退回调用方传入的 fallback，不能返回空串 |
-| `PlatformPrompt` | 请求没带系统提示词时的键和兜底。产品话术不放这里 |
-| `ToolCatalogService` | 当前启用的工具，不含停用项 |
+| 包 | 类型 | 作用 |
+| --- | --- | --- |
+| `api.prompt` | `PromptService`、`PlatformPrompt` | 按 key 取提示词；请求没带系统提示词时的键和兜底 |
+| `api.tool` | `ToolCatalogService`、`NoToolCatalog`、`ToolRegistryCatalog`、`ToolRegistrySummary`、`ToolPermissionCatalog`、`ToolPermissionSummary` | 工具目录与权限登记缝；MySQL 关闭时目录为空实现 |
 
 ### `config`
 
 `ConfiguredPermissionService`：MySQL 关闭时按 `agentscope.permission.rules` 匹配。没有命中时一律 `ALLOW`。
 
 `StoredPermissionService`：MySQL 打开时改为读 `tool_permission`。配置里的规则不再参与。表由用户进程的 Flyway `V4__tool_permission.sql` 创建。`conditions` 解释 UTC 时分窗 `after` / `before`，以及参数长度 `maxLen` / `minLen`（与时间窗取与）；不能识别的 JSON 仍跳过整条。缺参数按长度 0。命中的 `decision` 写错时这次调用失败，不当成允许。容器里两种实现不会同时存在。
-
-`NoToolCatalog`：MySQL 关闭时目录为空。
 
 `StoredToolCatalog`：MySQL 打开时读 `tool_registry` 的启用行，表由 `V6__tool_registry.sql` 创建。空白标识跳过。表是空的则目录为空。参数结构只保存在表里，不参与注册。没有对应 `ProductTool` 时运行层仍不把名字交给模型。`V32__echo_text_tool.sql` 种子插入 `echo_text` 目录行，以及全局 `ASK` 权限。`V35__knowledge_search_tool.sql` 种子插入 `knowledge_search`，全局 `ALLOW`；实现在运行层。
 

@@ -1,11 +1,11 @@
 package com.zhu.bootstrap;
 
 import com.zhu.runtime.domain.middleware.PersonaConsistencyMiddleware;
-import com.zhu.semantic.contract.RiskLevel;
-import com.zhu.state.api.EpisodicMemoryItem;
-import com.zhu.state.api.EpisodicMemoryRepository;
-import com.zhu.state.api.UserProfileItem;
-import com.zhu.state.api.UserProfileRepository;
+import com.zhu.semantic.contract.safety.RiskLevel;
+import com.zhu.state.api.memory.EpisodicMemoryItem;
+import com.zhu.state.api.memory.EpisodicMemoryRepository;
+import com.zhu.state.api.memory.UserProfileItem;
+import com.zhu.state.api.memory.UserProfileRepository;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.middleware.AgentInput;

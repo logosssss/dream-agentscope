@@ -1,11 +1,11 @@
 package com.zhu.runtime.domain.middleware;
 
-import com.zhu.audit.api.ApprovalRecorder;
+import com.zhu.audit.api.approval.ApprovalRecorder;
 import com.zhu.audit.domain.event.ApprovalRequestedEvent;
 import com.zhu.common.util.Ids;
 import com.zhu.runtime.domain.CallIdentity;
-import com.zhu.semantic.contract.PermissionDecision;
-import com.zhu.semantic.contract.PermissionRuleService;
+import com.zhu.semantic.contract.permission.PermissionDecision;
+import com.zhu.semantic.contract.permission.PermissionRuleService;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;

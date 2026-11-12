@@ -16,12 +16,9 @@
 
 | 包 | 类型 | 现状 |
 | --- | --- | --- |
-| `api` | `AgentStateRepository` | 会话状态读写缝，还没有实现类 |
-| `api` | `WorkspaceFileRepository` | 工作区文件读写缝，对应 BaseStore，还没有实现类 |
-| `api` | `ExecutionLockService` | 沙箱执行锁，还没有实现类 |
-| `api` | `EpisodicMemoryRepository`、`EpisodicMemoryItem` | 情景记忆读写缝。按租户和用户切开 |
-| `api` | `UserProfileRepository`、`UserProfileItem` | 用户画像读写缝。每个租户用户一行 |
-| `api` | `KnowledgeRepository`、`KnowledgeBaseItem`、`KnowledgeDocumentItem`、`KnowledgeChunkItem` | 知识库读写缝。向量不在这里 |
+| `api.store` | `AgentStateRepository`、`WorkspaceFileRepository`、`ExecutionLockService` | 会话状态、工作区文件、沙箱执行锁读写缝；还没有旁路实现类（走框架 `DistributedStore`） |
+| `api.memory` | `EpisodicMemoryRepository`、`EpisodicMemoryItem`、`UserProfileRepository`、`UserProfileItem` | 情景记忆与用户画像读写缝 |
+| `api.knowledge` | `KnowledgeRepository`、`KnowledgeBaseItem`、`KnowledgeBaseOwned`、`KnowledgeDocumentItem`、`KnowledgeDocumentVersion`、`KnowledgeChunkItem` | 知识库读写缝。向量不在这里 |
 | `config` | `MysqlStoreProperties` | 前缀 `agentscope.distributed.mysql` |
 | `config` | `DistributedStoreConfig` | 仅在开关打开时装配 `DistributedStore` |
 | `config` | `StateMapperConfig` | MySQL 打开时扫描记忆 Mapper |

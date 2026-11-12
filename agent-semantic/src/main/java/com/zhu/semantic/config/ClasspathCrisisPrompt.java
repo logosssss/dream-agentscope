@@ -1,6 +1,6 @@
 package com.zhu.semantic.config;
 
-import com.zhu.semantic.contract.CrisisPrompt;
+import com.zhu.semantic.contract.safety.CrisisPrompt;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;

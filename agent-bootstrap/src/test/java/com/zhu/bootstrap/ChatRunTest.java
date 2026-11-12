@@ -1,13 +1,13 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.dto.ChatRequest;
-import com.zhu.access.application.chat.AbsentChatMessageStore;
+import com.zhu.access.api.dto.chat.ChatRequest;
+import com.zhu.access.application.chat.message.AbsentChatMessageStore;
 import com.zhu.access.application.chat.ChatAppService;
-import com.zhu.access.application.chat.ConcurrentRunGuard;
+import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.application.chat.RunLog;
-import com.zhu.access.application.chat.RunStep;
-import com.zhu.access.application.chat.SessionIndex;
+import com.zhu.access.application.chat.run.RunLog;
+import com.zhu.access.application.chat.run.RunStep;
+import com.zhu.access.application.chat.session.SessionIndex;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.common.context.TenantContext;

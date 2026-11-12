@@ -1,11 +1,11 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.infrastructure.persistence.AgentEventAuditMapper;
-import com.zhu.audit.infrastructure.persistence.ApprovalRecordMapper;
-import com.zhu.audit.infrastructure.persistence.MybatisApprovalRecorder;
-import com.zhu.audit.infrastructure.persistence.MybatisAuditRecorder;
-import com.zhu.audit.infrastructure.persistence.entity.AgentEventAudit;
-import com.zhu.audit.infrastructure.persistence.entity.ApprovalRecord;
+import com.zhu.audit.infrastructure.persistence.event.AgentEventAuditMapper;
+import com.zhu.audit.infrastructure.persistence.approval.ApprovalRecordMapper;
+import com.zhu.audit.infrastructure.persistence.approval.MybatisApprovalRecorder;
+import com.zhu.audit.infrastructure.persistence.event.MybatisAuditRecorder;
+import com.zhu.audit.infrastructure.persistence.entity.event.AgentEventAudit;
+import com.zhu.audit.infrastructure.persistence.entity.approval.ApprovalRecord;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

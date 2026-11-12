@@ -1,9 +1,9 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.api.AuditRecorder;
+import com.zhu.audit.api.event.AuditRecorder;
 import com.zhu.runtime.task.AgentTask;
-import com.zhu.runtime.task.DispatchingAgentTaskHandler;
-import com.zhu.runtime.task.DocumentIndexExecutor;
+import com.zhu.runtime.task.handle.DispatchingAgentTaskHandler;
+import com.zhu.runtime.task.handle.DocumentIndexExecutor;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;

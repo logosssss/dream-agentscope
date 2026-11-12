@@ -3,7 +3,7 @@ package com.zhu.bootstrap;
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.infrastructure.cache.AccessCache;
-import com.zhu.audit.api.TenantQuotaLookup;
+import com.zhu.audit.api.quota.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;

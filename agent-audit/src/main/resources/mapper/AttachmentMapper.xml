@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.zhu.audit.infrastructure.persistence.AttachmentMapper">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.attachment.AttachmentMapper">
 
-    <resultMap id="OwnerResultMap" type="com.zhu.audit.infrastructure.persistence.entity.Attachment">
+    <resultMap id="OwnerResultMap" type="com.zhu.audit.infrastructure.persistence.entity.attachment.Attachment">
         <id column="id" property="id"/>
         <result column="attachment_id" property="attachmentId"/>
         <result column="user_id" property="userId"/>
@@ -46,7 +46,7 @@
           AND status = 'DELETED'
     </update>
 
-    <resultMap id="StoredResultMap" type="com.zhu.audit.infrastructure.persistence.entity.Attachment">
+    <resultMap id="StoredResultMap" type="com.zhu.audit.infrastructure.persistence.entity.attachment.Attachment">
         <result column="attachment_id" property="attachmentId"/>
         <result column="tenant_id" property="tenantId"/>
         <result column="user_id" property="userId"/>
@@ -64,7 +64,7 @@
         LIMIT 1
     </select>
 
-    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.Attachment">
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.attachment.Attachment">
         <result column="attachment_id" property="attachmentId"/>
         <result column="tenant_id" property="tenantId"/>
         <result column="user_id" property="userId"/>
@@ -87,7 +87,7 @@
     </select>
 
     <!-- 详情比列表多 MIME、大小和创建时间。仍不带回校验和。 -->
-    <resultMap id="DetailResultMap" type="com.zhu.audit.infrastructure.persistence.entity.Attachment">
+    <resultMap id="DetailResultMap" type="com.zhu.audit.infrastructure.persistence.entity.attachment.Attachment">
         <result column="attachment_id" property="attachmentId"/>
         <result column="tenant_id" property="tenantId"/>
         <result column="user_id" property="userId"/>

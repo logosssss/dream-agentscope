@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.application.MysqlOperationAuditCatalog;
-import com.zhu.audit.infrastructure.persistence.OperationAuditMapper;
-import com.zhu.audit.infrastructure.persistence.entity.OperationAudit;
+import com.zhu.audit.application.event.MysqlOperationAuditCatalog;
+import com.zhu.audit.infrastructure.persistence.event.OperationAuditMapper;
+import com.zhu.audit.infrastructure.persistence.entity.event.OperationAudit;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;

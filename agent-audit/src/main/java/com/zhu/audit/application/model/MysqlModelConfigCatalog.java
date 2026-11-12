@@ -1,0 +1,180 @@
+package com.zhu.audit.application.model;
+
+import com.zhu.audit.application.support.AuditQueryLimits;
+
+import com.zhu.audit.api.model.ModelConfigCatalog;
+import com.zhu.audit.api.model.ModelConfigLookup;
+import com.zhu.audit.api.model.ModelConfigSummary;
+import com.zhu.audit.infrastructure.persistence.model.ModelConfigMapper;
+import com.zhu.audit.infrastructure.persistence.entity.model.ModelConfig;
+import com.zhu.common.exception.BusinessException;
+import com.zhu.common.exception.ErrorCode;
+import java.util.List;
+import java.util.logging.Logger;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+
+/**
+ * 登记、停用、恢复和列出模型配置，并给对话挑启用行。只在存储开关打开时创建。不解析参数 JSON。
+ */
+@Service
+@ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
+public class MysqlModelConfigCatalog implements ModelConfigCatalog, ModelConfigLookup {
+
+    private static final Logger log = Logger.getLogger(MysqlModelConfigCatalog.class.getName());
+
+    private static final String VERSION = "1.0.0";
+
+    private static final String GLOBAL_SCOPE = "*";
+
+    private static final int ID_LIMIT = 128;
+
+    private static final int MODEL_LIMIT = 128;
+
+    private static final int PROVIDER_LIMIT = 64;
+
+    private static final int SCOPE_LIMIT = 64;
+
+    private final ModelConfigMapper configs;
+
+    /** 同一标识和版本由唯一键拒绝。 */
+    public MysqlModelConfigCatalog(ModelConfigMapper configs) {
+        this.configs = configs;
+    }
+
+    /**
+     * 空白范围按全局处理。不写 params。
+     * 同标识已启用：拒绝。同标识已停用：覆盖模型/供应方/范围并启用（改登，不硬删）。
+     */
+    @Override
+    public ModelConfigSummary register(String configId, String model, String provider, String tenantScope) {
+        if (configId == null || configId.isBlank() || configId.length() > ID_LIMIT
+                || model == null || model.isBlank() || model.length() > MODEL_LIMIT
+                || provider == null || provider.isBlank() || provider.length() > PROVIDER_LIMIT
+                || (tenantScope != null && tenantScope.length() > SCOPE_LIMIT)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "model config is invalid");
+        }
+        String scope = tenantScope == null || tenantScope.isBlank() ? GLOBAL_SCOPE : tenantScope;
+        ModelConfig existing = configs.findByConfigId(configId, VERSION);
+        if (existing != null) {
+            if (Integer.valueOf(1).equals(existing.getEnabled())) {
+                throw new BusinessException(ErrorCode.CONFLICT, "model config already exists");
+            }
+            int updated = configs.replaceDisabled(configId, VERSION, model, provider, scope);
+            if (updated != 1) {
+                throw new BusinessException(ErrorCode.CONFLICT, "model config already exists");
+            }
+            return new ModelConfigSummary(configId, model, provider, VERSION, scope, true);
+        }
+        ModelConfig row = new ModelConfig();
+        row.setConfigId(configId);
+        row.setModel(model);
+        row.setProvider(provider);
+        row.setVersion(VERSION);
+        row.setTenantScope(scope);
+        row.setEnabled(1);
+        try {
+            configs.insert(row);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.CONFLICT, "model config already exists");
+        }
+        return new ModelConfigSummary(configId, model, provider, VERSION, scope, true);
+    }
+
+    /**
+     * 只动 1.0.0。先确认启用再更新。
+     */
+    @Override
+    public ModelConfigSummary disable(String configId) {
+        ModelConfig existing = require(configId);
+        if (!Integer.valueOf(1).equals(existing.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "model config is not enabled");
+        }
+        int updated = configs.disableEnabled(configId, VERSION);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "model config is not enabled");
+        }
+        return summary(existing, false);
+    }
+
+    /**
+     * 只动 1.0.0。先确认停用再更新。
+     */
+    @Override
+    public ModelConfigSummary restore(String configId) {
+        ModelConfig existing = require(configId);
+        if (Integer.valueOf(1).equals(existing.getEnabled())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "model config is already enabled");
+        }
+        int updated = configs.restoreDisabled(configId, VERSION);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "model config is already enabled");
+        }
+        return summary(existing, true);
+    }
+
+    /**
+     * 空结果返回空列表。不按启用再滤一层，停用也要能看见。
+     * 不读参数 JSON。
+     */
+    @Override
+    public List<ModelConfigSummary> recent(int limit) {
+        List<ModelConfig> rows = configs.recent(AuditQueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream()
+                .map(row -> new ModelConfigSummary(
+                        row.getConfigId(),
+                        row.getModel(),
+                        row.getProvider(),
+                        row.getVersion(),
+                        row.getTenantScope(),
+                        Integer.valueOf(1).equals(row.getEnabled())))
+                .toList();
+    }
+
+    /**
+     * 查库失败时拒绝对话，不退回进程配置。
+     * 没有启用行时返回 null，由运行层继续用进程里的模型名。
+     */
+    @Override
+    public String resolveModel(String tenantId) {
+        try {
+            ModelConfig row = configs.findEnabled(tenantId == null || tenantId.isBlank() ? null : tenantId);
+            if (row == null || row.getProvider() == null || row.getProvider().isBlank()
+                    || row.getModel() == null || row.getModel().isBlank()) {
+                return null;
+            }
+            return row.getProvider() + ":" + row.getModel();
+        } catch (DataAccessException ex) {
+            log.warning("model config lookup failed");
+            throw new BusinessException(ErrorCode.UNAVAILABLE, "model config is unavailable");
+        }
+    }
+
+    /** 只认 1.0.0 这一行。 */
+    private ModelConfig require(String configId) {
+        if (configId == null || configId.isBlank() || configId.length() > ID_LIMIT) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "model config is invalid");
+        }
+        ModelConfig existing = configs.findByConfigId(configId, VERSION);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "model config not found");
+        }
+        return existing;
+    }
+
+    /** 用库里的字段，只改启用标记。 */
+    private static ModelConfigSummary summary(ModelConfig existing, boolean enabled) {
+        return new ModelConfigSummary(
+                existing.getConfigId(),
+                existing.getModel(),
+                existing.getProvider(),
+                existing.getVersion() == null ? VERSION : existing.getVersion(),
+                existing.getTenantScope() == null ? GLOBAL_SCOPE : existing.getTenantScope(),
+                enabled);
+    }
+}

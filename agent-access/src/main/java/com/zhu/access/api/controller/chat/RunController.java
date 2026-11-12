@@ -1,9 +1,9 @@
 package com.zhu.access.api.controller.chat;
 
-import com.zhu.access.api.dto.RunDetail;
-import com.zhu.access.api.dto.RunSummary;
-import com.zhu.access.application.auth.AccessAccountGate;
-import com.zhu.access.application.chat.RunQuery;
+import com.zhu.access.api.dto.chat.RunDetail;
+import com.zhu.access.api.dto.chat.RunSummary;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.access.application.chat.run.RunQuery;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;

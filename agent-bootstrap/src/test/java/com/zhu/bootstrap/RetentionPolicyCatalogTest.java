@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.application.MysqlRetentionPolicyCatalog;
-import com.zhu.audit.infrastructure.persistence.DataRetentionPolicyMapper;
-import com.zhu.audit.infrastructure.persistence.entity.DataRetentionPolicy;
+import com.zhu.audit.application.retention.MysqlRetentionPolicyCatalog;
+import com.zhu.audit.infrastructure.persistence.retention.DataRetentionPolicyMapper;
+import com.zhu.audit.infrastructure.persistence.entity.retention.DataRetentionPolicy;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.util.List;

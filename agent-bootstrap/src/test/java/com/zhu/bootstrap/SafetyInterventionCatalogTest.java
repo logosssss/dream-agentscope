@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.application.MysqlSafetyInterventionCatalog;
-import com.zhu.audit.infrastructure.persistence.SafetyInterventionMapper;
-import com.zhu.audit.infrastructure.persistence.entity.SafetyIntervention;
+import com.zhu.audit.application.safety.MysqlSafetyInterventionCatalog;
+import com.zhu.audit.infrastructure.persistence.safety.SafetyInterventionMapper;
+import com.zhu.audit.infrastructure.persistence.entity.safety.SafetyIntervention;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

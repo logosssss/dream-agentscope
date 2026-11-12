@@ -1,7 +1,7 @@
 package com.zhu.runtime.infrastructure.agent;
 
-import com.zhu.semantic.contract.ProductTool;
-import com.zhu.semantic.contract.ToolDescriptor;
+import com.zhu.semantic.contract.tool.ProductTool;
+import com.zhu.semantic.contract.tool.ToolDescriptor;
 import io.agentscope.core.tool.Toolkit;
 import java.util.HashSet;
 import java.util.List;

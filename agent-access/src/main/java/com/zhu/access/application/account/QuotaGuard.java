@@ -1,11 +1,11 @@
 package com.zhu.access.application.account;
 
-import com.zhu.access.api.dto.QuotaMeter;
-import com.zhu.access.api.dto.QuotaSnapshot;
+import com.zhu.access.api.dto.account.QuotaMeter;
+import com.zhu.access.api.dto.account.QuotaSnapshot;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.infrastructure.cache.AccessCache;
-import com.zhu.audit.api.QuotaUsageWriter;
-import com.zhu.audit.api.TenantQuotaLookup;
+import com.zhu.audit.api.quota.QuotaUsageWriter;
+import com.zhu.audit.api.quota.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;
@@ -177,7 +177,7 @@ public class QuotaGuard {
     }
 
     /**
-     * 同时运行占位键。与 {@link com.zhu.access.application.chat.ConcurrentRunGuard} 共用同一前缀。
+     * 同时运行占位键。与 {@link com.zhu.access.application.chat.run.ConcurrentRunGuard} 共用同一前缀。
      */
     public static String concurrentKey(String tenantId) {
         return "concurrent:" + segment(tenantId);

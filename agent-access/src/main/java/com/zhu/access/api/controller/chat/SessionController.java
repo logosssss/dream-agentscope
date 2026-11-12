@@ -1,10 +1,10 @@
 package com.zhu.access.api.controller.chat;
 
-import com.zhu.access.api.dto.ChatMessageItem;
-import com.zhu.access.api.dto.SessionDetail;
-import com.zhu.access.api.dto.SessionSummary;
-import com.zhu.access.application.auth.AccessAccountGate;
-import com.zhu.access.application.chat.SessionListService;
+import com.zhu.access.api.dto.chat.ChatMessageItem;
+import com.zhu.access.api.dto.chat.SessionDetail;
+import com.zhu.access.api.dto.chat.SessionSummary;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.access.application.chat.session.SessionListService;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;

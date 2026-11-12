@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.application.MysqlTaskScheduleCatalog;
-import com.zhu.audit.infrastructure.persistence.AgentTaskScheduleMapper;
-import com.zhu.audit.infrastructure.persistence.entity.AgentTaskSchedule;
+import com.zhu.audit.application.schedule.MysqlTaskScheduleCatalog;
+import com.zhu.audit.infrastructure.persistence.schedule.AgentTaskScheduleMapper;
+import com.zhu.audit.infrastructure.persistence.entity.schedule.AgentTaskSchedule;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.util.List;

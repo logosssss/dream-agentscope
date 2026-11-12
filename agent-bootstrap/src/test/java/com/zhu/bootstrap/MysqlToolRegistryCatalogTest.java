@@ -2,7 +2,7 @@ package com.zhu.bootstrap;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.semantic.api.ToolRegistrySummary;
+import com.zhu.semantic.api.tool.ToolRegistrySummary;
 import com.zhu.semantic.application.MysqlToolRegistryCatalog;
 import com.zhu.semantic.infrastructure.persistence.ToolRegistryMapper;
 import com.zhu.semantic.infrastructure.persistence.entity.ToolRegistry;

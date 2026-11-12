@@ -1,6 +1,6 @@
 package com.zhu.access.api.controller.chat;
 
-import com.zhu.access.api.dto.ChatRequest;
+import com.zhu.access.api.dto.chat.ChatRequest;
 import com.zhu.access.application.chat.ChatAppService;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.runtime.api.AgentResponse;

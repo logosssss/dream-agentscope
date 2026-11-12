@@ -1,6 +1,6 @@
 package com.zhu.runtime.application;
 
-import com.zhu.audit.api.ModelConfigLookup;
+import com.zhu.audit.api.model.ModelConfigLookup;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;

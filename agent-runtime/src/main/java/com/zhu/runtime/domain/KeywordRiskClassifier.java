@@ -1,6 +1,6 @@
 package com.zhu.runtime.domain;
 
-import com.zhu.semantic.contract.RiskLevel;
+import com.zhu.semantic.contract.safety.RiskLevel;
 import java.util.List;
 import java.util.Locale;
 

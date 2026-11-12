@@ -14,21 +14,40 @@
 
 | 包 | 类型 | 作用 |
 | --- | --- | --- |
-| `api` | `AuditRecorder` | 记一条操作。`detail` 不放密钥和全文提示词 |
-| `api` | `ApprovalRecorder` | 记下一次待审批 |
-| `api` | `AuditQuery` | 最近审计、全部待审批、按租户和用户查待确认，以及本人本租户按单号取一行（含已决定） |
-| `api` | `ApprovalDecider` | 把 PENDING 改成 APPROVED 或 REJECTED。关掉对应待办，不写执行结果 |
-| `api` | `BillingRollup` | 按租户和区间把 `token_usage` 收成一张 `DRAFT` |
-| `api` | `TokenUsageQuery` | 当前用户在这个租户下的用量明细。不带提示词 |
-| `api` | `SafetyInterventionRecorder` | 记下一次安全干预。只写升高和危机，摘要不含用户原文 |
-| `api` | `SafetyInterventionCatalog` | 最近的安全干预。不含用户原文 |
-| `api` | `TenantUserGate` | 接入前检查租户用户是否仍可用。MySQL 关闭时放行 |
-| `api` | `TenantUserLookup` | 按租户和用户读登记行。给用户进程看显示名。管理进程不走这个口 |
-| `application` | `MysqlReadiness` | 校验数据库连接。关闭时跳过，不跑业务 SQL |
+| `api.event` | `AuditRecorder`、`AuditQuery`、`AuditEventRow`、`OperationAuditCatalog`、`OperationAuditSummary` | 事件审计与后台操作审计 |
+| `api.approval` | `ApprovalRecorder`、`ApprovalDecider`、`ApprovalDecision`、`ApprovalRow`、`ApprovalNotifier`、`ApprovalNotice`、`ApprovalNoticeDetail`、`UserTodoCatalog`、`UserTodoDetail`、`UserTodoRow` | 审批、通知与待办 |
+| `api.safety` | `SafetyInterventionRecorder`、`SafetyInterventionCatalog`、`SafetyInterventionSummary` | 安全干预落库与目录 |
+| `api.attachment` | `AttachmentCatalog`、`AttachmentDetail`、`AttachmentSummary`、`AttachmentRefItem`、`AttachmentRefSummary`、`StoredAttachment` | 附件元数据与引用 |
+| `api.feedback` | `FeedbackRecorder`、`FeedbackDetail`、`FeedbackSummary` | 用户反馈 |
+| `api.usage` | `TokenUsageWriter`、`TokenUsageQuery`、`TokenUsageDetail`、`TokenUsageRow`、`DailyTokenAccumulator`、`DailyCostAccumulator` | token 用量与日累加缝 |
+| `api.billing` | `BillingRollup`、`BillingSummary`、`ModelPriceCatalog`、`ModelPriceEntry` | 账单汇总与模型单价 |
+| `api.model` | `ModelConfigCatalog`、`ModelConfigLookup`、`ModelConfigSummary` | 模型配置目录与选用 |
+| `api.quota` | `TenantQuotaCatalog`、`TenantQuotaLookup`、`TenantQuotaSummary`、`QuotaUsageWriter`、`QuotaUsageQuery`、`QuotaUsageRow` | 额度上限与用量流水 |
+| `api.tenant` | `TenantCatalog`、`TenantGate`、`TenantSummary`、`TenantUserCatalog`、`TenantUserGate`、`TenantUserLookup`、`TenantUserSummary`、`ClientLoginStore`、`RegisteredClient` | 租户、租户用户与客户端登录凭证 |
+| `api.deletion` | `DeletionRequestCatalog`、`DeletionRequestDecider`、`DeletionRequestDetail`、`DeletionRequestSummary` | 数据删除请求 |
+| `api.eval` | `EvalDatasetCatalog`、`EvalDatasetSummary`、`EvalCaseCatalog`、`EvalCaseSummary`、`EvalRunCatalog`、`EvalRunSummary` | 评测集、用例与跑次 |
+| `api.retention` | `RetentionPolicyCatalog`、`RetentionPolicySummary` | 数据保留策略 |
+| `api.schedule` | `TaskScheduleCatalog`、`TaskScheduleSummary` | 任务调度登记 |
+| `application.event` | `MybatisAuditQuery`、`MysqlOperationAuditCatalog` | 事件审计查询与后台操作审计实现 |
+| `application.approval` | `MybatisApprovalDecider`、`MysqlApprovalNotifier`、`MysqlUserTodoCatalog`、`ApprovalDecisionRules` | 审批决定、通知与待办实现 |
+| `application.safety` | `MysqlSafetyInterventionRecorder`、`MysqlSafetyInterventionCatalog`、`AbsentSafetyInterventionRecorder` | 安全干预写入与目录；MySQL 关闭时的空实现 |
+| `application.attachment` | `MysqlAttachmentCatalog` | 附件元数据与引用 |
+| `application.feedback` | `MysqlFeedbackRecorder` | 用户反馈 |
+| `application.usage` | `MysqlTokenUsageQuery`、`AbsentTokenUsageWriter` | 用量查询；MySQL 关闭时的空写入 |
+| `application.billing` | `MysqlBillingRollup`、`MysqlModelPriceCatalog` | 账单汇总与模型单价 |
+| `application.model` | `MysqlModelConfigCatalog` | 模型配置目录与选用 |
+| `application.quota` | `MysqlTenantQuota`、`MysqlQuotaUsageWriter`、`MysqlQuotaUsageQuery` | 额度上限与用量流水 |
+| `application.tenant` | `MysqlTenantDirectory`、`MysqlTenantUserCatalog`、`MysqlClientLoginStore` | 租户、租户用户与客户端登录凭证 |
+| `application.deletion` | `MysqlDeletionRequestCatalog`、`MysqlDeletionRequestDecider` | 数据删除请求 |
+| `application.eval` | `MysqlEvalDatasetCatalog`、`MysqlEvalCaseCatalog`、`MysqlEvalRunCatalog` | 评测集、用例与跑次 |
+| `application.retention` | `MysqlRetentionPolicyCatalog` | 数据保留策略 |
+| `application.schedule` | `MysqlTaskScheduleCatalog` | 任务调度登记 |
+| `application.health` | `MysqlReadiness` | 校验数据库连接。关闭时跳过，不跑业务 SQL |
+| `application.support` | `AuditQueryLimits` | 列表查询条数上限，给各实现共用 |
 | `domain.event` | `ApprovalRequestedEvent` | ASK 时的跨模块事件。待确认列表不靠订阅它 |
-| `infrastructure.persistence` | `MybatisAuditRecorder`、`MybatisApprovalRecorder` | MySQL 打开时的写入。审批新单为 `PENDING`，审计来源为 `EXECUTOR` |
-| `infrastructure.persistence` | `AgentEventAuditMapper`、`ApprovalRecordMapper` | 继承 `BaseMapper`。简单插入不写 SQL |
-| `resources/mapper` | 同名 XML | `resultMap`、条件查询和决定更新。不把同一条 `INSERT` 再写一遍 |
+| `infrastructure.persistence.<域>` | 各域 Mapper、`Mybatis*` 写入实现（如 `event.MybatisAuditRecorder`、`approval.MybatisApprovalRecorder`、`usage.MysqlTokenUsageWriter`） | 与 `api.<域>` 对齐。审批新单为 `PENDING`，审计来源为 `EXECUTOR` |
+| `infrastructure.persistence.entity.<域>` | 各域实体 | 表行映射；不放业务规则 |
+| `resources/mapper` | 同名 XML（仍扁平目录） | `namespace` 指向域分包 Mapper；`resultMap`、条件查询和决定更新。不把同一条 `INSERT` 再写一遍 |
 
 事件放在发布相关的领域包，不放进 `agent-common`。`agent-common` 不承载业务事件。
 

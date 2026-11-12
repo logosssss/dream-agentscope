@@ -1,7 +1,7 @@
 package com.zhu.semantic.config;
 
-import com.zhu.semantic.contract.RiskLevel;
-import com.zhu.semantic.contract.SemanticRiskJudge;
+import com.zhu.semantic.contract.safety.RiskLevel;
+import com.zhu.semantic.contract.safety.SemanticRiskJudge;
 import org.springframework.stereotype.Component;
 
 /**

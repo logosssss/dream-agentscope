@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.zhu.audit.infrastructure.persistence.AttachmentRefMapper">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.attachment.AttachmentRefMapper">
 
-    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.AttachmentRef">
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.attachment.AttachmentRef">
         <result column="ref_type" property="refType"/>
         <result column="ref_id" property="refId"/>
         <result column="created_at" property="createdAt"/>

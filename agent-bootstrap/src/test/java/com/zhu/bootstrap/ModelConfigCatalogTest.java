@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.application.MysqlModelConfigCatalog;
-import com.zhu.audit.infrastructure.persistence.ModelConfigMapper;
-import com.zhu.audit.infrastructure.persistence.entity.ModelConfig;
+import com.zhu.audit.application.model.MysqlModelConfigCatalog;
+import com.zhu.audit.infrastructure.persistence.model.ModelConfigMapper;
+import com.zhu.audit.infrastructure.persistence.entity.model.ModelConfig;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.util.List;

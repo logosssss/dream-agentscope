@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.chat.MysqlSessionOwnerGate;
-import com.zhu.access.application.chat.SessionMetaStore;
+import com.zhu.access.application.chat.session.MysqlSessionOwnerGate;
+import com.zhu.access.application.chat.session.SessionMetaStore;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;

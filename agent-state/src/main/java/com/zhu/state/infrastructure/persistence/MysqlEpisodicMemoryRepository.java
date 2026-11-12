@@ -2,8 +2,8 @@ package com.zhu.state.infrastructure.persistence;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.state.api.EpisodicMemoryItem;
-import com.zhu.state.api.EpisodicMemoryRepository;
+import com.zhu.state.api.memory.EpisodicMemoryItem;
+import com.zhu.state.api.memory.EpisodicMemoryRepository;
 import com.zhu.state.infrastructure.persistence.entity.EpisodicMemory;
 import java.util.ArrayList;
 import java.util.List;

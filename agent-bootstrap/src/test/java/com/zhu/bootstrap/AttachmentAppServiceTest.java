@@ -1,10 +1,10 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.dto.AttachmentContent;
+import com.zhu.access.api.dto.attachment.AttachmentContent;
 import com.zhu.access.application.attachment.AttachmentAppService;
-import com.zhu.audit.api.AttachmentCatalog;
-import com.zhu.audit.api.AttachmentSummary;
-import com.zhu.audit.api.StoredAttachment;
+import com.zhu.audit.api.attachment.AttachmentCatalog;
+import com.zhu.audit.api.attachment.AttachmentSummary;
+import com.zhu.audit.api.attachment.StoredAttachment;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.objectstore.api.ObjectStore;

@@ -2,10 +2,10 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.audit.api.QuotaUsageWriter;
-import com.zhu.audit.application.MysqlQuotaUsageWriter;
-import com.zhu.audit.infrastructure.persistence.QuotaUsageLogMapper;
-import com.zhu.audit.infrastructure.persistence.entity.QuotaUsageLog;
+import com.zhu.audit.api.quota.QuotaUsageWriter;
+import com.zhu.audit.application.quota.MysqlQuotaUsageWriter;
+import com.zhu.audit.infrastructure.persistence.quota.QuotaUsageLogMapper;
+import com.zhu.audit.infrastructure.persistence.entity.quota.QuotaUsageLog;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;

@@ -2,7 +2,7 @@ package com.zhu.admin;
 
 import com.zhu.admin.application.AdminOperationAuditHook;
 import com.zhu.admin.application.AdminOperationAuditTarget;
-import com.zhu.audit.api.OperationAuditCatalog;
+import com.zhu.audit.api.event.OperationAuditCatalog;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;

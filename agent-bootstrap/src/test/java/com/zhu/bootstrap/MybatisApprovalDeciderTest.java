@@ -1,11 +1,11 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.api.ApprovalDecision;
-import com.zhu.audit.api.ApprovalRow;
-import com.zhu.audit.api.UserTodoCatalog;
-import com.zhu.audit.application.MybatisApprovalDecider;
-import com.zhu.audit.infrastructure.persistence.ApprovalRecordMapper;
-import com.zhu.audit.infrastructure.persistence.entity.ApprovalRecord;
+import com.zhu.audit.api.approval.ApprovalDecision;
+import com.zhu.audit.api.approval.ApprovalRow;
+import com.zhu.audit.api.approval.UserTodoCatalog;
+import com.zhu.audit.application.approval.MybatisApprovalDecider;
+import com.zhu.audit.infrastructure.persistence.approval.ApprovalRecordMapper;
+import com.zhu.audit.infrastructure.persistence.entity.approval.ApprovalRecord;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.LocalDateTime;

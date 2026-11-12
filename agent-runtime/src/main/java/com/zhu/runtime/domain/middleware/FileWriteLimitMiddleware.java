@@ -1,6 +1,6 @@
 package com.zhu.runtime.domain.middleware;
 
-import com.zhu.audit.api.AuditRecorder;
+import com.zhu.audit.api.event.AuditRecorder;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.domain.CallIdentity;
 import io.agentscope.core.agent.Agent;

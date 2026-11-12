@@ -2,7 +2,7 @@ package com.zhu.semantic.application;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.semantic.api.PromptService;
+import com.zhu.semantic.api.prompt.PromptService;
 import com.zhu.semantic.infrastructure.nacos.PromptSource;
 import java.util.Map;
 import java.util.logging.Logger;

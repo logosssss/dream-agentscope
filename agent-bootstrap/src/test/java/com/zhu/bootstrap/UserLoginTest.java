@@ -1,11 +1,11 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.dto.LoginResponse;
-import com.zhu.access.application.auth.LoginSessionCodec;
-import com.zhu.access.application.auth.UserLoginService;
+import com.zhu.access.api.dto.auth.LoginResponse;
+import com.zhu.access.application.auth.session.LoginSessionCodec;
+import com.zhu.access.application.auth.session.UserLoginService;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.audit.api.TenantGate;
-import com.zhu.audit.api.TenantUserGate;
+import com.zhu.audit.api.tenant.TenantGate;
+import com.zhu.audit.api.tenant.TenantUserGate;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;

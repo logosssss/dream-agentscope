@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.runtime.domain.CrisisReplyGuard;
-import com.zhu.semantic.contract.CrisisPrompt;
+import com.zhu.semantic.contract.safety.CrisisPrompt;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

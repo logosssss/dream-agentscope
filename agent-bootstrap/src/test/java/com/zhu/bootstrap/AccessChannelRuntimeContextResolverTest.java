@@ -2,7 +2,7 @@ package com.zhu.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.zhu.access.application.chat.AccessChannelRuntimeContextResolver;
+import com.zhu.access.application.chat.gateway.AccessChannelRuntimeContextResolver;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.harness.agent.gateway.MsgContext;
 import io.agentscope.harness.agent.gateway.channel.ChannelRuntimeContextRequest;

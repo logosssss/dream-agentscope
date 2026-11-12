@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.runtime.domain.KeywordRiskClassifier;
-import com.zhu.semantic.contract.RiskLevel;
+import com.zhu.semantic.contract.safety.RiskLevel;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

@@ -1,14 +1,14 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.chat.ConcurrentRunGuard;
+import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.application.account.RedisDailyCostAccumulator;
 import com.zhu.access.application.account.RedisDailyTokenAccumulator;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.audit.api.TenantQuotaLookup;
-import com.zhu.audit.application.MysqlTenantQuota;
-import com.zhu.audit.infrastructure.persistence.TenantQuotaMapper;
-import com.zhu.audit.infrastructure.persistence.entity.TenantQuotaRecord;
+import com.zhu.audit.api.quota.TenantQuotaLookup;
+import com.zhu.audit.application.quota.MysqlTenantQuota;
+import com.zhu.audit.infrastructure.persistence.quota.TenantQuotaMapper;
+import com.zhu.audit.infrastructure.persistence.entity.quota.TenantQuotaRecord;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;

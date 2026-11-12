@@ -1,11 +1,11 @@
 package com.zhu.semantic.config;
 
-import com.zhu.semantic.api.NoToolCatalog;
-import com.zhu.semantic.api.PlatformPrompt;
-import com.zhu.semantic.api.ToolCatalogService;
-import com.zhu.semantic.contract.CompletionCriteria;
-import com.zhu.semantic.contract.ProductSemanticProvider;
-import com.zhu.semantic.contract.ToolDescriptor;
+import com.zhu.semantic.api.tool.NoToolCatalog;
+import com.zhu.semantic.api.prompt.PlatformPrompt;
+import com.zhu.semantic.api.tool.ToolCatalogService;
+import com.zhu.semantic.contract.product.CompletionCriteria;
+import com.zhu.semantic.contract.product.ProductSemanticProvider;
+import com.zhu.semantic.contract.tool.ToolDescriptor;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

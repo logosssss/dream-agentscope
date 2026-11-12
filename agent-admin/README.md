@@ -4,6 +4,28 @@
 
 坐标：`com.zhu:agent-admin`。包名：`com.zhu.admin`。
 
+## 包
+
+门面按资源域分包，与 `docs/packaging-落地.md` 对齐。URL 与类名前缀不变。
+
+| 包 | 作用 |
+| --- | --- |
+| `api.controller.event` / `api.dto.event` | 事件审计查询、后台操作审计 |
+| `api.controller.approval` / `api.dto.approval` | 审批列表与决定（从原 Audit 控制器拆出） |
+| `api.controller.billing` / `api.dto.billing` | 账单与模型单价 |
+| `api.controller.model` / `api.dto.model` | 模型配置 |
+| `api.controller.quota` / `api.dto.quota` | 租户额度与用量流水 |
+| `api.controller.tenant` / `api.dto.tenant` | 租户与租户用户 |
+| `api.controller.deletion` / `api.dto.deletion` | 删除请求决定 |
+| `api.controller.eval` / `api.dto.eval` | 评测集、用例与跑次 |
+| `api.controller.retention` / `api.dto.retention` | 数据保留策略 |
+| `api.controller.schedule` / `api.dto.schedule` | 任务调度登记 |
+| `api.controller.safety` | 安全干预目录 |
+| `api.controller.tool` / `api.dto.tool` | 工具目录与权限登记 |
+| `api.controller.health` / `api.dto.health` | 存活、就绪与 info |
+| `api.controller.support` | 异常处理与操作审计 Advice |
+| `application` | 就绪探测与操作审计挂钩（本块未拆） |
+
 ## 依赖
 
 依赖 `agent-common`、`agent-audit`、`agent-semantic`、Web、Redis、`nacos-client` 和 `mysql-connector-j`。用审计模块的查询接口读库；工具目录登记走语义模块。不依赖 `agent-runtime`、`agent-access`、`agent-state`，也不依赖 Harness。Redis 只用于启动探测。

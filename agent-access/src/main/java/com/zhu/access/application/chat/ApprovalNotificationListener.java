@@ -1,7 +1,7 @@
 package com.zhu.access.application.chat;
 
-import com.zhu.audit.api.ApprovalNotifier;
-import com.zhu.audit.api.UserTodoCatalog;
+import com.zhu.audit.api.approval.ApprovalNotifier;
+import com.zhu.audit.api.approval.UserTodoCatalog;
 import com.zhu.audit.domain.event.ApprovalRequestedEvent;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;

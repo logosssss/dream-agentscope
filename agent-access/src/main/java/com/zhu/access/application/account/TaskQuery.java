@@ -1,7 +1,7 @@
 package com.zhu.access.application.account;
 
-import com.zhu.access.api.dto.TaskDetail;
-import com.zhu.access.api.dto.TaskSummary;
+import com.zhu.access.api.dto.account.TaskDetail;
+import com.zhu.access.api.dto.account.TaskSummary;
 import java.util.List;
 
 /**

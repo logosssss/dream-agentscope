@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.zhu.audit.infrastructure.persistence.DataRetentionPolicyMapper">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.retention.DataRetentionPolicyMapper">
 
-    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.DataRetentionPolicy">
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.retention.DataRetentionPolicy">
         <id column="id" property="id"/>
         <result column="data_type" property="dataType"/>
         <result column="scope" property="scope"/>

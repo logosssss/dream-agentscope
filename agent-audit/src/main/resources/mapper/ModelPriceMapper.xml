@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.zhu.audit.infrastructure.persistence.ModelPriceMapper">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.billing.ModelPriceMapper">
 
     <!-- 结束时间为空表示仍有效。同一时刻有多行时取最晚开始的一行。单价单位是元/百万 token。 -->
-    <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.ModelPrice">
+    <resultMap id="BaseResultMap" type="com.zhu.audit.infrastructure.persistence.entity.billing.ModelPrice">
         <result column="currency" property="currency"/>
         <result column="input_per_1m" property="inputPer1m"/>
         <result column="output_per_1m" property="outputPer1m"/>
     </resultMap>
 
-    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.ModelPrice">
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.billing.ModelPrice">
         <id column="id" property="id"/>
         <result column="model" property="model"/>
         <result column="currency" property="currency"/>

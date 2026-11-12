@@ -1,10 +1,10 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.application.MysqlEvalCaseCatalog;
-import com.zhu.audit.infrastructure.persistence.EvalCaseMapper;
-import com.zhu.audit.infrastructure.persistence.EvalDatasetMapper;
-import com.zhu.audit.infrastructure.persistence.entity.EvalCase;
-import com.zhu.audit.infrastructure.persistence.entity.EvalDataset;
+import com.zhu.audit.application.eval.MysqlEvalCaseCatalog;
+import com.zhu.audit.infrastructure.persistence.eval.EvalCaseMapper;
+import com.zhu.audit.infrastructure.persistence.eval.EvalDatasetMapper;
+import com.zhu.audit.infrastructure.persistence.entity.eval.EvalCase;
+import com.zhu.audit.infrastructure.persistence.entity.eval.EvalDataset;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;

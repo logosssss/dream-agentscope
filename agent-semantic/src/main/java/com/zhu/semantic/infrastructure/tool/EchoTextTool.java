@@ -1,6 +1,6 @@
 package com.zhu.semantic.infrastructure.tool;
 
-import com.zhu.semantic.contract.ProductTool;
+import com.zhu.semantic.contract.tool.ProductTool;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import org.springframework.stereotype.Component;

@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.runtime.infrastructure.rerank.DashScopeChunkReranker;
-import com.zhu.state.api.KnowledgeChunkItem;
+import com.zhu.state.api.knowledge.KnowledgeChunkItem;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

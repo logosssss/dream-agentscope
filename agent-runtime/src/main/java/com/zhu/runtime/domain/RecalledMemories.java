@@ -1,6 +1,6 @@
 package com.zhu.runtime.domain;
 
-import com.zhu.state.api.EpisodicMemoryItem;
+import com.zhu.state.api.memory.EpisodicMemoryItem;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;

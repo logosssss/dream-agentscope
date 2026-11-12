@@ -1,7 +1,7 @@
 package com.zhu.semantic.config;
 
-import com.zhu.semantic.contract.PermissionDecision;
-import com.zhu.semantic.contract.PermissionRuleService;
+import com.zhu.semantic.contract.permission.PermissionDecision;
+import com.zhu.semantic.contract.permission.PermissionRuleService;
 import com.zhu.semantic.domain.PermissionMatcher;
 import com.zhu.semantic.domain.PermissionRule;
 import java.util.ArrayList;

@@ -1,9 +1,9 @@
 package com.zhu.bootstrap;
 
-import com.zhu.semantic.api.NoToolCatalog;
-import com.zhu.semantic.api.PlatformPrompt;
+import com.zhu.semantic.api.tool.NoToolCatalog;
+import com.zhu.semantic.api.prompt.PlatformPrompt;
 import com.zhu.semantic.config.PlatformSemanticProvider;
-import com.zhu.semantic.contract.ToolDescriptor;
+import com.zhu.semantic.contract.tool.ToolDescriptor;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

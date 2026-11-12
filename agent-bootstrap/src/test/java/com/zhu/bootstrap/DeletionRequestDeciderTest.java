@@ -1,9 +1,9 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.api.ApprovalDecision;
-import com.zhu.audit.application.MysqlDeletionRequestDecider;
-import com.zhu.audit.infrastructure.persistence.DataDeletionRequestMapper;
-import com.zhu.audit.infrastructure.persistence.entity.DataDeletionRequest;
+import com.zhu.audit.api.approval.ApprovalDecision;
+import com.zhu.audit.application.deletion.MysqlDeletionRequestDecider;
+import com.zhu.audit.infrastructure.persistence.deletion.DataDeletionRequestMapper;
+import com.zhu.audit.infrastructure.persistence.entity.deletion.DataDeletionRequest;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;

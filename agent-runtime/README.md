@@ -8,7 +8,7 @@
 
 依赖 `agent-common`、`agent-semantic`、`agent-state`、`agent-vector`、`agent-audit`、`agentscope-harness`、`agentscope-extensions-model-dashscope`。
 
-对 `agent-semantic` 的 Java 引用只能落在 `com.zhu.semantic.contract`。不要 import `semantic.application` 或 `semantic.infrastructure`。
+对 `agent-semantic` 的 Java 引用只能落在 `com.zhu.semantic.contract` 及其子包（`product` / `tool` / `permission` / `safety`）。不要 import `semantic.application` 或 `semantic.infrastructure`。
 
 不能依赖 `agent-access`。审批要通知前端时，发布 `agent-audit` 里的事件，由接入层订阅。
 
@@ -65,9 +65,10 @@ AgentStreamEvent   接入层再写成 SSE
 | `config` | `RuntimeConfig` | 只打开配置绑定，不创建 Agent |
 | `domain` | `CallIdentity`、`TextEmbedder`、`RecalledMemories`、`CrisisReplyGuard`、`PersonaConsistencyGuard` | 从这次 `RuntimeContext` 读租户、用户、会话，不用 ThreadLocal。嵌入锁 `text-embedding-v4` / 1024。召回结果去重最多 5 条，再由中间件追加到系统提示词。危机回复按玩笑、暧昧、扮演、危险方法四类词表检查，命中换成 `CrisisPrompt`。人设回复按恋人、助手、替人决定三类词表检查，命中换成短基线 |
 | `domain.middleware` | `AuditMiddleware`、`ApprovalMiddleware`、`FileWriteLimitMiddleware`、`SafetyGateMiddleware`、`PersonaConsistencyMiddleware`、`CompanionMemoryMiddleware` | 执行策略。ASK 时发布审批事件。写文件超过 `max-write-bytes` 时丢掉，不调用接入层。关键词或语义判定到危机时换危机话术，升高时只加克制标记。已经成功 20 轮、本会话第 1 轮且已有跨会话记忆，或用户纠正身份时打开人设检查标记，危机档不打开。普通和升高在对话开始时召回最近 3 加近邻 3，去重最多 5 条；成功结束后写短摘要和相识画像。系统提示词追加短画像和最多 5 条召回。危机不召回、不写、不注入。读失败或没密钥不改变回复。不用已标删除的 Hook |
-| `task` | `AgentTask`、`AgentTaskPublisher` | 任务消息体和发布口。业务层调用，工厂和 Middleware 不感知 |
-| `task` | `SyncTaskPublisher`、`DispatchingAgentTaskHandler`、`DocumentIndexExecutor` | `mode=sync` 时当前线程执行。`DOCUMENT_INDEX` 切块嵌入双写；其它类型只记审计。`SyncAgentTaskHandler` 留给测试直接构造 |
-| `task` | `RocketMqTaskPublisher` | `mode=mq` 时的占位。启动即失败，topic 预留为 `agentscope-tasks`，不引入 RocketMQ 依赖 |
+| `task` | `AgentTask` | 任务消息体。业务层与发布/消费共用，工厂和 Middleware 不感知 |
+| `task.publish` | `AgentTaskPublisher`、`SyncTaskPublisher`、`RocketMqTaskPublisher` | 发布口；`mode=sync` 当前线程执行；`mode=mq` 启动即失败，topic 预留 `agentscope-tasks`，不引入 RocketMQ 依赖 |
+| `task.handle` | `AgentTaskHandler`、`DispatchingAgentTaskHandler`、`DocumentIndexExecutor`、`SyncAgentTaskHandler` | 消费入口按 type 分发；`DOCUMENT_INDEX` 切块嵌入双写；其它类型只记审计；`SyncAgentTaskHandler` 留给测试直接构造 |
+| `task.log` | `AgentTaskLog`、`AbsentAgentTaskLog` | 任务状态落库缝；MySQL 关闭时空实现（测试用，不是写失败降级） |
 | `domain.knowledge` | `TextChunker`、`HybridChunkMerger`、`ChunkReranker` | 固定 500/50 字符切块。不做语义切块。Hybrid 合并：向量优先、全文补缺、按 id 去重。重排缝：失败退回原序截断 |
 | `infrastructure.rerank` | `DashScopeChunkReranker` | 百炼 `qwen3.7-text-rerank`。固定 `dashscope.aliyuncs.com`；密钥读 `DASHSCOPE_API_KEY`，空密钥/超时/失败不抛；不记账、不占额度 |
 | `infrastructure.tool` | `KnowledgeSearchTool` | Agentic `knowledge_search`。身份只从 `RuntimeContext` 取；Hybrid（向量 + FULLTEXT）合并最多 20 条，再 Rerank 到 5；向量失败降级全文，Rerank 失败退回 Hybrid 原序；只回 SUCCESS 切块。放在运行层是因为要嵌入和向量 |

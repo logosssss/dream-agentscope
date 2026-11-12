@@ -1,7 +1,7 @@
 package com.zhu.runtime.infrastructure.rerank;
 
 import com.zhu.runtime.domain.knowledge.ChunkReranker;
-import com.zhu.state.api.KnowledgeChunkItem;
+import com.zhu.state.api.knowledge.KnowledgeChunkItem;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;

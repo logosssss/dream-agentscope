@@ -1,7 +1,7 @@
 package com.zhu.access.application.account;
 
 import com.zhu.access.infrastructure.cache.AccessCache;
-import com.zhu.audit.api.DailyTokenAccumulator;
+import com.zhu.audit.api.usage.DailyTokenAccumulator;
 import java.time.Clock;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;

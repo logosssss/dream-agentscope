@@ -72,9 +72,9 @@ class ArchitectureTest {
         JavaClasses classes = new ClassFileImporter().importPackages("com.zhu");
         assertThat(classes.stream().map(JavaClass::getName))
                 .contains(
-                        "com.zhu.semantic.contract.ProductSemanticProvider",
+                        "com.zhu.semantic.contract.product.ProductSemanticProvider",
                         "com.zhu.runtime.api.AgentExecutor",
-                        "com.zhu.access.application.chat.AccessChannelGateway",
+                        "com.zhu.access.application.chat.gateway.AccessChannelGateway",
                         "com.zhu.state.config.DistributedStoreConfig",
                         "com.zhu.state.config.StateMapperConfig",
                         "com.zhu.vector.api.VectorStore",

@@ -4,7 +4,7 @@ import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.config.listener.Listener;
-import com.zhu.access.application.chat.ResidentAgentReloader;
+import com.zhu.access.application.chat.gateway.ResidentAgentReloader;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.config.ClientAuthProperties;
 import com.zhu.access.config.WxMiniProperties;
@@ -209,7 +209,7 @@ public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
                 throw new IllegalStateException("permission rule " + i + " requires decision");
             }
             try {
-                com.zhu.semantic.contract.PermissionDecision.valueOf(rule.getDecision());
+                com.zhu.semantic.contract.permission.PermissionDecision.valueOf(rule.getDecision());
             } catch (IllegalArgumentException ex) {
                 throw new IllegalStateException("permission rule " + i + " has unknown decision");
             }

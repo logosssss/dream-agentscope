@@ -1,15 +1,15 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.api.controller.chat.ApprovalController;
-import com.zhu.access.api.dto.ApprovalDecisionRequest;
-import com.zhu.access.api.dto.ApprovalDecisionView;
-import com.zhu.access.api.dto.ApprovalDetail;
-import com.zhu.access.api.dto.PendingApproval;
-import com.zhu.access.application.auth.AccessAccountGate;
-import com.zhu.audit.api.ApprovalDecision;
-import com.zhu.audit.api.ApprovalDecider;
-import com.zhu.audit.api.ApprovalRow;
-import com.zhu.audit.api.AuditQuery;
+import com.zhu.access.api.dto.chat.ApprovalDecisionRequest;
+import com.zhu.access.api.dto.chat.ApprovalDecisionView;
+import com.zhu.access.api.dto.chat.ApprovalDetail;
+import com.zhu.access.api.dto.chat.PendingApproval;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.audit.api.approval.ApprovalDecision;
+import com.zhu.audit.api.approval.ApprovalDecider;
+import com.zhu.audit.api.approval.ApprovalRow;
+import com.zhu.audit.api.event.AuditQuery;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;

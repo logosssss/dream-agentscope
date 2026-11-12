@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.zhu.audit.infrastructure.persistence.AgentTaskScheduleMapper">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.schedule.AgentTaskScheduleMapper">
 
-    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.AgentTaskSchedule">
+    <resultMap id="ListResultMap" type="com.zhu.audit.infrastructure.persistence.entity.schedule.AgentTaskSchedule">
         <id column="id" property="id"/>
         <result column="schedule_id" property="scheduleId"/>
         <result column="task_type" property="taskType"/>

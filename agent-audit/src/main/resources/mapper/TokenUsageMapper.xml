@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.zhu.audit.infrastructure.persistence.TokenUsageMapper">
+<mapper namespace="com.zhu.audit.infrastructure.persistence.usage.TokenUsageMapper">
 
     <!-- 没有行时 SUM 得到 NULL，这里收成 0。币种个数用来拒绝混加。 -->
-    <select id="sumForPeriod" resultType="com.zhu.audit.infrastructure.persistence.UsagePeriodTotal">
+    <select id="sumForPeriod" resultType="com.zhu.audit.infrastructure.persistence.usage.UsagePeriodTotal">
         SELECT COALESCE(SUM(total_tokens), 0) AS tokenTotal,
                COALESCE(SUM(cost_amount), 0) AS costAmount,
                COUNT(DISTINCT currency) AS currencyCount,
@@ -16,7 +16,7 @@
     </select>
 
     <!-- 本人本租户最近的用量。不带回提示词。 -->
-    <select id="listOwned" resultType="com.zhu.audit.infrastructure.persistence.entity.TokenUsage">
+    <select id="listOwned" resultType="com.zhu.audit.infrastructure.persistence.entity.usage.TokenUsage">
         SELECT id, run_id, tenant_id, user_id, session_id, model,
                input_tokens, output_tokens, total_tokens, cost_amount, currency
         FROM token_usage
@@ -27,7 +27,7 @@
     </select>
 
     <!-- 详情带记账时间。不带回提示词，也不改金额。 -->
-    <select id="findOwned" resultType="com.zhu.audit.infrastructure.persistence.entity.TokenUsage">
+    <select id="findOwned" resultType="com.zhu.audit.infrastructure.persistence.entity.usage.TokenUsage">
         SELECT id, run_id, tenant_id, session_id, model,
                input_tokens, output_tokens, total_tokens, cost_amount, currency, created_at
         FROM token_usage

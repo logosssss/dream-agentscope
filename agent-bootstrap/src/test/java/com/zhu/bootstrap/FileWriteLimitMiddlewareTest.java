@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.api.AuditRecorder;
+import com.zhu.audit.api.event.AuditRecorder;
 import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;

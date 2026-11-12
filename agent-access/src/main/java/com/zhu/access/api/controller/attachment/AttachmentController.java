@@ -1,15 +1,15 @@
 package com.zhu.access.api.controller.attachment;
 
-import com.zhu.access.api.dto.AttachmentContent;
-import com.zhu.access.api.dto.AttachmentRefRequest;
-import com.zhu.access.api.dto.AttachmentRequest;
-import com.zhu.access.application.auth.AccessAccountGate;
+import com.zhu.access.api.dto.attachment.AttachmentContent;
+import com.zhu.access.api.dto.attachment.AttachmentRefRequest;
+import com.zhu.access.api.dto.attachment.AttachmentRequest;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
 import com.zhu.access.application.attachment.AttachmentAppService;
-import com.zhu.audit.api.AttachmentCatalog;
-import com.zhu.audit.api.AttachmentDetail;
-import com.zhu.audit.api.AttachmentRefItem;
-import com.zhu.audit.api.AttachmentRefSummary;
-import com.zhu.audit.api.AttachmentSummary;
+import com.zhu.audit.api.attachment.AttachmentCatalog;
+import com.zhu.audit.api.attachment.AttachmentDetail;
+import com.zhu.audit.api.attachment.AttachmentRefItem;
+import com.zhu.audit.api.attachment.AttachmentRefSummary;
+import com.zhu.audit.api.attachment.AttachmentSummary;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;

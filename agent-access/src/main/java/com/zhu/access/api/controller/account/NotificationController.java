@@ -1,9 +1,9 @@
 package com.zhu.access.api.controller.account;
 
-import com.zhu.access.application.auth.AccessAccountGate;
-import com.zhu.audit.api.ApprovalNotice;
-import com.zhu.audit.api.ApprovalNoticeDetail;
-import com.zhu.audit.api.ApprovalNotifier;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.audit.api.approval.ApprovalNotice;
+import com.zhu.audit.api.approval.ApprovalNoticeDetail;
+import com.zhu.audit.api.approval.ApprovalNotifier;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;

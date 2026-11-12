@@ -1,7 +1,7 @@
 package com.zhu.semantic.application;
 
-import com.zhu.semantic.api.ToolCatalogService;
-import com.zhu.semantic.contract.ToolDescriptor;
+import com.zhu.semantic.api.tool.ToolCatalogService;
+import com.zhu.semantic.contract.tool.ToolDescriptor;
 import com.zhu.semantic.infrastructure.persistence.ToolRegistryMapper;
 import com.zhu.semantic.infrastructure.persistence.entity.ToolRegistry;
 import java.util.ArrayList;

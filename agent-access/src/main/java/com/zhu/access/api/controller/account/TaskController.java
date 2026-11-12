@@ -1,8 +1,8 @@
 package com.zhu.access.api.controller.account;
 
-import com.zhu.access.api.dto.TaskDetail;
-import com.zhu.access.api.dto.TaskSummary;
-import com.zhu.access.application.auth.AccessAccountGate;
+import com.zhu.access.api.dto.account.TaskDetail;
+import com.zhu.access.api.dto.account.TaskSummary;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
 import com.zhu.access.application.account.TaskQuery;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;

@@ -1,11 +1,11 @@
 package com.zhu.runtime.domain.middleware;
 
-import com.zhu.audit.api.SafetyInterventionRecorder;
+import com.zhu.audit.api.safety.SafetyInterventionRecorder;
 import com.zhu.runtime.domain.CallIdentity;
 import com.zhu.runtime.domain.KeywordRiskClassifier;
-import com.zhu.semantic.contract.CrisisPrompt;
-import com.zhu.semantic.contract.RiskLevel;
-import com.zhu.semantic.contract.SemanticRiskJudge;
+import com.zhu.semantic.contract.safety.CrisisPrompt;
+import com.zhu.semantic.contract.safety.RiskLevel;
+import com.zhu.semantic.contract.safety.SemanticRiskJudge;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;

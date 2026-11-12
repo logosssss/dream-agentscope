@@ -1,10 +1,10 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.dto.CurrentUser;
-import com.zhu.access.application.auth.AccessAccountGate;
-import com.zhu.access.application.auth.CurrentUserQuery;
-import com.zhu.audit.api.TenantUserLookup;
-import com.zhu.audit.api.TenantUserSummary;
+import com.zhu.access.api.dto.auth.CurrentUser;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.access.application.auth.session.CurrentUserQuery;
+import com.zhu.audit.api.tenant.TenantUserLookup;
+import com.zhu.audit.api.tenant.TenantUserSummary;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
