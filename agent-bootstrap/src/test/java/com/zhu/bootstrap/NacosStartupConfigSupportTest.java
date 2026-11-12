@@ -20,7 +20,8 @@ class NacosStartupConfigSupportTest {
         assertThat(NacosAllowlist.businessExact()).contains("agentscope.access.daily-limit");
         assertThat(NacosAllowlist.businessPrefixes()).contains(
                 "agentscope.permission.rules",
-                "agentscope.runtime.mcp.servers");
+                "agentscope.runtime.mcp.servers",
+                "agentscope.runtime.sandbox");
         assertThat(NacosAllowlist.infraExact()).contains(
                 "spring.datasource.url",
                 "spring.servlet.multipart.max-file-size",
@@ -115,6 +116,21 @@ class NacosStartupConfigSupportTest {
         assertThat(source.getProperty("agentscope.runtime.mcp.servers.demo.required")).isEqualTo(false);
         assertThat(source.getProperty("agentscope.runtime.mcp.servers.demo.env.TOKEN"))
                 .isEqualTo("${MCP_DEMO_TOKEN}");
+    }
+
+    /** Sandbox 旋钮按前缀收下；本块只验白名单，不接线 Docker。 */
+    @Test
+    void businessKeepsSandboxPrefix() {
+        MapPropertySource source = NacosStartupConfigSupport.parseBusiness("""
+                agentscope:
+                  runtime:
+                    sandbox:
+                      enabled: true
+                      image: ubuntu:24.04
+                """);
+
+        assertThat(source.getProperty("agentscope.runtime.sandbox.enabled")).isEqualTo(true);
+        assertThat(source.getProperty("agentscope.runtime.sandbox.image")).isEqualTo("ubuntu:24.04");
     }
 
     /** infra 收连接与密钥，丢掉业务旋钮。 */

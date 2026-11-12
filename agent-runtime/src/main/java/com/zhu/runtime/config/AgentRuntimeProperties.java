@@ -8,7 +8,7 @@ import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 执行内核配置。model / 超时 / 轮数 / 字数 / 写文件上限 / MCP 清单可由 Nacos 业务 yaml 热更；
+ * 执行内核配置。model / 超时 / 轮数 / 字数 / 写文件上限 / MCP 清单 / Sandbox 旋钮可由 Nacos 业务 yaml 热更；
  * agentId / name / workspace 不在热更白名单，改身份仍要升版本。
  */
 @ConfigurationProperties(prefix = "agentscope.runtime")
@@ -43,6 +43,12 @@ public class AgentRuntimeProperties {
      * 白名单前缀 {@code agentscope.runtime.mcp.servers}。
      */
     private Mcp mcp = new Mcp();
+
+    /**
+     * Sandbox 旋钮。默认关；仅 companion 在 enabled=true 时换 DockerFilesystem，见 docs/sandbox-落地.md。
+     * 白名单前缀 {@code agentscope.runtime.sandbox}。
+     */
+    private Sandbox sandbox = new Sandbox();
 
     /** 模型坐标。 */
     public String getModel() {
@@ -125,6 +131,54 @@ public class AgentRuntimeProperties {
     /** 写入 MCP 根节点；null 按空清单。 */
     public void setMcp(Mcp mcp) {
         this.mcp = mcp == null ? new Mcp() : mcp;
+    }
+
+    /** Sandbox 根节点。 */
+    public Sandbox getSandbox() {
+        return sandbox;
+    }
+
+    /** 写入 Sandbox 根节点；null 按默认关。 */
+    public void setSandbox(Sandbox sandbox) {
+        this.sandbox = sandbox == null ? new Sandbox() : sandbox;
+    }
+
+    /**
+     * 运行层 Sandbox 配置。本块只绑属性；Docker 接线见落地 ②。
+     */
+    public static class Sandbox {
+
+        /** 指南推荐默认镜像；image 为空时接线层回退到此常量。 */
+        public static final String DEFAULT_IMAGE = "ubuntu:24.04";
+
+        /** false 时 companion 仍用 RemoteFilesystem；true 才换 Docker。 */
+        private boolean enabled;
+
+        /**
+         * Docker 镜像 tag。空则接线时用 {@link #DEFAULT_IMAGE}。
+         * 拉取凭证不进本字段，只用环境/宿主机 Docker 配置。
+         */
+        private String image = "";
+
+        /** 是否打开 companion Docker 文件系统。 */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** 写入开关。 */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /** 当前镜像；可能为空串。 */
+        public String getImage() {
+            return image;
+        }
+
+        /** 写入镜像；null 按空串。 */
+        public void setImage(String image) {
+            this.image = image == null ? "" : image;
+        }
     }
 
     /**

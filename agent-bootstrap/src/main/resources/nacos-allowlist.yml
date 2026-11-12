@@ -20,6 +20,8 @@ business:
     - agentscope.permission.rules
     # MCP 服务器清单（map）；密钥用 ${ENV} 占位，不进明文。见 docs/mcp-落地.md。
     - agentscope.runtime.mcp.servers
+    # Sandbox 旋钮（enabled / image 等）；Docker socket/凭证不进 Nacos。见 docs/sandbox-落地.md。
+    - agentscope.runtime.sandbox
 
 infra:
   exact:

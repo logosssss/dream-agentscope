@@ -21,6 +21,10 @@ agentscope:
     timeout-seconds: 120
     max-user-chars: 32768
     max-write-bytes: 5242880
+    # Sandbox 默认关；仅 companion 在 enabled=true 时换 Docker。见 docs/sandbox-落地.md。
+    sandbox:
+      enabled: false
+      # image: ubuntu:24.04
   auth:
     # 自助注册进入的租户。必须已登记且 ACTIVE。
     tenant-id: demo

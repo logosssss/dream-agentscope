@@ -22,6 +22,10 @@ agentscope:
     # 对话经接入层 Channel Gateway（长驻 companion + echo-v1）。
     # model / max-iters / timeout-seconds / max-user-chars / max-write-bytes
     # → agent-bootstrap.yaml（Java 字段自带缺省，无 Nacos 时用类默认值）
+    # Sandbox 默认关；enabled/image 可进 Nacos 业务白名单，见 docs/sandbox-落地.md。
+    sandbox:
+      enabled: false
+      # image: ubuntu:24.04
   startup:
     dependencies:
       # 正式启动探测 MySQL、Redis、Milvus。测试配置关掉。
