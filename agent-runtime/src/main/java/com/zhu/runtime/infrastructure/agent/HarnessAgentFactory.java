@@ -17,6 +17,8 @@ import io.agentscope.core.tracing.OtelTracingMiddleware;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import io.agentscope.harness.agent.memory.MemoryConfig;
+import io.agentscope.harness.agent.subagent.SubagentDeclaration;
+import io.agentscope.harness.agent.subagent.WorkspaceMode;
 import java.time.Duration;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Component;
  * 长驻 Agent 的 Builder 定制口。真正 {@code build()} 由 {@code GatewayBootstrap} 完成。
  * 公共项走 {@link #configureCommon}；搭子 / echo 差异走各自 customize。
  * Skills 窄范围：公共项关动态 skill，工作区默认 skill 仍开；不写种子、不开 manage/curator（见 docs/skills-落地.md）。
+ * Subagent：公共项关动态；companion 挂一份 {@code subagent-probe}；echo 不挂（见 docs/subagent-落地.md）。
  * 不要在线程之间共享同一个 Builder 再改提示词。
  */
 @Component
@@ -36,6 +39,12 @@ public class HarnessAgentFactory {
 
     /** 瘦路由探测 Agent 的短系统提示。不挂搭子工具与记忆中间件。 */
     public static final String ECHO_SYS_PROMPT = "你是路由探测助手。用一两句中文直接回答用户，不要调用工具。";
+
+    /** companion 静态子代理探针名。对照用占位，不承诺产品能力。 */
+    public static final String SUBAGENT_PROBE_NAME = "subagent-probe";
+
+    /** 探针子代理提示词：极简短答，零工具。 */
+    public static final String SUBAGENT_PROBE_PROMPT = "你是对照用占位子代理。用一两句中文直接短答，不要调用工具。";
 
     private final AgentRuntimeProperties properties;
 
@@ -110,9 +119,9 @@ public class HarnessAgentFactory {
     /**
      * 给 Bootstrap {@code configureAllAgents} 用的公共项。
      * 只放 companion 与 echo 都要的：关 web/shell、打开 Harness Memory、
-     * disableCompaction / disableToolResultEviction / disableDynamicSkills、
+     * disableCompaction / disableToolResultEviction / disableDynamicSkills / disableDynamicSubagents、
      * 权限上下文、追踪、停机闸、状态库与按用户工作区。
-     * Eviction / Compaction 危机闸只在 {@link #customizeCompanion} 挂；产品中间件和提示词不要放这里。
+     * Eviction / Compaction 危机闸与静态子代理声明只在 {@link #customizeCompanion} 挂。
      */
     public void configureCommon(HarnessAgent.Builder builder) {
         // 未做出口白名单前关掉内置 web 工具，避免会话内 SSRF（元数据/内网）。
@@ -134,6 +143,8 @@ public class HarnessAgentFactory {
         // 框架默认开动态 skill；关掉后中间件 frozen。工作区默认 skill 仍开（目录可空），本专题不写种子文件。
         // 见 docs/skills-落地.md。
         builder.disableDynamicSkills();
+        // 框架默认开动态子代理；关掉后仍可挂静态 SubagentDeclaration。见 docs/subagent-落地.md。
+        builder.disableDynamicSubagents();
         // 无条件规则 + BYPASS；热更后排空重建会再次 create。
         builder.permissionContext(permissionContexts.create());
         builder.middleware(tracing);
@@ -148,6 +159,7 @@ public class HarnessAgentFactory {
     /**
      * 搭子差异：标识、模型、提示词、轮数、产品中间件与工作区路径。
      * 含 Eviction → Compaction → Memory flush 危机闸（须在 SafetyGate 之后）。
+     * 挂一份静态 {@link #SUBAGENT_PROBE_NAME}（ISOLATED / 继承权限 / 零工具）。
      * 业务工具在 {@link #attachCompanionTools} 里挂，因为 Toolkit 要等 build 之后才有。
      */
     public void customizeCompanion(HarnessAgent.Builder builder) {
@@ -160,6 +172,8 @@ public class HarnessAgentFactory {
         if (!blank(properties.getWorkspace())) {
             builder.workspace(properties.getWorkspace());
         }
+        // 静态探针：Mode.SUBAGENT + 空 tools，降低嵌套 spawn 面；难硬禁则见专题已知限制。
+        builder.subagent(subagentProbe());
         // 审计、写文件上限、审批、安全门、人设检查走 Middleware。
         // 跨会话记忆权威是 Harness Memory（CrisisGated flush）；不再挂 CompanionMemoryMiddleware。
         builder.middleware(auditMiddleware);
@@ -176,8 +190,9 @@ public class HarnessAgentFactory {
     }
 
     /**
-     * echo 差异：固定标识与短提示，轮数封顶 8，不挂搭子产品中间件。
-     * 继承 common 的 disableCompaction / disableToolResultEviction / disableDynamicSkills，不挂危机闸。
+     * echo 差异：固定标识与短提示，轮数封顶 8，不挂搭子产品中间件，不挂静态子代理。
+     * 继承 common 的 disableCompaction / disableToolResultEviction / disableDynamicSkills /
+     * disableDynamicSubagents，不挂危机闸。
      */
     public void customizeEcho(HarnessAgent.Builder builder) {
         builder.name("echo")
@@ -185,6 +200,22 @@ public class HarnessAgentFactory {
                 .model(chatModel.resolve(null))
                 .sysPrompt(ECHO_SYS_PROMPT)
                 .maxIters(Math.min(8, maxIterations()));
+    }
+
+    /**
+     * companion 唯一静态子代理声明。不写 Remote、不持久会话、工具名单为空。
+     */
+    public static SubagentDeclaration subagentProbe() {
+        return SubagentDeclaration.builder()
+                .name(SUBAGENT_PROBE_NAME)
+                .description("对照用占位子代理，不承诺产品能力")
+                .workspaceMode(WorkspaceMode.ISOLATED)
+                .inheritParentPermissions(true)
+                .persistSession(false)
+                .mode(SubagentDeclaration.Mode.SUBAGENT)
+                .tools(List.of())
+                .inlineAgentsBody(SUBAGENT_PROBE_PROMPT)
+                .build();
     }
 
     /**
