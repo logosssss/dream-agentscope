@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 长驻 {@link HarnessAgent} 按 agentId 索引。
  * Middleware 链路里框架传入的常是 ReAct 委托，拿不到 {@code WorkspaceManager}；
- * 危机闸 flush 需经本表回查 Harness。Gateway 启停时登记/注销。
+ * Memory flush / Compaction 危机闸需经本表回查 Harness。Gateway 启停时登记/注销。
  */
 public final class HarnessAgentRegistry {
 
