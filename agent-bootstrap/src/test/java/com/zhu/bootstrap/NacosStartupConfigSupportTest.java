@@ -18,7 +18,9 @@ class NacosStartupConfigSupportTest {
     @Test
     void allowlistLoadedFromClasspathYaml() {
         assertThat(NacosAllowlist.businessExact()).contains("agentscope.access.daily-limit");
-        assertThat(NacosAllowlist.businessPrefixes()).contains("agentscope.permission.rules");
+        assertThat(NacosAllowlist.businessPrefixes()).contains(
+                "agentscope.permission.rules",
+                "agentscope.runtime.mcp.servers");
         assertThat(NacosAllowlist.infraExact()).contains(
                 "spring.datasource.url",
                 "spring.servlet.multipart.max-file-size",
@@ -90,6 +92,29 @@ class NacosStartupConfigSupportTest {
 
         assertThat(source.getProperty("agentscope.permission.rules[0].tool-id")).isEqualTo("shell");
         assertThat(source.getProperty("agentscope.permission.rules[0].decision")).isEqualTo("DENY");
+    }
+
+    /** MCP servers map 展平键按前缀收下；密钥明文键仍会被别处约束，这里只验白名单。 */
+    @Test
+    void businessKeepsMcpServersPrefix() {
+        MapPropertySource source = NacosStartupConfigSupport.parseBusiness("""
+                agentscope:
+                  runtime:
+                    mcp:
+                      servers:
+                        demo:
+                          transport: stdio
+                          command: npx
+                          required: false
+                          env:
+                            TOKEN: ${MCP_DEMO_TOKEN}
+                """);
+
+        assertThat(source.getProperty("agentscope.runtime.mcp.servers.demo.transport")).isEqualTo("stdio");
+        assertThat(source.getProperty("agentscope.runtime.mcp.servers.demo.command")).isEqualTo("npx");
+        assertThat(source.getProperty("agentscope.runtime.mcp.servers.demo.required")).isEqualTo(false);
+        assertThat(source.getProperty("agentscope.runtime.mcp.servers.demo.env.TOKEN"))
+                .isEqualTo("${MCP_DEMO_TOKEN}");
     }
 
     /** infra 收连接与密钥，丢掉业务旋钮。 */

@@ -18,6 +18,8 @@ business:
     - agentscope.auth.tenant-id
   prefixes:
     - agentscope.permission.rules
+    # MCP 服务器清单（map）；密钥用 ${ENV} 占位，不进明文。见 docs/mcp-落地.md。
+    - agentscope.runtime.mcp.servers
 
 infra:
   exact:

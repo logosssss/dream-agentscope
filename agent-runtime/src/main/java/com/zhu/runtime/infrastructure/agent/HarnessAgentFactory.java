@@ -19,8 +19,12 @@ import io.agentscope.harness.agent.HarnessAgent;
 import io.agentscope.harness.agent.memory.MemoryConfig;
 import io.agentscope.harness.agent.subagent.SubagentDeclaration;
 import io.agentscope.harness.agent.subagent.WorkspaceMode;
+import io.agentscope.harness.agent.tools.McpServerRegistrationListener;
+import io.agentscope.harness.agent.tools.McpServerRegistrationResult;
+import io.agentscope.harness.agent.tools.ToolsConfig;
 import java.time.Duration;
 import java.util.List;
+import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -29,6 +33,7 @@ import org.springframework.stereotype.Component;
  * 公共项走 {@link #configureCommon}；搭子 / echo 差异走各自 customize。
  * Skills 窄范围：公共项关动态 skill，工作区默认 skill 仍开；不写种子、不开 manage/curator（见 docs/skills-落地.md）。
  * Subagent：公共项关动态；companion 挂一份 {@code subagent-probe}；echo 不挂（见 docs/subagent-落地.md）。
+ * MCP：仅 companion 在清单非空时设 {@code toolsConfig}；echo 不连（见 docs/mcp-落地.md）。
  * 不要在线程之间共享同一个 Builder 再改提示词。
  */
 @Component
@@ -81,6 +86,12 @@ public class HarnessAgentFactory {
 
     /** 按目录挑选业务工具。目录为空时不注册。 */
     private final CatalogToolRegistrar toolRegistrar = new CatalogToolRegistrar();
+
+    /** MCP 注册结果日志；不改变硬/软失败语义（由 required 决定）。 */
+    private static final Logger MCP_LOG = Logger.getLogger(HarnessAgentFactory.class.getName());
+
+    /** companion 共用一份监听，避免每次 customize 新建。 */
+    private static final McpServerRegistrationListener MCP_LISTENER = HarnessAgentFactory::onMcpRegistration;
 
     /** 写文件限制、审批、安全门、人设标记、Eviction/Compaction 闸与 Memory flush 闸都挂上。体积检查更靠前，危机换话术在模型前。 */
     public HarnessAgentFactory(
@@ -160,6 +171,7 @@ public class HarnessAgentFactory {
      * 搭子差异：标识、模型、提示词、轮数、产品中间件与工作区路径。
      * 含 Eviction → Compaction → Memory flush 危机闸（须在 SafetyGate 之后）。
      * 挂一份静态 {@link #SUBAGENT_PROBE_NAME}（ISOLATED / 继承权限 / 零工具）。
+     * MCP：清单非空才设 toolsConfig；热更后排空重建会再次走这里。
      * 业务工具在 {@link #attachCompanionTools} 里挂，因为 Toolkit 要等 build 之后才有。
      */
     public void customizeCompanion(HarnessAgent.Builder builder) {
@@ -174,6 +186,12 @@ public class HarnessAgentFactory {
         }
         // 静态探针：Mode.SUBAGENT + 空 tools，降低嵌套 spawn 面；难硬禁则见专题已知限制。
         builder.subagent(subagentProbe());
+        // 空清单不设 toolsConfig，避免覆盖工作区默认工具过滤；有清单才挂 MCP。
+        ToolsConfig mcpTools = McpToolsConfigFactory.createOrNull(properties.getMcp());
+        if (mcpTools != null) {
+            builder.toolsConfig(mcpTools);
+            builder.mcpServerRegistrationListener(MCP_LISTENER);
+        }
         // 审计、写文件上限、审批、安全门、人设检查走 Middleware。
         // 跨会话记忆权威是 Harness Memory（CrisisGated flush）；不再挂 CompanionMemoryMiddleware。
         builder.middleware(auditMiddleware);
@@ -190,7 +208,7 @@ public class HarnessAgentFactory {
     }
 
     /**
-     * echo 差异：固定标识与短提示，轮数封顶 8，不挂搭子产品中间件，不挂静态子代理。
+     * echo 差异：固定标识与短提示，轮数封顶 8，不挂搭子产品中间件，不挂静态子代理，不挂 MCP。
      * 继承 common 的 disableCompaction / disableToolResultEviction / disableDynamicSkills /
      * disableDynamicSubagents，不挂危机闸。
      */
@@ -259,5 +277,22 @@ public class HarnessAgentFactory {
 
     private static boolean blank(String value) {
         return value == null || value.isBlank();
+    }
+
+    /** 记录 MCP 注册结果；FAILED/SKIPPED 打警告，SUCCESS 打信息。 */
+    private static void onMcpRegistration(McpServerRegistrationResult result) {
+        if (result == null) {
+            return;
+        }
+        String name = result.serverName();
+        String transport = result.transport();
+        McpServerRegistrationResult.Status status = result.status();
+        if (status == McpServerRegistrationResult.Status.SUCCESS) {
+            MCP_LOG.info(() -> "MCP registered: name=" + name + ", transport=" + transport);
+            return;
+        }
+        Throwable cause = result.cause();
+        String detail = cause == null ? "" : cause.getMessage();
+        MCP_LOG.warning("MCP " + status + ": name=" + name + ", transport=" + transport + ", detail=" + detail);
     }
 }

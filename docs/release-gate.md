@@ -136,7 +136,8 @@ cd ../web-admin && pnpm build
 
 以下保持「还没有 / 弱依赖 / 非目标」，不因未做而判门禁失败：
 
-- RocketMQ、服务发现、MCP  
+- RocketMQ、Nacos 服务发现、MCP 服务发现（MCP 清单可进用户进程业务配置且 companion 已接线，见 `docs/mcp-落地.md`；不做服务发现仍不挡门禁）  
+
 - Nacos **infra**（连接/密钥）热更新；业务 yaml 热更新已落地（非法拒收、仅影响新请求）
 - 管理员账号登录页（管理端现阶段靠 Admin Token）  
 - 按保留策略真正清理、批准删除后真删、调度真正消费  

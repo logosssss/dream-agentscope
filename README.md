@@ -53,7 +53,7 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 ### 明确不是什么 / 当前不做
 
 - **RocketMQ / `agentscope.task.mode=mq`**：依赖未引入；切到 mq 会启动失败
-- **Nacos 服务发现、MCP**
+- **Nacos 服务发现**；**MCP 服务发现**（清单可进用户进程业务配置，companion 已接线；不做把 MCP 当注册中心，见 `docs/mcp-落地.md`）
 - **infra（连接/密钥）热更新**：改完需重启；只有业务 yaml 可热更
 - **管理端账号登录页**：现阶段靠 Admin Token
 - **保留策略真正清理、删除批准后真删、调度真正消费**：可登记/改状态，不执行落地清理

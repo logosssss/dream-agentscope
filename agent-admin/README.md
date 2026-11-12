@@ -29,7 +29,7 @@
 ## 依赖
 
 依赖 `agent-common`、`agent-audit`、`agent-semantic`、Web、Redis、`nacos-client` 和 `mysql-connector-j`。用审计模块的查询接口读库；工具目录登记走语义模块。不依赖 `agent-runtime`、`agent-access`、`agent-state`，也不依赖 Harness。Redis 只用于启动探测。
-`NACOS_ADDR` 有值时启动必须拉到 `agent-admin-infra.yaml`（连接/密钥，不热更）与 `agent-admin.yaml`（业务白名单可空，正文非空即可），group `AGENT_PLATFORM`，缺一退出。地址为空不连，连接可读环境变量。不做业务热更监听、服务发现和 MCP。
+`NACOS_ADDR` 有值时启动必须拉到 `agent-admin-infra.yaml`（连接/密钥，不热更）与 `agent-admin.yaml`（业务白名单可空，正文非空即可），group `AGENT_PLATFORM`，缺一退出。地址为空不连，连接可读环境变量。不做业务热更监听、服务发现。管理进程不装配 MCP（MCP 仅用户进程 companion，见 `docs/mcp-落地.md`）。
 
 `agent-bootstrap` 不依赖本模块。用户进程扫描 `com.zhu` 时，classpath 上没有这些类，管理接口不会混进对话进程。
 

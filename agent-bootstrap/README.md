@@ -26,7 +26,7 @@ mvn -pl agent-bootstrap -am spring-boot:run
 - `agentscope.distributed.mysql.enabled=true`，`create-if-not-exist` 保持 `false`。
 - 模型默认 `dashscope:qwen-plus`，可用环境变量 `AGENTSCOPE_MODEL` 覆盖。密钥不要写进这个文件。
 - `application.yml` 只留进程骨架（停机、上传上限、agent-id、Flyway/MyBatis、Nacos 地址）。业务与连接默认在 `deploy/nacos/`；无 Nacos 时取消注释 `application.yml` 文末兜底块。
-- `NACOS_ADDR` 为空时不建提示词客户端，也不拉启动配置。配了地址则启动必须拉到 `agent-bootstrap-infra.yaml`（连接/密钥，不热更）与 `agent-bootstrap.yaml`（业务旋钮，可热更），group `AGENT_PLATFORM`，缺一退出。允许键写在 `classpath:nacos-allowlist.yml`；非法热更拒收并保留上一份。提示词仍走 AI Prompt 监听，拉失败用兜底。不做服务发现和 MCP。
+- `NACOS_ADDR` 为空时不建提示词客户端，也不拉启动配置。配了地址则启动必须拉到 `agent-bootstrap-infra.yaml`（连接/密钥，不热更）与 `agent-bootstrap.yaml`（业务旋钮，可热更），group `AGENT_PLATFORM`，缺一退出。允许键写在 `classpath:nacos-allowlist.yml`；非法热更拒收并保留上一份。提示词仍走 AI Prompt 监听，拉失败用兜底。不做服务发现。MCP：业务白名单前缀 `agentscope.runtime.mcp.servers`；用户进程 companion 已接线（空清单不连；`${ENV}` 占位；`required` 硬/软失败）；**不做 MCP 服务发现**；密钥不进 Nacos 明文。见 `docs/mcp-落地.md`。
 
 `SPRING_DATASOURCE_URL`、`SPRING_DATASOURCE_USERNAME`、`AGENTSCOPE_REDIS_HOST`、`MILVUS_URI` 必须在环境里提供。密码用 `SPRING_DATASOURCE_PASSWORD`，可以为空。
 
@@ -38,6 +38,8 @@ mvn -pl agent-bootstrap -am spring-boot:run
 | --- | --- |
 | `ArchitectureTest` | 语义不依赖运行层和接入层；运行层不碰语义实现包；状态层不碰语义、运行层和接入层；向量层不碰状态、语义、运行层和接入层；接入层不引用 harness；控制器不访问持久化包。导入的类必须包含各模块的代表类型，避免规则空过 |
 | `BootstrapContextTest` | 上下文能起来；恰好一个 `AgentExecutor`；没有 `HarnessAgent` Bean；没有 `DistributedStore` Bean；向量口是空实现；有嵌入器但测试不连网；`GET /health/live` 返回 UP；测试配置下 `GET /health/ready` 跳过 MySQL、Redis 和 Milvus |
+| `NacosStartupConfigSupportTest` | 业务白名单含 `agentscope.runtime.mcp.servers` 前缀；MCP map 展平键可热更收进 Environment |
+| `McpToolsConfigFactoryTest` | 空清单不装配；占位展开；`required` 硬/软失败（非法 transport，不连真 MCP）；companion 源码接线、echo 不挂 |
 
 ## 不放这里的东西
 

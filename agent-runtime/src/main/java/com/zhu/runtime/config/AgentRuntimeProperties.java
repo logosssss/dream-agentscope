@@ -1,9 +1,14 @@
 package com.zhu.runtime.config;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 执行内核配置。model / 超时 / 轮数 / 字数 / 写文件上限可由 Nacos 业务 yaml 热更；
+ * 执行内核配置。model / 超时 / 轮数 / 字数 / 写文件上限 / MCP 清单可由 Nacos 业务 yaml 热更；
  * agentId / name / workspace 不在热更白名单，改身份仍要升版本。
  */
 @ConfigurationProperties(prefix = "agentscope.runtime")
@@ -32,6 +37,12 @@ public class AgentRuntimeProperties {
 
     /** 单次写文件 UTF-8 字节上限。小于 1 时按 5MB。 */
     private int maxWriteBytes = 5 * 1024 * 1024;
+
+    /**
+     * MCP 清单。空 servers 表示 companion 不连；仅 companion 装配，见 docs/mcp-落地.md。
+     * 白名单前缀 {@code agentscope.runtime.mcp.servers}。
+     */
+    private Mcp mcp = new Mcp();
 
     /** 模型坐标。 */
     public String getModel() {
@@ -104,5 +115,195 @@ public class AgentRuntimeProperties {
     /** 写入单次写文件字节上限。 */
     public void setMaxWriteBytes(int maxWriteBytes) {
         this.maxWriteBytes = maxWriteBytes;
+    }
+
+    /** MCP 根节点。 */
+    public Mcp getMcp() {
+        return mcp;
+    }
+
+    /** 写入 MCP 根节点；null 按空清单。 */
+    public void setMcp(Mcp mcp) {
+        this.mcp = mcp == null ? new Mcp() : mcp;
+    }
+
+    /**
+     * 运行层 MCP 配置根。只承载 servers map，不写死传输默认值。
+     */
+    public static class Mcp {
+
+        /** name → 单项；热更后走 rebuildAll 重建。 */
+        private Map<String, Server> servers = new LinkedHashMap<>();
+
+        /** 当前清单；可能为空。 */
+        public Map<String, Server> getServers() {
+            return servers;
+        }
+
+        /** 写入清单；null 按空 map。 */
+        public void setServers(Map<String, Server> servers) {
+            this.servers = servers == null ? new LinkedHashMap<>() : new LinkedHashMap<>(servers);
+        }
+    }
+
+    /**
+     * 单项 MCP 服务器。字段对齐框架 {@code McpServerConfig}；
+     * env/url/headers 等字符串可写 {@code ${ENV}}，装配时展开。
+     */
+    public static class Server {
+
+        /** 传输：stdio / sse / http / streamable-http（框架同义）。 */
+        private String transport;
+
+        /** stdio 可执行文件；可含环境变量占位。 */
+        private String command;
+
+        /** stdio 参数列表。 */
+        private List<String> args = new ArrayList<>();
+
+        /** stdio 附加环境；值可含 {@code ${ENV}}。 */
+        private Map<String, String> env = new LinkedHashMap<>();
+
+        /** SSE / HTTP 地址；可含占位。 */
+        private String url;
+
+        /** 额外请求头；值可含占位。 */
+        private Map<String, String> headers = new LinkedHashMap<>();
+
+        /** 额外查询参数；值可含占位。 */
+        private Map<String, String> queryParams = new LinkedHashMap<>();
+
+        /** true 时注册失败拒绝启动/重建；默认 false 软失败。 */
+        private boolean required;
+
+        /** 是否给工具名加 server 前缀。 */
+        private boolean prefixToolNames;
+
+        /** 是否启用该 server 默认工具集；默认 true。 */
+        private boolean defaultToolsEnabled = true;
+
+        /** 仅启用这些工具名；空表示不额外收窄。 */
+        private List<String> enableTools = new ArrayList<>();
+
+        /** 禁用这些工具名。 */
+        private List<String> disableTools = new ArrayList<>();
+
+        /** 调用超时；未配则交给框架默认。 */
+        private Duration timeout;
+
+        /** 初始化超时；未配则交给框架默认。 */
+        private Duration initializationTimeout;
+
+        public String getTransport() {
+            return transport;
+        }
+
+        public void setTransport(String transport) {
+            this.transport = transport;
+        }
+
+        public String getCommand() {
+            return command;
+        }
+
+        public void setCommand(String command) {
+            this.command = command;
+        }
+
+        public List<String> getArgs() {
+            return args;
+        }
+
+        public void setArgs(List<String> args) {
+            this.args = args == null ? new ArrayList<>() : new ArrayList<>(args);
+        }
+
+        public Map<String, String> getEnv() {
+            return env;
+        }
+
+        public void setEnv(Map<String, String> env) {
+            this.env = env == null ? new LinkedHashMap<>() : new LinkedHashMap<>(env);
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public void setUrl(String url) {
+            this.url = url;
+        }
+
+        public Map<String, String> getHeaders() {
+            return headers;
+        }
+
+        public void setHeaders(Map<String, String> headers) {
+            this.headers = headers == null ? new LinkedHashMap<>() : new LinkedHashMap<>(headers);
+        }
+
+        public Map<String, String> getQueryParams() {
+            return queryParams;
+        }
+
+        public void setQueryParams(Map<String, String> queryParams) {
+            this.queryParams = queryParams == null ? new LinkedHashMap<>() : new LinkedHashMap<>(queryParams);
+        }
+
+        public boolean isRequired() {
+            return required;
+        }
+
+        public void setRequired(boolean required) {
+            this.required = required;
+        }
+
+        public boolean isPrefixToolNames() {
+            return prefixToolNames;
+        }
+
+        public void setPrefixToolNames(boolean prefixToolNames) {
+            this.prefixToolNames = prefixToolNames;
+        }
+
+        public boolean isDefaultToolsEnabled() {
+            return defaultToolsEnabled;
+        }
+
+        public void setDefaultToolsEnabled(boolean defaultToolsEnabled) {
+            this.defaultToolsEnabled = defaultToolsEnabled;
+        }
+
+        public List<String> getEnableTools() {
+            return enableTools;
+        }
+
+        public void setEnableTools(List<String> enableTools) {
+            this.enableTools = enableTools == null ? new ArrayList<>() : new ArrayList<>(enableTools);
+        }
+
+        public List<String> getDisableTools() {
+            return disableTools;
+        }
+
+        public void setDisableTools(List<String> disableTools) {
+            this.disableTools = disableTools == null ? new ArrayList<>() : new ArrayList<>(disableTools);
+        }
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
+
+        public Duration getInitializationTimeout() {
+            return initializationTimeout;
+        }
+
+        public void setInitializationTimeout(Duration initializationTimeout) {
+            this.initializationTimeout = initializationTimeout;
+        }
     }
 }
