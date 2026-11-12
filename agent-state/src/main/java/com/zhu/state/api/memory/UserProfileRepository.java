@@ -1,8 +1,9 @@
 package com.zhu.state.api.memory;
 
 /**
- * 用户画像的读写缝。每个租户用户一行。
- * 运行层抽取后写入，注入时再读。接入层和管理进程不要调用。
+ * 遗留用户画像读写缝。每个租户用户一行。
+ * 对话主路径不再 upsert；人设中间件仍可读旧行作跨会话触发。
+ * 接入层和管理进程不要调用。
  */
 public interface UserProfileRepository {
 

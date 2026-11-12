@@ -4,7 +4,7 @@ import com.zhu.runtime.application.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
 import com.zhu.runtime.domain.middleware.AuditMiddleware;
-import com.zhu.runtime.domain.middleware.CompanionMemoryMiddleware;
+import com.zhu.runtime.domain.middleware.CrisisGatedMemoryFlushMiddleware;
 import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
 import com.zhu.runtime.domain.middleware.PersonaConsistencyMiddleware;
 import com.zhu.runtime.domain.middleware.SafetyGateMiddleware;
@@ -54,7 +54,7 @@ public class HarnessAgentFactory {
 
     private final PersonaConsistencyMiddleware personaConsistency;
 
-    private final CompanionMemoryMiddleware companionMemory;
+    private final CrisisGatedMemoryFlushMiddleware crisisGatedMemoryFlush;
 
     private final AgentShutdown shutdown;
 
@@ -66,7 +66,7 @@ public class HarnessAgentFactory {
     /** 按目录挑选业务工具。目录为空时不注册。 */
     private final CatalogToolRegistrar toolRegistrar = new CatalogToolRegistrar();
 
-    /** 写文件限制、审批、安全门、人设标记和记忆写入都挂上。体积检查更靠前，危机换话术发生在模型调用之前。 */
+    /** 写文件限制、审批、安全门、人设标记与 Harness Memory flush 闸都挂上。体积检查更靠前，危机换话术在模型前。 */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,
             ResolvedChatModel chatModel,
@@ -78,7 +78,7 @@ public class HarnessAgentFactory {
             FileWriteLimitMiddleware fileWriteLimit,
             SafetyGateMiddleware safetyGate,
             PersonaConsistencyMiddleware personaConsistency,
-            CompanionMemoryMiddleware companionMemory,
+            CrisisGatedMemoryFlushMiddleware crisisGatedMemoryFlush,
             AgentShutdown shutdown,
             List<ProductTool> productTools) {
         this.properties = properties;
@@ -91,7 +91,7 @@ public class HarnessAgentFactory {
         this.fileWriteLimit = fileWriteLimit;
         this.safetyGate = safetyGate;
         this.personaConsistency = personaConsistency;
-        this.companionMemory = companionMemory;
+        this.crisisGatedMemoryFlush = crisisGatedMemoryFlush;
         this.shutdown = shutdown;
         this.productTools = productTools == null ? List.of() : List.copyOf(productTools);
     }
@@ -106,11 +106,13 @@ public class HarnessAgentFactory {
         // 远程工作区路径下 shell 本就不注册；显式关掉防止以后换沙箱文件系统时裸奔。
         builder.disableWebTools();
         builder.disableShellTool();
-        // 跨会话权威迁入 Harness Memory：不 disable 工具/flush；不另配 model（回落对话模型）。
-        // throttled 10m；CRITICAL 禁 flush 在迁入 ② 产品闸。见 docs/memory-longterm-落地.md。
+        // 跨会话权威迁入 Harness Memory：开放 memory_*；不另配 model（回落对话模型）。
+        // 关掉框架自带 Memory hooks，改由 CrisisGatedMemoryFlushMiddleware 在非 CRITICAL 时触发 flush。
+        // 见 docs/memory-longterm-落地.md。
         builder.memory(MemoryConfig.builder()
                 .flushTrigger(MemoryConfig.FlushTrigger.throttled(Duration.ofMinutes(10)))
                 .build());
+        builder.disableMemoryHooks();
         // 无条件规则 + BYPASS；热更后排空重建会再次 create。
         builder.permissionContext(permissionContexts.create());
         builder.middleware(tracing);
@@ -136,13 +138,15 @@ public class HarnessAgentFactory {
         if (!blank(properties.getWorkspace())) {
             builder.workspace(properties.getWorkspace());
         }
-        // 审计、写文件上限、审批、安全门和记忆写入走 Middleware。Hook 自 2.0.0 起标成删除。
+        // 审计、写文件上限、审批、安全门、人设检查走 Middleware。
+        // 跨会话记忆权威是 Harness Memory（CrisisGated flush）；不再挂 CompanionMemoryMiddleware。
         builder.middleware(auditMiddleware);
         builder.middleware(fileWriteLimit);
         builder.middleware(approvalMiddleware);
         builder.middleware(safetyGate);
         builder.middleware(personaConsistency);
-        builder.middleware(companionMemory);
+        // 须在 SafetyGate 之后：靠本轮 RiskLevel 决定是否入队 flush。
+        builder.middleware(crisisGatedMemoryFlush);
     }
 
     /**

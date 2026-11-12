@@ -25,6 +25,7 @@ import reactor.core.publisher.Flux;
  * 人设一致性。长对话、跨会话恢复或用户纠正身份时打开检查标记。
  * 规则检查在执行层做。这里不调模型，也不写干预。
  * 挂在安全门之后，危机档不打开标记。标记只活这一轮。
+ * 「跨会话恢复」仍读遗留画像/情景表；不写表。跨会话记忆权威是 {@code MEMORY.md}。
  */
 @Component
 public class PersonaConsistencyMiddleware implements MiddlewareBase {

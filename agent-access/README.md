@@ -88,7 +88,7 @@
 
 同步任务在执行前写入 `agent_task`，状态是 `RUNNING`，结束后改成 `SUCCEEDED` 或 `FAILED`。不存任务参数。开始记录失败时任务不执行。结束记录失败不改变已经跑完的结果。`GET /api/tasks` 列出当前用户在这个租户下的任务，默认 50 条，最多 100 条。不读 payload，也不是 `/api/todos`。`GET /api/tasks/{taskId}` 先确认这次任务属于当前用户和租户，再带开始结束时间。别人的标识按找不到处理。进行中的结束时间为空。MySQL 关闭时返回不可用。调度目录可以登记，还不计算下次触发，也不消费。
 
-情景记忆和用户画像由运行层写。本模块不写这两张表。
+跨会话记忆权威是用户工作区 `MEMORY.md`（Harness Memory）。本模块不写情景/画像表；对话主路径也不再写这两张表（遗留表与仓储见 `agent-state`，专题见 `docs/memory-longterm-落地.md`）。管理端无情景/画像 API。
 
 `POST /api/register` 用账号和密码建客户端用户并立刻签发会话。`POST /api/login` 核对密码。失败只说账号或密码不正确，HTTP 仍是 200。账号进配置的租户，默认 `demo`，该租户必须已登记且为 `ACTIVE`，否则 503。`userId` 随机生成。密码用 PBKDF2-HMAC-SHA256。微信扫码在密钥配齐时开启：网站 `POST /api/auth/wx/ticket` 出码，`GET /api/auth/wx/ticket/{ticketId}` 取会话，小程序 `POST /api/public/auth/wx/confirm` 交票号和 code，不带调用方令牌。同一个 openid 是同一个账号，不能用密码登录。票在 Redis，默认 5 分钟，确认后保留 2 分钟。签发的令牌写入 Redis，键是 `login-session:{token}`。不发 JWT。有效秒数读 `agentscope.access.login-session-seconds`，默认一天。后续请求带 `Authorization: Bearer <token>`，无效 401，Redis 失败 503。没带会话按未登录。请求头和对话请求体不能再指定用户。`POST /api/logout` 删掉会话键。`GET /api/me` 回这次会话里的租户和用户。MySQL 打开时带显示名和状态；关闭时这两项为空。不读剩余 TTL。除小程序确认外，调用方令牌仍然要过。MySQL 关闭时门对已有会话放行，只留给测试。注册和密码登录在 MySQL 关闭时返回不可用。
 

@@ -7,6 +7,7 @@ import com.zhu.runtime.api.AgentResponse;
 import com.zhu.runtime.api.AgentStreamEvent;
 import com.zhu.runtime.application.AgentTurnSupport;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
+import com.zhu.runtime.infrastructure.agent.HarnessAgentRegistry;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.message.Msg;
@@ -177,6 +178,11 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         HarnessAgent companion = started.agents().get(mainAgentId);
         // Toolkit 在 build 之后才有，业务工具只能这时候挂。
         agents.attachCompanionTools(companion);
+        // Middleware 链路里常见 ReAct 委托；危机闸 flush 需按 agentId 回查 Harness。
+        HarnessAgentRegistry.clear();
+        for (HarnessAgent agent : started.agents().values()) {
+            HarnessAgentRegistry.register(agent);
+        }
         this.bootstrap = started;
         this.channel = requireChatUi(started.channelManager());
         log.info("channel gateway started main=" + mainAgentId + " echo=" + HarnessAgentFactory.ECHO_AGENT_ID
@@ -215,6 +221,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
             log.warning("channel gateway stop failed: " + error.getMessage());
         }
         for (HarnessAgent agent : bootstrap.agents().values()) {
+            HarnessAgentRegistry.unregister(agent.getAgentId());
             closeQuietly(agent);
         }
         bootstrap = null;

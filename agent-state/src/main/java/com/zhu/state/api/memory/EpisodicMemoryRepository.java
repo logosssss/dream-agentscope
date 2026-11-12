@@ -3,8 +3,9 @@ package com.zhu.state.api.memory;
 import java.util.List;
 
 /**
- * 情景记忆的读写缝。按租户和用户切开。
- * 运行层抽取后写入，检索后合并。接入层和管理进程不要调用。
+ * 遗留情景记忆读写缝。按租户和用户切开。
+ * 跨会话权威已迁 Harness 工作区 {@code MEMORY.md}；对话主路径不再写入。
+ * 人设中间件仍可读旧行。接入层和管理进程不要调用。
  */
 public interface EpisodicMemoryRepository {
 

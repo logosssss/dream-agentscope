@@ -49,12 +49,18 @@
 
 1. **工作区改 USER + 打开 Harness Memory** — 已完成  
    `WorkspaceFilesystem.userScoped()`；`configureCommon` 撤销 disable、挂 `MemoryConfig` throttled(10m)；测试 `WorkspaceFilesystemTest`、`HarnessMemoryOpenedMigrationTest`。  
-2. **危机禁 flush 闸** — 未开始  
-   产品侧保证 CRITICAL 不入队 / 不生效（薄中间件或与 Safety 协作）；测 NORMAL 可记、CRITICAL 不记。  
-3. **拆除 Companion 召回与写入** — 未开始  
-   去掉 `CompanionMemoryMiddleware` 挂载与相关注入；更新 README；表/仓储可留库不强删迁移。  
-4. **README / 专题收尾** — 未开始  
-   写清权威 = 工作区 `MEMORY.md`；管理端情景 API 若仍在则文档标明遗留。
+2. **危机禁 flush 闸** — 已完成  
+   `CrisisGatedMemoryFlushMiddleware`：工厂 `disableMemoryHooks`，非 CRITICAL 再委托框架 `MemoryFlushMiddleware` / `MemoryMaintenanceMiddleware`；CRITICAL 不构造、不调度。  
+   Middleware 入参常为 ReAct 委托，经 `HarnessAgentRegistry`（Gateway 启停登记）回查 Harness 取 `WorkspaceManager`。  
+   测试：`CrisisGatedMemoryFlushMiddlewareTest`。  
+
+
+3. **拆除 Companion 召回与写入** — 已完成  
+   `HarnessAgentFactory.customizeCompanion` 不再挂 `CompanionMemoryMiddleware`；类与单测保留对照。  
+   `agent-runtime/README.md` 已改对话路径说明；情景表/仓储未删。  
+4. **README / 专题收尾** — 已完成  
+   权威写清：跨会话记忆 = 用户工作区 `MEMORY.md`（Harness flush/consolidation，`memory_*`）。  
+   管理端**无**情景/画像 API。表与 `api.memory` / Milvus `episodic_memory` / `CompanionMemoryMiddleware` 标明遗留；`PersonaConsistencyMiddleware` 仍可读旧行作跨会话触发，不写。
 
 ## 验收要点
 
@@ -65,4 +71,4 @@
 
 ## 状态
 
-分叉已钉死；迁入 ① 已完成。下一块：迁入 ② 危机禁 flush 闸。若再改规范，先改本文再动代码。
+分叉已钉死；迁入 ①～④ 已完成。本专题收口。若再改规范，先改本文再动代码。

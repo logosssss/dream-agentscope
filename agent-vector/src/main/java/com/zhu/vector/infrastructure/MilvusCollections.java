@@ -32,7 +32,7 @@ public final class MilvusCollections {
         return configured.trim();
     }
 
-    /** 情景记忆集合。id 对应 MySQL 行 id。 */
+    /** 遗留情景记忆集合。id 对应 MySQL 行 id；启动仍 ensure，对话主路径不再写入/近邻。 */
     public static final String EPISODIC_MEMORY = "episodic_memory";
 
     /** 主键。由调用方生成，不让 Milvus 自动编号。 */
