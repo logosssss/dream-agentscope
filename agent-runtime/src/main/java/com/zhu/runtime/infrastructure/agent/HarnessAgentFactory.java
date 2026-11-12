@@ -25,6 +25,7 @@ import org.springframework.stereotype.Component;
 /**
  * 长驻 Agent 的 Builder 定制口。真正 {@code build()} 由 {@code GatewayBootstrap} 完成。
  * 公共项走 {@link #configureCommon}；搭子 / echo 差异走各自 customize。
+ * Skills 窄范围：公共项关动态 skill，工作区默认 skill 仍开；不写种子、不开 manage/curator（见 docs/skills-落地.md）。
  * 不要在线程之间共享同一个 Builder 再改提示词。
  */
 @Component
@@ -109,7 +110,8 @@ public class HarnessAgentFactory {
     /**
      * 给 Bootstrap {@code configureAllAgents} 用的公共项。
      * 只放 companion 与 echo 都要的：关 web/shell、打开 Harness Memory、
-     * disableCompaction / disableToolResultEviction、权限上下文、追踪、停机闸、状态库与按用户工作区。
+     * disableCompaction / disableToolResultEviction / disableDynamicSkills、
+     * 权限上下文、追踪、停机闸、状态库与按用户工作区。
      * Eviction / Compaction 危机闸只在 {@link #customizeCompanion} 挂；产品中间件和提示词不要放这里。
      */
     public void configureCommon(HarnessAgent.Builder builder) {
@@ -129,6 +131,9 @@ public class HarnessAgentFactory {
         builder.disableCompaction();
         // 框架默认已挂 eviction；必须显式 disable，否则 CRITICAL 仍可能被框架截断落盘。
         builder.disableToolResultEviction();
+        // 框架默认开动态 skill；关掉后中间件 frozen。工作区默认 skill 仍开（目录可空），本专题不写种子文件。
+        // 见 docs/skills-落地.md。
+        builder.disableDynamicSkills();
         // 无条件规则 + BYPASS；热更后排空重建会再次 create。
         builder.permissionContext(permissionContexts.create());
         builder.middleware(tracing);
@@ -172,7 +177,7 @@ public class HarnessAgentFactory {
 
     /**
      * echo 差异：固定标识与短提示，轮数封顶 8，不挂搭子产品中间件。
-     * 继承 common 的 disableCompaction / disableToolResultEviction，不挂危机闸。
+     * 继承 common 的 disableCompaction / disableToolResultEviction / disableDynamicSkills，不挂危机闸。
      */
     public void customizeEcho(HarnessAgent.Builder builder) {
         builder.name("echo")
