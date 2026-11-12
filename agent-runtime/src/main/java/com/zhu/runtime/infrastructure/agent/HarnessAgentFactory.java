@@ -6,6 +6,7 @@ import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
 import com.zhu.runtime.domain.middleware.AuditMiddleware;
 import com.zhu.runtime.domain.middleware.CrisisGatedCompactionMiddleware;
 import com.zhu.runtime.domain.middleware.CrisisGatedMemoryFlushMiddleware;
+import com.zhu.runtime.domain.middleware.CrisisGatedToolResultEvictionMiddleware;
 import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
 import com.zhu.runtime.domain.middleware.PersonaConsistencyMiddleware;
 import com.zhu.runtime.domain.middleware.SafetyGateMiddleware;
@@ -59,6 +60,8 @@ public class HarnessAgentFactory {
 
     private final CrisisGatedCompactionMiddleware crisisGatedCompaction;
 
+    private final CrisisGatedToolResultEvictionMiddleware crisisGatedToolResultEviction;
+
     private final AgentShutdown shutdown;
 
     private final List<ProductTool> productTools;
@@ -69,7 +72,7 @@ public class HarnessAgentFactory {
     /** 按目录挑选业务工具。目录为空时不注册。 */
     private final CatalogToolRegistrar toolRegistrar = new CatalogToolRegistrar();
 
-    /** 写文件限制、审批、安全门、人设标记、Compaction 闸与 Memory flush 闸都挂上。体积检查更靠前，危机换话术在模型前。 */
+    /** 写文件限制、审批、安全门、人设标记、Eviction/Compaction 闸与 Memory flush 闸都挂上。体积检查更靠前，危机换话术在模型前。 */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,
             ResolvedChatModel chatModel,
@@ -83,6 +86,7 @@ public class HarnessAgentFactory {
             PersonaConsistencyMiddleware personaConsistency,
             CrisisGatedMemoryFlushMiddleware crisisGatedMemoryFlush,
             CrisisGatedCompactionMiddleware crisisGatedCompaction,
+            CrisisGatedToolResultEvictionMiddleware crisisGatedToolResultEviction,
             AgentShutdown shutdown,
             List<ProductTool> productTools) {
         this.properties = properties;
@@ -97,15 +101,16 @@ public class HarnessAgentFactory {
         this.personaConsistency = personaConsistency;
         this.crisisGatedMemoryFlush = crisisGatedMemoryFlush;
         this.crisisGatedCompaction = crisisGatedCompaction;
+        this.crisisGatedToolResultEviction = crisisGatedToolResultEviction;
         this.shutdown = shutdown;
         this.productTools = productTools == null ? List.of() : List.copyOf(productTools);
     }
 
     /**
      * 给 Bootstrap {@code configureAllAgents} 用的公共项。
-     * 只放 companion 与 echo 都要的：关 web/shell、打开 Harness Memory、disableCompaction、
-     * 权限上下文、追踪、停机闸、状态库与按用户工作区。
-     * Compaction 危机闸只在 {@link #customizeCompanion} 挂；产品中间件和提示词不要放这里。
+     * 只放 companion 与 echo 都要的：关 web/shell、打开 Harness Memory、
+     * disableCompaction / disableToolResultEviction、权限上下文、追踪、停机闸、状态库与按用户工作区。
+     * Eviction / Compaction 危机闸只在 {@link #customizeCompanion} 挂；产品中间件和提示词不要放这里。
      */
     public void configureCommon(HarnessAgent.Builder builder) {
         // 未做出口白名单前关掉内置 web 工具，避免会话内 SSRF（元数据/内网）。
@@ -119,9 +124,11 @@ public class HarnessAgentFactory {
                 .flushTrigger(MemoryConfig.FlushTrigger.throttled(Duration.ofMinutes(10)))
                 .build());
         builder.disableMemoryHooks();
-        // companion 再挂 CrisisGatedCompactionMiddleware；echo 保持禁用且不挂闸。
-        // 见 docs/compaction-落地.md。
+        // companion 再挂危机闸；echo 保持禁用且不挂闸。
+        // 见 docs/compaction-落地.md、docs/tool-result-eviction-落地.md。
         builder.disableCompaction();
+        // 框架默认已挂 eviction；必须显式 disable，否则 CRITICAL 仍可能被框架截断落盘。
+        builder.disableToolResultEviction();
         // 无条件规则 + BYPASS；热更后排空重建会再次 create。
         builder.permissionContext(permissionContexts.create());
         builder.middleware(tracing);
@@ -135,7 +142,7 @@ public class HarnessAgentFactory {
 
     /**
      * 搭子差异：标识、模型、提示词、轮数、产品中间件与工作区路径。
-     * 含 Compaction / Memory flush 危机闸（须在 SafetyGate 之后）。
+     * 含 Eviction → Compaction → Memory flush 危机闸（须在 SafetyGate 之后）。
      * 业务工具在 {@link #attachCompanionTools} 里挂，因为 Toolkit 要等 build 之后才有。
      */
     public void customizeCompanion(HarnessAgent.Builder builder) {
@@ -154,6 +161,8 @@ public class HarnessAgentFactory {
         builder.middleware(fileWriteLimit);
         builder.middleware(approvalMiddleware);
         builder.middleware(safetyGate);
+        // 须在 SafetyGate 之后、Compaction 之前：先截断大工具结果。
+        builder.middleware(crisisGatedToolResultEviction);
         // 须在 SafetyGate 之后：CRITICAL 整段跳过 Compaction（含压前 flush）。
         builder.middleware(crisisGatedCompaction);
         builder.middleware(personaConsistency);
@@ -163,7 +172,7 @@ public class HarnessAgentFactory {
 
     /**
      * echo 差异：固定标识与短提示，轮数封顶 8，不挂搭子产品中间件。
-     * 继承 common 的 {@code disableCompaction}，不挂危机闸 compact。
+     * 继承 common 的 disableCompaction / disableToolResultEviction，不挂危机闸。
      */
     public void customizeEcho(HarnessAgent.Builder builder) {
         builder.name("echo")

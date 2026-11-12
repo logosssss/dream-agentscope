@@ -16,7 +16,7 @@
 | 触发 / 保留 | **框架默认**（约 `triggerMessages=50`、`keepMessages=20` 等）；不先抄指南示例 30/10 |
 | 挂载 | **`disableCompaction()`** + 产品 `CrisisGatedCompactionMiddleware`；非 CRITICAL 再委托 `CompactionMiddleware.onReasoning`。对齐 Memory 的 `disableMemoryHooks` 模式 |
 | 范围 | **仅 companion**；echo 保持禁用且不挂闸。`disableCompaction` 放 `configureCommon`，闸挂在 `customizeCompanion`（须在 `SafetyGate` 之后） |
-| Tool eviction | **本专题不做**；另块再对 `toolResultEviction` |
+| Tool eviction | **本专题不做**；已另开并收口，见 `docs/tool-result-eviction-落地.md` |
 | 落地形态 | 文档锁定后按块：① spike → ② 接线 → ③ README/专题收口 |
 
 ## 明确不做（本专题）
@@ -44,7 +44,7 @@
    测试：`CrisisGatedCompactionMiddlewareTest`。  
 3. **README / 专题收尾** — 已完成  
    `agent-runtime/README.md` 与 `HarnessAgentFactory` 注释写清：companion 开危机闸 compact；echo 不开；  
-   紧急溢出 `compactionHook` 为已知限制；Tool Result Eviction 另块。
+   紧急溢出 `compactionHook` 为已知限制；Tool Result Eviction 见 `docs/tool-result-eviction-落地.md`。
 
 ## 验收要点
 
