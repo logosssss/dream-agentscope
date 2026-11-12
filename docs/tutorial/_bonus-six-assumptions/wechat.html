@@ -167,7 +167,7 @@ try {
     </tbody>
   </table>
 
-  <p style="margin:0 0 18px;">实现时容易走错的一步是给框架临时追加权限规则。AgentScope 默认权限上下文为 trivial，动态追加有两种结果：本次判定读取不到该规则；或使同一次调用中未匹配到的工具一并变为"询问"。因此执行策略挂在中间件上，不修改权限引擎。</p>
+  <p style="margin:0 0 18px;">实现时容易走错的是在 acting 热路径临时 addRule。默认 trivial；非 trivial 后 DEFAULT 未匹配会 ASK 误伤同批工具。本仓库在 build/排空重建注入 BYPASS+无条件规则，Middleware 再与产品闸更严合并；终态再交框架 Gate，须先验 ASKING/claim 语义。</p>
 
   <p style="margin:0 0 18px;">另一处需要写入产品文档的语义：<strong>审批通过不等于工具执行</strong>。审批只解除拦截，用户需重新发送上一条消息，下一轮循环才会真正调用工具。原因是 Agent 的一轮是"模型决策 + 工具执行"的原子循环，中途插入一次工具执行会产生半个轮次，上下文无法对齐。</p>
 

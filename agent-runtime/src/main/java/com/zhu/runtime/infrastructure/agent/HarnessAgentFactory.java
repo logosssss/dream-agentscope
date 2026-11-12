@@ -14,6 +14,8 @@ import com.zhu.semantic.contract.tool.ProductTool;
 import io.agentscope.core.tracing.OtelTracingMiddleware;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
+import io.agentscope.harness.agent.memory.MemoryConfig;
+import java.time.Duration;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
@@ -96,7 +98,7 @@ public class HarnessAgentFactory {
 
     /**
      * 给 Bootstrap {@code configureAllAgents} 用的公共项。
-     * 只放 companion 与 echo 都要的：关 web/shell、权限上下文、追踪、停机闸、状态库与会话文件系统。
+     * 只放 companion 与 echo 都要的：关 web/shell、打开 Harness Memory、权限上下文、追踪、停机闸、状态库与按用户工作区。
      * 产品中间件和提示词不要放这里。
      */
     public void configureCommon(HarnessAgent.Builder builder) {
@@ -104,6 +106,11 @@ public class HarnessAgentFactory {
         // 远程工作区路径下 shell 本就不注册；显式关掉防止以后换沙箱文件系统时裸奔。
         builder.disableWebTools();
         builder.disableShellTool();
+        // 跨会话权威迁入 Harness Memory：不 disable 工具/flush；不另配 model（回落对话模型）。
+        // throttled 10m；CRITICAL 禁 flush 在迁入 ② 产品闸。见 docs/memory-longterm-落地.md。
+        builder.memory(MemoryConfig.builder()
+                .flushTrigger(MemoryConfig.FlushTrigger.throttled(Duration.ofMinutes(10)))
+                .build());
         // 无条件规则 + BYPASS；热更后排空重建会再次 create。
         builder.permissionContext(permissionContexts.create());
         builder.middleware(tracing);
@@ -111,7 +118,7 @@ public class HarnessAgentFactory {
         DistributedStore store = stores.getIfAvailable();
         if (store != null) {
             builder.distributedStore(store);
-            builder.filesystem(WorkspaceFilesystem.sessionScoped());
+            builder.filesystem(WorkspaceFilesystem.userScoped());
         }
     }
 

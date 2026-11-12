@@ -30,11 +30,13 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
+ * 产品跨会话记忆权威（运行层 Middleware）。
  * 对话开始时召回情景记忆，成功结束后再写短摘要和画像。危机不召回也不写。
  * 摘要只留用户输入的短句，不存对话全文，也不调用对话模型。
  * 检索是 MySQL 最近 3 条加近邻 3 个 id，去重后最多 5 条。Milvus 挂了只用 MySQL。
  * 普通和升高把短画像和最多 5 条召回追加到系统提示词后面。危机不追加。
  * 读失败只打日志，不改变已经选出的话术。
+ * 迁入 Harness Memory 期间仍可能挂载；迁入 ③ 将拆除召回与写入，权威改为工作区 {@code MEMORY.md}。
  */
 @Component
 public class CompanionMemoryMiddleware implements MiddlewareBase {

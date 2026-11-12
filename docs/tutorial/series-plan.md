@@ -67,7 +67,7 @@
 
 | # | 标题 | 要讲清的坑 | 代码位置 | 状态 |
 |---|---|---|---|---|
-| 09 | 审批落地的真相：批准了也不会自动执行 | ASK 时只标 ASKING 并发事件；为什么不改框架 PermissionEngine；为什么不重复开单 | `ApprovalMiddleware` | idea |
+| 09 | 审批落地的真相：批准了也不会自动执行 | ASK 只标 ASKING；build 注入 BYPASS+无条件规则；Middleware 双闸（引擎+产品）更严合并；终态再交框架 Gate；批准≠自动执行 | `ApprovalMiddleware` / `PermissionContextFactory` | idea |
 | 10 | 什么时候第二个 Agent 是解药，什么时候是毒药 | 工具隔离、上下文隔离、成本翻倍；单 Agent + 工具往往够用 | `HarnessAgentFactory` | idea |
 | 11 | 记忆与画像：召回时机比召回条数重要 | 召回 3+3 去重 5 条；危机档不召回不写；人设检查看成功轮次 | `CompanionMemoryMiddleware` | idea |
 
