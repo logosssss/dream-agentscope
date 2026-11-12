@@ -22,7 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
- * 审批中间件只在产品规则为 ASK 时记单，并把这次工具调用标成 ASKING。
+ * 审批中间件：无引擎的 Agent mock 时引擎侧按 ALLOW，仍由产品闸驱动 ASK/DENY。
+ * 双闸与 claim 边界见 {@link ApprovalMiddlewareDualGateTest}。
  */
 class ApprovalMiddlewareTest {
 

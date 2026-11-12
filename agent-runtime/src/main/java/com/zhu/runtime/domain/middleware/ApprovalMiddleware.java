@@ -13,8 +13,13 @@ import io.agentscope.core.message.ToolCallState;
 import io.agentscope.core.message.ToolUseBlock;
 import io.agentscope.core.middleware.ActingInput;
 import io.agentscope.core.middleware.MiddlewareBase;
+import io.agentscope.core.permission.PermissionBehavior;
+import io.agentscope.core.permission.PermissionEngine;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import org.springframework.context.ApplicationEventPublisher;
@@ -23,13 +28,16 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.SignalType;
 
 /**
- * 工具执行前的审批。ASK 时落审批单并发布事件，接入层订阅后推送。运行层不依赖接入层。
- * 用 Middleware，不用已标删除的 Hook。
+ * 工具执行前的审批双闸。引擎管无条件规则，产品闸管租户/角色/conditions；合并取更严。
+ * ASK 时落审批单并发布事件；claim 只能把 ASK 抬成放行，不能救 DENY。
  */
 @Component
 public class ApprovalMiddleware implements MiddlewareBase {
 
     private static final Logger log = Logger.getLogger(ApprovalMiddleware.class.getName());
+
+    /** 引擎 checkPermission 上限；超时按引擎侧 ALLOW，避免卡死整轮 acting。 */
+    private static final Duration ENGINE_TIMEOUT = Duration.ofSeconds(5);
 
     private final PermissionRuleService permissions;
 
@@ -47,10 +55,8 @@ public class ApprovalMiddleware implements MiddlewareBase {
     }
 
     /**
-     * 逐个工具看产品规则，入参一并交给判定。ASK 的调用换成 ASKING 再交给后续中间件。DENY 的调用从这次输入里拿掉。
-     * 已批准且还没执行的单会放行这次同名工具，结束后回写状态。管理进程不执行工具。
-     * 不往 PermissionEngine 追加规则：默认上下文是 trivial，引擎规则这次判定读不到；
-     * 一旦把上下文改成非 trivial，没匹配到的工具会走默认 ASK，误伤同一次调用里的其它工具。
+     * 逐个工具：引擎 + 产品闸更严合并。ASK 标 ASKING 并落单；DENY 从输入拿掉；claim 仅覆盖 ASK。
+     * 拿不到 {@link PermissionEngine} 时引擎侧按 ALLOW（单测 mock Agent、尚未挂 context 的路径）。
      */
     @Override
     public Flux<AgentEvent> onActing(
@@ -63,10 +69,11 @@ public class ApprovalMiddleware implements MiddlewareBase {
             return next.apply(input);
         }
         CallIdentity identity = CallIdentity.from(context);
+        PermissionEngine engine = PermissionEngineAccess.of(agent);
         List<ToolUseBlock> rewritten = new ArrayList<>(calls.size());
         List<String> claimed = new ArrayList<>();
         for (ToolUseBlock use : calls) {
-            keep(use, identity, rewritten, claimed);
+            keep(use, identity, engine, rewritten, claimed);
         }
         try {
             return next.apply(new ActingInput(rewritten)).doFinally(signal -> finish(claimed, signal));
@@ -77,17 +84,24 @@ public class ApprovalMiddleware implements MiddlewareBase {
     }
 
     /**
-     * 工具名为空无法匹配规则，原样留下。DENY 不记审批，也不交给后续执行。
-     * 有未执行的批准单时原样放行。已有同会话同工具的 PENDING 只标 ASKING，不插新单、不发事件。
-     * 否则 ASK 记单、发事件，并把状态标成等待确认。
+     * 工具名为空无法匹配，原样留下。合并为 DENY 不记审批。
+     * 合并为 ASK 时：先 claim 已批准；否则复用 PENDING 或新开单并标 ASKING。
      */
-    private void keep(ToolUseBlock use, CallIdentity identity, List<ToolUseBlock> out, List<String> claimed) {
+    private void keep(
+            ToolUseBlock use,
+            CallIdentity identity,
+            PermissionEngine engine,
+            List<ToolUseBlock> out,
+            List<String> claimed) {
         if (use == null || use.getName() == null || use.getName().isBlank()) {
             out.add(use);
             return;
         }
+        PermissionDecision engineDecision = engineDecide(engine, use);
         // 入参交给产品条件里的 maxLen / minLen；配置实现会忽略 Map。
-        PermissionDecision decision = permissions.decide(use.getName(), identity.tenantId(), null, use.getInput());
+        PermissionDecision productDecision =
+                permissions.decide(use.getName(), identity.tenantId(), null, use.getInput());
+        PermissionDecision decision = stricter(engineDecision, productDecision);
         if (decision == PermissionDecision.DENY) {
             return;
         }
@@ -114,6 +128,64 @@ public class ApprovalMiddleware implements MiddlewareBase {
         events.publishEvent(new ApprovalRequestedEvent(
                 approvalId, use.getName(), identity.tenantId(), identity.userId()));
         out.add(use.withState(ToolCallState.ASKING));
+    }
+
+    /**
+     * 无引擎或调用失败时按 ALLOW，把判定权留给产品闸，避免误 DENY。
+     */
+    private static PermissionDecision engineDecide(PermissionEngine engine, ToolUseBlock use) {
+        if (engine == null) {
+            return PermissionDecision.ALLOW;
+        }
+        try {
+            Map<String, Object> params = paramsOf(use);
+            io.agentscope.core.permission.PermissionDecision raw = engine
+                    .checkPermission(new ApprovalProbeTool(use.getName()), params)
+                    .block(ENGINE_TIMEOUT);
+            return toProduct(raw);
+        } catch (RuntimeException ex) {
+            log.warning("permission engine check failed; treat as ALLOW");
+            return PermissionDecision.ALLOW;
+        }
+    }
+
+    /** DENY > ASK > ALLOW。双闸合并与单测共用。 */
+    public static PermissionDecision stricter(PermissionDecision left, PermissionDecision right) {
+        PermissionDecision a = left == null ? PermissionDecision.ALLOW : left;
+        PermissionDecision b = right == null ? PermissionDecision.ALLOW : right;
+        return rank(a) >= rank(b) ? a : b;
+    }
+
+    private static int rank(PermissionDecision decision) {
+        if (decision == PermissionDecision.DENY) {
+            return 2;
+        }
+        if (decision == PermissionDecision.ASK) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private static PermissionDecision toProduct(io.agentscope.core.permission.PermissionDecision raw) {
+        if (raw == null || raw.getBehavior() == null) {
+            return PermissionDecision.ALLOW;
+        }
+        PermissionBehavior behavior = raw.getBehavior();
+        if (behavior == PermissionBehavior.DENY) {
+            return PermissionDecision.DENY;
+        }
+        if (behavior == PermissionBehavior.ASK) {
+            return PermissionDecision.ASK;
+        }
+        return PermissionDecision.ALLOW;
+    }
+
+    private static Map<String, Object> paramsOf(ToolUseBlock use) {
+        Map<String, Object> input = use.getInput();
+        if (input == null || input.isEmpty()) {
+            return Map.of();
+        }
+        return new HashMap<>(input);
     }
 
     /**

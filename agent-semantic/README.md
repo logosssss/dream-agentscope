@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | `contract.product` | `ProductSemanticProvider`、`CompletionCriteria`、`PersonaContract` | 产品语义、停止条件、锁定人格 |
 | `contract.tool` | `ToolDescriptor`、`ProductTool` | 工具描述与可注册实现 |
-| `contract.permission` | `PermissionDecision`、`PermissionRuleService` | 工具权限决定；可带工具入参 |
+| `contract.permission` | `PermissionDecision`、`PermissionRuleService`、`UnconditionalPermissionCatalog`、`UnconditionalToolRule` | 工具权限决定；可带工具入参；无条件规则目录给引擎 PermissionContext |
 | `contract.safety` | `RiskLevel`、`CrisisPrompt`、`SemanticRiskJudge` | 安全档、危机话术、语义风险判定 |
 
 `agentId()` 是状态命名空间，不是展示名。改展示名不能改这个值，否则旧会话会对到空状态。

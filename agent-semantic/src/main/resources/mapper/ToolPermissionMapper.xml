@@ -34,6 +34,16 @@
           AND enabled = 1
     </select>
 
+    <!-- 引擎无条件规则：全局通配且无 conditions 正文（空串或 NULL）。 -->
+    <select id="selectEnabledGlobalUnconditional" resultMap="BaseResultMap">
+        SELECT id, tool_id, tenant_id, role_id, decision, conditions, priority, enabled
+        FROM tool_permission
+        WHERE enabled = 1
+          AND tenant_id = '*'
+          AND role_id = '*'
+          AND (conditions IS NULL OR TRIM(conditions) = '')
+    </select>
+
     <select id="recent" resultMap="ListResultMap">
         SELECT id, tool_id, tenant_id, role_id, decision, priority, enabled
         FROM tool_permission

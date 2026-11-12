@@ -40,6 +40,8 @@ public class HarnessAgentFactory {
 
     private final ObjectProvider<DistributedStore> stores;
 
+    private final PermissionContextFactory permissionContexts;
+
     private final AuditMiddleware auditMiddleware;
 
     private final ApprovalMiddleware approvalMiddleware;
@@ -68,6 +70,7 @@ public class HarnessAgentFactory {
             ResolvedChatModel chatModel,
             ProductSemanticProvider semantics,
             ObjectProvider<DistributedStore> stores,
+            PermissionContextFactory permissionContexts,
             AuditMiddleware auditMiddleware,
             ApprovalMiddleware approvalMiddleware,
             FileWriteLimitMiddleware fileWriteLimit,
@@ -80,6 +83,7 @@ public class HarnessAgentFactory {
         this.chatModel = chatModel;
         this.semantics = semantics;
         this.stores = stores;
+        this.permissionContexts = permissionContexts;
         this.auditMiddleware = auditMiddleware;
         this.approvalMiddleware = approvalMiddleware;
         this.fileWriteLimit = fileWriteLimit;
@@ -92,7 +96,7 @@ public class HarnessAgentFactory {
 
     /**
      * 给 Bootstrap {@code configureAllAgents} 用的公共项。
-     * 只放 companion 与 echo 都要的：关 web/shell、追踪、停机闸、状态库与会话文件系统。
+     * 只放 companion 与 echo 都要的：关 web/shell、权限上下文、追踪、停机闸、状态库与会话文件系统。
      * 产品中间件和提示词不要放这里。
      */
     public void configureCommon(HarnessAgent.Builder builder) {
@@ -100,6 +104,8 @@ public class HarnessAgentFactory {
         // 远程工作区路径下 shell 本就不注册；显式关掉防止以后换沙箱文件系统时裸奔。
         builder.disableWebTools();
         builder.disableShellTool();
+        // 无条件规则 + BYPASS；热更后排空重建会再次 create。
+        builder.permissionContext(permissionContexts.create());
         builder.middleware(tracing);
         builder.middleware(shutdown.middleware());
         DistributedStore store = stores.getIfAvailable();
