@@ -386,11 +386,12 @@ mvn test
 
 | 文档 | 说明 |
 |------|------|
+| [`docs/handbook/README.md`](./docs/handbook/README.md) | **仓库内学习手册**（从 0 到深入的索引路径：顺序、问题、检查点） |
 | [`doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`](./doc/AgentScope%20Java%202.0.4%20产品级架构与工程落地指南%20(2).md) | 架构与工程设计长文 |
 | [`doc/企业级多 Agent 平台前端工程开发方案 (1).md`](./doc/企业级多%20Agent%20平台前端工程开发方案%20(1).md) | 前端方案 |
 | [`docs/tutorial/series-plan.md`](./docs/tutorial/series-plan.md) | 系列教程《AgentScope 落地实战》：选题池、进度与双平台发布约定 |
 
-以上偏设计与历史口径；**行为以当前代码与各模块 README 为准**。
+以上偏设计、学习索引与历史口径；**行为以当前代码与各模块 README 为准**。
 
 ---
 
