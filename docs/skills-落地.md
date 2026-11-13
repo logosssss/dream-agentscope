@@ -13,7 +13,7 @@
 | 动态 skill | **`disableDynamicSkills()`** 放 `configureCommon`（companion + echo）。框架默认是开的，必须显式关 |
 | 工作区默认 skill | **保持开启**（不调 `disableDefaultWorkspaceSkills`）；目录可空 |
 | 种子文件 | **不写**仓库/运行时种子 `AGENTS.md` 或示范 skill；路径约定写文档，文件由运维/部署另放 |
-| SkillManage / Curator / Marketplace / Promotion | **本专题不开** |
+| SkillManage / Curator / Marketplace / Promotion | **本专题不开**（另块见 `docs/skills-curator-落地.md`：仅 manage/Curator，默认关） |
 | 危机闸 | **不做** Skills 专用危机闸（加载手册非 flush/compact 写放大路径） |
 | 隔离 | 沿用已锁 **USER** 工作区；skill 目录随用户工作区 |
 | 落地形态 | ① spike → ② `disableDynamicSkills` 接线 → ③ README/专题收口 |
@@ -50,4 +50,5 @@
 
 ## 状态
 
-grill 已结束；落地 ①～③ 已完成。本专题收口。若再改规范，先改本文再动代码。
+grill 已结束；落地 ①～③ 已完成。本专题收口。  
+另块 **Skills Curator / manage** 已开专题：`docs/skills-curator-落地.md`（不改写本专题已锁正文）。若再改本专题规范，先改本文再动代码。

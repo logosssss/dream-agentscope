@@ -32,7 +32,8 @@ import org.springframework.stereotype.Component;
 /**
  * 长驻 Agent 的 Builder 定制口。真正 {@code build()} 由 {@code GatewayBootstrap} 完成。
  * 公共项走 {@link #configureCommon}；搭子 / echo 差异走各自 customize。
- * Skills 窄范围：公共项关动态 skill，工作区默认 skill 仍开；不写种子、不开 manage/curator（见 docs/skills-落地.md）。
+ * Skills 窄范围：公共项关动态 skill，工作区默认 skill 仍开；不写种子（见 docs/skills-落地.md）。
+ * Skills Curator/manage：common 与 customize 均不调 enable*（框架默认关；单独 Curator 无效；开启另块；见 docs/skills-curator-落地.md）。
  * Subagent：公共项关动态；companion 挂一份 {@code subagent-probe}；echo 不挂（见 docs/subagent-落地.md）。
  * MCP：仅 companion 在清单非空时设 {@code toolsConfig}；echo 不连（见 docs/mcp-落地.md）。
  * Sandbox：仅 companion 在 {@code sandbox.enabled=true} 时换 DockerFilesystem；echo 仍 Remote（见 docs/sandbox-落地.md）。
@@ -134,6 +135,7 @@ public class HarnessAgentFactory {
      * 只放 companion 与 echo 都要的：关 web/shell、打开 Harness Memory、
      * disableCompaction / disableToolResultEviction / disableDynamicSkills / disableDynamicSubagents、
      * 权限上下文、追踪、停机闸与状态库。
+     * 不调用 enableSkillManageTool / enableSkillCurator（框架默认关；见 docs/skills-curator-落地.md）。
      * 文件系统不在此处挂：Remote 与 Docker 规格互斥，companion / echo 各自决定（见 docs/sandbox-落地.md）。
      * Eviction / Compaction 危机闸与静态子代理声明只在 {@link #customizeCompanion} 挂。
      */
@@ -159,6 +161,8 @@ public class HarnessAgentFactory {
         // 框架默认开动态 skill；关掉后中间件 frozen。工作区默认 skill 仍开（目录可空），本专题不写种子文件。
         // 见 docs/skills-落地.md。
         builder.disableDynamicSkills();
+        // SkillManage / ProposeSkill / Curator：框架默认关，无对称 disable API；此处与 customize* 均不调 enable*。
+        // 单独 enableSkillCurator 无效（装配嵌在 manage 分支）；开启路径另块。见 docs/skills-curator-落地.md。
         // 框架默认开动态子代理；关掉后仍可挂静态 SubagentDeclaration。见 docs/subagent-落地.md。
         builder.disableDynamicSubagents();
         // 无条件规则 + BYPASS；热更后排空重建会再次 create。
@@ -175,6 +179,7 @@ public class HarnessAgentFactory {
      * 搭子差异：标识、模型、提示词、轮数、产品中间件与工作区路径。
      * 含 Eviction → Compaction → Memory flush 危机闸（须在 SafetyGate 之后）。
      * 挂一份静态 {@link #SUBAGENT_PROBE_NAME}（ISOLATED / 继承权限 / 零工具）。
+     * 不开 SkillManage / Curator（开启另块；见 docs/skills-curator-落地.md）。
      * MCP：清单非空才设 toolsConfig；热更后排空重建会再次走这里。
      * Sandbox：enabled 时换 DockerFilesystem（硬失败无 Remote 回退）；否则有 Store 则 Remote USER。
      * 业务工具在 {@link #attachCompanionTools} 里挂，因为 Toolkit 要等 build 之后才有。
@@ -215,7 +220,7 @@ public class HarnessAgentFactory {
 
     /**
      * echo 差异：固定标识与短提示，轮数封顶 8，不挂搭子产品中间件，不挂静态子代理，不挂 MCP / Docker。
-     * 有 Store 时挂 Remote USER；继承 common 的 disable*，不挂危机闸。
+     * 不开 SkillManage / Curator。有 Store 时挂 Remote USER；继承 common 的 disable*，不挂危机闸。
      */
     public void customizeEcho(HarnessAgent.Builder builder) {
         builder.name("echo")
