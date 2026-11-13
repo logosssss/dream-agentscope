@@ -43,7 +43,9 @@ import reactor.core.publisher.Flux;
  * Agent 由 {@link GatewayBootstrap} 的 Consumer 创建；工厂只提供公共项与各 Agent 定制。
  * 同 session 串行由框架 {@link LocalSessionTurnGate} 负责（进程内）；启动时显式挂上。
  * 租户等业务字段经 {@link AccessChannelRuntimeContextResolver} 写入 RuntimeContext。
- * ChatUi 在 Bootstrap 上显式注册，之后只从 {@link ChannelManager} 只读取，不挂第二通道。
+ * ChatUi 与 {@link AccessApiChannel} 在 Bootstrap 上显式注册，之后只从 {@link ChannelManager} 只读取。
+ * 名单固定白名单 {@code chatui}+{@code api}（见 docs/api-channel-落地.md）；WEB 主路径仍只调 ChatUi。
+ * 同 session 跨 Channel 串行：{@link RoomNormalizedSessionTurnGate} 包一层进程内闸。
  * 实现 {@link AgentExecutor}，是对话执行唯一入口；并实现 Gate ASK 后续跑。
  * 模型密钥缺失不阻断进程启动；首次对话才组装长驻 Agent。
  * 业务配置热更后经 {@link #rebuildAll()} 排空再重建。
@@ -53,6 +55,12 @@ import reactor.core.publisher.Flux;
 public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloader, AgentPermissionResume {
 
     private static final Logger log = Logger.getLogger(AccessChannelGateway.class.getName());
+
+    /**
+     * API Channel 的 Harness channelId。与 ChatUi 并列注册时用；本类主路径仍只调用 ChatUi。
+     * 见 docs/api-channel-落地.md。
+     */
+    public static final String API_CHANNEL_ID = "api";
 
     private final HarnessAgentFactory agents;
 
@@ -70,6 +78,9 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
 
     private ChatUiChannel channel;
 
+    /** API Channel；与 ChatUi 一并注册。WEB 主路径不用。 */
+    private AccessApiChannel apiChannel;
+
     private String mainAgentId;
 
     /** 只接线，不立刻建模型；缺 DASHSCOPE_API_KEY 时仍允许进程起来。 */
@@ -86,7 +97,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     }
 
     /**
-     * 同步一轮。进 Gateway 的是业务暂存；护栏收口仍用本地完整上下文。
+     * WEB 同步一轮（ChatUi）。进 Gateway 的是业务暂存；护栏收口仍用本地完整上下文。
      */
     @Override
     public AgentResponse execute(AgentRequest request) {
@@ -109,7 +120,34 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     }
 
     /**
-     * 流式一轮。事件仍经运行层护栏映射成 SSE 片段。
+     * API Channel 同步一轮。与 {@link #execute} 护栏相同，走 {@link AccessApiChannel}。
+     */
+    public AgentResponse executeApi(AgentRequest request) {
+        turns.require(request);
+        drain.beginTurn();
+        try {
+            RuntimeContext context = turns.context(request);
+            long started = System.nanoTime();
+            String agentId = turns.agentId(request);
+            Msg reply = apiChannel()
+                    .send(
+                            request.userId(),
+                            request.sessionId(),
+                            blankToNull(agentId),
+                            request.userText(),
+                            AccessChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
+                    .block(Duration.ofSeconds(turns.timeoutSeconds()));
+            String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
+            String runId = AgentTurnSupport.runIdOf(reply);
+            turns.recordUsage(request, runId, reply, started);
+            return new AgentResponse(runId, text);
+        } finally {
+            drain.endTurn();
+        }
+    }
+
+    /**
+     * WEB 流式一轮（ChatUi）。事件仍经运行层护栏映射成 SSE 片段。
      * 遇到 RequireUserConfirm 先写入 {@link PendingAskStore}，再映射给前端。
      */
     @Override
@@ -122,21 +160,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         try {
             return channel()
                     .sendStream(options(request), request.userText())
-                    .doOnNext(event -> {
-                        if (event instanceof RequireUserConfirmEvent confirm) {
-                            pendingAsks.remember(
-                                    request.tenantId(),
-                                    request.userId(),
-                                    request.sessionId(),
-                                    turns.agentId(request),
-                                    confirm.getToolCalls());
-                        }
-                        if (event instanceof AgentResultEvent result) {
-                            Msg message = result.getResult();
-                            runId.set(AgentTurnSupport.runIdOf(message));
-                            turns.recordUsage(request, runId.get(), message, started);
-                        }
-                    })
+                    .doOnNext(event -> onStreamEvent(request, runId, started, event))
                     .concatMapIterable(event -> turns.mapStreamEvent(event, context))
                     .timeout(Duration.ofSeconds(turns.timeoutSeconds()))
                     .doFinally(signal -> drain.endTurn());
@@ -144,6 +168,61 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
             drain.endTurn();
             throw error;
         }
+    }
+
+    /**
+     * API Channel 流式一轮。
+     */
+    public Flux<AgentStreamEvent> streamApi(AgentRequest request) {
+        turns.require(request);
+        drain.beginTurn();
+        RuntimeContext context = turns.context(request);
+        long started = System.nanoTime();
+        AtomicReference<String> runId = new AtomicReference<>(Ids.newId());
+        String agentId = turns.agentId(request);
+        try {
+            return apiChannel()
+                    .sendStream(
+                            request.userId(),
+                            request.sessionId(),
+                            blankToNull(agentId),
+                            request.userText(),
+                            AccessChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
+                    .doOnNext(event -> onStreamEvent(request, runId, started, event))
+                    .concatMapIterable(event -> turns.mapStreamEvent(event, context))
+                    .timeout(Duration.ofSeconds(turns.timeoutSeconds()))
+                    .doFinally(signal -> drain.endTurn());
+        } catch (RuntimeException error) {
+            drain.endTurn();
+            throw error;
+        }
+    }
+
+    /**
+     * 流式事件：待确认入 PendingAsk；结果记用量。
+     */
+    private void onStreamEvent(
+            AgentRequest request,
+            AtomicReference<String> runId,
+            long started,
+            io.agentscope.core.event.AgentEvent event) {
+        if (event instanceof RequireUserConfirmEvent confirm) {
+            pendingAsks.remember(
+                    request.tenantId(),
+                    request.userId(),
+                    request.sessionId(),
+                    turns.agentId(request),
+                    confirm.getToolCalls());
+        }
+        if (event instanceof AgentResultEvent result) {
+            Msg message = result.getResult();
+            runId.set(AgentTurnSupport.runIdOf(message));
+            turns.recordUsage(request, runId.get(), message, started);
+        }
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     /**
@@ -226,21 +305,21 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     private void startGatewayLocked() {
         mainAgentId = agents.companionAgentId();
         // configureAllAgents 必须在 agent(Consumer) 之前：框架先跑公共项再跑各 Agent 定制并立刻 build。
-        // 唯一通道在 Builder 上显式挂上；start 后只读 ChannelManager，不再 chatUiChannel() 另造一份。
+        // chatui + api 在 Builder 上显式挂上；start 后只读 ChannelManager，不再另造通道。
         GatewayBootstrap.Builder builder = GatewayBootstrap.builder()
                 .configureAllAgents(agents::configureCommon)
                 .agent(mainAgentId, agents::customizeCompanion)
                 .agent(HarnessAgentFactory.ECHO_AGENT_ID, agents::customizeEcho)
                 .mainAgent(mainAgentId)
-                .channel(ChatUiChannel.create())
+                .channel(ChatUiChannel.create(), AccessApiChannel.create())
                 .runtimeContextResolver(new AccessChannelRuntimeContextResolver());
         DistributedStore store = stores.getIfAvailable();
         if (store != null) {
             builder.distributedStore(store);
         }
         GatewayBootstrap started = builder.build().start();
-        // 显式挂进程内占轮，避免依赖构造默认值；多副本 / Redis turn 不在本期。
-        started.gateway().setSessionTurnGate(new LocalSessionTurnGate());
+        // room 归一化：跨 Channel 同 session 串行；多副本 / Redis turn 不在本期。
+        started.gateway().setSessionTurnGate(new RoomNormalizedSessionTurnGate(new LocalSessionTurnGate()));
         HarnessAgent companion = started.agents().get(mainAgentId);
         // Toolkit 在 build 之后才有，业务工具只能这时候挂。
         agents.attachCompanionTools(companion);
@@ -251,21 +330,23 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         }
         this.bootstrap = started;
         this.channel = requireChatUi(started.channelManager());
+        this.apiChannel = requireApiChannel(started.channelManager());
         log.info("channel gateway started main=" + mainAgentId + " echo=" + HarnessAgentFactory.ECHO_AGENT_ID
                 + " channels=" + started.channelManager().channelIds());
     }
 
     /**
-     * 从 ChannelManager 只读取出默认 ChatUi，并要求名单里只有这一条。
-     * 缺通道或类型不对直接失败，避免静默再 new 一份 ChatUi。
+     * 从 ChannelManager 只读取出 ChatUi。
+     * 允许名单：仅 {@code chatui}，或恰好 {@code chatui}+{@link #API_CHANNEL_ID}（顺序不限）。
+     * 缺 chatui、多出其它 id、或类型不对直接失败，避免静默再 new 一份 ChatUi。
      */
     public static ChatUiChannel requireChatUi(ChannelManager manager) {
         if (manager == null) {
             throw new IllegalStateException("channel manager is missing");
         }
         List<String> ids = manager.channelIds();
-        if (ids.size() != 1 || !ChatUiChannel.CHANNEL_ID.equals(ids.get(0))) {
-            throw new IllegalStateException("expected only chatui channel, got " + ids);
+        if (!allowedChannelIds(ids)) {
+            throw new IllegalStateException("expected chatui or chatui+api channels, got " + ids);
         }
         Channel bound = manager.getChannel(ChatUiChannel.CHANNEL_ID)
                 .orElseThrow(() -> new IllegalStateException("chatui channel missing"));
@@ -275,10 +356,66 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         return chatUi;
     }
 
+    /**
+     * 固定白名单：只有 chatui，或 chatui 与 api 各一条。
+     * 正式启动走双通道；仅 chatui 留给历史/单测对照。
+     */
+    public static boolean allowedChannelIds(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return false;
+        }
+        if (ids.size() == 1) {
+            return ChatUiChannel.CHANNEL_ID.equals(ids.get(0));
+        }
+        if (ids.size() != 2) {
+            return false;
+        }
+        return ids.contains(ChatUiChannel.CHANNEL_ID) && ids.contains(API_CHANNEL_ID);
+    }
+
+    /**
+     * 从 ChannelManager 只读取 API Channel；须已在白名单内且类型正确。
+     */
+    public static AccessApiChannel requireApiChannel(ChannelManager manager) {
+        if (manager == null) {
+            throw new IllegalStateException("channel manager is missing");
+        }
+        if (!allowedChannelIds(manager.channelIds()) || !manager.channelIds().contains(API_CHANNEL_ID)) {
+            throw new IllegalStateException("expected api channel among " + manager.channelIds());
+        }
+        Channel bound = manager.getChannel(API_CHANNEL_ID)
+                .orElseThrow(() -> new IllegalStateException("api channel missing"));
+        if (!(bound instanceof AccessApiChannel api)) {
+            throw new IllegalStateException("api channel type mismatch: " + bound.getClass().getName());
+        }
+        return api;
+    }
+
+    /**
+     * 供 API HTTP 取已启动的 ApiChannel；尚未懒启动时启动 Gateway。
+     */
+    public AccessApiChannel apiChannel() {
+        AccessApiChannel open = apiChannel;
+        if (open != null) {
+            return open;
+        }
+        synchronized (lock) {
+            if (apiChannel == null) {
+                startGatewayLocked();
+            }
+            open = apiChannel;
+        }
+        if (open == null) {
+            throw new IllegalStateException("api channel gateway is not started");
+        }
+        return open;
+    }
+
     /** 停掉当前 Gateway 并关闭 Agent。调用方须已持有 lock。待确认随 Agent 失效一并清掉。 */
     private void stopLocked() {
         if (bootstrap == null) {
             channel = null;
+            apiChannel = null;
             pendingAsks.clear();
             return;
         }
@@ -293,6 +430,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         }
         bootstrap = null;
         channel = null;
+        apiChannel = null;
         pendingAsks.clear();
     }
 

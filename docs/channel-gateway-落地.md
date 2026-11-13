@@ -10,7 +10,7 @@
 | 主路径 | 仍走 `ChatUiChannel` → Gateway |
 | 同 session 串行 | 进程内 `SessionTurnGate` / `LocalSessionTurnGate`；启动后**显式** `setSessionTurnGate` |
 | 业务上下文 | 用 `runtimeContextResolver` 写 `tenantId` 等；不要靠往 `SendOptions` / `MsgContext.extra` 塞全量字段 |
-| Channel 管理 | `ChannelManager` **只读显式**（看见默认 ChatUi 即可），本期不注册多 Channel |
+| Channel 管理 | `ChannelManager` **只读显式**（看见默认 ChatUi 即可），本期不注册多 Channel（另块见 `docs/api-channel-落地.md`） |
 | Agent 创建 | 改由 `GatewayBootstrap` Builder 创建长驻 Agent；工厂只留 `customizeCompanion` / `customizeEcho`（或等价钩子） |
 | `configureAllAgents` | 只挂真正公共的项；产品差异不塞进去 |
 
@@ -55,4 +55,5 @@
 
 ## 状态
 
-①～④ 已按序收口。后续若开新块，另起 grill / 文档条目，不要把「明确不做」项混进来。
+①～④ 已按序收口。  
+另块 **API Channel / 多 Channel** 已收口：`docs/api-channel-落地.md`（不改写本专题已锁正文；Gateway 现白名单 `{chatui, api}`）。若再改本专题规范，先改本文再动代码。

@@ -21,7 +21,8 @@ import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 
 /**
- * ChannelManager 只读显式：Builder 只挂 chatui，启动后从 manager 取回，名单不能多通道。
+ * ChannelManager 只读显式：Builder 挂 chatui，启动后从 manager 取回。
+ * 白名单现允许仅 chatui 或 chatui+api；本测仍覆盖仅 chatui 主路径。
  */
 class AccessChannelManagerTest {
 

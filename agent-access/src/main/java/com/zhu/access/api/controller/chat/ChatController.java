@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
 /**
- * 聊天入口。同步 JSON 和 SSE 都只做参数接入，执行交给 ChatAppService。
+ * WEB 聊天入口。同步 JSON 和 SSE 都只做参数接入，执行交给 ChatAppService。
+ * 显式 {@code channel=API} 会被拒绝；程序调用请走 {@link ApiAgentChatController}。
  */
 @RestController
 public class ChatController {

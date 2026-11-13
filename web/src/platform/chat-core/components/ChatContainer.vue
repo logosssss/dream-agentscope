@@ -26,6 +26,11 @@ const props = withDefaults(
     emptyHint?: string
     /** 空态副文案；没有就不渲染 */
     emptySubHint?: string
+    /**
+     * SSE 路径。默认 WEB ChatUi；API 控制台传 `/api/agent/chat/stream`。
+     * 不改请求体字段，只换入口。
+     */
+    streamPath?: string
   }>(),
   {
     identity: '',
@@ -33,6 +38,7 @@ const props = withDefaults(
     loadingHistory: false,
     emptyHint: '发送一条消息开始对话。',
     emptySubHint: '',
+    streamPath: '/api/chat/stream',
   },
 )
 
@@ -194,6 +200,7 @@ async function send(overrideText?: string) {
         },
       },
       abortController.signal,
+      props.streamPath,
     )
     emit('sent')
     void refreshQuota()

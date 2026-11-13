@@ -95,10 +95,12 @@ public class ChatAppService {
     }
 
     /**
-     * 同步执行一次对话。
+     * 同步执行一次对话（WEB / 默认通道）。
      * 租户和用户只取登录会话写进线程的值。请求体里的身份丢掉。通道留在接入层。
+     * 显式 {@code channel=API} 须改走 {@code /api/agent/chat*}。
      */
     public AgentResponse chat(ChatRequest request) {
+        rejectExplicitApiChannel(request);
         AgentRequest agentRequest = toRequest(request);
         requireUser(agentRequest.userId());
         tenants.requireActive(agentRequest.tenantId());
@@ -121,10 +123,12 @@ public class ChatAppService {
     }
 
     /**
-     * 流式执行。身份在返回 Flux 之前就抄进 AgentRequest，避免过滤器清掉线程上下文后流才开始读。
+     * 流式执行（WEB / 默认通道）。身份在返回 Flux 之前就抄进 AgentRequest，避免过滤器清掉线程上下文后流才开始读。
      * 会话锁和并发占位在流结束时释放。调用方不要 block。
+     * 显式 {@code channel=API} 须改走 {@code /api/agent/chat/stream}。
      */
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
+        rejectExplicitApiChannel(request);
         AgentRequest agentRequest = toRequest(request);
         requireUser(agentRequest.userId());
         tenants.requireActive(agentRequest.tenantId());
@@ -317,6 +321,16 @@ public class ChatAppService {
     private static void requireUser(String userId) {
         if (userId == null || userId.isBlank()) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "login is required");
+        }
+    }
+
+    /**
+     * 旧 {@code /api/chat*} 显式 API 通道拒绝，避免与 ApiChannel 入口双歧。
+     */
+    private static void rejectExplicitApiChannel(ChatRequest request) {
+        if (request != null && request.channelOrDefault() == AccessChannel.API) {
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST, "use /api/agent/chat or /api/agent/chat/stream for channel=API");
         }
     }
 

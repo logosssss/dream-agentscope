@@ -104,6 +104,17 @@ function iconLabel(icon: string, name: string): string {
       评
     </RouterLink>
 
+    <RouterLink
+      to="/api-console"
+      class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
+      :class="currentSlug === 'api-console'
+        ? 'text-white bg-[var(--color-brand-primary)]'
+        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'"
+      title="API 控制台"
+    >
+      API
+    </RouterLink>
+
     <button
       type="button"
       class="mt-auto w-10 h-10 rounded-xl text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"

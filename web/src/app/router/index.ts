@@ -70,6 +70,14 @@ const router = createRouter({
             themeColor: '#be123c',
           },
         },
+        {
+          path: 'api-console',
+          name: 'api-console',
+          component: () => import('@/platform/api-console/ApiConsoleView.vue'),
+          meta: {
+            themeColor: '#0369a1',
+          },
+        },
         ...agentList.map((agent) => ({
           path: agent.slug,
           name: agent.slug,
