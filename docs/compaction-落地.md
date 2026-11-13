@@ -25,7 +25,7 @@
 2. 不上 Subagent / MCP / 多 Channel / `mode=mq`  
 3. 不切 Permission 终态 Gate  
 4. 不把 compaction 旋钮放进 Nacos 热更白名单（本地/代码配置即可）  
-5. 不在本专题补齐「紧急溢出 `compactionHook`」产品闸（`disableCompaction` 后紧急路径可能无 hook；只记为已知限制）  
+5. 不在本专题补齐「紧急溢出 `compactionHook`」产品闸（历史已知限制；收口见另文 [`compaction-hook-落地.md`](compaction-hook-落地.md)）  
 6. 不改 Memory 已锁约定（USER、throttled 10m、CRITICAL 禁 flush、同对话模型）
 
 ## 落地顺序（一次一块）
@@ -44,7 +44,7 @@
    测试：`CrisisGatedCompactionMiddlewareTest`。  
 3. **README / 专题收尾** — 已完成  
    `agent-runtime/README.md` 与 `HarnessAgentFactory` 注释写清：companion 开危机闸 compact；echo 不开；  
-   紧急溢出 `compactionHook` 为已知限制；Tool Result Eviction 见 `docs/tool-result-eviction-落地.md`。
+   紧急溢出 `compactionHook` 原为已知限制，收口跟踪见 [`compaction-hook-落地.md`](compaction-hook-落地.md)；Tool Result Eviction 见 `docs/tool-result-eviction-落地.md`。
 
 ## 验收要点
 
@@ -54,4 +54,5 @@
 
 ## 状态
 
-grill 已结束；落地 ①～③ 已完成。本专题收口。若再改规范，先改本文再动代码。
+grill 已结束；落地 ①～③ 已完成。本专题（常规危机闸）收口。  
+紧急 `compactionHook` 另见 [`compaction-hook-落地.md`](compaction-hook-落地.md)。若再改规范，先改本文再动代码。

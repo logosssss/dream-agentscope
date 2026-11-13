@@ -22,6 +22,7 @@ import reactor.core.publisher.Flux;
  * 工厂对 Harness 使用 {@code disableCompaction()}，由本中间件在非 CRITICAL 时再委托
  * {@link CompactionMiddleware}（含默认 {@code flushBeforeCompact}）。
  * 须挂在 {@link SafetyGateMiddleware} 之后，才能在 {@code onReasoning} 读到本轮 RiskLevel。
+ * 不与框架 {@code compaction(config)} 同挂：后者会把未闸中间件塞进链（见 docs/compaction-hook-落地.md）。
  * 见 {@code docs/compaction-落地.md}。
  */
 @Component

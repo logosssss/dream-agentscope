@@ -150,6 +150,8 @@ public class HarnessAgentFactory {
                 .build());
         builder.disableMemoryHooks();
         // companion 再挂危机闸；echo 保持禁用且不挂闸。
+        // 故意不 compaction(config)：公开 API 装 hook 会同时挂未闸链上中间件，打穿危机闸。
+        // 溢出无 hook 时框架硬失败；机制对照见 docs/compaction-hook-落地.md（口径 C）。
         // 见 docs/compaction-落地.md、docs/tool-result-eviction-落地.md。
         builder.disableCompaction();
         // 框架默认已挂 eviction；必须显式 disable，否则 CRITICAL 仍可能被框架截断落盘。
