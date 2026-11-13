@@ -139,6 +139,7 @@ cd ../web-admin && pnpm build
 - RocketMQ、Nacos 服务发现、MCP 服务发现（MCP 清单可进用户进程业务配置且 companion 已接线，见 `docs/mcp-落地.md`；不做服务发现仍不挡门禁）  
 - Docker 沙箱默认关（`sandbox.enabled=false`）；打开后仅 companion、硬失败不回退 Remote；手测环境无 Docker 时保持默认关即可（见 `docs/sandbox-落地.md`）  
 - Wakeup 默认关（`wakeup.enabled=false`）；打开后仅 companion + 进程内 Bus；内部 HTTP 用独立唤醒令牌；不做调度表消费 / Inbox / TeamWakeups / 跨副本 Bus（见 `docs/wakeup-落地.md`）  
+- 紧急溢出 `compactionHook`：**不装**（公开 API 无法只装 hook，装则与危机闸双压；溢出时框架硬失败；口径 C，见 `docs/compaction-hook-落地.md`）  
 - Nacos **infra**（连接/密钥）热更新；业务 yaml 热更新已落地（非法拒收、仅影响新请求）
 - 管理员账号登录页（管理端现阶段靠 Admin Token）  
 - 按保留策略真正清理、批准删除后真删、调度真正消费  
@@ -150,9 +151,9 @@ cd ../web-admin && pnpm build
 
 | 项 | 记录 |
 | --- | --- |
-| 日期 | 2026-11-04 |
-| 分支 / 提交 | `feat/agentscope-platform-base` @ `b8fe762`（工作区含 KB 集合名修复，未提交） |
-| 自动化 | 通过 |
-| 冒烟 | **通过**（4.5 重启后复验通过） |
-| 敏感面 | **部分通过**（handoff 仍跟踪；LICENSE / 根 `.env.example` 开源前补；不挡本地冒烟） |
-| 备注（缺陷与是否已修） | KB 硬编码集合名已修并经重启复验：索引 SUCCESS，对话 `knowledge_search` 命中。开源前仍须：停跟踪 handoff、补 LICENSE、可选根 `.env.example`。 |
+| 日期 | 2026-11-13 |
+| 分支 / 提交 | `feat/agentscope-channel-gateway` @ `2ffd5af`（本刀为清单文档刷新，未含本刷新提交） |
+| 自动化 | 通过（本刀未复验，沿用既有全绿口径） |
+| 冒烟 | **通过**（本刀未复验，沿用 2026-11-04 冒烟；4.5 曾重启复验通过） |
+| 敏感面 | **通过**（`LICENSE` Apache-2.0、根与前端 `.env.example` 齐全；`.cursor/handoff*` 已 ignore 且未跟踪） |
+| 备注（缺陷与是否已修） | 本刀只刷新签字与 §7（补 CompactionHook 口径 C 等），不新开大模块、不重跑手测。可选 `pnpm build`、停止生成手测仍空着。开源合并目标仍见 §6（`main`）。 |
