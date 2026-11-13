@@ -1,4 +1,4 @@
-package com.zhu.semantic.config;
+package com.zhu.semantic.config.permission;
 
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

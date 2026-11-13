@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.semantic.config.CompanionPersona;
+import com.zhu.semantic.config.product.CompanionPersona;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

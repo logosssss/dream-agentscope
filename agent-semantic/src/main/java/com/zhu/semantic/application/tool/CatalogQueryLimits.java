@@ -1,15 +1,16 @@
-package com.zhu.semantic.application;
+package com.zhu.semantic.application.tool;
 
 /**
  * 管理列表条数上限。避免一次把工具目录整表拉进管理进程。
+ * public：permission 包的登记实现也要归一 limit，不能再靠同包可见性。
  */
-final class CatalogQueryLimits {
+public final class CatalogQueryLimits {
 
     private CatalogQueryLimits() {
     }
 
     /** 未指定时用 50，调用方传得再大也只取 100。 */
-    static int normalize(int limit) {
+    public static int normalize(int limit) {
         if (limit < 1) {
             return 50;
         }

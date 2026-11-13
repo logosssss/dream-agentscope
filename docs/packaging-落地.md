@@ -47,8 +47,49 @@
    `auth.session` / `auth.wx` / `auth.gate`。  
 10. **runtime.task 细分** — 已完成  
    根留 `AgentTask`；`task.publish` / `handle` / `log`。  
-11. **其余热点** — 未开始（下一块按深度 C 挑）  
-   如 `semantic.config`、其它仍扁平的 application 热点等。
+11. **其余热点（深度 C）** — 已完成；顺序 **⑪a → ⑪b → ⑪c**  
+    - **⑪a `semantic.config`** — 已完成  
+      按 `contract` 对齐：`config.permission` / `config.product` / `config.safety`；  
+      `SemanticConfig` 留 `config` 根；本块无 tool 配置类则**不建**空 `config.tool`。  
+      域表见下「⑪a 域表」。  
+    - **⑪b `semantic.application`** — 已完成  
+      `application.prompt` / `application.tool` / `application.permission`；  
+      `package-info` 留 `application` 根；`MysqlToolPermissionCatalog` 进 `permission`；  
+      `CatalogQueryLimits` 因跨包引用改为 `public`（仍在 `tool`）。  
+      域表见下「⑪b 域表」。  
+    - **⑪c `runtime.application`** — 已完成  
+      `application.turn` / `application.stream` / `application.usage`；  
+      `ResolvedChatModel` 进 `turn`；`AgentTurnSupport` 跨包引用 stream/usage。  
+      域表见下「⑪c 域表」。  
+    - **每块边界**：搬家 + 全仓库 import + **该模块** README 包表 + 本文进度 + 相关 `mvn test`；  
+      不改 URL / JSON / 业务逻辑；不扩到下一块；不必改根 README / release-gate。  
+    - **明确不拆（本轮）**：`admin.application`（仅 3 类，深度 C 不够热）；`runtime.domain` 根护栏类暂留。
+
+## ⑪a 域表（`semantic.config`）
+
+| 子包 | 类 |
+| --- | --- |
+| `config`（根） | `SemanticConfig` |
+| `config.permission` | `PermissionProperties`、`PermissionMapperConfig`、`ConfiguredPermissionService`、`ConfiguredUnconditionalPermissionCatalog` |
+| `config.product` | `CompanionPersona`、`PlatformSemanticProvider` |
+| `config.safety` | `AbsentSemanticRiskJudge`、`ClasspathCrisisPrompt` |
+
+## ⑪b 域表（`semantic.application`）
+
+| 子包 | 类 |
+| --- | --- |
+| `application`（根） | `package-info` |
+| `application.prompt` | `PromptAppService` |
+| `application.tool` | `MysqlToolRegistryCatalog`、`StoredToolCatalog`、`CatalogQueryLimits` |
+| `application.permission` | `StoredPermissionService`、`StoredUnconditionalPermissionCatalog`、`MysqlToolPermissionCatalog` |
+
+## ⑪c 域表（`runtime.application`）
+
+| 子包 | 类 |
+| --- | --- |
+| `application.turn` | `AgentTurnSupport`、`AbsentSessionTurnCount`、`ResolvedChatModel` |
+| `application.stream` | `AgentStreamEvents`、`CrisisReplyOutlet` |
+| `application.usage` | `AuditUsageMeter`、`ModelCallUsage` |
 
 ## admin 第一块域表
 
@@ -78,5 +119,5 @@
 
 ## 状态
 
-grill 已结束；规范、顺序与 admin 域表定稿。  
-①～⑩ 已收口（含 `runtime.task`）。下一块按深度 C 挑其余热点。若改规范，先改本文再动代码。
+grill 已结束（含 ⑪ 二次收口）。规范、顺序与 admin / ⑪a～⑪c 域表定稿。  
+①～⑩、⑪a～⑪c 已收口。本轮 packaging ⑪ 热点分包完成。若改规范，先改本文再动代码。

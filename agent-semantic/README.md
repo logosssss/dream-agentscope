@@ -30,7 +30,14 @@
 | `api.prompt` | `PromptService`、`PlatformPrompt` | 按 key 取提示词；请求没带系统提示词时的键和兜底 |
 | `api.tool` | `ToolCatalogService`、`NoToolCatalog`、`ToolRegistryCatalog`、`ToolRegistrySummary`、`ToolPermissionCatalog`、`ToolPermissionSummary` | 工具目录与权限登记缝；MySQL 关闭时目录为空实现 |
 
-### `config`
+### `config`（按域分包，与 `contract` 对齐）
+
+| 包 | 类型 | 作用 |
+| --- | --- | --- |
+| `config`（根） | `SemanticConfig` | 打开 `PermissionProperties` 绑定；不在这里创建执行组件 |
+| `config.permission` | `PermissionProperties`、`PermissionMapperConfig`、`ConfiguredPermissionService`、`ConfiguredUnconditionalPermissionCatalog` | Nacos/yml 权限规则；MySQL 关闭时的配置态权限与无条件目录；打开 MySQL 时才扫权限 Mapper |
+| `config.product` | `CompanionPersona`、`PlatformSemanticProvider` | 锁定人格与默认产品语义实现 |
+| `config.safety` | `AbsentSemanticRiskJudge`、`ClasspathCrisisPrompt` | 不连网的风险判定；危机话术从 classpath 读 |
 
 `ConfiguredPermissionService`：MySQL 关闭时按 `agentscope.permission.rules` 匹配。没有命中时一律 `ALLOW`。
 
@@ -38,7 +45,14 @@
 
 `StoredToolCatalog`：MySQL 打开时读 `tool_registry` 的启用行，表由 `V6__tool_registry.sql` 创建。空白标识跳过。表是空的则目录为空。参数结构只保存在表里，不参与注册。没有对应 `ProductTool` 时运行层仍不把名字交给模型。`V32__echo_text_tool.sql` 种子插入 `echo_text` 目录行，以及全局 `ASK` 权限。`V35__knowledge_search_tool.sql` 种子插入 `knowledge_search`，全局 `ALLOW`；实现在运行层。
 
-### `application`
+### `application`（按域分包）
+
+| 包 | 类型 | 作用 |
+| --- | --- | --- |
+| `application`（根） | `package-info` | 实现包说明；运行层不允许依赖这里 |
+| `application.prompt` | `PromptAppService` | 实现 `PromptService`；外部模板 `{{变量}}` 替换与 fallback |
+| `application.tool` | `MysqlToolRegistryCatalog`、`StoredToolCatalog`、`CatalogQueryLimits` | 工具目录登记/只读目录；列表 limit 归一 |
+| `application.permission` | `StoredPermissionService`、`StoredUnconditionalPermissionCatalog`、`MysqlToolPermissionCatalog` | MySQL 打开时的权限判定与登记；无条件目录 |
 
 `PromptAppService` 实现 `PromptService`。外部模板用 `{{变量}}` 替换。来源缺失、空白、抛错，或替换后仍有占位符时返回 fallback，并打一条只含 key 的警告。不把 `{{name}}` 原文交给模型。fallback 为空则拒绝。容器里只能有一个 `PromptService`。
 

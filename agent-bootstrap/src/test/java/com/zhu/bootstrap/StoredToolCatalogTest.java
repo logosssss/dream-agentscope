@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.semantic.application.StoredToolCatalog;
+import com.zhu.semantic.application.tool.StoredToolCatalog;
 import com.zhu.semantic.contract.tool.ToolDescriptor;
 import com.zhu.semantic.infrastructure.persistence.ToolRegistryMapper;
 import com.zhu.semantic.infrastructure.persistence.entity.ToolRegistry;

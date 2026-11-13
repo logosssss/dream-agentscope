@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.audit.api.model.ModelConfigLookup;
-import com.zhu.runtime.application.ResolvedChatModel;
+import com.zhu.runtime.application.turn.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;

@@ -1,4 +1,4 @@
-package com.zhu.semantic.config;
+package com.zhu.semantic.config.product;
 
 import com.zhu.semantic.api.tool.NoToolCatalog;
 import com.zhu.semantic.api.prompt.PlatformPrompt;

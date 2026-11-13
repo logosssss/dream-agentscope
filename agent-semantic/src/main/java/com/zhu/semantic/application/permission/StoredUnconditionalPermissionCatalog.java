@@ -1,4 +1,4 @@
-package com.zhu.semantic.application;
+package com.zhu.semantic.application.permission;
 
 import com.zhu.semantic.contract.permission.PermissionDecision;
 import com.zhu.semantic.contract.permission.UnconditionalPermissionCatalog;

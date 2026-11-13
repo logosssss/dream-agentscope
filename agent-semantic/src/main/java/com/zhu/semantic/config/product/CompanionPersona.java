@@ -1,4 +1,4 @@
-package com.zhu.semantic.config;
+package com.zhu.semantic.config.product;
 
 import com.zhu.semantic.contract.product.PersonaContract;
 import java.util.List;

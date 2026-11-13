@@ -6,7 +6,7 @@ import com.zhu.access.infrastructure.persistence.entity.run.AgentRun;
 import com.zhu.access.infrastructure.persistence.entity.run.AgentRunStep;
 import com.zhu.common.util.Ids;
 import com.zhu.common.exception.BusinessException;
-import com.zhu.runtime.application.ResolvedChatModel;
+import com.zhu.runtime.application.turn.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;

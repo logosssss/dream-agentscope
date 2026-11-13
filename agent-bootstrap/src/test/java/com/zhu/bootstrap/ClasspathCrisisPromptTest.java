@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.semantic.config.ClasspathCrisisPrompt;
+import com.zhu.semantic.config.safety.ClasspathCrisisPrompt;
 import com.zhu.semantic.contract.safety.CrisisPrompt;
 import org.junit.jupiter.api.Test;
 

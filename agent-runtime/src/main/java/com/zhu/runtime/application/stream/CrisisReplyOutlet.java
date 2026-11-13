@@ -1,4 +1,4 @@
-package com.zhu.runtime.application;
+package com.zhu.runtime.application.stream;
 
 import com.zhu.runtime.api.AgentStreamEvent;
 import com.zhu.runtime.domain.CrisisReplyGuard;

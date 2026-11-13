@@ -8,7 +8,7 @@ import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentResponse;
 import com.zhu.runtime.api.AgentStreamEvent;
-import com.zhu.runtime.application.AgentTurnSupport;
+import com.zhu.runtime.application.turn.AgentTurnSupport;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentRegistry;
 import io.agentscope.core.agent.RuntimeContext;

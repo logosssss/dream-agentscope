@@ -1,5 +1,6 @@
-package com.zhu.semantic.application;
+package com.zhu.semantic.application.permission;
 
+import com.zhu.semantic.application.tool.CatalogQueryLimits;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.semantic.api.tool.ToolPermissionCatalog;

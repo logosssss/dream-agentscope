@@ -1,6 +1,6 @@
 package com.zhu.runtime.infrastructure.agent;
 
-import com.zhu.runtime.application.ResolvedChatModel;
+import com.zhu.runtime.application.turn.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
 import com.zhu.runtime.domain.middleware.AuditMiddleware;

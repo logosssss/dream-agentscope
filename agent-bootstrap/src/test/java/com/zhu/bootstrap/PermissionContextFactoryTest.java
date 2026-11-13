@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
 import com.zhu.runtime.infrastructure.agent.PermissionContextFactory;
-import com.zhu.semantic.config.ConfiguredUnconditionalPermissionCatalog;
-import com.zhu.semantic.config.PermissionProperties;
+import com.zhu.semantic.config.permission.ConfiguredUnconditionalPermissionCatalog;
+import com.zhu.semantic.config.permission.PermissionProperties;
 import com.zhu.semantic.contract.permission.PermissionDecision;
 import com.zhu.semantic.contract.permission.UnconditionalPermissionCatalog;
 import com.zhu.semantic.contract.permission.UnconditionalToolRule;

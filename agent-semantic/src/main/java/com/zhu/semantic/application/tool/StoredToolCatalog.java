@@ -1,4 +1,4 @@
-package com.zhu.semantic.application;
+package com.zhu.semantic.application.tool;
 
 import com.zhu.semantic.api.tool.ToolCatalogService;
 import com.zhu.semantic.contract.tool.ToolDescriptor;

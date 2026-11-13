@@ -9,7 +9,7 @@ import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.config.ClientAuthProperties;
 import com.zhu.access.config.WxMiniProperties;
 import com.zhu.runtime.config.AgentRuntimeProperties;
-import com.zhu.semantic.config.PermissionProperties;
+import com.zhu.semantic.config.permission.PermissionProperties;
 import jakarta.annotation.PreDestroy;
 import java.util.HashMap;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package com.zhu.semantic.config;
+package com.zhu.semantic.config.permission;
 
 import java.util.ArrayList;
 import java.util.List;

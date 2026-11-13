@@ -54,11 +54,9 @@ AgentStreamEvent   接入层再写成 SSE
 | `api` | `AgentResponse` | 运行标识和文本，不泄漏框架的 `Msg` |
 | `api` | `AgentStreamEvent` | 流式事件的类型和短文本 |
 | `api` | `SessionTurnCount` | 会话已经成功结束的轮次。人设检查只看这个数 |
-| `application` | `AgentExecutionService` | 同步 `block` 和流式 `streamEvents`，结束时关闭 Agent。危机档和打开人设检查时过整段回复，不另写干预 |
-| `application` | `ResolvedChatModel` | MySQL 打开时用启用的 `model_config`，拼成 `provider:model`。没有行再用进程配置 |
-| `application` | `AgentStreamEvents` | 框架事件收成 `AgentStreamEvent` |
-| `application` | `CrisisReplyOutlet` | 需要攒齐再查的流式出口。增量先扣下，整段结束再过规则 |
-| `application` | `AbsentSessionTurnCount` | MySQL 关闭时成功轮次按 0，人设检查保持关闭 |
+| `application.turn` | `AgentTurnSupport`、`ResolvedChatModel`、`AbsentSessionTurnCount` | 校验 / RuntimeContext / 流式护栏收口与用量记账入口；模型坐标解析；MySQL 关闭时轮次按 0 |
+| `application.stream` | `AgentStreamEvents`、`CrisisReplyOutlet` | 框架事件收成 `AgentStreamEvent`；危机档流式先扣增量、整段再过规则 |
+| `application.usage` | `AuditUsageMeter`、`ModelCallUsage` | 模型用量写入审计与 `token_usage`；单次调用记账辅助 |
 | `infrastructure.agent` | `HarnessAgentFactory`、`McpToolsConfigFactory`、`CompanionSandboxFilesystem`、`DockerCliProbe`、`PermissionContextFactory`、`CatalogToolRegistrar`、`WorkspaceFilesystem`、`HarnessAgentRegistry`、`AgentShutdown` | 给 GatewayBootstrap 提供 `configureCommon` / `customizeCompanion` / `customizeEcho`；公共项关 web/shell、**打开 Harness Memory**（`MemoryConfig` throttled 10m、不另配 model）、**`disableCompaction` / `disableToolResultEviction`**（companion 再挂危机闸；框架默认会挂 eviction，必须显式关）、**`disableDynamicSkills`**（框架默认动态 skill 开，必须显式关；工作区默认 skill 仍开、目录可空，不写种子、不开 SkillManage/Curator）、**`disableDynamicSubagents`**（框架默认动态子代理开，必须显式关；companion 另挂静态 `subagent-probe`，echo 不挂）、挂 BYPASS 权限上下文；**MCP**：`McpToolsConfigFactory` 把 `agentscope.runtime.mcp.servers` 转成 `ToolsConfig`；空清单不设 `toolsConfig`；仅 companion 装配 + 注册监听，echo 不连；`${ENV}` 占位展开；`required` 硬/软失败交给框架 Registrar；**Sandbox**：默认关；`enabled=true` 时仅 companion 经 `CompanionSandboxFilesystem` 挂 `DockerFilesystemSpec`（USER + 推荐镜像 `ubuntu:24.04`）；缺 Store 或 `DockerCliProbe` 失败硬失败、不回退 Remote；echo 仍 Remote；shell 仍关；快照/守卫复用 DistributedStore JDBC。工具在 build 后挂。有状态库时默认 Remote 按**用户**隔离。`HarnessAgentRegistry` 供 Middleware 回查长驻 Harness。停机时等待在途调用。Skills / Subagent / MCP / Sandbox / Wakeup 见对应 `docs/*-落地.md` |
 | `infrastructure.wakeup` | `InMemoryMessageBus` | 进程内 `MessageBus`（不落盘、不跨副本）；供接入层 Wakeup Coordinator 的 enqueue / Dispatcher 订阅。见 `docs/wakeup-落地.md` |
 | `infrastructure.embed` | `DashScopeTextEmbedder` | 密钥读 `DASHSCOPE_API_KEY`。空密钥或失败返回空向量，不让进程退出 |

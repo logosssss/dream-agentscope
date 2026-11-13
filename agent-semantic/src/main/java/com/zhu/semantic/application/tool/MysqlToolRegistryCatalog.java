@@ -1,4 +1,4 @@
-package com.zhu.semantic.application;
+package com.zhu.semantic.application.tool;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

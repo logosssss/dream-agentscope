@@ -1,4 +1,4 @@
-package com.zhu.semantic.config;
+package com.zhu.semantic.config.safety;
 
 import com.zhu.semantic.contract.safety.RiskLevel;
 import com.zhu.semantic.contract.safety.SemanticRiskJudge;

@@ -1,4 +1,4 @@
-package com.zhu.runtime.application;
+package com.zhu.runtime.application.turn;
 
 import com.zhu.runtime.api.SessionTurnCount;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

@@ -1,4 +1,4 @@
-package com.zhu.runtime.application;
+package com.zhu.runtime.application.usage;
 
 import com.zhu.runtime.api.UsageMeter;
 import io.agentscope.core.message.Msg;

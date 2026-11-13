@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.semantic.application.StoredPermissionService;
+import com.zhu.semantic.application.permission.StoredPermissionService;
 import com.zhu.semantic.contract.permission.PermissionDecision;
 import com.zhu.semantic.infrastructure.persistence.ToolPermissionMapper;
 import com.zhu.semantic.infrastructure.persistence.entity.ToolPermission;

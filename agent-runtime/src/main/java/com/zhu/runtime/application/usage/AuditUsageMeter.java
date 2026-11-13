@@ -1,4 +1,4 @@
-package com.zhu.runtime.application;
+package com.zhu.runtime.application.usage;
 
 import com.zhu.audit.api.event.AuditRecorder;
 import com.zhu.audit.api.usage.DailyTokenAccumulator;

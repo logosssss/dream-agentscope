@@ -3,7 +3,7 @@ package com.zhu.bootstrap;
 import com.zhu.runtime.domain.RecalledMemories;
 import com.zhu.runtime.domain.TextEmbedder;
 import com.zhu.runtime.domain.middleware.CompanionMemoryMiddleware;
-import com.zhu.semantic.config.CompanionPersona;
+import com.zhu.semantic.config.product.CompanionPersona;
 import com.zhu.semantic.contract.safety.RiskLevel;
 import com.zhu.state.api.memory.EpisodicMemoryItem;
 import com.zhu.state.api.memory.EpisodicMemoryRepository;
