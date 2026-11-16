@@ -1,13 +1,12 @@
-package com.zhu.bootstrap;
+package com.zhu.runtime.domain;
 
-import com.zhu.runtime.domain.PersonaConsistencyGuard;
 import com.zhu.semantic.config.product.CompanionPersona;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 人设漂移只看候选正文。基线里的「不是恋人」不能把自己盖掉。
+ * 运行层领域测：人设漂移只看候选正文。基线里的「不是恋人」不能把自己盖掉。
  */
 class PersonaConsistencyGuardTest {
 

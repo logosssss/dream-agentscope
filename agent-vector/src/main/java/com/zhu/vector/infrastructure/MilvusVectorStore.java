@@ -3,7 +3,6 @@ package com.zhu.vector.infrastructure;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.zhu.vector.api.KnowledgeFilter;
-import com.zhu.vector.api.MemoryFilter;
 import com.zhu.vector.api.VectorHit;
 import com.zhu.vector.api.VectorQuery;
 import com.zhu.vector.api.VectorRecord;
@@ -22,6 +21,7 @@ import org.springframework.stereotype.Service;
 /**
  * 把向量写到 Milvus，并按身份过滤近邻。
  * 复用进程里的客户端，不在每次调用时建连。
+ * 仅知识集合路径；情景集合已硬删停建。
  * 测试关掉启动依赖时不要装配这个类。
  */
 @Service
@@ -36,7 +36,7 @@ public class MilvusVectorStore implements VectorStore {
     }
 
     /**
-     * 主键已存在就覆盖。知识集合不写租户。情景记忆必须带租户。
+     * 主键已存在就覆盖。知识集合不写租户（{@code tenantId} 忽略）。
      */
     @Override
     public void upsert(VectorRecord record) {
@@ -45,15 +45,12 @@ public class MilvusVectorStore implements VectorStore {
                 || record.vector() == null || record.vector().length == 0) {
             throw new IllegalArgumentException("vector record is invalid");
         }
-        filterOf(collection, record.tenantId(), record.userId(), record.agentId());
+        KnowledgeFilter.of(record.userId(), record.agentId());
         JsonObject row = new JsonObject();
         row.addProperty(MilvusCollections.ID, record.id());
         row.add(KnowledgeFilter.VECTOR, toArray(record.vector()));
         row.addProperty(KnowledgeFilter.USER, record.userId());
         row.addProperty(KnowledgeFilter.AGENT, record.agentId());
-        if (isMemory(collection)) {
-            row.addProperty(MemoryFilter.TENANT, record.tenantId());
-        }
         client.upsert(UpsertReq.builder()
                 .collectionName(collection)
                 .data(List.of(row))
@@ -69,7 +66,7 @@ public class MilvusVectorStore implements VectorStore {
             throw new IllegalArgumentException("vector query is invalid");
         }
         String collection = requireCollection(query.collection());
-        String filter = filterOf(collection, query.tenantId(), query.userId(), query.agentId());
+        String filter = KnowledgeFilter.of(query.userId(), query.agentId());
         int limit = query.limit() < 1 ? 1 : query.limit();
         SearchResp response = client.search(SearchReq.builder()
                 .collectionName(collection)
@@ -94,26 +91,15 @@ public class MilvusVectorStore implements VectorStore {
                 .build());
     }
 
-    /** 身份不完整时不调用 Milvus。 */
+    /** 身份不完整时不调用 Milvus。租户参数保留兼容，知识路径忽略。 */
     @Override
     public void deleteByScope(String collection, String tenantId, String userId, String agentId) {
         String name = requireCollection(collection);
-        String filter = filterOf(name, tenantId, userId, agentId);
+        String filter = KnowledgeFilter.of(userId, agentId);
         client.delete(DeleteReq.builder()
                 .collectionName(name)
                 .filter(filter)
                 .build());
-    }
-
-    static String filterOf(String collection, String tenantId, String userId, String agentId) {
-        if (isMemory(collection)) {
-            return MemoryFilter.of(tenantId, userId, agentId);
-        }
-        return KnowledgeFilter.of(userId, agentId);
-    }
-
-    private static boolean isMemory(String collection) {
-        return MilvusCollections.EPISODIC_MEMORY.equals(collection);
     }
 
     private static String requireCollection(String collection) {

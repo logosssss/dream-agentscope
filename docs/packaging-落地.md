@@ -36,7 +36,7 @@
 4. **access.application.chat 细分** — 已完成  
    `gateway` / `session` / `message` / `run`；`ChatAppService`、`ApprovalNotificationListener` 仍留在 `application.chat`。  
 5. **state.api** — 已完成  
-   `api.store` / `api.memory` / `api.knowledge`。  
+   当时拆为 `api.store` / `api.memory` / `api.knowledge`；其后 `api.memory` **已硬删**（见 [`docs/memory-hard-delete-落地.md`](memory-hard-delete-落地.md)）。  
 6. **semantic.api** — 已完成  
    `api.prompt` / `api.tool`。  
 7. **semantic.contract** — 已完成  
@@ -96,7 +96,7 @@
 | 域 | controller（拟） | dto（拟） |
 | --- | --- | --- |
 | `event` | `AdminAuditController`（仅 `GET /api/admin/audits`）、`AdminOperationAuditController` | `OperationAuditRequest` |
-| `approval` | `AdminApprovalController`（`GET/POST …/approvals…`） | `ApprovalDecisionRequest` |
+| ~~`approval`~~ | ~~`AdminApprovalController`~~（已硬删，见 `docs/approval-hard-delete-落地.md`） | — |
 | `billing` | `AdminBillingController`、`AdminModelPriceController` | `BillingDraftRequest`、`ModelPriceRequest` |
 | `model` | `AdminModelConfigController` | `ModelConfigRequest` |
 | `quota` | `AdminTenantQuotaController`、`AdminTenantTokenQuotaController`、`AdminTenantCostQuotaController`、`AdminTenantConcurrentQuotaController`、`AdminQuotaUsageController` | `TenantQuotaRequest` |

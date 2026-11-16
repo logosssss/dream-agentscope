@@ -11,7 +11,6 @@
 | 包 | 作用 |
 | --- | --- |
 | `api.controller.event` / `api.dto.event` | 事件审计查询、后台操作审计 |
-| `api.controller.approval` / `api.dto.approval` | 旧表审批列表与决定（过渡保留；不续跑 Gate ASK；硬删另块） |
 | `api.controller.billing` / `api.dto.billing` | 账单与模型单价 |
 | `api.controller.model` / `api.dto.model` | 模型配置 |
 | `api.controller.quota` / `api.dto.quota` | 租户额度与用量流水 |
@@ -51,8 +50,6 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /health/ready` | 探测 MySQL、Redis、Milvus。任一项失败 HTTP 503。测试里三项为 SKIPPED |
 | `GET /api/admin/info` | 角色为 `admin` |
 | `GET /api/admin/audits` | 最近审计，默认 50 条，最多 100 条 |
-| `GET /api/admin/approvals` | 旧表 `PENDING` 审批（过渡；新 ASK 活单在用户进程 PendingAskStore），条数规则同上 |
-| `POST /api/admin/approvals/{approvalId}/decision` | 改旧表为 `APPROVED` / `REJECTED`，**不**驱动框架续跑。通道固定 `CONSOLE`；审批人可空则 `admin`。关掉对应待办。单据不存在时找不到 |
 | `POST /api/admin/billing/drafts` | 按租户和区间生成一张草稿账单。MySQL 关闭时返回不可用 |
 | `POST /api/admin/billing/confirmations` | 把对应草稿改成已确认，不重算金额。没有账单时返回找不到 |
 | `POST /api/admin/billing/invoices` | 把已确认的账单改成已开票，不重算金额。草稿要先确认 |
@@ -118,8 +115,8 @@ mvn -pl agent-admin -am spring-boot:run
 
 成功的写入接口会再记一行 `operation_audit`。操作人来自 `X-Operator-Id`，没有时是 `admin`。查询、手工 `POST /api/admin/operation-audits` 和业务失败不自动记。审计写失败不改变这次接口结果。MySQL 关闭时跳过。
 
-扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery`、`ApprovalDecider`、关待办和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`ApprovalRecorder`、`SafetyInterventionRecorder`。申请单和干预写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
+扫描包只有 `com.zhu.admin`。另外显式引入 `AuditQuery`、待办目录和 MySQL 打开时的 Mapper 配置，不引入 `AuditRecorder`、`SafetyInterventionRecorder`。旧管理端审批 API 已硬删。干预写入仍在用户进程。用户进程不依赖本模块，管理接口不会混进对话进程。
 
 ## 还没有
 
-用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。仓库不放模型单价，也不放调用方令牌。管理端业务旋钮白名单仍为空，扩键改 `classpath:nacos-allowlist.yml`；连接与密钥见 `agent-admin-infra.yaml`。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。仓库不放模型单价，也不放调用方令牌。管理端业务旋钮白名单仍为空，扩键改 `classpath:nacos-allowlist.yml`；连接与密钥见 `agent-admin-infra.yaml`。Gate ASK 活单在用户进程，见 `docs/approval-hard-delete-落地.md`。

@@ -1,7 +1,5 @@
 package com.zhu.admin;
 
-import com.zhu.audit.api.approval.ApprovalDecider;
-import com.zhu.audit.api.approval.ApprovalRecorder;
 import com.zhu.audit.api.event.AuditQuery;
 import com.zhu.audit.api.event.AuditRecorder;
 import com.zhu.audit.api.safety.SafetyInterventionRecorder;
@@ -40,7 +38,7 @@ class AdminContextTest {
     private ApplicationContext context;
 
     /**
-     * 存活检查不依赖用户进程。查询和决定可以注入，写入记录器不在这个进程里。
+     * 存活检查不依赖用户进程。审计查询可注入；写入记录器与旧审批 Decider 不在这个进程里。
      * 不引用 HarnessAgent，避免这个模块为了断言去依赖 harness。
      */
     @Test
@@ -48,9 +46,7 @@ class AdminContextTest {
         assertThatThrownBy(() -> Class.forName("io.agentscope.harness.agent.HarnessAgent"))
                 .isInstanceOf(ClassNotFoundException.class);
         assertThat(context.getBeansOfType(AuditQuery.class)).hasSize(1);
-        assertThat(context.getBeansOfType(ApprovalDecider.class)).hasSize(1);
         assertThat(context.getBeansOfType(AuditRecorder.class)).isEmpty();
-        assertThat(context.getBeansOfType(ApprovalRecorder.class)).isEmpty();
         assertThat(context.getBeansOfType(SafetyInterventionRecorder.class)).isEmpty();
         mvc.perform(get("/health/live"))
                 .andExpect(status().isOk())
@@ -72,15 +68,7 @@ class AdminContextTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isEmpty());
         mvc.perform(get("/api/admin/approvals").header(CallerTokens.HEADER, "test-token"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").isEmpty());
-        mvc.perform(post("/api/admin/approvals/ap-1/decision")
-                        .header(CallerTokens.HEADER, "test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"decision\":\"PENDING\",\"approver\":\"ops\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(false))
-                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+                .andExpect(status().isNotFound());
         mvc.perform(get("/api/admin/model-prices").header(CallerTokens.HEADER, "test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(false))
@@ -417,8 +405,6 @@ class AdminContextTest {
                         .header(CallerTokens.HEADER, "test-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"decision\":\"APPROVED\",\"approver\":\"ops\",\"reason\":\"ok\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ok").value(false))
-                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+                .andExpect(status().isNotFound());
     }
 }

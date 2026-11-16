@@ -119,11 +119,12 @@ class BootstrapContextTest {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(get("/api/notifications").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
-                .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
         mvc.perform(get("/api/notifications/1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
-                .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
         mvc.perform(get("/api/runs").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));

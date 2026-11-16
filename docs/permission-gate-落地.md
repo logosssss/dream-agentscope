@@ -16,7 +16,7 @@
 | 产品 ASK | **运行期当 DENY**（打日志）；管理端/种子逐步改掉。有条件的产品 ASK 适用本条 |
 | 无条件 ASK | 仍进 `PermissionContext`（如 `echo_text` 空 conditions）→ Gate / `pendingAsk`，**不当**产品 DENY |
 | 续跑入口 | 改造现有 **`POST /api/approvals/{id}/decision`**：批准后驱动框架续跑（不再只改库）；列表可过渡到 pending/ASKING |
-| 旧审批表 / Recorder | **停写停用主路径**；表与只读查询暂留；**硬删另块** |
+| 旧审批表 / Recorder | **停写停用主路径**（本专题内）；**硬删**见 [`docs/approval-hard-delete-落地.md`](approval-hard-delete-落地.md)（另专题已收口） |
 | PermissionMode | 沿用已锁 **`BYPASS`**（未匹配 ALLOW；显式 DENY/ASK 仍先生效） |
 | 落地形态 | ① spike → ② Middleware 收缩 → ③ 接入层续跑 → ④ 退役标注 + 文档「当前 A」 |
 
@@ -24,7 +24,7 @@
 
 1. 不上 Subagent / MCP / 多 Channel / Wakeup / `mode=mq`  
 2. 不补紧急 `compactionHook`；不开 Skills manage/curator  
-3. 不硬删 `approval_record` 表与相关迁库（硬删另块）  
+3. 不硬删 `approval_record` 表与相关迁库（本专题内；硬删见 [`docs/approval-hard-delete-落地.md`](approval-hard-delete-落地.md)）  
 4. 不把产品条件（租户/角色/长度）塞进 `ruleContent` DSL  
 5. 不在 acting 热路径 `addRule` / 每轮重装整个 context（续跑所需的框架侧规则更新除外，以 spike 为准）  
 6. 不改 Memory / Compaction / Eviction / Skills 已锁约定  
@@ -64,4 +64,5 @@
 
 ## 状态
 
-grill 已结束；落地 ①～④ 全部收口。Permission Gate 终态专题完成。硬删审批表 / 通知·待办链路、MCP 等仍后置。若再改规范，先改本文再动代码。
+grill 已结束；落地 ①～④ 全部收口。Permission Gate 终态专题完成。  
+硬删审批软退役见 [`docs/approval-hard-delete-落地.md`](approval-hard-delete-落地.md)（另专题；不改本表「本专题不硬删」约定）。MCP 等仍后置。若再改规范，先改本文再动代码。

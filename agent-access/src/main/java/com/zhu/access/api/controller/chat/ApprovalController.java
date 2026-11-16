@@ -8,8 +8,6 @@ import com.zhu.access.application.auth.gate.AccessAccountGate;
 import com.zhu.access.application.chat.approval.ApprovalDecisionAppService;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.audit.api.approval.ApprovalDecision;
-import com.zhu.audit.api.approval.ApprovalRow;
-import com.zhu.audit.api.event.AuditQuery;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
@@ -17,7 +15,6 @@ import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.runtime.api.PendingAskFacade;
 import com.zhu.runtime.api.PendingAskSummary;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,8 +24,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 待确认列表与人批决定。列表主数据源是运行层 Gate ASK 进程内登记；决定后驱动框架续跑。
- * 旧审批表只读查询仍可看历史行；新 ASK 不再依赖落单。
+ * 待确认列表与人批决定。数据源是运行层 Gate ASK 进程内登记；决定后驱动框架续跑。
+ * 旧审批表已硬删，不再回落只读历史行。
  */
 @RestController
 public class ApprovalController {
@@ -39,10 +36,6 @@ public class ApprovalController {
     /** 审批单标识列宽。超长按请求错误，避免把截断后的单号当成另一张单。 */
     private static final int APPROVAL_ID_LIMIT = 64;
 
-    private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-
-    private final AuditQuery audits;
-
     private final PendingAskFacade pendingAsks;
 
     private final ApprovalDecisionAppService decisions;
@@ -51,11 +44,9 @@ public class ApprovalController {
 
     /** 列表和决定都按请求头里的租户和用户。先过账号门。 */
     public ApprovalController(
-            AuditQuery audits,
             PendingAskFacade pendingAsks,
             ApprovalDecisionAppService decisions,
             AccessAccountGate accounts) {
-        this.audits = audits;
         this.pendingAsks = pendingAsks;
         this.decisions = decisions;
         this.accounts = accounts;
@@ -63,7 +54,6 @@ public class ApprovalController {
 
     /**
      * 只返回这次请求对应用户的进程内待确认（Gate ASKING）。
-     * 不再以审批表 PENDING 为主；表内存量另走详情只读。
      */
     @GetMapping("/api/approvals/pending")
     public ApiResult<List<PendingApproval>> pending() {
@@ -79,8 +69,8 @@ public class ApprovalController {
     }
 
     /**
-     * 先查进程内待确认；没有再读旧表本人本租户行（含已决定历史）。
-     * 不读工具参数和执行结果。
+     * 只查进程内待确认。找不到按 NOT_FOUND（旧表已硬删）。
+     * 不读工具参数。
      */
     @GetMapping("/api/approvals/{approvalId}")
     public ApiResult<ApprovalDetail> get(@PathVariable String approvalId) {
@@ -91,30 +81,17 @@ public class ApprovalController {
         String userId = UserContext.get();
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         PendingAskSummary live = pendingAsks.ownedOne(tenantId, userId, approvalId);
-        if (live != null) {
-            return ApiResult.ok(new ApprovalDetail(
-                    live.approvalId(),
-                    live.toolName(),
-                    live.sessionId(),
-                    "PENDING",
-                    "",
-                    "",
-                    null));
-        }
-        ApprovalRow owned = audits.ownedOne(tenantId, userId, approvalId);
-        if (owned == null) {
+        if (live == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "approval not found");
         }
-        String requested = owned.requestedAt() == null ? "" : TIME.format(owned.requestedAt());
-        String decided = owned.decidedAt() == null ? "" : TIME.format(owned.decidedAt());
         return ApiResult.ok(new ApprovalDetail(
-                owned.approvalId(),
-                owned.toolName(),
-                owned.sessionId(),
-                owned.decision(),
-                requested,
-                decided,
-                owned.reason()));
+                live.approvalId(),
+                live.toolName(),
+                live.sessionId(),
+                "PENDING",
+                "",
+                "",
+                null));
     }
 
     /**

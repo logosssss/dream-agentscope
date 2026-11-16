@@ -1,7 +1,6 @@
 package com.zhu.vector.infrastructure;
 
 import com.zhu.vector.api.KnowledgeFilter;
-import com.zhu.vector.api.MemoryFilter;
 import io.milvus.v2.client.ConnectConfig;
 import io.milvus.v2.client.MilvusClientV2;
 import io.milvus.v2.common.DataType;
@@ -15,7 +14,7 @@ import java.util.List;
 
 /**
  * 用户进程启动时准备检索集合。管理进程不调用。
- * 这里不写入向量，也不做检索。
+ * 这里不写入向量，也不做检索。情景集合已停建（硬删见 docs/memory-hard-delete-落地.md）。
  */
 public final class MilvusCollections {
 
@@ -32,9 +31,6 @@ public final class MilvusCollections {
         return configured.trim();
     }
 
-    /** 遗留情景记忆集合。id 对应 MySQL 行 id；启动仍 ensure，对话主路径不再写入/近邻。 */
-    public static final String EPISODIC_MEMORY = "episodic_memory";
-
     /** 主键。由调用方生成，不让 Milvus 自动编号。 */
     public static final String ID = "id";
 
@@ -45,8 +41,8 @@ public final class MilvusCollections {
     }
 
     /**
-     * 知识集合和情景记忆集合都不存在就按给定维度创建。
-     * 已经存在但字段或维度不对时拒绝启动。
+     * 知识集合不存在就按给定维度创建。已经存在但字段或维度不对时拒绝启动。
+     * 不再 ensure 遗留 {@code episodic_memory}（孤儿集合留给运维手工清）。
      * 换嵌入模型后要先删掉旧集合再启动，这里不会自动删数据。
      * 不关闭传入的客户端。
      */
@@ -55,7 +51,6 @@ public final class MilvusCollections {
                 ? DEFAULT_KNOWLEDGE : knowledgeCollection;
         int size = dimensions < 1 ? DEFAULT_DIMENSIONS : dimensions;
         ensureKnowledge(client, knowledge, size);
-        ensureEpisodicMemory(client, size);
     }
 
     /**
@@ -74,16 +69,7 @@ public final class MilvusCollections {
             checkExisting(client, name, dimensions, List.of(KnowledgeFilter.USER, KnowledgeFilter.AGENT));
             return;
         }
-        create(client, name, dimensions, false);
-    }
-
-    private static void ensureEpisodicMemory(MilvusClientV2 client, int dimensions) {
-        if (exists(client, EPISODIC_MEMORY)) {
-            checkExisting(client, EPISODIC_MEMORY, dimensions,
-                    List.of(MemoryFilter.TENANT, KnowledgeFilter.USER, KnowledgeFilter.AGENT));
-            return;
-        }
-        create(client, EPISODIC_MEMORY, dimensions, true);
+        create(client, name, dimensions);
     }
 
     private static boolean exists(MilvusClientV2 client, String name) {
@@ -91,7 +77,7 @@ public final class MilvusCollections {
                 HasCollectionReq.builder().collectionName(name).build()));
     }
 
-    private static void create(MilvusClientV2 client, String name, int dimensions, boolean withTenant) {
+    private static void create(MilvusClientV2 client, String name, int dimensions) {
         CreateCollectionReq.CollectionSchema schema = client.createSchema();
         schema.addField(AddFieldReq.builder()
                 .fieldName(ID)
@@ -105,9 +91,6 @@ public final class MilvusCollections {
                 .dataType(DataType.FloatVector)
                 .dimension(dimensions)
                 .build());
-        if (withTenant) {
-            schema.addField(varchar(MemoryFilter.TENANT));
-        }
         schema.addField(varchar(KnowledgeFilter.USER));
         schema.addField(varchar(KnowledgeFilter.AGENT));
         IndexParam index = IndexParam.builder()

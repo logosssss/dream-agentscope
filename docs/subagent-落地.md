@@ -22,7 +22,7 @@
 
 ## 明确不做（本专题）
 
-1. 不上 Remote 子代理（url / remoteStreaming / RemoteAskPolicy）  
+1. 不上 **产品** Remote 子代理（本专题工厂不挂 url）；学习声明面见 **`docs/remote-subagent-落地.md`**  
 2. 不挂多角色 / 多份 `SubagentDeclaration`  
 3. 不恢复动态 Subagent；不用 `disableSubagents()` 整面杀掉静态面  
 4. 子代理不开 Skills manage / Curator；不挂 skill 名单（零工具已覆盖）  
@@ -56,4 +56,5 @@
 
 ## 状态
 
-grill 已结束；落地 ①～③ 已完成。本专题收口。若再改规范，先改本文再动代码。
+grill 已结束；落地 ①～③ 已完成。本专题收口。  
+Remote 学习窄专题另文：`docs/remote-subagent-落地.md`（不改本表工厂约定）。若再改规范，先改本文再动代码。

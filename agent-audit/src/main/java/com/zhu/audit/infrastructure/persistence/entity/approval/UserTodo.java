@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import java.time.LocalDateTime;
 
 /**
- * user_todo 的一行。审批待办由询问开、决定关。确认和任务由用户登记、完成或取消。
+ * user_todo 的一行。只支持 CONFIRM / TASK；APPROVAL 类型已硬删。
  */
 @TableName("user_todo")
 public class UserTodo {
@@ -18,16 +18,16 @@ public class UserTodo {
     /** 发起用户。 */
     private String userId;
 
-    /** APPROVAL、CONFIRM 或 TASK。 */
+    /** CONFIRM 或 TASK。 */
     private String todoType;
 
-    /** 审批单、运行或任务标识。 */
+    /** 运行或任务标识。 */
     private String refId;
 
     /** 短标题。不存参数。 */
     private String title;
 
-    /** 开着是 OPEN。通过后 DONE，拒绝后 CANCELLED。 */
+    /** 开着是 OPEN；完成 DONE，取消 CANCELLED。 */
     private String status;
 
     /** 创建时间。截止时间这次不写，不映射。 */

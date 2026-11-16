@@ -26,7 +26,7 @@
 2. **最大工程债不是「再拆 Maven 模块」，而是：**  
    - `agent-access` 的 gateway / approval / wakeup **集中引用** `io.agentscope.*`（产品形态正确，但与「接入层零框架类型」终态差距大）；  
    - 几乎全部单测堆在 `agent-bootstrap`（access / runtime 无独立 `src/test`）；  
-   - Permission / Memory 等**软退役**表与类仍占认知与依赖面。  
+   - Memory 等**软退役**表与类仍占认知与依赖面（审批软退役已硬删）。  
 3. **框架升版与 Channel 产品路径已稳**（见 landing-review）；工程优化应走 **分阶段防腐史诗**，禁止一次「继续」打穿全 access。  
 4. **防腐①已做**：ArchUnit「access 除 gateway 外禁 harness」+ README / 本表同步。防腐 ②～⑤ 与硬删表 **未开**。
 
@@ -39,7 +39,7 @@
 | 模块依赖与 ArchUnit | semantic↛runtime/access；runtime 不碰 semantic 实现；state/vector/object-store 不碰业务；access **除 gateway 外**禁 harness；controller 禁 persistence | **优点**：gateway 白名单已可执行；**债**：approval 仍可碰 core；终态零 AgentScope 在⑤ | [`ArchitectureTest.java`](../agent-bootstrap/src/test/java/com/zhu/bootstrap/ArchitectureTest.java)；[`agent-access/README.md`](../agent-access/README.md) | **①已完成**；全 access 禁 `io.agentscope` 放到防腐⑤ |
 | 进程边界 | 用户 `8080` / 管理 `8100`；admin 不依赖 runtime、access、state、Harness | **优点**：管理面与对话面隔离 | [`agent-admin/README.md`](../agent-admin/README.md)；continue-landing 规则 | **保持** |
 | access 内聚 | HTTP + 应用端口；AgentScope 类型已下沉 runtime | **已收口**（②+③+⑤） | ArchUnit `ACCESS_MUST_NOT_TOUCH_AGENTSCOPE` | **保持** |
-| 遗留与软退役 | `approval_record` 停写主路径、表与只读暂留；Memory 旧 Middleware / 情景表标遗留 | **债**：硬删另块未开；管理端仍可能只读旧表 | [`docs/permission-gate-落地.md`](./permission-gate-落地.md)；[`docs/memory-longterm-落地.md`](./memory-longterm-落地.md) | **观察**；硬删 → **独立 grill** |
+| 遗留与软退役 | `approval_record` / 审批通知 **已硬删**；Memory 情景/画像 / `api.memory` / 旧 Middleware **已硬删** | **优点**：两处硬删已收口 | [`docs/approval-hard-delete-落地.md`](./approval-hard-delete-落地.md)；[`docs/memory-hard-delete-落地.md`](./memory-hard-delete-落地.md) | 审批与 Memory 硬删 **均已完成** |
 | 测试与文档债 | 单测几乎全在 bootstrap；模块「还没有」段落极长；文档叠层（指南 / 落地 / handbook / 评估） | **债**：改一处行为要在巨型测试包里找；新人难定位 | `agent-bootstrap/src/test/...`；各模块 README「还没有」 | 新测 **工程小改**（下沉）；旧测 **观察**；文档 **只改文档** 渐进 |
 
 ---
@@ -73,16 +73,17 @@ flowchart LR
 
 ### 故事 2：硬删审批软退役链路要动哪里
 
-- **已锁**：主路径 ASK 权威在框架 `pendingAsk` / 续跑；旧表 **停写**；**硬删另块**（permission-gate）。  
-- **会碰到**：Flyway 迁库、`ApprovalRecorder` / 管理端只读 API、通知与 `user_todo` 历史行、bootstrap 中大量 `Approval*` 测试、web 待确认若仍读旧字段的兼容。  
-- **含义**：不是「删几个类」的工程小改；评估标 **观察 + 独立 grill**，不并进防腐切片。
+- **已锁**：主路径 ASK 权威在框架 `pendingAsk` / 续跑；旧表硬删见 [`docs/approval-hard-delete-落地.md`](./approval-hard-delete-落地.md)（①～③ 已收口）。  
+- **会碰到**（已落地）：Flyway `V40`、Recorder/管理端旧 API、通知表、`APPROVAL` 待办、牵连测与 `web-admin` 审批页。  
+- **含义**：曾标独立 grill；现已完成，不并进防腐切片。
 
 ### 故事 3：把单测从 bootstrap 下沉的成本
 
-- **现状**：`agent-access` / `agent-runtime` 无 `src/test`；数百用例在 bootstrap，便于一次 `mvn test` 与 ArchUnit 扫全 `com.zhu`。  
+- **现状**：`agent-runtime` 已有 `src/test`（T1 四测试点）；`agent-access` 等仍无；绝大多数用例仍在 bootstrap，便于一次 `mvn test` 与 ArchUnit 扫全 `com.zhu`。  
 - **下沉收益**：模块责任清晰、改 access 不必心理负担「动了上帝包」。  
 - **成本**：classpath / Spring 切片测试配置、重复测试工具类、CI 时间切分。  
-- **建议**：不强制大搬家；**新测写到所属模块**；防腐某一片改动面大时再顺手提相关旧测。
+- **建议**：不强制大搬家；**新测写到所属模块**；防腐某一片改动面大时再顺手提相关旧测。  
+- **试点**：**已收口**（[`docs/bootstrap-test-sink-落地.md`](./bootstrap-test-sink-落地.md)）；旧测大搬家仍观察；不宣称测试债清完。
 
 ---
 
@@ -117,7 +118,7 @@ flowchart LR
 
 ### 明确不做（史诗内）
 
-- 不借防腐之机硬删 `approval_record` / 情景表  
+- 不借防腐之机硬删表（审批 / Memory 硬删已另专题收口）  
 - 不改为对齐旧指南而放松 Redis 503  
 - 不一次性新建巨型 `agent-gateway` 模块除非单片 grill 锁定  
 - 不与 Remote Subagent / `mode=mq` 绑在同一片  
@@ -129,9 +130,9 @@ flowchart LR
 | 动作档 | 项 |
 | --- | --- |
 | **保持** | 双进程；admin 不依赖 Harness；Redis 503；API Channel 产品路径；防腐 ArchUnit access 禁 `io.agentscope` + `runtime.infrastructure` |
-| **观察暂不动** | 软退役表硬删；旧测大搬家；「还没有」全文拆条；MCP/Sandbox 等产品开启 |
+| **观察暂不动** | 旧测大搬家；「还没有」全文拆条；MCP/Sandbox 等产品开启 |
 | **只改文档** | 后续可选拆「还没有」 |
-| **工程小改** | **新**单测放到所属模块；局部注释 / 包说明 |
+| **工程小改** | **新**单测放到所属模块；bootstrap 测下沉试点见 [`docs/bootstrap-test-sink-落地.md`](./bootstrap-test-sink-落地.md)；局部注释 / 包说明 |
 | **分阶段重构（须再按片 grill）** | 防腐史诗已收口（①～⑤）；新产品面另开 grill |
 | **框架调整** | 本评估无新项（见 landing-review；2.0.5 已升） |
 
@@ -140,10 +141,11 @@ flowchart LR
 ## 六、建议的下一步
 
 1. ~~工程评估文 + 文档对齐~~ — **完成**  
-2. ~~防腐 ① ArchUnit gateway 白名单~~ — **完成**  
-3. **防腐 ②**：须先 `/grill-me`（目标形态、模块落点、测试策略）再「继续」  
-4. 或其它独立 grill：审批表硬删、Remote Subagent、bootstrap 测下沉试点  
+2. ~~防腐史诗 ①～⑤~~ — **完成**  
+3. ~~审批硬删 / Memory 硬删~~ — **完成**  
+4. ~~bootstrap 测下沉试点~~ — **完成**（见 [`docs/bootstrap-test-sink-落地.md`](./bootstrap-test-sink-落地.md)）  
+5. 或其它独立 grill：产品 Remote Subagent（学习面已钉）；或再开「还没有」拆条 / 下一批测下沉  
 
 ## 状态
 
-工程评估已交；**防腐①已收口**（ArchUnit + README）。防腐 ②～⑤ 代码搬迁 **未开**；须先 grill。
+工程评估已交；防腐史诗 ①～⑤ **已收口**；审批硬删 **已收口**（见 `docs/approval-hard-delete-落地.md`）；Memory 情景/画像硬删 **已收口**（见 `docs/memory-hard-delete-落地.md`）；bootstrap 测下沉试点 **已收口**（见 `docs/bootstrap-test-sink-落地.md`）。

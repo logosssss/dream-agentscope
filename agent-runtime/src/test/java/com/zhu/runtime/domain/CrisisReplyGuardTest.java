@@ -1,13 +1,12 @@
-package com.zhu.bootstrap;
+package com.zhu.runtime.domain;
 
-import com.zhu.runtime.domain.CrisisReplyGuard;
 import com.zhu.semantic.contract.safety.CrisisPrompt;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 危机回复红线只看候选正文。预置稿里的「不要开玩笑」不能把自己盖掉。
+ * 运行层领域测：危机回复红线只看候选正文。预置稿里的「不要开玩笑」不能把自己盖掉。
  */
 class CrisisReplyGuardTest {
 

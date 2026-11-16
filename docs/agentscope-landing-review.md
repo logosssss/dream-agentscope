@@ -67,7 +67,7 @@
 | Sandbox | 默认关；开则 Docker+Store 硬失败 | **刻意不做** 默认开 | **观察暂不动** |
 | Wakeup | 默认关；进程内 Bus；Token 仅环境变量 | **刻意不做** 调度表/Inbox 产品化 | **观察暂不动** |
 | Skills / Curator | 动态 skill 关；manage/Curator 默认不 enable | **刻意不做** 产品开启路径 | **观察暂不动** |
-| Subagent | 动态关；companion 静态探针 | **刻意不做** Remote | **观察暂不动**（总序下一块须先 grill） |
+| Subagent | 动态关；companion 静态探针 | 产品 Remote 不做；**学习声明面**已钉 | 见 `docs/remote-subagent-落地.md` |
 | CompactionHook | 口径 C：不装紧急 hook | **框−** API 限制已文档化 | **观察暂不动**（等上游或新 spike） |
 | RocketMQ / `mode=mq` | 无依赖；mq 启动失败 | **刻意不做** | **保持**（不要为对齐指南「接口先行」而引入半套 MQ） |
 
@@ -130,7 +130,7 @@
 | 动作档 | 项 |
 | --- | --- |
 | **保持** | 双进程边界；Redis 额度/占锁 503；MySQL DistributedStore；`mode=mq` 拒绝；API Channel 与 room 归一化闸；显式 disable 默认开项；管理进程不依赖 Harness |
-| **观察暂不动** | MCP/Sandbox/Wakeup/Curator 产品开启；Remote Subagent；CompactionHook 再接线 |
+| **观察暂不动** | MCP/Sandbox/Wakeup/Curator 产品开启；产品 Remote Subagent（学习面已钉）；CompactionHook 再接线 |
 | **只改文档** | D1～D6 **已处理**（醒目标注 / 规则改分支；指南原文仍不改） |
 | **工程小改** | 详见 [`docs/engineering-module-review.md`](./engineering-module-review.md)；**不要**为对齐旧指南做 Redis 降级 |
 | **框架用法或版本调整** | **2.0.5 已升**（冒烟全绿）。CompactionHook「只装 hook」仍观察 |
@@ -142,7 +142,7 @@
 1. ~~文档漂移清理块~~ — **已完成**（2026-11-16）  
 2. ~~2.0.5 升版冒烟块~~ — **已完成**（`agentscope.version=2.0.5`，`mvn test` 498 通过）  
 3. **工程 / 模块**：见 [`docs/engineering-module-review.md`](./engineering-module-review.md)（防腐史诗分阶段；每片须再 grill）。  
-4. **总序 Remote Subagent**：须先 `/grill-me`，不在本评估里直接开写。  
+4. **总序 Remote Subagent**：学习窄专题已收口（`docs/remote-subagent-落地.md`）；产品升档须另 grill。  
 
 ## 状态
 

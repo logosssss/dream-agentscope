@@ -106,13 +106,14 @@
 ### 必读链接（有序）
 
 1. [`docs/permission-gate-落地.md`](../permission-gate-落地.md)  
-2. [`agent-access/README.md`](../../agent-access/README.md) — approvals / PendingAskStore  
+2. [`docs/approval-hard-delete-落地.md`](../approval-hard-delete-落地.md)  
+3. [`agent-access/README.md`](../../agent-access/README.md) — approvals / PendingAsk  
 
 ### 要搞清的问题
 
 1. 同步 chat 遇 ASK 是否登记？  
 2. 批准后前端为何要「重发上一条」？  
-3. `approval_record` / 通知链路「软退役」是什么意思？  
+3. 旧 `approval_record` / 通知表硬删后，权威还在哪里？  
 
 ### 检查点
 
@@ -124,19 +125,20 @@
 
 ### 学习目标
 
-跨会话权威在工作区 `MEMORY.md`；情景/画像表与主路径关系。
+跨会话权威在工作区 `MEMORY.md`；情景/画像遗留已硬删。
 
 ### 必读链接（有序）
 
 1. [`docs/memory-longterm-落地.md`](../memory-longterm-落地.md)  
-2. [`agent-access/README.md`](../../agent-access/README.md) 记忆相关段落  
-3. [`agent-state/README.md`](../../agent-state/README.md) — 遗留表说明  
+2. [`docs/memory-hard-delete-落地.md`](../memory-hard-delete-落地.md)  
+3. [`agent-access/README.md`](../../agent-access/README.md) 记忆相关段落  
+4. [`agent-state/README.md`](../../agent-state/README.md) — Flyway / 已 DROP 说明  
 
 ### 要搞清的问题
 
-1. 对话主路径是否还写情景/画像表？  
-2. 召回时机与条数约束在专题里如何写死？  
-3. 危机档对记忆读写有何影响？  
+1. 跨会话权威是否仍是用户工作区 `MEMORY.md`（而非库表）？  
+2. 人设触发是否只剩纠正短句 + 满 20 轮？  
+3. 危机档对 Memory flush 有何影响？  
 
 ### 检查点
 
@@ -264,12 +266,13 @@ Curator 嵌在 manage 开关下；默认关。
 ### 必读链接（有序）
 
 1. [`docs/subagent-落地.md`](../subagent-落地.md)  
+2. [`docs/remote-subagent-落地.md`](../remote-subagent-落地.md)（学习声明面；非产品远程工人）  
 
 ### 要搞清的问题
 
-1. 当前已落地的是本地还是 Remote？  
+1. 工厂主路径挂的是本地还是 Remote？  
 2. 上下文与工具隔离的约束？  
-3. Remote Subagent 是否已在本专题交付？  
+3. Remote 学习专题钉了什么、明确没做什么（工厂 / HTTP / 产品默认 AskPolicy）？  
 
 ### 检查点
 

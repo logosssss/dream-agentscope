@@ -1,6 +1,5 @@
-package com.zhu.bootstrap;
+package com.zhu.runtime.domain.knowledge;
 
-import com.zhu.runtime.domain.knowledge.HybridChunkMerger;
 import com.zhu.state.api.knowledge.KnowledgeChunkItem;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -8,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Hybrid 合并：向量优先、全文补缺、按 id 去重。不连库。
+ * 运行层知识域测：Hybrid 合并——向量优先、全文补缺、按 id 去重。不连库。
  */
 class HybridChunkMergerTest {
 
@@ -37,6 +36,7 @@ class HybridChunkMergerTest {
                 .containsExactly("a");
     }
 
+    /** 构造最小切块行，仅填断言用到的字段。 */
     private static KnowledgeChunkItem chunk(String id, String content) {
         return new KnowledgeChunkItem(id, "kb", "doc", 1, "t", content, 0);
     }

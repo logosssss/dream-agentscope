@@ -16,7 +16,7 @@
 | 工作区隔离 | **USER**（`IsolationScope.USER`）：跨会话共享 `MEMORY.md`；接受同用户多会话共用工作区 |
 | Flush 触发 | **`FlushTrigger.throttled(10m)`** |
 | 危机与 flush | **CRITICAL 绝对禁止入队 flush**；ELEVATED/NORMAL 走 throttled。闸在产品中间件侧 |
-| Companion / 表 | **直接拆除**召回与写入（情景表/向量/画像注入）；不双轨。关系阶段另块再用 `MEMORY.md` 约定 |
+| Companion / 表 | **直接拆除**召回与写入（情景表/向量/画像注入）；不双轨。关系阶段另块再用 `MEMORY.md` 约定。表/集合硬删见 [`docs/memory-hard-delete-落地.md`](memory-hard-delete-落地.md) |
 | Flush 用模 | **与对话同模型**（不配 `MemoryConfig.model`，回落 Agent 模型） |
 | 落地形态 | 文档锁定后按块接线；①～④ 对照结论保留作背景 |
 
@@ -33,7 +33,7 @@
 2. 不实现 `LongTermMemory` 适配器  
 3. 不把危机策略塞进 Flush/Consolidator 内部  
 4. 不恢复已删除 Hook 作产品主策略  
-5. 不双写情景表；本专题不迁移历史情景行进 `MEMORY.md`  
+5. 不双写情景表；本专题不迁移历史情景行进 `MEMORY.md`；表/集合硬删见 [`docs/memory-hard-delete-落地.md`](memory-hard-delete-落地.md)  
 6. 不另配独立记忆模型
 
 ## 对照块（已完成）
@@ -56,11 +56,11 @@
 
 
 3. **拆除 Companion 召回与写入** — 已完成  
-   `HarnessAgentFactory.customizeCompanion` 不再挂 `CompanionMemoryMiddleware`；类与单测保留对照。  
-   `agent-runtime/README.md` 已改对话路径说明；情景表/仓储未删。  
+   `HarnessAgentFactory.customizeCompanion` 不再挂 Companion 情景/画像中间件。  
+   `agent-runtime/README.md` 已改对话路径说明。表/集合硬删见 [`docs/memory-hard-delete-落地.md`](memory-hard-delete-落地.md)。  
 4. **README / 专题收尾** — 已完成  
    权威写清：跨会话记忆 = 用户工作区 `MEMORY.md`（Harness flush/consolidation，`memory_*`）。  
-   管理端**无**情景/画像 API。表与 `api.memory` / Milvus `episodic_memory` / `CompanionMemoryMiddleware` 标明遗留；`PersonaConsistencyMiddleware` 仍可读旧行作跨会话触发，不写。
+   管理端**无**情景/画像 API。表 / `api.memory` / Milvus `episodic_memory` / 旧 Middleware **已硬删**（见 [`docs/memory-hard-delete-落地.md`](memory-hard-delete-落地.md)）。
 
 ## 验收要点
 
@@ -71,4 +71,5 @@
 
 ## 状态
 
-分叉已钉死；迁入 ①～④ 已完成。本专题收口。若再改规范，先改本文再动代码。
+分叉已钉死；迁入 ①～④ 已完成。本专题收口。  
+遗留表/集合硬删见 [`docs/memory-hard-delete-落地.md`](memory-hard-delete-落地.md)（另专题；不改本表「本专题不迁历史行」约定）。若再改规范，先改本文再动代码。

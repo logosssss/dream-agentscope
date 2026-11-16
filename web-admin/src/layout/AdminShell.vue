@@ -40,13 +40,6 @@ function persistOperator() {
               用户
             </RouterLink>
             <RouterLink
-              to="/approvals"
-              class="rounded-md px-2.5 py-1"
-              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
-            >
-              审批
-            </RouterLink>
-            <RouterLink
               to="/quotas"
               class="rounded-md px-2.5 py-1"
               active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"

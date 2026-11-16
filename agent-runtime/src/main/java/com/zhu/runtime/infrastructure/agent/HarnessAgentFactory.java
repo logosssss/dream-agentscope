@@ -204,7 +204,7 @@ public class HarnessAgentFactory {
         }
         applyCompanionFilesystem(builder);
         // 审计、写文件上限、审批、安全门、人设检查走 Middleware。
-        // 跨会话记忆权威是 Harness Memory（CrisisGated flush）；不再挂 CompanionMemoryMiddleware。
+        // 跨会话记忆权威是 Harness Memory（CrisisGated flush）；情景/画像遗留已硬删。
         builder.middleware(auditMiddleware);
         builder.middleware(fileWriteLimit);
         builder.middleware(approvalMiddleware);

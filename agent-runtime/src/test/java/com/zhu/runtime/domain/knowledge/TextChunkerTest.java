@@ -1,15 +1,15 @@
-package com.zhu.bootstrap;
+package com.zhu.runtime.domain.knowledge;
 
-import com.zhu.runtime.domain.knowledge.TextChunker;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 固定切块。不连模型。
+ * 运行层知识域测：固定切块。不连模型。
  */
 class TextChunkerTest {
 
+    /** 重叠切分；空白输入为空；短文整段保留。 */
     @Test
     void splitsWithOverlap() {
         String text = "a".repeat(120);

@@ -1,10 +1,9 @@
 package com.zhu.audit.application.approval;
 
-import com.zhu.audit.application.support.AuditQueryLimits;
-
 import com.zhu.audit.api.approval.UserTodoCatalog;
 import com.zhu.audit.api.approval.UserTodoDetail;
 import com.zhu.audit.api.approval.UserTodoRow;
+import com.zhu.audit.application.support.AuditQueryLimits;
 import com.zhu.audit.infrastructure.persistence.approval.UserTodoMapper;
 import com.zhu.audit.infrastructure.persistence.entity.approval.UserTodo;
 import com.zhu.common.exception.BusinessException;
@@ -18,13 +17,11 @@ import org.springframework.stereotype.Service;
 
 /**
  * MySQL 上的用户待办。只在存储开关打开时创建。
- * 决定后关掉对应审批待办。确认和任务由当前用户关成 DONE 或 CANCELLED。
+ * 只写/列 CONFIRM 与 TASK；APPROVAL 类型已硬删。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
 public class MysqlUserTodoCatalog implements UserTodoCatalog {
-
-    private static final String APPROVAL = "APPROVAL";
 
     private static final Set<String> OPEN_TYPES = Set.of("CONFIRM", "TASK");
 
@@ -33,8 +30,6 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
     private static final String DONE = "DONE";
 
     private static final String CANCELLED = "CANCELLED";
-
-    private static final Set<String> CLOSE_STATUSES = Set.of("DONE", "CANCELLED");
 
     private static final int USER_LIMIT = 128;
 
@@ -52,30 +47,7 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
     }
 
     /**
-     * 用户或审批单为空时不写。同一条再开一次当作已经有了，不抛冲突。
-     * 标题只留工具名。超长字段截到列宽。
-     */
-    @Override
-    public void openApproval(String userId, String approvalId, String title) {
-        if (userId == null || userId.isBlank() || approvalId == null || approvalId.isBlank()) {
-            return;
-        }
-        UserTodo row = new UserTodo();
-        row.setUserId(clip(userId, USER_LIMIT));
-        row.setTodoType(APPROVAL);
-        row.setRefId(clip(approvalId, REF_LIMIT));
-        row.setTitle(title == null || title.isBlank() ? null : clip(title, TITLE_LIMIT));
-        row.setStatus(OPEN);
-        try {
-            todos.insert(row);
-        } catch (DataIntegrityViolationException ex) {
-            return;
-        }
-    }
-
-    /**
-     * 只收 CONFIRM 和 TASK。审批待办仍走询问事件，避免用户自己补一条。
-     * 标题可空。同一用户、类型和关联再插入一次按冲突处理。
+     * 只收 CONFIRM 和 TASK。标题可空。同一用户、类型和关联再插入一次按冲突处理。
      */
     @Override
     public UserTodoRow open(String userId, String todoType, String refId, String title) {
@@ -99,34 +71,20 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
         return row(row);
     }
 
-    /**
-     * 只收 DONE 和 CANCELLED。其它状态不改行，避免把待办写成未知值。
-     */
-    @Override
-    public void closeApproval(String approvalId, String status) {
-        if (approvalId == null || approvalId.isBlank() || status == null || !CLOSE_STATUSES.contains(status)) {
-            return;
-        }
-        todos.closeApproval(clip(approvalId, REF_LIMIT), status);
-    }
-
     /** 完成走同一条关闭路径，状态写成 DONE。 */
     @Override
     public UserTodoRow complete(String userId, Long todoId) {
         return closeOwn(userId, todoId, DONE);
     }
 
-    /**
-     * 和完成同一条校验。只是把状态写成取消。
-     */
+    /** 和完成同一条校验。只是把状态写成取消。 */
     @Override
     public UserTodoRow cancel(String userId, Long todoId) {
         return closeOwn(userId, todoId, CANCELLED);
     }
 
     /**
-     * 先读再按开着的确认或任务更新，避免盖掉审批待办或已经关上的行。
-     * 别人的主键按找不到处理，不把标题交出去。
+     * 先读再按开着的确认或任务更新。别人的主键按找不到处理。
      */
     private UserTodoRow closeOwn(String userId, Long todoId, String status) {
         if (userId == null || userId.isBlank() || userId.length() > USER_LIMIT || todoId == null || todoId <= 0) {
@@ -137,7 +95,7 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
             throw new BusinessException(ErrorCode.NOT_FOUND, "todo not found");
         }
         if (!OPEN_TYPES.contains(existing.getTodoType())) {
-            throw new BusinessException(ErrorCode.CONFLICT, "approval todo cannot be completed here");
+            throw new BusinessException(ErrorCode.CONFLICT, "todo type cannot be completed here");
         }
         if (!OPEN.equals(existing.getStatus())) {
             throw new BusinessException(ErrorCode.CONFLICT, "todo is not open");
@@ -150,21 +108,20 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
     }
 
     /**
-     * 空用户拒绝。不按租户再滤一层，这张表没有租户列。
+     * 空用户拒绝。不按租户再滤；只列 CONFIRM / TASK。
      */
     @Override
-    public List<UserTodoRow> openApprovals(String userId, int limit) {
+    public List<UserTodoRow> listOpen(String userId, int limit) {
         if (userId == null || userId.isBlank()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "userId is required");
         }
-        return todos.openApprovals(clip(userId, USER_LIMIT), AuditQueryLimits.normalize(limit)).stream()
+        return todos.listOpen(clip(userId, USER_LIMIT), AuditQueryLimits.normalize(limit)).stream()
                 .map(MysqlUserTodoCatalog::row)
                 .toList();
     }
 
     /**
-     * 空标识拒绝。找不到或不是本人按找不到，避免把别人的标题交出去。
-     * 已关闭的审批、确认和任务都返回。
+     * 空标识拒绝。找不到或不是本人按找不到。
      */
     @Override
     public UserTodoDetail ownedOne(String userId, Long todoId) {
@@ -185,12 +142,10 @@ public class MysqlUserTodoCatalog implements UserTodoCatalog {
                 created);
     }
 
-    /** 列表不带用户列，调用方已经按这个用户查过。 */
     private static UserTodoRow row(UserTodo todo) {
         return new UserTodoRow(todo.getId(), todo.getTodoType(), todo.getRefId(), todo.getTitle(), todo.getStatus());
     }
 
-    /** 列宽不够时只保留前一段。 */
     private static String clip(String value, int limit) {
         return value.length() <= limit ? value : value.substring(0, limit);
     }

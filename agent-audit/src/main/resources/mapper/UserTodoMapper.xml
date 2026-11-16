@@ -11,26 +11,18 @@
         <result column="status" property="status"/>
     </resultMap>
 
-    <!-- 这个用户还开着的待办。含审批、确认和任务。不返回截止时间。 -->
-    <select id="openApprovals" resultMap="ListResultMap">
+    <!-- 这个用户还开着的确认与任务。APPROVAL 类型已硬删。 -->
+    <select id="listOpen" resultMap="ListResultMap">
         SELECT id, todo_type, ref_id, title, status
         FROM user_todo
         WHERE user_id = #{userId}
           AND status = 'OPEN'
+          AND todo_type IN ('CONFIRM', 'TASK')
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}
     </select>
 
-    <!-- 决定后关掉这张审批待办。已经关过的行不动。 -->
-    <update id="closeApproval">
-        UPDATE user_todo
-        SET status = #{status}
-        WHERE todo_type = 'APPROVAL'
-          AND ref_id = #{refId}
-          AND status = 'OPEN'
-    </update>
-
-    <!-- 当前用户关确认或任务。审批待办和已经关上的行不动。 -->
+    <!-- 当前用户关确认或任务。已经关上的行不动。 -->
     <update id="closeOpen">
         UPDATE user_todo
         SET status = #{status}
@@ -40,7 +32,6 @@
           AND todo_type IN ('CONFIRM', 'TASK')
     </update>
 
-    <!-- 详情含已关闭行。不带回截止时间。 -->
     <resultMap id="DetailResultMap" type="com.zhu.audit.infrastructure.persistence.entity.approval.UserTodo">
         <id column="id" property="id"/>
         <result column="todo_type" property="todoType"/>
