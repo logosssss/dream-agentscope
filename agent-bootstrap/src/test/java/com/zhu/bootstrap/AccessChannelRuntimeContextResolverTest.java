@@ -2,7 +2,7 @@ package com.zhu.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.zhu.access.application.chat.gateway.AccessChannelRuntimeContextResolver;
+import com.zhu.runtime.infrastructure.gateway.AgentChannelRuntimeContextResolver;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.harness.agent.gateway.MsgContext;
 import io.agentscope.harness.agent.gateway.channel.ChannelRuntimeContextRequest;
@@ -12,14 +12,14 @@ import org.junit.jupiter.api.Test;
 /**
  * 接入层 resolver：caller 暂存写出 tenantId/agentId，空白键不落，身份字段不在这里拼。
  */
-class AccessChannelRuntimeContextResolverTest {
+class AgentChannelRuntimeContextResolverTest {
 
-    private final AccessChannelRuntimeContextResolver resolver = new AccessChannelRuntimeContextResolver();
+    private final AgentChannelRuntimeContextResolver resolver = new AgentChannelRuntimeContextResolver();
 
     /** staging 只带非空白业务键，不含 userId/sessionId。 */
     @Test
     void stagingKeepsBusinessKeysOnly() {
-        RuntimeContext staging = AccessChannelRuntimeContextResolver.staging("demo", "echo-v1");
+        RuntimeContext staging = AgentChannelRuntimeContextResolver.staging("demo", "echo-v1");
         assertThat(staging.get("tenantId", String.class)).isEqualTo("demo");
         assertThat(staging.get("agentId", String.class)).isEqualTo("echo-v1");
         assertThat(staging.getUserId()).isNull();
@@ -29,7 +29,7 @@ class AccessChannelRuntimeContextResolverTest {
     /** 空白租户和 Agent 不写入暂存。 */
     @Test
     void stagingSkipsBlank() {
-        RuntimeContext staging = AccessChannelRuntimeContextResolver.staging("  ", null);
+        RuntimeContext staging = AgentChannelRuntimeContextResolver.staging("  ", null);
         assertThat(staging.get("tenantId", String.class)).isNull();
         assertThat(staging.get("agentId", String.class)).isNull();
     }
@@ -42,7 +42,7 @@ class AccessChannelRuntimeContextResolverTest {
                 null,
                 null,
                 null,
-                AccessChannelRuntimeContextResolver.staging("tenant-a", "companion-v1")));
+                AgentChannelRuntimeContextResolver.staging("tenant-a", "companion-v1")));
         assertThat(resolved.get("tenantId", String.class)).isEqualTo("tenant-a");
         assertThat(resolved.get("agentId", String.class)).isEqualTo("companion-v1");
         assertThat(resolved.getUserId()).isNull();
@@ -66,7 +66,7 @@ class AccessChannelRuntimeContextResolverTest {
                 null,
                 msg,
                 null,
-                AccessChannelRuntimeContextResolver.staging("demo", null)));
+                AgentChannelRuntimeContextResolver.staging("demo", null)));
         assertThat(resolved.get("tenantId", String.class)).isEqualTo("demo");
         assertThat(resolved.get("agentId", String.class)).isEqualTo("echo-v1");
     }

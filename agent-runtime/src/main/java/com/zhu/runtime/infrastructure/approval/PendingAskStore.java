@@ -1,4 +1,4 @@
-package com.zhu.access.application.chat.approval;
+package com.zhu.runtime.infrastructure.approval;
 
 import io.agentscope.core.message.ToolUseBlock;
 import java.util.ArrayList;
@@ -8,8 +8,8 @@ import java.util.concurrent.ConcurrentMap;
 import org.springframework.stereotype.Component;
 
 /**
- * 接入层：Gate ASK 待确认的进程内登记。
- * 权威是框架 pendingAsk；本表只给审批 HTTP 提供 id→ToolUseBlock，重启即空。
+ * 运行层：Gate ASK 待确认的进程内登记。
+ * 权威是框架 pendingAsk；本表给 Facade / Gateway 提供 id→ToolUseBlock，重启即空。
  */
 @Component
 public class PendingAskStore {
@@ -44,7 +44,7 @@ public class PendingAskStore {
         }
     }
 
-    /** 当前用户本租户仍待确认的摘要，新到旧不保证；上限由调用方截。 */
+    /** 当前用户本租户仍待确认；上限由调用方截。 */
     public List<PendingAsk> pendingFor(String tenantId, String userId, int limit) {
         String tenant = tenantId == null ? "" : tenantId;
         String user = userId == null ? "" : userId;
@@ -86,14 +86,13 @@ public class PendingAskStore {
         if (ask == null) {
             return null;
         }
-        // 仍校验 map 里是同一条，防止并发决定。
         if (!byId.remove(approvalId, ask)) {
             return null;
         }
         return ask;
     }
 
-    /** 测试或热更排空时清掉全部。 */
+    /** 热更排空或停 Gateway 时清掉全部。 */
     public void clear() {
         byId.clear();
     }

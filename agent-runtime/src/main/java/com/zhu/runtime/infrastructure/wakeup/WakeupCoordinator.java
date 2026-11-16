@@ -1,8 +1,9 @@
-package com.zhu.access.application.chat.gateway;
+package com.zhu.runtime.infrastructure.wakeup;
 
 import com.zhu.common.security.WakeupTokens;
+import com.zhu.runtime.api.WakeupPort;
 import com.zhu.runtime.config.AgentRuntimeProperties;
-import com.zhu.runtime.infrastructure.wakeup.InMemoryMessageBus;
+import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
 import io.agentscope.harness.agent.bus.MessageBus;
 import io.agentscope.harness.agent.gateway.HarnessGateway;
 import io.agentscope.harness.agent.gateway.WakeupDispatcher;
@@ -18,19 +19,19 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 /**
- * 接入层：Wakeup 进程内 Bus + Dispatcher 生命周期。
+ * 运行层：Wakeup 进程内 Bus + Dispatcher 生命周期；并实现 {@link WakeupPort}。
  * enabled=true 时启动期装配；Target 懒解析当前 {@link HarnessGateway}（仅 companion / main）。
  * 忙会话跳过由框架 Dispatcher 完成。见 docs/wakeup-落地.md。
  */
 @Component
 @Order(20)
-public class WakeupCoordinator implements ApplicationRunner {
+public class WakeupCoordinator implements ApplicationRunner, WakeupPort {
 
     private static final Logger log = Logger.getLogger(WakeupCoordinator.class.getName());
 
     private final AgentRuntimeProperties properties;
 
-    private final ObjectProvider<AccessChannelGateway> gateways;
+    private final ObjectProvider<ChannelGateway> gateways;
 
     private final String wakeupToken;
 
@@ -45,7 +46,7 @@ public class WakeupCoordinator implements ApplicationRunner {
      */
     public WakeupCoordinator(
             AgentRuntimeProperties properties,
-            ObjectProvider<AccessChannelGateway> gateways,
+            ObjectProvider<ChannelGateway> gateways,
             @Value("${agentscope.wakeup.token:}") String wakeupToken) {
         this.properties = Objects.requireNonNull(properties, "properties");
         this.gateways = Objects.requireNonNull(gateways, "gateways");
@@ -53,6 +54,7 @@ public class WakeupCoordinator implements ApplicationRunner {
     }
 
     /** 配置是否打开唤醒面。 */
+    @Override
     public boolean isEnabled() {
         return properties.getWakeup() != null && properties.getWakeup().isEnabled();
     }
@@ -75,6 +77,7 @@ public class WakeupCoordinator implements ApplicationRunner {
     /**
      * 学习入口 enqueue。未启用返回 false；启用则写入 Bus。
      */
+    @Override
     public Mono<Boolean> enqueue(String userId, String sessionId, String agentId) {
         if (!isEnabled()) {
             return Mono.just(false);
@@ -173,8 +176,8 @@ public class WakeupCoordinator implements ApplicationRunner {
         }
 
         private HarnessGateway currentGateway() {
-            AccessChannelGateway access = gateways.getIfAvailable();
-            return access == null ? null : access.harnessGatewayOrNull();
+            ChannelGateway channel = gateways.getIfAvailable();
+            return channel == null ? null : channel.harnessGatewayOrNull();
         }
     }
 }

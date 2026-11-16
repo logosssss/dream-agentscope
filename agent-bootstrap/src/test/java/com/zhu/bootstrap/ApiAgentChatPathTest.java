@@ -10,7 +10,6 @@ import com.zhu.access.api.dto.chat.ChatRequest;
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.application.chat.ApiChatAppService;
 import com.zhu.access.application.chat.ChatAppService;
-import com.zhu.access.application.chat.gateway.AccessChannelGateway;
 import com.zhu.access.application.chat.message.AbsentChatMessageStore;
 import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.chat.session.SessionOwnerGate;
@@ -66,7 +65,7 @@ class ApiAgentChatPathTest {
         UserContext.set("u1");
         AtomicReference<String> recordedChannel = new AtomicReference<>();
         AtomicReference<Boolean> apiCalled = new AtomicReference<>(false);
-        AccessChannelGateway gateway = mock(AccessChannelGateway.class);
+        AgentExecutor gateway = mock(AgentExecutor.class);
         when(gateway.executeApi(any(AgentRequest.class))).thenAnswer(invocation -> {
             apiCalled.set(true);
             return new AgentResponse("api-run", "api-ok");

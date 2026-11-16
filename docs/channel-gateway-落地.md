@@ -3,6 +3,11 @@
 日期：2026-11-11。分支：`feat/agentscope-channel-gateway`。  
 本文只记 grill 收口结论与落地顺序。不改架构指南原文。
 
+> **白名单修订（勿漏读）**  
+> 下文「已锁定 / 落地顺序③」仍保留本专题当时口径（Builder **恰好 `chatui`**、本期不注册多 Channel）。  
+> **现码与现行产品口径**已由另块修订为 Gateway 白名单 **`{chatui, api}`**，并加 room 归一化闸；见 [`docs/api-channel-落地.md`](./api-channel-落地.md)。  
+> 读本专题时：ChatUi 主路径、显式 Gate、resolver、Bootstrap 建 Agent 等结论仍有效；**Channel 条数与 id 集合以 api-channel 专题 + 现码为准**。
+
 ## 已锁定
 
 | 项 | 约定 |
@@ -10,7 +15,7 @@
 | 主路径 | 仍走 `ChatUiChannel` → Gateway |
 | 同 session 串行 | 进程内 `SessionTurnGate` / `LocalSessionTurnGate`；启动后**显式** `setSessionTurnGate` |
 | 业务上下文 | 用 `runtimeContextResolver` 写 `tenantId` 等；不要靠往 `SendOptions` / `MsgContext.extra` 塞全量字段 |
-| Channel 管理 | `ChannelManager` **只读显式**（看见默认 ChatUi 即可），本期不注册多 Channel（另块见 `docs/api-channel-落地.md`） |
+| Channel 管理 | `ChannelManager` **只读显式**（看见默认 ChatUi 即可），本期不注册多 Channel（另块见 `docs/api-channel-落地.md`；**现行白名单见该专题**） |
 | Agent 创建 | 改由 `GatewayBootstrap` Builder 创建长驻 Agent；工厂只留 `customizeCompanion` / `customizeEcho`（或等价钩子） |
 | `configureAllAgents` | 只挂真正公共的项；产品差异不塞进去 |
 
@@ -19,11 +24,11 @@
 再说「继续 / 落地」时按序做，一次一块：
 
 1. **显式 SessionTurnGate + 同 session 并发测试** — 已完成  
-   `AccessChannelGateway.startGatewayLocked` 在 `start()` 后显式 `setSessionTurnGate(new LocalSessionTurnGate())`。  
+   `ChannelGateway.startGatewayLocked` 在 `start()` 后显式 `setSessionTurnGate(new LocalSessionTurnGate())`。  
    `SessionTurnGateTest`：闸本身阻塞 + ChatUi 同 session 并发占轮 = 1。
 2. **resolver（tenantId 等）** — 已完成（本块）  
-   `AccessChannelRuntimeContextResolver` 挂在 Gateway；`SendOptions` 只带 `staging(tenantId, agentId)`。  
-   护栏收口仍用本地 `turns.context(request)`。`AccessChannelRuntimeContextResolverTest` 覆盖暂存与 resolve。
+   `AgentChannelRuntimeContextResolver` 挂在 Gateway；`SendOptions` 只带 `staging(tenantId, agentId)`。  
+   护栏收口仍用本地 `turns.context(request)`。`AgentChannelRuntimeContextResolverTest` 覆盖暂存与 resolve。
 3. **ChannelManager 只读显式** — 已完成（本块）  
    Builder `.channel(ChatUiChannel.create())` 只挂一条；启动后 `requireChatUi(channelManager)` 只读取回。  
    名单必须恰好 `chatui`。`AccessChannelManagerTest` 覆盖取回与空 manager 拒绝。

@@ -5,7 +5,7 @@ alwaysApply: true
 
 # 继续落地
 
-接着做用分支 `feat/agentscope-platform-base`，不用 `master`。
+接着做用分支 `feat/agentscope-channel-gateway`（当前继续落地主分支），不用 `master`。合并进 `main` / 开源门禁另按 `docs/release-gate.md`。
 
 继续往下做时先读 `doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`，按检查清单做下一块还没落地的代码。不改这份指南。下一块做什么以清单和各模块 README 的「还没有」为准，不在这里写死当前这一项。
 

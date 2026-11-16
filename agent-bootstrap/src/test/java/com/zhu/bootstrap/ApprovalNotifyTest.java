@@ -6,9 +6,7 @@ import com.zhu.access.api.dto.chat.ApprovalDecisionView;
 import com.zhu.access.api.dto.chat.ApprovalDetail;
 import com.zhu.access.api.dto.chat.PendingApproval;
 import com.zhu.access.application.auth.gate.AccessAccountGate;
-import com.zhu.access.application.chat.approval.AgentPermissionResume;
 import com.zhu.access.application.chat.approval.ApprovalDecisionAppService;
-import com.zhu.access.application.chat.approval.PendingAskStore;
 import com.zhu.audit.api.approval.ApprovalDecision;
 import com.zhu.audit.api.approval.ApprovalDecider;
 import com.zhu.audit.api.approval.ApprovalRow;
@@ -18,6 +16,10 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import com.zhu.runtime.api.PendingAskFacade;
+import com.zhu.runtime.infrastructure.approval.PendingAskFacadeService;
+import com.zhu.runtime.infrastructure.approval.PendingAskStore;
+import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
 import io.agentscope.core.message.ToolUseBlock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,14 +32,18 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Permission Gate 落地 ③：待确认来自进程内 Gate ASK；决定驱动续跑，不再只改库。
+ * Permission Gate 落地 ③：待确认来自运行层 Gate ASK；决定经 Facade 续跑，不再只改库。
  */
 class ApprovalNotifyTest {
 
@@ -53,9 +59,8 @@ class ApprovalNotifyTest {
     void pendingReadsLiveAsks() {
         PendingAskStore store = new PendingAskStore();
         store.remember("tenant-a", "user-a", "session-a", "companion-v1", List.of(use("a-1", "shell")));
-        ApprovalController controller = controller(store, mock(AuditQuery.class), mock(ApprovalDecider.class), openAccounts(),
-                (ask, approved, reason) -> {
-                });
+        ApprovalController controller = controller(store, mock(AuditQuery.class), mock(ApprovalDecider.class),
+                openAccounts(), mock(ChannelGateway.class));
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
@@ -69,8 +74,7 @@ class ApprovalNotifyTest {
     void missingUserIsRejected() {
         ApprovalController controller = controller(
                 new PendingAskStore(), mock(AuditQuery.class), mock(ApprovalDecider.class), openAccounts(),
-                (ask, approved, reason) -> {
-                });
+                mock(ChannelGateway.class));
         assertThatThrownBy(controller::pending).isInstanceOf(BusinessException.class);
     }
 
@@ -86,8 +90,7 @@ class ApprovalNotifyTest {
                 });
         ApprovalController controller = controller(
                 new PendingAskStore(), audits, mock(ApprovalDecider.class), accounts,
-                (ask, approved, reason) -> {
-                });
+                mock(ChannelGateway.class));
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
@@ -105,16 +108,17 @@ class ApprovalNotifyTest {
         store.remember("tenant-a", "user-a", "session-a", "companion-v1", List.of(use("a-1", "shell")));
         AtomicBoolean resumed = new AtomicBoolean();
         AtomicReference<Boolean> approvedFlag = new AtomicReference<>();
+        ChannelGateway gateway = mock(ChannelGateway.class);
+        doAnswer(invocation -> {
+            resumed.set(true);
+            approvedFlag.set(invocation.getArgument(5));
+            assertThat((String) invocation.getArgument(6)).isEqualTo("ok");
+            return null;
+        }).when(gateway).resumeConfirm(anyString(), anyString(), anyString(), anyString(), any(), anyBoolean(), any());
         ApprovalDecider legacy = mock(ApprovalDecider.class);
         when(legacy.decide(any(), any(), any(), any(), any()))
                 .thenThrow(new BusinessException(ErrorCode.NOT_FOUND, "legacy gone"));
-        ApprovalController controller = controller(store, mock(AuditQuery.class), legacy, openAccounts(),
-                (ask, approved, reason) -> {
-                    resumed.set(true);
-                    approvedFlag.set(approved);
-                    assertThat(ask.approvalId()).isEqualTo("a-1");
-                    assertThat(reason).isEqualTo("ok");
-                });
+        ApprovalController controller = controller(store, mock(AuditQuery.class), legacy, openAccounts(), gateway);
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
@@ -131,11 +135,10 @@ class ApprovalNotifyTest {
     /** 别人的或未登记的单号按找不到，不续跑。 */
     @Test
     void decideRejectsMissingLiveAsk() {
-        AtomicBoolean resumed = new AtomicBoolean();
+        ChannelGateway gateway = mock(ChannelGateway.class);
         ApprovalDecider legacy = mock(ApprovalDecider.class);
         ApprovalController controller = controller(
-                new PendingAskStore(), mock(AuditQuery.class), legacy, openAccounts(),
-                (ask, approved, reason) -> resumed.set(true));
+                new PendingAskStore(), mock(AuditQuery.class), legacy, openAccounts(), gateway);
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
@@ -143,7 +146,8 @@ class ApprovalNotifyTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
-        assertThat(resumed.get()).isFalse();
+        verify(gateway, never()).resumeConfirm(
+                anyString(), anyString(), anyString(), anyString(), any(), anyBoolean(), any());
         verify(legacy, never()).decide(any(), any(), any(), any(), any());
     }
 
@@ -159,8 +163,7 @@ class ApprovalNotifyTest {
                 "a-1", "user-a", "session-a", "shell", "APPROVED",
                 requested, "user-a", "WEB", "ok", decidedAt));
         ApprovalController controller = controller(store, audits, mock(ApprovalDecider.class), openAccounts(),
-                (ask, approved, reason) -> {
-                });
+                mock(ChannelGateway.class));
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
@@ -177,8 +180,7 @@ class ApprovalNotifyTest {
         when(audits.ownedOne("tenant-a", "user-a", "a-2")).thenReturn(null);
         ApprovalController controller = controller(
                 new PendingAskStore(), audits, mock(ApprovalDecider.class), openAccounts(),
-                (ask, approved, reason) -> {
-                });
+                mock(ChannelGateway.class));
         TenantContext.set("tenant-a");
         UserContext.set("user-a");
 
@@ -198,11 +200,12 @@ class ApprovalNotifyTest {
             AuditQuery audits,
             ApprovalDecider legacy,
             AccessAccountGate accounts,
-            AgentPermissionResume resume) {
+            ChannelGateway gateway) {
+        PendingAskFacade facade = new PendingAskFacadeService(store, gateway);
         return new ApprovalController(
                 audits,
-                store,
-                new ApprovalDecisionAppService(store, resume, legacy),
+                facade,
+                new ApprovalDecisionAppService(facade, legacy),
                 accounts);
     }
 

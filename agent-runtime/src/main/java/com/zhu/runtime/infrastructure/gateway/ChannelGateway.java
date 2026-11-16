@@ -1,22 +1,22 @@
-package com.zhu.access.application.chat.gateway;
+package com.zhu.runtime.infrastructure.gateway;
 
-import com.zhu.access.application.chat.approval.AgentPermissionResume;
-import com.zhu.access.application.chat.approval.PendingAsk;
-import com.zhu.access.application.chat.approval.PendingAskStore;
 import com.zhu.common.util.Ids;
 import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentResponse;
 import com.zhu.runtime.api.AgentStreamEvent;
+import com.zhu.runtime.api.ResidentAgentReloader;
 import com.zhu.runtime.application.turn.AgentTurnSupport;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentRegistry;
+import com.zhu.runtime.infrastructure.approval.PendingAskStore;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.event.ConfirmResult;
 import io.agentscope.core.event.RequireUserConfirmEvent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
+import io.agentscope.core.message.ToolUseBlock;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import io.agentscope.harness.agent.gateway.ChannelManager;
@@ -39,22 +39,23 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 /**
- * 接入层 Agent 网关：长驻 companion + echo，经 ChatUiChannel 进出。
+ * 运行层 Agent 网关：长驻 companion + echo，经 ChatUiChannel / ApiChannel 进出。
  * Agent 由 {@link GatewayBootstrap} 的 Consumer 创建；工厂只提供公共项与各 Agent 定制。
  * 同 session 串行由框架 {@link LocalSessionTurnGate} 负责（进程内）；启动时显式挂上。
- * 租户等业务字段经 {@link AccessChannelRuntimeContextResolver} 写入 RuntimeContext。
- * ChatUi 与 {@link AccessApiChannel} 在 Bootstrap 上显式注册，之后只从 {@link ChannelManager} 只读取。
+ * 租户等业务字段经 {@link AgentChannelRuntimeContextResolver} 写入 RuntimeContext。
+ * ChatUi 与 {@link ApiChannel} 在 Bootstrap 上显式注册，之后只从 {@link ChannelManager} 只读取。
  * 名单固定白名单 {@code chatui}+{@code api}（见 docs/api-channel-落地.md）；WEB 主路径仍只调 ChatUi。
  * 同 session 跨 Channel 串行：{@link RoomNormalizedSessionTurnGate} 包一层进程内闸。
- * 实现 {@link AgentExecutor}，是对话执行唯一入口；并实现 Gate ASK 后续跑。
+ * 实现 {@link AgentExecutor}，是对话执行唯一入口；续跑由 {@code PendingAskFacade} 经 {@link #resumeConfirm} 调用。
  * 模型密钥缺失不阻断进程启动；首次对话才组装长驻 Agent。
  * 业务配置热更后经 {@link #rebuildAll()} 排空再重建。
+ * 待确认直写本模块 {@link PendingAskStore}（与 Facade 共用）。
  */
 @Service
 @Primary
-public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloader, AgentPermissionResume {
+public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
 
-    private static final Logger log = Logger.getLogger(AccessChannelGateway.class.getName());
+    private static final Logger log = Logger.getLogger(ChannelGateway.class.getName());
 
     /**
      * API Channel 的 Harness channelId。与 ChatUi 并列注册时用；本类主路径仍只调用 ChatUi。
@@ -79,13 +80,13 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     private ChatUiChannel channel;
 
     /** API Channel；与 ChatUi 一并注册。WEB 主路径不用。 */
-    private AccessApiChannel apiChannel;
+    private ApiChannel apiChannel;
 
     private String mainAgentId;
 
     /** 只接线，不立刻建模型；缺 DASHSCOPE_API_KEY 时仍允许进程起来。 */
     @Autowired
-    public AccessChannelGateway(
+    public ChannelGateway(
             HarnessAgentFactory agents,
             AgentTurnSupport turns,
             ObjectProvider<DistributedStore> stores,
@@ -120,8 +121,9 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     }
 
     /**
-     * API Channel 同步一轮。与 {@link #execute} 护栏相同，走 {@link AccessApiChannel}。
+     * API Channel 同步一轮。与 {@link #execute} 护栏相同，走 {@link ApiChannel}。
      */
+    @Override
     public AgentResponse executeApi(AgentRequest request) {
         turns.require(request);
         drain.beginTurn();
@@ -135,7 +137,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
                             request.sessionId(),
                             blankToNull(agentId),
                             request.userText(),
-                            AccessChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
+                            AgentChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
                     .block(Duration.ofSeconds(turns.timeoutSeconds()));
             String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
             String runId = AgentTurnSupport.runIdOf(reply);
@@ -173,6 +175,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     /**
      * API Channel 流式一轮。
      */
+    @Override
     public Flux<AgentStreamEvent> streamApi(AgentRequest request) {
         turns.require(request);
         drain.beginTurn();
@@ -187,7 +190,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
                             request.sessionId(),
                             blankToNull(agentId),
                             request.userText(),
-                            AccessChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
+                            AgentChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
                     .doOnNext(event -> onStreamEvent(request, runId, started, event))
                     .concatMapIterable(event -> turns.mapStreamEvent(event, context))
                     .timeout(Duration.ofSeconds(turns.timeoutSeconds()))
@@ -199,7 +202,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     }
 
     /**
-     * 流式事件：待确认入 PendingAsk；结果记用量。
+     * 流式事件：待确认入仓；结果记用量。
      */
     private void onStreamEvent(
             AgentRequest request,
@@ -226,17 +229,23 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     }
 
     /**
-     * Gate ASK 后续跑：用户 Msg 带 {@link Msg#METADATA_CONFIRM_RESULTS}。
-     * 与 spike 面一致；不写审批表。
+     * Gate ASK 续跑：用户 Msg 带 {@link Msg#METADATA_CONFIRM_RESULTS}。
+     * 由 {@code PendingAskFacade} 在原子 take 后调用；不写审批表。
      */
-    @Override
-    public void resume(PendingAsk ask, boolean approved, String reason) {
-        if (ask == null || ask.toolCall() == null) {
-            throw new IllegalArgumentException("pending ask is required");
+    public void resumeConfirm(
+            String tenantId,
+            String userId,
+            String sessionId,
+            String agentId,
+            ToolUseBlock toolCall,
+            boolean approved,
+            String reason) {
+        if (toolCall == null) {
+            throw new IllegalArgumentException("tool call is required");
         }
         drain.beginTurn();
         try {
-            ConfirmResult confirmed = new ConfirmResult(approved, ask.toolCall());
+            ConfirmResult confirmed = new ConfirmResult(approved, toolCall);
             String text = reason == null || reason.isBlank()
                     ? (approved ? "approved" : "rejected")
                     : reason.trim();
@@ -247,12 +256,11 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
                     .build();
             // 先确保 Gateway 已起，再比 mainAgentId，避免续跑时尚未懒启动。
             ChatUiChannel open = channel();
-            SendOptions options = SendOptions.of(ask.userId(), ask.sessionId())
-                    .withRuntimeContext(AccessChannelRuntimeContextResolver.staging(
-                            ask.tenantId(), ask.agentId()));
-            if (ask.agentId() != null && !ask.agentId().isBlank()
-                    && (mainAgentId == null || !ask.agentId().equals(mainAgentId))) {
-                options = options.withAgentId(ask.agentId());
+            SendOptions options = SendOptions.of(userId, sessionId)
+                    .withRuntimeContext(AgentChannelRuntimeContextResolver.staging(tenantId, agentId));
+            if (agentId != null && !agentId.isBlank()
+                    && (mainAgentId == null || !agentId.equals(mainAgentId))) {
+                options = options.withAgentId(agentId);
             }
             open.send(options, confirm).block(Duration.ofSeconds(turns.timeoutSeconds()));
         } finally {
@@ -311,8 +319,8 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
                 .agent(mainAgentId, agents::customizeCompanion)
                 .agent(HarnessAgentFactory.ECHO_AGENT_ID, agents::customizeEcho)
                 .mainAgent(mainAgentId)
-                .channel(ChatUiChannel.create(), AccessApiChannel.create())
-                .runtimeContextResolver(new AccessChannelRuntimeContextResolver());
+                .channel(ChatUiChannel.create(), ApiChannel.create())
+                .runtimeContextResolver(new AgentChannelRuntimeContextResolver());
         DistributedStore store = stores.getIfAvailable();
         if (store != null) {
             builder.distributedStore(store);
@@ -376,7 +384,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     /**
      * 从 ChannelManager 只读取 API Channel；须已在白名单内且类型正确。
      */
-    public static AccessApiChannel requireApiChannel(ChannelManager manager) {
+    public static ApiChannel requireApiChannel(ChannelManager manager) {
         if (manager == null) {
             throw new IllegalStateException("channel manager is missing");
         }
@@ -385,7 +393,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         }
         Channel bound = manager.getChannel(API_CHANNEL_ID)
                 .orElseThrow(() -> new IllegalStateException("api channel missing"));
-        if (!(bound instanceof AccessApiChannel api)) {
+        if (!(bound instanceof ApiChannel api)) {
             throw new IllegalStateException("api channel type mismatch: " + bound.getClass().getName());
         }
         return api;
@@ -394,8 +402,8 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     /**
      * 供 API HTTP 取已启动的 ApiChannel；尚未懒启动时启动 Gateway。
      */
-    public AccessApiChannel apiChannel() {
-        AccessApiChannel open = apiChannel;
+    public ApiChannel apiChannel() {
+        ApiChannel open = apiChannel;
         if (open != null) {
             return open;
         }
@@ -416,7 +424,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         if (bootstrap == null) {
             channel = null;
             apiChannel = null;
-            pendingAsks.clear();
+            clearPendingConfirms();
             return;
         }
         try {
@@ -431,6 +439,10 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
         bootstrap = null;
         channel = null;
         apiChannel = null;
+        clearPendingConfirms();
+    }
+
+    private void clearPendingConfirms() {
         pendingAsks.clear();
     }
 
@@ -459,7 +471,7 @@ public class AccessChannelGateway implements AgentExecutor, ResidentAgentReloade
     private SendOptions options(AgentRequest request) {
         String agentId = turns.agentId(request);
         SendOptions options = SendOptions.of(request.userId(), request.sessionId())
-                .withRuntimeContext(AccessChannelRuntimeContextResolver.staging(request.tenantId(), agentId));
+                .withRuntimeContext(AgentChannelRuntimeContextResolver.staging(request.tenantId(), agentId));
         if (agentId != null && !agentId.isBlank() && !agentId.equals(mainAgentId)) {
             options = options.withAgentId(agentId);
         }

@@ -1,4 +1,4 @@
-package com.zhu.access.application.chat.gateway;
+package com.zhu.runtime.infrastructure.gateway;
 
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.harness.agent.gateway.MsgContext;
@@ -6,11 +6,11 @@ import io.agentscope.harness.agent.gateway.channel.ChannelRuntimeContextRequest;
 import io.agentscope.harness.agent.gateway.channel.ChannelRuntimeContextResolver;
 
 /**
- * 接入层 Channel 上下文解析：把租户、Agent 等业务字段写入 RuntimeContext。
+ * 运行层 Channel 上下文解析：把租户、Agent 等业务字段写入 RuntimeContext。
  * 挂在 Gateway 上，合并顺序仍是 caller → 本解析器 → Gateway 覆盖身份字段。
  * 业务键不要塞进 {@link MsgContext#extra()}，那会进会话闸键。
  */
-public final class AccessChannelRuntimeContextResolver implements ChannelRuntimeContextResolver {
+public final class AgentChannelRuntimeContextResolver implements ChannelRuntimeContextResolver {
 
     static final String TENANT_ID = "tenantId";
 

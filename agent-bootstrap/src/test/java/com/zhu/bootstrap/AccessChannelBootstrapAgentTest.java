@@ -2,7 +2,7 @@ package com.zhu.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.zhu.access.application.chat.gateway.AccessChannelGateway;
+import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.model.ChatResponse;
@@ -60,7 +60,7 @@ class AccessChannelBootstrapAgentTest {
             assertThat(echoHits.get()).isEqualTo(1);
             assertThat(bootstrap.agents()).containsOnlyKeys("companion-v1", HarnessAgentFactory.ECHO_AGENT_ID);
             assertThat(bootstrap.mainAgentId()).isEqualTo("companion-v1");
-            ChatUiChannel chat = AccessChannelGateway.requireChatUi(bootstrap.channelManager());
+            ChatUiChannel chat = ChannelGateway.requireChatUi(bootstrap.channelManager());
             Msg reply = chat.send(SendOptions.of("u1", "s1"), "hi").block(Duration.ofSeconds(5));
             assertThat(reply.getTextContent()).isEqualTo("ok");
             HarnessAgent echo = bootstrap.agents().get(HarnessAgentFactory.ECHO_AGENT_ID);

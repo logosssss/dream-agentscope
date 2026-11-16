@@ -1,4 +1,4 @@
-package com.zhu.access.application.chat.gateway;
+package com.zhu.runtime.infrastructure.gateway;
 
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
@@ -17,24 +17,24 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * 接入层 API Channel（Harness {@code channelId=api}）。
+ * 运行层 API Channel（Harness {@code channelId=api}）。
  * 与 ChatUi 并列注册；程序调用对话走本通道的 {@link #send}/{@link #sendStream}。
  * WEB 主路径仍用 ChatUi，不经过这里。见 docs/api-channel-落地.md。
  */
-public final class AccessApiChannel implements Channel {
+public final class ApiChannel implements Channel {
 
-    private final ChannelConfig config = ChannelConfig.of(AccessChannelGateway.API_CHANNEL_ID);
+    private final ChannelConfig config = ChannelConfig.of(ChannelGateway.API_CHANNEL_ID);
 
     private Gateway gateway;
 
-    private AccessApiChannel() {
+    private ApiChannel() {
     }
 
     /**
      * 新建未绑定 Gateway 的实例；由 Bootstrap {@code .channel(...)} 注册后 {@link #init}。
      */
-    public static AccessApiChannel create() {
-        return new AccessApiChannel();
+    public static ApiChannel create() {
+        return new ApiChannel();
     }
 
     /**
@@ -47,7 +47,7 @@ public final class AccessApiChannel implements Channel {
 
     @Override
     public String channelId() {
-        return AccessChannelGateway.API_CHANNEL_ID;
+        return ChannelGateway.API_CHANNEL_ID;
     }
 
     @Override
@@ -131,12 +131,12 @@ public final class AccessApiChannel implements Channel {
         Map<String, String> extra = (agentId == null || agentId.isBlank())
                 ? Map.of()
                 : Map.of("agentId", agentId);
-        return new MsgContext(AccessChannelGateway.API_CHANNEL_ID, null, sessionId, null, null, extra)
+        return new MsgContext(ChannelGateway.API_CHANNEL_ID, null, sessionId, null, null, extra)
                 .withUserId(userId);
     }
 
     private OutboundAddress outbound(String sessionId) {
-        return OutboundAddress.direct(AccessChannelGateway.API_CHANNEL_ID, sessionId);
+        return OutboundAddress.direct(ChannelGateway.API_CHANNEL_ID, sessionId);
     }
 
     private static Msg userMessage(String text) {

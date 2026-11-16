@@ -36,7 +36,7 @@
 ### 必读链接（有序）
 
 1. [`docs/channel-gateway-落地.md`](../channel-gateway-落地.md)  
-2. `AccessChannelGateway`（`agent-access` … `application.chat.gateway`）  
+2. `ChannelGateway`（`agent-runtime` … `infrastructure.gateway`）  
 
 ### 要搞清的问题
 

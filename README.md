@@ -154,10 +154,10 @@ sequenceDiagram
 |------|------|
 | JDK | **21**（仓库根 `mvn`；勿用 JDK 8 的 `JAVA_HOME`） |
 | 构建 | Maven 3.6+（与父 POM Spring Boot **3.5.5** 对齐） |
-| AgentScope | `2.0.4`（父 POM `agentscope.version`） |
+| AgentScope | `2.0.5`（父 POM `agentscope.version`；2.0.x 维护版） |
 | Node | 建议 20+；前端包管理器统一 **pnpm**（勿与 npm 混用 lockfile） |
 | MySQL | 用户与管理进程共用库；用户进程跑 Flyway |
-| Redis | 会话、额度、占锁；Redis 失败返回 **503**，不回落内存/MySQL |
+| Redis | 会话、额度、占锁；额度/占锁等失败返回 **503**，不回落内存/MySQL。**行为以本表与现码为准**；架构长文若仍写「Redis 故障不影响 Agent 主链路 / 额度降级」，视为过时，勿按该句放宽 |
 | Milvus | 用户进程连通后创建检索集合；管理进程只探测 |
 | Nacos | **推荐**；group=`AGENT_PLATFORM` |
 | 模型 | 默认坐标 `dashscope:qwen-plus`；密钥 `DASHSCOPE_API_KEY` 或写在 infra |
@@ -387,11 +387,13 @@ mvn test
 | 文档 | 说明 |
 |------|------|
 | [`docs/handbook/README.md`](./docs/handbook/README.md) | **仓库内学习手册**（从 0 到深入的索引路径：顺序、问题、检查点） |
-| [`doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`](./doc/AgentScope%20Java%202.0.4%20产品级架构与工程落地指南%20(2).md) | 架构与工程设计长文 |
+| [`docs/agentscope-landing-review.md`](./docs/agentscope-landing-review.md) | AgentScope 落地评估（框架用法 vs 工程契约；含指南↔现码漂移表） |
+| [`docs/engineering-module-review.md`](./docs/engineering-module-review.md) | 工程 / 模块评估（边界、软退役、测试债；access 防腐分阶段） |
+| [`doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`](./doc/AgentScope%20Java%202.0.4%20产品级架构与工程落地指南%20(2).md) | 架构与工程设计长文（**含历史草案**；冲突时听现码 / 本 README / `docs/*-落地.md`） |
 | [`doc/企业级多 Agent 平台前端工程开发方案 (1).md`](./doc/企业级多%20Agent%20平台前端工程开发方案%20(1).md) | 前端方案 |
 | [`docs/tutorial/series-plan.md`](./docs/tutorial/series-plan.md) | 系列教程《AgentScope 落地实战》：选题池、进度与双平台发布约定 |
 
-以上偏设计、学习索引与历史口径；**行为以当前代码与各模块 README 为准**。
+以上偏设计、学习索引与历史口径；**行为以当前代码与各模块 README 为准**。读长文时注意：Agent 状态在 MySQL `DistributedStore`（勿把文中早期 Redis Store 示例当现网）；**不引入 RocketMQ**，`mode=mq` 启动失败（勿按「接口先行、实现后补」去半套接入）。
 
 ---
 

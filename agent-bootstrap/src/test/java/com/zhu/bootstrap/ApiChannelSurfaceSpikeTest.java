@@ -3,7 +3,9 @@ package com.zhu.bootstrap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.zhu.access.application.chat.gateway.AccessChannelGateway;
+import com.zhu.runtime.infrastructure.gateway.ApiChannel;
+import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
+import com.zhu.runtime.infrastructure.gateway.RoomNormalizedSessionTurnGate;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
@@ -64,10 +66,10 @@ class ApiChannelSurfaceSpikeTest {
         try {
             ChannelManager manager = bootstrap.channelManager();
             assertThat(manager.channelIds())
-                    .containsExactlyInAnyOrder(ChatUiChannel.CHANNEL_ID, AccessChannelGateway.API_CHANNEL_ID);
-            ChatUiChannel chat = AccessChannelGateway.requireChatUi(manager);
+                    .containsExactlyInAnyOrder(ChatUiChannel.CHANNEL_ID, ChannelGateway.API_CHANNEL_ID);
+            ChatUiChannel chat = ChannelGateway.requireChatUi(manager);
             assertThat(chat.channelId()).isEqualTo(ChatUiChannel.CHANNEL_ID);
-            assertThat(manager.getChannel(AccessChannelGateway.API_CHANNEL_ID)).contains(api);
+            assertThat(manager.getChannel(ChannelGateway.API_CHANNEL_ID)).contains(api);
             Msg reply = chat.send(SendOptions.of("u1", "s1"), "hi").block(Duration.ofSeconds(5));
             assertThat(reply.getTextContent()).isEqualTo("ok");
         } finally {
@@ -87,7 +89,7 @@ class ApiChannelSurfaceSpikeTest {
                 .build()
                 .start();
         try {
-            assertThat(AccessChannelGateway.requireChatUi(bootstrap.channelManager()).channelId())
+            assertThat(ChannelGateway.requireChatUi(bootstrap.channelManager()).channelId())
                     .isEqualTo(ChatUiChannel.CHANNEL_ID);
         } finally {
             bootstrap.stop();
@@ -98,8 +100,8 @@ class ApiChannelSurfaceSpikeTest {
     /** 第三者 id 不在白名单。 */
     @Test
     void thirdChannel_rejectedByWhitelist() {
-        assertThat(AccessChannelGateway.allowedChannelIds(
-                        List.of(ChatUiChannel.CHANNEL_ID, AccessChannelGateway.API_CHANNEL_ID, "other")))
+        assertThat(ChannelGateway.allowedChannelIds(
+                        List.of(ChatUiChannel.CHANNEL_ID, ChannelGateway.API_CHANNEL_ID, "other")))
                 .isFalse();
         assertThatThrownBy(() -> {
                     HarnessAgent agent = stubAgent("api-spike-three");
@@ -111,7 +113,7 @@ class ApiChannelSurfaceSpikeTest {
                             .build()
                             .start();
                     try {
-                        AccessChannelGateway.requireChatUi(bootstrap.channelManager());
+                        ChannelGateway.requireChatUi(bootstrap.channelManager());
                     } finally {
                         bootstrap.stop();
                         agent.close();
@@ -166,36 +168,36 @@ class ApiChannelSurfaceSpikeTest {
     }
 
     /**
-     * 对照：按 room（session）归一化闸键后，chatui/api 同 session 串行（max=1）。
-     * ② 接线若要满足「共享闸跨 Channel 串行」，需此类归一化，不能只 set 同一个 LocalSessionTurnGate。
+     * 对照：room 归一化后，经 Channel.send（产品路径）跨 Channel 同 session 串行。
+     * 2.0.5 起直调 {@code gateway.run} 的闸键解析与 Channel 路径不完全一致；串行验收对齐产品入口。
      */
     @Test
     void roomNormalizedGate_sameSessionSerializesAcrossChannels() throws Exception {
-        TrackingGate tracking = new TrackingGate(new RoomNormalizedTurnGate(new LocalSessionTurnGate()));
+        TrackingGate tracking =
+                new TrackingGate(new RoomNormalizedSessionTurnGate(new LocalSessionTurnGate()));
         HarnessAgent agent = slowAgent("api-spike-serial");
+        ApiChannel api = ApiChannel.create();
         GatewayBootstrap bootstrap = GatewayBootstrap.builder()
                 .agent("api-spike-serial", agent)
                 .mainAgent("api-spike-serial")
-                .channel(ChatUiChannel.create(), new StubApiChannel())
+                .channel(ChatUiChannel.create(), api)
                 .build()
                 .start();
         bootstrap.gateway().setSessionTurnGate(tracking);
-        HarnessGateway gateway = (HarnessGateway) bootstrap.gateway();
         try {
+            ChatUiChannel chat = ChannelGateway.requireChatUi(bootstrap.channelManager());
+            ApiChannel boundApi = ChannelGateway.requireApiChannel(bootstrap.channelManager());
             CountDownLatch done = new CountDownLatch(2);
             List<Throwable> errors = new ArrayList<>();
-            Runnable chatUiTurn = () -> runTurn(done, errors, () ->
-                    gateway.run(msgContext("chatui", "session-a"), List.of(userMsg("hi")), outbound("chatui", "session-a"))
-                            .block(Duration.ofSeconds(5)));
-            Runnable apiTurn = () -> runTurn(done, errors, () ->
-                    gateway.run(msgContext("api", "session-a"), List.of(userMsg("hi")), outbound("api", "session-a"))
-                            .block(Duration.ofSeconds(5)));
-            Thread a = new Thread(chatUiTurn);
-            Thread b = new Thread(apiTurn);
-            a.start();
-            b.start();
+            Thread chatUiTurn = new Thread(() -> runTurn(done, errors, () ->
+                    chat.send(SendOptions.of("u1", "session-a"), "from-web").block(Duration.ofSeconds(5))));
+            Thread apiTurn = new Thread(() -> runTurn(done, errors, () ->
+                    boundApi.send("u1", "session-a", "from-api").block(Duration.ofSeconds(5))));
+            chatUiTurn.start();
+            apiTurn.start();
             assertThat(done.await(10, TimeUnit.SECONDS)).isTrue();
-            assertThat(errors).isEmpty();
+            assertThat(errors).as("errors=%s keys=%s", errors, tracking.gateKeys).isEmpty();
+            assertThat(tracking.gateKeys).contains("chatui|r:session-a", "api|r:session-a");
             assertThat(tracking.maxInFlight.get())
                     .as("room 归一化后同 session 串行 keys=%s", tracking.gateKeys)
                     .isEqualTo(1);
@@ -299,7 +301,7 @@ class ApiChannelSurfaceSpikeTest {
         private final ChannelConfig config;
 
         StubApiChannel() {
-            this(AccessChannelGateway.API_CHANNEL_ID);
+            this(ChannelGateway.API_CHANNEL_ID);
         }
 
         StubApiChannel(String channelId) {
@@ -348,12 +350,10 @@ class ApiChannelSurfaceSpikeTest {
             TurnLease lease = delegate.acquire(sessionKey);
             int now = inFlight.incrementAndGet();
             maxInFlight.accumulateAndGet(now, Math::max);
+            // 先减计数再放行下一等待者，避免 close 与 decrement 之间的交接把 max 抬成 2。
             return () -> {
-                try {
-                    lease.close();
-                } finally {
-                    inFlight.decrementAndGet();
-                }
+                inFlight.decrementAndGet();
+                lease.close();
             };
         }
 
@@ -363,38 +363,4 @@ class ApiChannelSurfaceSpikeTest {
         }
     }
 
-    /**
-     * 把 {@code channel|r:session} 归一成 session，使跨 Channel 同 room 共享一把闸。
-     * 仅 spike / 后续接线对照，本块不挂进 AccessChannelGateway。
-     */
-    private static final class RoomNormalizedTurnGate implements SessionTurnGate {
-        private final SessionTurnGate delegate;
-
-        RoomNormalizedTurnGate(SessionTurnGate delegate) {
-            this.delegate = delegate;
-        }
-
-        @Override
-        public TurnLease acquire(String sessionKey) throws InterruptedException, TurnBusyException {
-            return delegate.acquire(roomKey(sessionKey));
-        }
-
-        @Override
-        public boolean isRunning(String sessionKey) {
-            return delegate.isRunning(roomKey(sessionKey));
-        }
-
-        private static String roomKey(String sessionKey) {
-            if (sessionKey == null) {
-                return "";
-            }
-            int idx = sessionKey.indexOf("|r:");
-            if (idx < 0) {
-                return sessionKey;
-            }
-            String after = sessionKey.substring(idx + 3);
-            int next = after.indexOf('|');
-            return next < 0 ? after : after.substring(0, next);
-        }
-    }
 }

@@ -46,11 +46,11 @@
    产品判定经 `asAllowOrDeny`：ALLOW 下放，ASK/DENY 从本次输入拿掉（ASK 打日志）。无条件 ASK/DENY/ALLOW 留给后续 Gate。  
    测：`ApprovalMiddlewareTest`、`ApprovalMiddlewareDualGateTest`（引擎 ASK 不能压过产品 ALLOW）。  
 3. **接入层续跑** — 已完成  
-   流式路径登记 `RequireUserConfirm` → `PendingAskStore`（id=工具调用 id）。  
+   流式路径登记 `RequireUserConfirm` → 运行层 `PendingAskStore`（id=工具调用 id；经 `PendingAskFacade` 对外）。  
    `GET /api/approvals/pending` 读进程内活单；`POST .../decision` 取出后经 Gateway `send(Msg)` 带 `METADATA_CONFIRM_RESULTS` / `ConfirmResult` 续跑。  
    旧表同号行尽力 `ApprovalDecider` 同步，失败不回滚。同步 chat 遇 ASK 不登记。测：`ApprovalNotifyTest`。  
 4. **退役标注 + 文档收口** — 已完成  
-   **运行入口 = 当前 A**（Gate + 产品条件闸 + `PendingAskStore` 续跑）。  
+   **运行入口 = 当前 A**（Gate + 产品条件闸 + `PendingAskFacade.decideAndResume`）。  
    软退役标注：`ApprovalRecorder` / `MybatisApprovalRecorder`、`ApprovalRequestedEvent`、`ApprovalNotificationListener`、管理端 `AdminApprovalController`（旧表只读/改决定，不续跑）。  
    runtime / access / audit / admin README 与本文对齐；engine 文保持历史 + 指针「已切 A」。  
    **未**硬删 `approval_record` / 通知 / 待办；**未**宣称已接 MCP 等后置项。

@@ -1,11 +1,11 @@
-package com.zhu.access.application.chat.gateway;
+package com.zhu.runtime.infrastructure.gateway;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 /**
- * 接入层排水闸：重建前挡住新 turn，等在途对话结束（或超时）再执行动作。
+ * 运行层排水闸：重建前挡住新 turn，等在途对话结束（或超时）再执行动作。
  * 与 Gateway 同 session 排队互补；本闸只管「热更换实例」窗口。
  */
 public final class ResidentAgentDrain {

@@ -2,7 +2,6 @@ package com.zhu.access.application.chat;
 
 import com.zhu.access.api.dto.chat.ChatRequest;
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.application.chat.gateway.AccessChannelGateway;
 import com.zhu.access.application.chat.message.ChatMessageStore;
 import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.chat.run.RunLog;
@@ -19,6 +18,7 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
+import com.zhu.runtime.api.AgentExecutor;
 import com.zhu.runtime.api.AgentRequest;
 import com.zhu.runtime.api.AgentResponse;
 import com.zhu.runtime.api.AgentStreamEvent;
@@ -36,7 +36,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.SignalType;
 
 /**
- * API Channel 对话应用服务。护栏与额度同 {@link ChatAppService}，执行走 {@link AccessChannelGateway#executeApi}。
+ * API Channel 对话应用服务。护栏与额度同 {@link ChatAppService}，执行走 {@link AgentExecutor#executeApi}。
  * 见 docs/api-channel-落地.md。
  */
 @Service
@@ -44,7 +44,7 @@ public class ApiChatAppService {
 
     private static final Logger log = Logger.getLogger(ApiChatAppService.class.getName());
 
-    private final AccessChannelGateway gateway;
+    private final AgentExecutor gateway;
 
     private final PromptService prompts;
 
@@ -70,7 +70,7 @@ public class ApiChatAppService {
      * 依赖与 WEB 对话服务对称；执行入口换成 Gateway API Channel。
      */
     public ApiChatAppService(
-            AccessChannelGateway gateway,
+            AgentExecutor gateway,
             PromptService prompts,
             ProductSemanticProvider semantics,
             QuotaGuard quota,

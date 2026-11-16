@@ -1,10 +1,10 @@
 package com.zhu.access.api.controller.internal;
 
 import com.zhu.access.api.dto.internal.WakeupRequest;
-import com.zhu.access.application.chat.gateway.WakeupCoordinator;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import com.zhu.runtime.api.WakeupPort;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,14 +14,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 用户进程内部唤醒学习入口。须 {@code X-Wakeup-Token}；不在 agent-admin。
- * 见 docs/wakeup-落地.md。
+ * 只依赖 {@link WakeupPort}，不碰 runtime.infrastructure。见 docs/wakeup-落地.md。
  */
 @RestController
 public class WakeupController {
 
-    private final WakeupCoordinator wakeups;
+    private final WakeupPort wakeups;
 
-    public WakeupController(WakeupCoordinator wakeups) {
+    /**
+     * 注入运行层端口（正式实现是 WakeupCoordinator）。
+     */
+    public WakeupController(WakeupPort wakeups) {
         this.wakeups = wakeups;
     }
 

@@ -41,15 +41,15 @@
    `ApiChannelSurfaceSpikeTest`：  
    - 双注册 stub `api` + `chatui`；`requireChatUi` 白名单通过；仅 chatui 仍可；第三者 id 拒绝。  
    - **关键发现**：`MsgContext.canonicalKey` = `channel|r:session`；chatui/api 同 session 直调 `Gateway.run` 时闸键不同 → **可并行**（max≥2）。  
-   - **对照**：按 `|r:` room 归一化闸键后同 session **串行**（max=1）。  
-   - 主路径 Bootstrap **尚未**挂 api（仍可只注册 chatui）；`API_CHANNEL_ID` 常量与白名单已进 `AccessChannelGateway`。
+   - **对照**：按 `|r:` room 归一化后，经 **Channel.send**（产品路径）同 session **串行**（max=1）。2.0.5 起串行用例勿只靠直调 `gateway.run` 验收。  
+   - 主路径 Bootstrap **尚未**挂 api（仍可只注册 chatui）；`API_CHANNEL_ID` 常量与白名单已进 `ChannelGateway`。
 2. **最小 ApiChannel 挂 Gateway** — 已完成  
-   `AccessApiChannel`（`send`/`sendStream`）；`RoomNormalizedSessionTurnGate`；  
-   `AccessChannelGateway.startGatewayLocked`：`.channel(ChatUi, Api)` + 归一化闸；  
+   `ApiChannel`（`send`/`sendStream`）；`RoomNormalizedSessionTurnGate`；  
+   `ChannelGateway.startGatewayLocked`：`.channel(ChatUi, Api)` + 归一化闸；  
    WEB 仍只调 ChatUi；`requireApiChannel` / `apiChannel()`。测：`ApiChannelGatewayWiringTest`。
 3. **`/api/agent/chat*` 接入** — 已完成  
    `ApiAgentChatController`：`/api/agent/chat`、`/api/agent/chat/stream`；  
-   `ApiChatAppService` → `AccessChannelGateway.executeApi` / `streamApi`；额度仍 `chat`/`chat-stream`；  
+   `ApiChatAppService` → `ChannelGateway.executeApi` / `streamApi`；额度仍 `chat`/`chat-stream`；  
    旧 `ChatAppService` 显式 `channel=API` → 400。测：`ApiAgentChatPathTest`。
 4. **web 控制台页** — 已完成  
    路由 `/api-console` → `ApiConsoleView`；复用 `ChatContainer` + `streamPath=/api/agent/chat/stream`；  

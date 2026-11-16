@@ -1,4 +1,4 @@
-package com.zhu.access.application.chat.gateway;
+package com.zhu.runtime.infrastructure.gateway;
 
 import io.agentscope.harness.agent.gateway.SessionTurnGate;
 import io.agentscope.harness.agent.gateway.TurnBusyException;
@@ -6,7 +6,7 @@ import io.agentscope.harness.agent.gateway.TurnLease;
 import java.util.Objects;
 
 /**
- * 接入层 SessionTurnGate 装饰：把 {@code channel|r:session} 归一成 session 再占轮。
+ * 运行层 SessionTurnGate 装饰：把 {@code channel|r:session} 归一成 session 再占轮。
  * 原因：框架 {@code MsgContext.canonicalKey} 含 channel 前缀，裸共享 {@code LocalSessionTurnGate}
  * 时 chatui/api 同 session 会并行。见 docs/api-channel-落地.md。
  */

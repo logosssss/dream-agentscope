@@ -2,9 +2,9 @@ package com.zhu.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.zhu.access.application.chat.gateway.AccessApiChannel;
-import com.zhu.access.application.chat.gateway.AccessChannelGateway;
-import com.zhu.access.application.chat.gateway.RoomNormalizedSessionTurnGate;
+import com.zhu.runtime.infrastructure.gateway.ApiChannel;
+import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
+import com.zhu.runtime.infrastructure.gateway.RoomNormalizedSessionTurnGate;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.model.ChatResponse;
@@ -37,7 +37,7 @@ import reactor.core.publisher.Flux;
  */
 class ApiChannelGatewayWiringTest {
 
-    /** 与 AccessChannelGateway.startGatewayLocked 相同：双通道 + 归一化闸。 */
+    /** 与 ChannelGateway.startGatewayLocked 相同：双通道 + 归一化闸。 */
     @Test
     void dualChannelAndNormalizedGate_webChatUiStillWorks_crossChannelSerial() throws Exception {
         AtomicInteger inFlight = new AtomicInteger();
@@ -53,12 +53,10 @@ class ApiChannelGatewayWiringTest {
                 TurnLease lease = delegate.acquire(sessionKey);
                 int now = inFlight.incrementAndGet();
                 maxInFlight.accumulateAndGet(now, Math::max);
+                // 先减计数再放行下一等待者，避免 close 与 decrement 之间的交接把 max 抬成 2。
                 return () -> {
-                    try {
-                        lease.close();
-                    } finally {
-                        inFlight.decrementAndGet();
-                    }
+                    inFlight.decrementAndGet();
+                    lease.close();
                 };
             }
 
@@ -69,7 +67,7 @@ class ApiChannelGatewayWiringTest {
         };
 
         HarnessAgent agent = slowAgent("api-wired");
-        AccessApiChannel api = AccessApiChannel.create();
+        ApiChannel api = ApiChannel.create();
         GatewayBootstrap bootstrap = GatewayBootstrap.builder()
                 .agent("api-wired", agent)
                 .mainAgent("api-wired")
@@ -78,11 +76,11 @@ class ApiChannelGatewayWiringTest {
                 .start();
         bootstrap.gateway().setSessionTurnGate(tracking);
         try {
-            ChatUiChannel chat = AccessChannelGateway.requireChatUi(bootstrap.channelManager());
-            AccessApiChannel boundApi = AccessChannelGateway.requireApiChannel(bootstrap.channelManager());
+            ChatUiChannel chat = ChannelGateway.requireChatUi(bootstrap.channelManager());
+            ApiChannel boundApi = ChannelGateway.requireApiChannel(bootstrap.channelManager());
             assertThat(boundApi).isSameAs(api);
             assertThat(bootstrap.channelManager().channelIds())
-                    .containsExactlyInAnyOrder(ChatUiChannel.CHANNEL_ID, AccessChannelGateway.API_CHANNEL_ID);
+                    .containsExactlyInAnyOrder(ChatUiChannel.CHANNEL_ID, ChannelGateway.API_CHANNEL_ID);
 
             Msg webReply = chat.send(SendOptions.of("u1", "s-web"), "hi").block(Duration.ofSeconds(5));
             assertThat(webReply.getTextContent()).isEqualTo("ok");

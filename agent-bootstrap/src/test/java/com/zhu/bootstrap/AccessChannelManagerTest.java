@@ -3,7 +3,7 @@ package com.zhu.bootstrap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.zhu.access.application.chat.gateway.AccessChannelGateway;
+import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.model.ChatResponse;
 import io.agentscope.core.model.GenerateOptions;
@@ -26,7 +26,7 @@ import reactor.core.publisher.Flux;
  */
 class AccessChannelManagerTest {
 
-    /** 与 AccessChannelGateway 相同：.channel(ChatUiChannel.create()) 后 requireChatUi。 */
+    /** 与 ChannelGateway 相同：.channel(ChatUiChannel.create()) 后 requireChatUi。 */
     @Test
     void requireChatUiReadsOnlyBootstrapChannel() {
         HarnessAgent agent = slowAgent("cm-test");
@@ -38,7 +38,7 @@ class AccessChannelManagerTest {
                 .start();
         try {
             ChannelManager manager = bootstrap.channelManager();
-            ChatUiChannel chat = AccessChannelGateway.requireChatUi(manager);
+            ChatUiChannel chat = ChannelGateway.requireChatUi(manager);
             assertThat(manager.channelIds()).containsExactly(ChatUiChannel.CHANNEL_ID);
             assertThat(chat.channelId()).isEqualTo(ChatUiChannel.CHANNEL_ID);
             Msg reply = chat.send(SendOptions.of("u1", "s1"), "hi").block(Duration.ofSeconds(5));
@@ -60,7 +60,7 @@ class AccessChannelManagerTest {
                 .build()
                 .start();
         try {
-            assertThatThrownBy(() -> AccessChannelGateway.requireChatUi(bootstrap.channelManager()))
+            assertThatThrownBy(() -> ChannelGateway.requireChatUi(bootstrap.channelManager()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("chatui");
         } finally {

@@ -49,14 +49,17 @@
    单测只验缺省与白名单，不启 Dispatcher。  
 2. **Bus + Dispatcher + Target + 内部 HTTP** — 已完成  
    进程内 `InMemoryMessageBus`；`WakeupCoordinator` 在 `enabled=true` 时启 `WakeupDispatcher`；  
-   Target 懒解析 `AccessChannelGateway.harnessGatewayOrNull()`（companion / main）；  
+   Target 懒解析 `ChannelGateway.harnessGatewayOrNull()`（companion / main）；  
    `POST /api/internal/wakeups` + `X-Wakeup-Token`（`AGENTSCOPE_WAKEUP_TOKEN`）；  
    Caller 过滤器跳过该路径；忙则框架 Dispatcher 跳过；令牌/启动失败硬退出。  
 3. **单测 + README / 专题收口** — 已完成  
    `WakeupTokens` / Filter / Bus / Coordinator 单测（无真 MQ）；  
    根 / bootstrap / runtime / access / common README、`docs/release-gate.md` 与本文一致：  
    默认关；仅 companion；内部 HTTP + 独立令牌；忙跳过；硬失败无静默；  
-   不宣称已接调度表消费 / Inbox / TeamWakeups / 多 Channel / `mode=mq`。
+   不宣称已接调度表消费 / Inbox / TeamWakeups / 多 Channel / `mode=mq`。  
+4. **防腐端口（工程模块 ④）** — 已完成  
+   `runtime.api.WakeupPort`（`isEnabled` + `enqueue`）；`WakeupCoordinator` 实现；  
+   `WakeupController` 只依赖端口；ArchUnit：access 禁 `runtime.infrastructure`。
 
 ## 验收要点
 

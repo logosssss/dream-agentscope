@@ -52,13 +52,26 @@ class ArchitectureTest {
                             "..vector..");
 
     /**
-     * 接入层允许 Channel/Gateway，但 HTTP 控制器不能直接碰 Harness。
-     * Agent 网关装配放在 application 包。
+     * access 全包不得依赖任何 {@code io.agentscope}（防腐③+⑤：Channel/PendingAsk/Wakeup 已下沉）。
      */
-    private static final ArchRule CONTROLLERS_MUST_NOT_TOUCH_HARNESS =
-            noClasses().that().resideInAPackage("..access.api.controller..")
-                    .should().dependOnClassesThat()
-                    .resideInAnyPackage("..harness..");
+    private static final ArchRule ACCESS_MUST_NOT_TOUCH_AGENTSCOPE =
+            noClasses()
+                    .that()
+                    .resideInAPackage("..access..")
+                    .should()
+                    .dependOnClassesThat()
+                    .resideInAnyPackage("io.agentscope..");
+
+    /**
+     * access 不得依赖 runtime.infrastructure（防腐④：Wakeup 经 {@code WakeupPort}，与 PendingAskFacade 对称）。
+     */
+    private static final ArchRule ACCESS_MUST_NOT_TOUCH_RUNTIME_INFRASTRUCTURE =
+            noClasses()
+                    .that()
+                    .resideInAPackage("..access..")
+                    .should()
+                    .dependOnClassesThat()
+                    .resideInAnyPackage("..runtime.infrastructure..");
 
     /** 控制器不能直接访问持久化包。 */
     private static final ArchRule CONTROLLERS_MUST_NOT_ACCESS_REPOSITORIES =
@@ -74,7 +87,9 @@ class ArchitectureTest {
                 .contains(
                         "com.zhu.semantic.contract.product.ProductSemanticProvider",
                         "com.zhu.runtime.api.AgentExecutor",
-                        "com.zhu.access.application.chat.gateway.AccessChannelGateway",
+                        "com.zhu.runtime.infrastructure.gateway.ChannelGateway",
+                        "com.zhu.runtime.api.PendingAskFacade",
+                        "com.zhu.runtime.api.WakeupPort",
                         "com.zhu.state.config.DistributedStoreConfig",
                         "com.zhu.state.config.StateMapperConfig",
                         "com.zhu.vector.api.VectorStore",
@@ -89,7 +104,8 @@ class ArchitectureTest {
         STATE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         VECTOR_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         OBJECT_STORE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
-        CONTROLLERS_MUST_NOT_TOUCH_HARNESS.check(classes);
+        ACCESS_MUST_NOT_TOUCH_AGENTSCOPE.check(classes);
+        ACCESS_MUST_NOT_TOUCH_RUNTIME_INFRASTRUCTURE.check(classes);
         CONTROLLERS_MUST_NOT_ACCESS_REPOSITORIES.check(classes);
     }
 }

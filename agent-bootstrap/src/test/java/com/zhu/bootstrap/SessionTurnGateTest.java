@@ -2,7 +2,7 @@ package com.zhu.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.zhu.access.application.chat.gateway.AccessChannelGateway;
+import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.model.ChatResponse;
 import io.agentscope.core.model.GenerateOptions;
@@ -72,7 +72,7 @@ class SessionTurnGateTest {
     }
 
     /**
-     * 与 AccessChannelGateway 相同接线：Bootstrap 启动后显式 setSessionTurnGate，
+     * 与 ChannelGateway 相同接线：Bootstrap 启动后显式 setSessionTurnGate，
      * 同 user/session 两路 send 并发时，闸键相同且并发占轮数不超过 1。
      * 不观测模型 in-flight：单轮内 memory 等仍可能并行调模型。
      */
@@ -91,12 +91,10 @@ class SessionTurnGateTest {
                 TurnLease lease = delegate.acquire(sessionKey);
                 int now = gateInFlight.incrementAndGet();
                 maxGateInFlight.accumulateAndGet(now, Math::max);
+                // 先减计数再放行下一等待者，避免 close 与 decrement 之间的交接把 max 抬成 2。
                 return () -> {
-                    try {
-                        lease.close();
-                    } finally {
-                        gateInFlight.decrementAndGet();
-                    }
+                    gateInFlight.decrementAndGet();
+                    lease.close();
                 };
             }
 
@@ -141,9 +139,9 @@ class SessionTurnGateTest {
                 .channel(ChatUiChannel.create())
                 .build()
                 .start();
-        // 与 AccessChannelGateway.startGatewayLocked 相同：start 后显式挂闸，通道从 manager 只读。
+        // 与 ChannelGateway.startGatewayLocked 相同：start 后显式挂闸，通道从 manager 只读。
         bootstrap.gateway().setSessionTurnGate(trackingGate);
-        ChatUiChannel chat = AccessChannelGateway.requireChatUi(bootstrap.channelManager());
+        ChatUiChannel chat = ChannelGateway.requireChatUi(bootstrap.channelManager());
         SendOptions options = SendOptions.of("u1", "session-a");
         try {
             CountDownLatch done = new CountDownLatch(2);

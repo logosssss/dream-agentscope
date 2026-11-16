@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.chat.gateway.AccessChannelGateway;
-import com.zhu.access.application.chat.gateway.WakeupCoordinator;
+import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
+import com.zhu.runtime.infrastructure.wakeup.WakeupCoordinator;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import io.agentscope.core.message.Msg;
 import io.agentscope.harness.agent.bus.MessageBus;
@@ -94,25 +94,25 @@ class WakeupCoordinatorTest {
         coordinator.shutdown();
     }
 
-    private static ObjectProvider<AccessChannelGateway> emptyGateways() {
+    private static ObjectProvider<ChannelGateway> emptyGateways() {
         return new ObjectProvider<>() {
             @Override
-            public AccessChannelGateway getObject() {
+            public ChannelGateway getObject() {
                 return null;
             }
 
             @Override
-            public AccessChannelGateway getObject(Object... args) {
+            public ChannelGateway getObject(Object... args) {
                 return null;
             }
 
             @Override
-            public AccessChannelGateway getIfAvailable() {
+            public ChannelGateway getIfAvailable() {
                 return null;
             }
 
             @Override
-            public AccessChannelGateway getIfUnique() {
+            public ChannelGateway getIfUnique() {
                 return null;
             }
         };

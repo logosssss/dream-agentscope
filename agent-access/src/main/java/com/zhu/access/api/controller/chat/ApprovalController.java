@@ -6,8 +6,6 @@ import com.zhu.access.api.dto.chat.ApprovalDetail;
 import com.zhu.access.api.dto.chat.PendingApproval;
 import com.zhu.access.application.auth.gate.AccessAccountGate;
 import com.zhu.access.application.chat.approval.ApprovalDecisionAppService;
-import com.zhu.access.application.chat.approval.PendingAsk;
-import com.zhu.access.application.chat.approval.PendingAskStore;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.audit.api.approval.ApprovalDecision;
 import com.zhu.audit.api.approval.ApprovalRow;
@@ -17,6 +15,8 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import com.zhu.runtime.api.PendingAskFacade;
+import com.zhu.runtime.api.PendingAskSummary;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 待确认列表与人批决定。列表主数据源是 Gate ASK 进程内登记；决定后驱动框架续跑。
+ * 待确认列表与人批决定。列表主数据源是运行层 Gate ASK 进程内登记；决定后驱动框架续跑。
  * 旧审批表只读查询仍可看历史行；新 ASK 不再依赖落单。
  */
 @RestController
@@ -43,7 +43,7 @@ public class ApprovalController {
 
     private final AuditQuery audits;
 
-    private final PendingAskStore pendingAsks;
+    private final PendingAskFacade pendingAsks;
 
     private final ApprovalDecisionAppService decisions;
 
@@ -52,7 +52,7 @@ public class ApprovalController {
     /** 列表和决定都按请求头里的租户和用户。先过账号门。 */
     public ApprovalController(
             AuditQuery audits,
-            PendingAskStore pendingAsks,
+            PendingAskFacade pendingAsks,
             ApprovalDecisionAppService decisions,
             AccessAccountGate accounts) {
         this.audits = audits;
@@ -70,9 +70,9 @@ public class ApprovalController {
         accounts.requireActive();
         String userId = UserContext.get();
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
-        List<PendingAsk> rows = pendingAsks.pendingFor(tenantId, userId, 50);
+        List<PendingAskSummary> rows = pendingAsks.pendingFor(tenantId, userId, 50);
         List<PendingApproval> result = new ArrayList<>(rows.size());
-        for (PendingAsk row : rows) {
+        for (PendingAskSummary row : rows) {
             result.add(new PendingApproval(row.approvalId(), row.toolName(), row.sessionId()));
         }
         return ApiResult.ok(result);
@@ -90,7 +90,7 @@ public class ApprovalController {
         }
         String userId = UserContext.get();
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
-        PendingAsk live = pendingAsks.ownedOne(tenantId, userId, approvalId);
+        PendingAskSummary live = pendingAsks.ownedOne(tenantId, userId, approvalId);
         if (live != null) {
             return ApiResult.ok(new ApprovalDetail(
                     live.approvalId(),
@@ -133,7 +133,7 @@ public class ApprovalController {
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         ApprovalDecisionRequest body = request == null ? new ApprovalDecisionRequest(null, null) : request;
         ApprovalDecision parsed = ApprovalDecision.parse(body.decision());
-        PendingAsk decided = decisions.decide(
+        PendingAskSummary decided = decisions.decide(
                 tenantId,
                 userId,
                 approvalId,

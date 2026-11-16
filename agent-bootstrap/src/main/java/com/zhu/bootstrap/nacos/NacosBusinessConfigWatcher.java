@@ -4,7 +4,7 @@ import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.config.listener.Listener;
-import com.zhu.access.application.chat.gateway.ResidentAgentReloader;
+import com.zhu.runtime.api.ResidentAgentReloader;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.config.ClientAuthProperties;
 import com.zhu.access.config.WxMiniProperties;

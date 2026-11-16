@@ -1,10 +1,10 @@
-package com.zhu.access.application.chat.approval;
+package com.zhu.runtime.infrastructure.approval;
 
 import io.agentscope.core.message.ToolUseBlock;
 
 /**
- * 接入层：框架 Gate ASK 后待人批的一条。
- * {@code approvalId} 取工具调用 id，供现有 {@code /api/approvals/{id}} 复用；不写审批表。
+ * 运行层：框架 Gate ASK 后待人批的一条（进程内）。
+ * {@code approvalId} 取工具调用 id；含 {@link ToolUseBlock} 供续跑组装 ConfirmResult。
  */
 public record PendingAsk(
         String approvalId,
