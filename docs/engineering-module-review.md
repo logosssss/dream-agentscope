@@ -146,9 +146,9 @@ flowchart LR
 4. ~~bootstrap 测下沉试点~~ — **完成**（见 [`docs/bootstrap-test-sink-落地.md`](./bootstrap-test-sink-落地.md)）  
 5. ~~对内图册~~ — **完成**（见 [`docs/diagrams/`](./diagrams/README.md)、[`docs/diagrams-落地.md`](./diagrams-落地.md)）  
 6. ~~README 文档债 D1~~ — **完成**（见 [`docs/readme-debt-d1-落地.md`](./readme-debt-d1-落地.md)）  
-7. **门禁复验 R1**：见 [`docs/release-gate-r1-落地.md`](./release-gate-r1-落地.md) — 按该文 ①→⑤「继续」  
-8. 其后：R2 合并 `main`；或产品 Remote；或下一批测下沉 / 其它模块「还没有」  
+7. ~~门禁复验 R1~~ — **完成（冒烟本轮跳过）**（见 [`docs/release-gate-r1-落地.md`](./release-gate-r1-落地.md)）  
+8. 其后：R2 合并 `main`；或补跑 S2 冒烟；或产品 Remote；或下一批测下沉 / 其它模块「还没有」  
 
 ## 状态
 
-工程评估已交；防腐史诗 ①～⑤ **已收口**；审批硬删 **已收口**（见 `docs/approval-hard-delete-落地.md`）；Memory 情景/画像硬删 **已收口**（见 `docs/memory-hard-delete-落地.md`）；bootstrap 测下沉试点 **已收口**（见 `docs/bootstrap-test-sink-落地.md`）；对内图册 **已收口**（见 `docs/diagrams-落地.md`）；README 文档债 D1 **已收口**（见 `docs/readme-debt-d1-落地.md`）；门禁复验 R1 **已开锁文**（见 `docs/release-gate-r1-落地.md`）。
+工程评估已交；防腐史诗 ①～⑤ **已收口**；审批硬删 **已收口**（见 `docs/approval-hard-delete-落地.md`）；Memory 情景/画像硬删 **已收口**（见 `docs/memory-hard-delete-落地.md`）；bootstrap 测下沉试点 **已收口**（见 `docs/bootstrap-test-sink-落地.md`）；对内图册 **已收口**（见 `docs/diagrams-落地.md`）；README 文档债 D1 **已收口**（见 `docs/readme-debt-d1-落地.md`）；门禁复验 R1 **已收口（冒烟跳过）**（见 `docs/release-gate-r1-落地.md`）。

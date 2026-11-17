@@ -154,9 +154,9 @@ cd ../web-admin && pnpm build
 
 | 项 | 记录 |
 | --- | --- |
-| 日期 | 2026-11-13 |
-| 分支 / 提交 | `feat/agentscope-channel-gateway` @ `2ffd5af`（本刀为清单文档刷新，未含本刷新提交） |
-| 自动化 | 通过（本刀未复验，沿用既有全绿口径） |
-| 冒烟 | **通过**（本刀未复验，沿用 2026-11-04 冒烟；4.5 曾重启复验通过） |
-| 敏感面 | **通过**（`LICENSE` Apache-2.0、根与前端 `.env.example` 齐全；`.cursor/handoff*` 已 ignore 且未跟踪） |
-| 备注（缺陷与是否已修） | 本刀只刷新签字与 §7（补 CompactionHook 口径 C 等），不新开大模块、不重跑手测。可选 `pnpm build`、停止生成手测仍空着。开源合并目标仍见 §6（`main`）。 |
+| 日期 | 2026-11-17 |
+| 分支 / 提交 | `feat/agentscope-channel-gateway` @ `b9e1bff`（R1；签字刷新提交另计） |
+| 自动化 | **通过**（本轮 JDK 21 `mvn test` 全绿；`web` / `web-admin` `vue-tsc -b` exit 0） |
+| 冒烟 | **本轮跳过**（S2：本机中间件/8080/8100 未起；用户确认跳过；**不**沿用旧「通过」冒充本轮实跑） |
+| 敏感面 | **通过**（工作区未跟踪 `.env`；根与前端 `.env.example`、`LICENSE` Apache-2.0 在；临时 `.tmp`/`io` 未纳入门禁提交） |
+| 备注（缺陷与是否已修） | R1 专题见 `docs/release-gate-r1-落地.md`。§4.2「停止生成」、可选 `pnpm build` 仍空/不挡。合并 `main` / 现网属 R2+，本轮不做。 |
