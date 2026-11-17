@@ -7,11 +7,12 @@
 ## 必读链接（有序）
 
 1. [根 README — 本地启动与健康检查](../../README.md#本地启动推荐nacos)（live / ready）  
-2. [`agent-access/README.md`](../../agent-access/README.md) — 包表中的 `ChatController`、登录、会话、额度；以及 `/api/chat*` 与 `/api/agent/chat*` 说明  
-3. [`agent-bootstrap/README.md`](../../agent-bootstrap/README.md) — 用户进程装配入口  
-4. [`agent-runtime/README.md`](../../agent-runtime/README.md) — 执行与 Harness 边界（先扫，专题细节进④）  
-5. [`web/README.md`](../../web/README.md) — 搭子页与 `/api-console`  
-6. （预告，细读在④）[`docs/channel-gateway-落地.md`](../channel-gateway-落地.md)、[`docs/api-channel-落地.md`](../api-channel-落地.md)  
+2. [`docs/diagrams/flows.md`](../diagrams/flows.md) — 登录准入、WEB/API 主路径、落库、ASK 续跑（图 4～8）  
+3. [`agent-access/README.md`](../../agent-access/README.md) — 包表中的 `ChatController`、登录、会话、额度；以及 `/api/chat*` 与 `/api/agent/chat*` 说明  
+4. [`agent-bootstrap/README.md`](../../agent-bootstrap/README.md) — 用户进程装配入口  
+5. [`agent-runtime/README.md`](../../agent-runtime/README.md) — 执行与 Harness 边界（先扫，专题细节进④）  
+6. [`web/README.md`](../../web/README.md) — 搭子页与 `/api-console`  
+7. （预告，细读在④）[`docs/channel-gateway-落地.md`](../channel-gateway-落地.md)、[`docs/api-channel-落地.md`](../api-channel-落地.md)  
 
 ## 要搞清的问题
 

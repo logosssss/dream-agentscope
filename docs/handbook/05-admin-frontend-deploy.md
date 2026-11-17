@@ -6,14 +6,15 @@
 
 ## 必读链接（有序）
 
-1. [`agent-admin/README.md`](../../agent-admin/README.md)  
-2. [根 README — 前端联调（web / web-admin）](../../README.md#前端联调web--web-admin)  
-3. [`web/README.md`](../../web/README.md)  
-4. [`web-admin/README.md`](../../web-admin/README.md)  
-5. （可选前端方案）[`doc/企业级多 Agent 平台前端工程开发方案 (1).md`](../../doc/企业级多%20Agent%20平台前端工程开发方案%20(1).md)  
-6. 部署：[`deploy/AGENT-DEPLOY.md`](../../deploy/AGENT-DEPLOY.md)、[`deploy/AGENT-DEPLOY-USAGE.md`](../../deploy/AGENT-DEPLOY-USAGE.md)  
-7. [`deploy/nginx/README.md`](../../deploy/nginx/README.md)  
-8. （现网技能，只读了解）[`.cursor/skills/dream-agentscope-deploy/SKILL.md`](../../.cursor/skills/dream-agentscope-deploy/SKILL.md)  
+1. [`docs/diagrams/architecture.md`](../diagrams/architecture.md) — 管理进程边界（图 3）；[`flows.md`](../diagrams/flows.md) 图 8  
+2. [`agent-admin/README.md`](../../agent-admin/README.md)  
+3. [根 README — 前端联调（web / web-admin）](../../README.md#前端联调web--web-admin)  
+4. [`web/README.md`](../../web/README.md)  
+5. [`web-admin/README.md`](../../web-admin/README.md)  
+6. （可选前端方案）[`doc/企业级多 Agent 平台前端工程开发方案 (1).md`](../../doc/企业级多%20Agent%20平台前端工程开发方案%20(1).md)  
+7. 部署：[`deploy/AGENT-DEPLOY.md`](../../deploy/AGENT-DEPLOY.md)、[`deploy/AGENT-DEPLOY-USAGE.md`](../../deploy/AGENT-DEPLOY-USAGE.md)  
+8. [`deploy/nginx/README.md`](../../deploy/nginx/README.md)  
+9. （现网技能，只读了解）[`.cursor/skills/dream-agentscope-deploy/SKILL.md`](../../.cursor/skills/dream-agentscope-deploy/SKILL.md)  
 
 ## 要搞清的问题
 

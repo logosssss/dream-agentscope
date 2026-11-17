@@ -92,7 +92,7 @@ flowchart LR
 | 项 | 问题 | 建议 |
 | --- | --- | --- |
 | access README / ArchUnit | 曾误写「整个 access 禁 harness」；后仅写 controller | **①已收口**：除 gateway 外禁 harness（可执行） |
-| 模块「还没有」 | 单段过长，已交付与未做混排 | **观察**；后续可按主题拆小节（只改文档，非 P0） |
+| 模块「还没有」 | 单段过长，已交付与未做混排 | **D1 已收口**（runtime/access）；其余模块仍观察；见 [`docs/readme-debt-d1-落地.md`](./readme-debt-d1-落地.md) |
 | 指南 vs 现码 | 长文含历史草案 | 已有 landing-review 漂移表 + handbook；**保持**「行为以现码为准」 |
 | continue-landing 分支 | 已对齐 `feat/agentscope-channel-gateway` | **保持** |
 
@@ -130,8 +130,8 @@ flowchart LR
 | 动作档 | 项 |
 | --- | --- |
 | **保持** | 双进程；admin 不依赖 Harness；Redis 503；API Channel 产品路径；防腐 ArchUnit access 禁 `io.agentscope` + `runtime.infrastructure` |
-| **观察暂不动** | 旧测大搬家；「还没有」全文拆条；MCP/Sandbox 等产品开启 |
-| **只改文档** | 后续可选拆「还没有」 |
+| **观察暂不动** | 旧测大搬家；其它模块「还没有」全文拆条；MCP/Sandbox 等产品开启 |
+| **只改文档** | ~~D1 热点拆条~~ **完成**；其它模块「还没有」仍可选 |
 | **工程小改** | **新**单测放到所属模块；bootstrap 测下沉试点见 [`docs/bootstrap-test-sink-落地.md`](./bootstrap-test-sink-落地.md)；局部注释 / 包说明 |
 | **分阶段重构（须再按片 grill）** | 防腐史诗已收口（①～⑤）；新产品面另开 grill |
 | **框架调整** | 本评估无新项（见 landing-review；2.0.5 已升） |
@@ -144,8 +144,11 @@ flowchart LR
 2. ~~防腐史诗 ①～⑤~~ — **完成**  
 3. ~~审批硬删 / Memory 硬删~~ — **完成**  
 4. ~~bootstrap 测下沉试点~~ — **完成**（见 [`docs/bootstrap-test-sink-落地.md`](./bootstrap-test-sink-落地.md)）  
-5. 或其它独立 grill：产品 Remote Subagent（学习面已钉）；或再开「还没有」拆条 / 下一批测下沉  
+5. ~~对内图册~~ — **完成**（见 [`docs/diagrams/`](./diagrams/README.md)、[`docs/diagrams-落地.md`](./diagrams-落地.md)）  
+6. ~~README 文档债 D1~~ — **完成**（见 [`docs/readme-debt-d1-落地.md`](./readme-debt-d1-落地.md)）  
+7. **门禁复验 R1**：见 [`docs/release-gate-r1-落地.md`](./release-gate-r1-落地.md) — 按该文 ①→⑤「继续」  
+8. 其后：R2 合并 `main`；或产品 Remote；或下一批测下沉 / 其它模块「还没有」  
 
 ## 状态
 
-工程评估已交；防腐史诗 ①～⑤ **已收口**；审批硬删 **已收口**（见 `docs/approval-hard-delete-落地.md`）；Memory 情景/画像硬删 **已收口**（见 `docs/memory-hard-delete-落地.md`）；bootstrap 测下沉试点 **已收口**（见 `docs/bootstrap-test-sink-落地.md`）。
+工程评估已交；防腐史诗 ①～⑤ **已收口**；审批硬删 **已收口**（见 `docs/approval-hard-delete-落地.md`）；Memory 情景/画像硬删 **已收口**（见 `docs/memory-hard-delete-落地.md`）；bootstrap 测下沉试点 **已收口**（见 `docs/bootstrap-test-sink-落地.md`）；对内图册 **已收口**（见 `docs/diagrams-落地.md`）；README 文档债 D1 **已收口**（见 `docs/readme-debt-d1-落地.md`）；门禁复验 R1 **已开锁文**（见 `docs/release-gate-r1-落地.md`）。

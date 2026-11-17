@@ -104,6 +104,28 @@
 
 `POST /api/register` 用账号和密码建客户端用户并立刻签发会话。`POST /api/login` 核对密码。失败只说账号或密码不正确，HTTP 仍是 200。账号进配置的租户，默认 `demo`，该租户必须已登记且为 `ACTIVE`，否则 503。`userId` 随机生成。密码用 PBKDF2-HMAC-SHA256。微信扫码在密钥配齐时开启：网站 `POST /api/auth/wx/ticket` 出码，`GET /api/auth/wx/ticket/{ticketId}` 取会话，小程序 `POST /api/public/auth/wx/confirm` 交票号和 code，不带调用方令牌。同一个 openid 是同一个账号，不能用密码登录。票在 Redis，默认 5 分钟，确认后保留 2 分钟。签发的令牌写入 Redis，键是 `login-session:{token}`。不发 JWT。有效秒数读 `agentscope.access.login-session-seconds`，默认一天。后续请求带 `Authorization: Bearer <token>`，无效 401，Redis 失败 503。没带会话按未登录。请求头和对话请求体不能再指定用户。`POST /api/logout` 删掉会话键。`GET /api/me` 回这次会话里的租户和用户。MySQL 打开时带显示名和状态；关闭时这两项为空。不读剩余 TTL。除小程序确认外，调用方令牌仍然要过。MySQL 关闭时门对已有会话放行，只留给测试。注册和密码登录在 MySQL 关闭时返回不可用。
 
+## 已交付（摘要）
+
+- 登录会话 Bearer（非 JWT）；Caller 令牌；租户/用户 ACTIVE 门；额度与占锁（Redis 失败 503）
+- WEB `/api/chat*` 与 API Channel `/api/agent/chat*` + `/api-console`（[`api-channel-落地.md`](../docs/api-channel-落地.md)）
+- 流式 ASK → `PendingAskFacade`；`GET/POST /api/approvals*` 续跑；旧审批表/通知/`APPROVAL` 待办 **已硬删**（[`approval-hard-delete-落地.md`](../docs/approval-hard-delete-落地.md)、[`permission-gate-落地.md`](../docs/permission-gate-落地.md)）
+- 会话/消息/运行/步骤/任务/用量/额度/待办/反馈/附件/删除请求/知识库 HTTP 面（细则见上文各段）
+- 通知 API 固定空列表（硬删后口径）；Wakeup 内部 HTTP（默认关；[`wakeup-落地.md`](../docs/wakeup-落地.md)）
+- 图册流程：[`docs/diagrams/flows.md`](../docs/diagrams/flows.md)
+
+## 已知限制（刻意不做）
+
+- 不做服务账号 / API Key；不做独立额度桶 `api-chat*`
+- 不上 **产品** Remote Subagent / `mode=mq`（Remote 学习面见 [`remote-subagent-落地.md`](../docs/remote-subagent-落地.md)）
+- 同步 chat 遇 ASK **不登记**活单；通知路由保留但恒空/找不到
+- 知识库不解析 PDF/Office；删除请求只登记不真删；调度可登记但不计算下次触发、不消费
+- 待办不核运行/任务是否存在；反馈不核运行、不收文件
+- SSE 只转发运行层事件，接入层不调 `streamEvents`；通道枚举留在接入层
+- 就绪检查只探测 Milvus 地址；集合由用户进程创建
+
 ## 还没有
 
-JWT、IM **消息**通道适配（扫码登录保持原状）。**API Channel 已收口**（`/api/agent/chat*` + Gateway `{chatui,api}` + 用户端 `/api-console`）；不做服务账号/API Key、不做独立额度桶、不上 **产品** Remote Subagent / `mode=mq`（Remote 学习声明面见 `docs/remote-subagent-落地.md`）。见 `docs/api-channel-落地.md`。调用方令牌已经校验。对话身份只来自登录会话。MySQL 打开时，对话、会话列表、运行记录、用量、额度、同步任务、待确认、待办、反馈、附件、删除请求和知识库接口都要求这个租户已登记且状态是 `ACTIVE`，并且这个用户已挂到该租户且状态是 `ACTIVE`。停用走管理接口。对话同时选用启用的 `model_config`，没有行再用进程配置。MySQL 关闭时不查。Permission Gate **运行入口 = 当前 A**（①～④ 已收口）：流式遇 Gate `RequireUserConfirm` → 运行层 `PendingAskStore`；`GET /api/approvals/pending` 经 `PendingAskFacade` 读活单；`POST .../decision` 经 Facade 续跑。同步 chat 遇 ASK 不登记。旧审批表 / 审批通知 / `APPROVAL` 待办 **已硬删**（见 `docs/approval-hard-delete-落地.md`）。`GET /api/notifications` 固定空列表；`GET /api/notifications/{notificationId}` 固定找不到。`POST /api/todos` 只接受 `CONFIRM` / `TASK`。不核运行或任务是否存在。`GET /api/todos` 返回当前用户还开着的确认与任务。`GET /api/todos/{todoId}` 看一条待办，含已关闭行和创建时间，不带回截止时间。别人的主键按找不到。`POST /api/todos/{todoId}/done` 把这个用户还开着的确认或任务改成 `DONE`。`POST /api/todos/{todoId}/cancel` 改成 `CANCELLED`。别人的行按找不到处理。MySQL 关闭时待办接口返回不可用。`GET /api/feedback` 列出当前用户的反馈，默认 50 条，最多 100 条。`GET /api/feedback/{feedbackId}` 先确认本人再返回评分、说明和创建时间，不读对话正文。别人的主键按找不到。表没有租户列，不按租户再滤。`POST /api/feedback` 记下当前用户对一次运行的评分，只接受 1 到 5。不核对运行是否存在，也不接收文件。MySQL 关闭时返回不可用。`GET /api/attachments` 列出当前用户在这个租户下仍启用的附件，默认 50 条，最多 100 条。不读对象存储。`GET /api/attachments/{attachmentId}` 先确认归属再带 MIME、大小和创建时间，不带回校验和。列表仍不带创建时间。别人的或停用的按找不到。`POST /api/attachments` 仍可只登记元数据，不收文件。空白存储类型按 `LOCAL`。`POST /api/attachments/file` 收 multipart，字节写入 `ObjectStore`，`storage_type` 跟实现走，路径为 `att/{tenant}/{user}/{id}/{fileName}`，不超过 5MB。`POST /api/attachments/{attachmentId}/disable` 把本人本租户仍启用的改成 `DELETED`，不删对象也不删引用。`POST /api/attachments/{attachmentId}/restore` 改回 `ACTIVE`。`GET /api/attachments/{attachmentId}/content` 只下载本人已落到对象存储的文件，路径必须落在 `att/{tenant}/{user}/` 或 `kb/{tenant}/{user}/`。对象不存在或 JSON 声称的盘路径按找不到。失败仍走统一 JSON。`POST /api/attachments/{attachmentId}/refs` 把该附件挂到一条消息或一次运行上，附件必须属于当前用户且仍启用。不核对话或运行是否存在。`GET /api/attachments/{attachmentId}/refs` 先确认本人本租户仍启用再列出引用和挂上的时间，默认 50 条，最多 100 条。别人的或停用的按找不到。不读对象存储。MySQL 关闭时返回不可用。`GET /api/deletion-requests` 列出当前用户在这个租户下的删除请求，默认 50 条，最多 100 条，含已决定的行。`GET /api/deletion-requests/{requestId}` 先确认本人本租户再返回类型、状态、原因和提出时间。别人的标识按找不到。不执行删除。`POST /api/deletion-requests` 记下当前用户的数据删除请求，状态是 `PENDING`。只接受 `SESSION` / `ATTACHMENT` / `ALL`。不批准，也不真正删除。MySQL 关闭时返回不可用。知识库可接 JSON 正文或纯文本文件 multipart；不解析 PDF/Office。文件字节写入 `ObjectStore`。列表库、单库详情、文档列表、删库、删文档已有；删时按 DOCUMENT 引用清对象。`GET /api/kb/{kbId}` 先确认归属再返回库名和创建时间，不读文档。列表也带建库时间。别人的标识按找不到。`GET /api/kb/documents/{docId}` 先确认本人本租户再返回最新一版的状态、标题和创建、更新时间。不读正文。别人的标识按找不到。不改状态，也不触发索引。Hybrid 与 Rerank 已在运行层。`GET /api/runs` 列出当前用户在这个租户下已经结束的运行，默认 50 条，最多 100 条。只带短摘要，不读步骤，也不返回异常原文。`GET /api/runs/{runId}` 看一次运行、步骤和开始结束时间，别人的标识按找不到。列表仍不带开始结束时间。`GET /api/usage` 列出当前用户在这个租户下的 token 用量，默认 50 条，最多 100 条。`GET /api/usage/{usageId}` 先确认本人本租户再返回 token、金额和记账时间。别人的主键按找不到。不带提示词，也不改金额。`GET /api/quota` 看当日请求、token、费用微单位和同时运行的已用量与上限。不增加计数。Redis 失败返回不可用。`GET /api/me` 看这次请求的租户和用户。MySQL 打开时带显示名和状态。不读剩余 TTL。`GET /api/tasks` 列出当前用户在这个租户下的同步任务，默认 50 条，最多 100 条。不读 payload，也不是待办。`GET /api/tasks/{taskId}` 看一次任务的开始结束时间，别人的标识按找不到。MySQL 关闭时返回不可用。会话列表已经按当前用户读 `agent_session_meta`。会话详情已经带最近运行和轮数。运行列表已经按当前用户读 `agent_run`。SSE 只转发运行层已经收好的事件，接入层不调用 `streamEvents`。危机档和打开人设检查时可能先没有文本增量，结束事件带检查后的全文。通道枚举已经在接入层，不要挪到运行层。就绪检查只探测 Milvus 地址。集合由用户进程创建，管理进程不建。Wakeup（①～③ 已收口）：默认关；`WakeupCoordinator` + `POST /api/internal/wakeups` + `X-Wakeup-Token`；仅 companion；忙会话跳过；不做调度表消费 / Inbox / TeamWakeups。见 `docs/wakeup-落地.md`。
+- JWT
+- IM **消息**通道适配（扫码登录保持原状）
+- 调度真正消费、按保留策略清理、批准删除后真删数据
+

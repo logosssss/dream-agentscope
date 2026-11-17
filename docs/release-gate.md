@@ -75,7 +75,7 @@ cd ../web-admin && pnpm build
 - [x] `GET http://127.0.0.1:8100/health/live` 正常
 - [x] `GET http://127.0.0.1:8100/health/ready` 正常
 - [x] 管理端带正确 Admin Token 访问业务接口**不再** `caller token is invalid`
-- [x] 用 **CALLER** Token 打管理审批接口应失败；用 **ADMIN** Token 应成功（确认两者未串）
+- [x] 用 **CALLER** Token 打管理业务接口（如租户/工具目录）应失败；用 **ADMIN** Token 应成功（确认两者未串；旧管理端审批 API 已硬删）
 
 ---
 
@@ -118,8 +118,8 @@ cd ../web-admin && pnpm build
 ## 5. 手测冒烟 — 管理端（`web-admin` / 8100）
 
 - [x] 顶栏 Admin Token 有效，业务页可加载
-- [x] **审批**：能看到待审批列表；批准或拒绝成功（操作人空时默认 `admin`）（本轮列表为空属正常；Token 与接口 200；用户端批准/拒绝已验）
-- [x] 其它已接页面（租户、用户、工具、额度、模型等）**点开不白屏、不 401**（不要求每条都做写操作）（租户/审批/工具 UI + 多条 admin API 200）
+- [x] 旧管理端**审批页已硬删**（见 `docs/approval-hard-delete-落地.md`）；Gate ASK 活单在用户进程 `/api/approvals*`（§4.3）
+- [x] 其它已接页面（租户、用户、工具、额度、模型等）**点开不白屏、不 401**（不要求每条都做写操作）（多条 admin API 200）
 
 ---
 
@@ -144,6 +144,9 @@ cd ../web-admin && pnpm build
 - 管理员账号登录页（管理端现阶段靠 Admin Token）  
 - 按保留策略真正清理、批准删除后真删、调度真正消费  
 - 教程正文与配图（另开 Agent）  
+- 旧管理端审批表 / 审批页：**已硬删**；不挡门禁（见 `docs/approval-hard-delete-落地.md`）  
+- 对内图册与 runtime/access「还没有」拆条：文档卫生，不挡门禁（见 `docs/diagrams-落地.md`、`docs/readme-debt-d1-落地.md`）  
+
 
 ---
 

@@ -111,9 +111,32 @@ AgentStreamEvent   接入层再写成 SSE
 1. 在 `agent-runtime` 引入 `rocketmq-spring-boot-starter`。现在不要加。
 2. 配置 `rocketmq.name-server`，地址只来自环境变量。不要把地址写进仓库。
 3. 增加消费者，监听 topic `agentscope-tasks`，收到消息后调用现有的 `AgentTaskHandler.handle`。消息 key 用 `taskId`。不要再注册第二个 `AgentTaskHandler`。
+## 已交付（摘要）
+
+- 安全与人设：关键词/语义定档；危机输出红线；人设纠正短句或满 20 轮；流式增量可先扣后盖。图见 [`docs/diagrams/chains.md`](../docs/diagrams/chains.md)
+- Memory：用户工作区 `MEMORY.md` + 危机闸 flush；`memory_*` 已开；情景/画像 **已硬删**（[`memory-longterm-落地.md`](../docs/memory-longterm-落地.md)、[`memory-hard-delete-落地.md`](../docs/memory-hard-delete-落地.md)）
+- 上下文：危机闸 Eviction → Compaction；echo 不挂（[`compaction-落地.md`](../docs/compaction-落地.md)、[`tool-result-eviction-落地.md`](../docs/tool-result-eviction-落地.md)）
+- Skills 窄面：`disableDynamicSkills`；工作区默认 skill 可空；`load_skill` 保留（[`skills-落地.md`](../docs/skills-落地.md)）
+- Subagent：动态关；companion 静态 `subagent-probe`（[`subagent-落地.md`](../docs/subagent-落地.md)）
+- Permission Gate 运行入口 A + `PendingAsk*`；旧审批链路硬删（[`permission-gate-落地.md`](../docs/permission-gate-落地.md)、[`approval-hard-delete-落地.md`](../docs/approval-hard-delete-落地.md)）
+- MCP / Sandbox / Wakeup 接线已收口（默认关或空清单不连；见对应落地文）
+- 知识：`knowledge_search` Hybrid + Rerank；索引 sync 发布 + 入口 `@Async`；删库/附件 multipart 在接入层
+- 图册：[`docs/diagrams/`](../docs/diagrams/README.md)
+
+## 已知限制（刻意不做）
+
+- 紧急 `compactionHook`：**不装**（口径 C；[`compaction-hook-落地.md`](../docs/compaction-hook-落地.md)）
+- Skills manage / Curator / Marketplace / Promotion：**不开**（[`skills-curator-落地.md`](../docs/skills-curator-落地.md)）
+- 动态 Subagent / 多角色工人：**不上**；Remote **仅学习声明面**，工厂不挂（[`remote-subagent-落地.md`](../docs/remote-subagent-落地.md)）
+- MCP **服务发现**、Sandbox 私有仓库拉取 / 沙箱体积旋钮 / echo 扩事件、Wakeup 调度表·Inbox·TeamWakeups·跨副本 Bus：**不做**
+- `mode=mq`：启动失败；不引入 RocketMQ 依赖（切 mq 前须另专题完成客户端与消费者）
+- 本模块不写 HTTP/SSE 控制器；不注册第二个 `AgentTaskHandler`
+- 不按产品预构建多份常驻 Builder（每次请求 build）
 
 ## 还没有
 
-按产品预构建多份 Builder。进出模型仍检查长度和未替换的 `{{变量}}`。关键词命中 `CRITICAL` 时换成危机话术，不再问语义判定。语义判定失败按 `ELEVATED`。干预写失败不改变话术。危机档同步和流式都检查输出红线，流式先攒齐再查，命中换成 `CrisisPrompt`，不另写干预。升高档不查输出红线。普通人设检查时流式仍推送文本增量，结束再按基线覆盖。会话已经成功 20 轮或用户对准身份纠正时，按规则看人设漂移。短基线来自 `PersonaContract`，不调模型。纠正只认固定短句。标记只活这一轮。跨会话记忆权威是用户工作区 `MEMORY.md`（LLM flush，CRITICAL 不入队；`memory_*` 已开）。情景/画像表与遗留 Middleware **已硬删**（见 `docs/memory-hard-delete-落地.md`）。管理端无情景/画像 API。见 `docs/memory-longterm-落地.md`。companion 上下文治理：危机闸 Eviction（`defaults()`）→ Compaction（默认阈值，同对话模型）；CRITICAL 整段跳过；echo 不开。紧急 `compactionHook` 按口径 C 不装（无法只装 hook；见 `docs/compaction-hook-落地.md`）。见 `docs/compaction-落地.md`、`docs/tool-result-eviction-落地.md`。Skills（窄）：`configureCommon` 已 `disableDynamicSkills`；工作区默认 skill 仍开（不调 `disableDefaultWorkspaceSkills`）；仓库/启动不写 `AGENTS.md` 或 skill 种子；`load_skill` 面保留。见 `docs/skills-落地.md`。Skills Curator/manage（①～③ 已收口）：工厂不调 `enableSkillManageTool` / `enableSkillCurator`（默认关）；不宣称已接产品开启；Marketplace / Promotion / 显式开启路径另块。见 `docs/skills-curator-落地.md`。Subagent：`configureCommon` 已 `disableDynamicSubagents`；companion 仅静态 `subagent-probe`（ISOLATED / 继承权限 / 零工具 / `Mode.SUBAGENT`）；echo 不挂；不上多角色 / 动态恢复。嵌套靠探针零工具 + Mode 收敛，框架若仍向子代理注入 `agent_*` 则标已知限制。见 `docs/subagent-落地.md`。Remote Subagent：**学习声明面**已钉（`url`→`isRemote` / AskPolicy 读回；工厂不挂 Remote、无端到端）；见 `docs/remote-subagent-落地.md`。RocketMQ 客户端和消费者还没接。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。不要再注册第二个 `AgentTaskHandler`。知识库删库/删文档与纯文本文件上传在接入层完成。Hybrid + 百炼 Rerank 已接。索引仍走 sync 发布器，只是入口 `@Async` 离开 HTTP 线程。对象存储在 `agent-object-store`（local / OSS / S3 / MinIO 可切换）。通用附件 multipart 写入和正文下载已在接入层。知识库删文档/删库时按 DOCUMENT 引用清对象。
+- RocketMQ 客户端与 `agentscope-tasks` 消费者（仅当未来真开 `mode=mq`）
+- 产品级 Remote Subagent（鉴权、超时、失败语义、工厂旋钮）
+- Skills manage/Curator **产品开启路径**（若另 grill 锁定）
+- 框架若仍向子代理注入 `agent_*`：继续标已知限制，本专题不宣称已根治
 
-Permission Gate **运行入口 = 当前 A**（专题 ①～④ 已收口）：`ApprovalMiddleware` 只问 `PermissionRuleService`；产品 ASK→DENY；无条件判定交 Gate；续跑见 `docs/permission-gate-落地.md`。旧审批软退役 **已硬删**（见 `docs/approval-hard-delete-落地.md`）。历史双闸 B 见 `docs/permission-engine-落地.md`。框架自 2.0.0 起把 `Hook` 标成删除，执行策略挂在 `Middleware` 上。MCP（①～③ 已收口）：无清单不连；有清单仅 companion 经 `ToolsConfig.mcpServers` 装配；不做 MCP 服务发现；不另建 MCP 默认 DENY。见 `docs/mcp-落地.md`。Sandbox（①～③ 已收口）：默认 Remote USER；`sandbox.enabled=true` 仅 companion 换 Docker；缺 Store / Docker CLI 硬失败；shell 仍关；不做私有仓库拉取、不加沙箱专用体积旋钮、不扩 echo 事件。见 `docs/sandbox-落地.md`。Wakeup（①～③ 已收口）：默认关；进程内 `InMemoryMessageBus` + `WakeupCoordinator`；内部 HTTP 仍在接入层；不做调度表消费 / Inbox / TeamWakeups / 跨副本 Bus。见 `docs/wakeup-落地.md`。不宣称已接 Skills manage/Curator 开启路径 / Marketplace / Promotion / 多 Channel / `mode=mq` / **产品** Remote Subagent（学习声明面见 `docs/remote-subagent-落地.md`）。

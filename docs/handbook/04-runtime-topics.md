@@ -2,6 +2,12 @@
 
 按依赖顺序过完已收口专题。默认关闭能力：**只读**检查点。`packaging` 置顶；`release-gate` 殿后。
 
+图册对照（先建立形状再读落地文）：
+
+- [`docs/diagrams/chains.md`](../diagrams/chains.md) — Middleware / Gateway / Memory / CompactionHook / 知识检索（图 9～13）  
+- [`docs/diagrams/extensions.md`](../diagrams/extensions.md) — MCP / Sandbox / Wakeup / Skills·Curator / Subagent（图 14～18，默认关或学习面）  
+- 索引：[`docs/diagrams/README.md`](../diagrams/README.md)
+
 ---
 
 ## 4.0 Packaging（分包）

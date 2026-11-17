@@ -2,6 +2,8 @@
 
 对内自学 / 接手用的**索引型**路径。不重写业务结论；结论真相源仍是各模块 `README`、「还没有」与 `docs/*-落地.md`。
 
+架构 / 流程 / 链路图见 [`docs/diagrams/`](../diagrams/README.md)（Mermaid 真相源；专题 [`diagrams-落地.md`](../diagrams-落地.md)）。
+
 对外发文母版在 [`docs/tutorial/`](../tutorial/)，与本目录隔离。
 
 ## 已锁定约定
