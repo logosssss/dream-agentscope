@@ -2,14 +2,6 @@ package com.zhu.runtime.infrastructure.agent;
 
 import com.zhu.runtime.application.turn.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
-import com.zhu.runtime.domain.middleware.ApprovalMiddleware;
-import com.zhu.runtime.domain.middleware.AuditMiddleware;
-import com.zhu.runtime.domain.middleware.CrisisGatedCompactionMiddleware;
-import com.zhu.runtime.domain.middleware.CrisisGatedMemoryFlushMiddleware;
-import com.zhu.runtime.domain.middleware.CrisisGatedToolResultEvictionMiddleware;
-import com.zhu.runtime.domain.middleware.FileWriteLimitMiddleware;
-import com.zhu.runtime.domain.middleware.PersonaConsistencyMiddleware;
-import com.zhu.runtime.domain.middleware.SafetyGateMiddleware;
 import com.zhu.semantic.contract.product.CompletionCriteria;
 import com.zhu.semantic.contract.product.ProductSemanticProvider;
 import com.zhu.semantic.contract.tool.ProductTool;
@@ -32,6 +24,7 @@ import org.springframework.stereotype.Component;
 /**
  * 长驻 Agent 的 Builder 定制口。真正 {@code build()} 由 {@code GatewayBootstrap} 完成。
  * 公共项走 {@link #configureCommon}；搭子 / echo 差异走各自 customize。
+ * companion 产品中间件顺序由 {@link CompanionMiddlewareChain} 固定挂载；tracing / shutdown 只在 common。
  * Skills 窄范围：公共项关动态 skill，工作区默认 skill 仍开；不写种子（见 docs/skills-落地.md）。
  * Skills Curator/manage：common 与 customize 均不调 enable*（框架默认关；单独 Curator 无效；开启另块；见 docs/skills-curator-落地.md）。
  * Subagent：公共项关动态；companion 挂一份 {@code subagent-probe}；echo 不挂（见 docs/subagent-落地.md）。
@@ -64,21 +57,8 @@ public class HarnessAgentFactory {
 
     private final PermissionContextFactory permissionContexts;
 
-    private final AuditMiddleware auditMiddleware;
-
-    private final ApprovalMiddleware approvalMiddleware;
-
-    private final FileWriteLimitMiddleware fileWriteLimit;
-
-    private final SafetyGateMiddleware safetyGate;
-
-    private final PersonaConsistencyMiddleware personaConsistency;
-
-    private final CrisisGatedMemoryFlushMiddleware crisisGatedMemoryFlush;
-
-    private final CrisisGatedCompactionMiddleware crisisGatedCompaction;
-
-    private final CrisisGatedToolResultEvictionMiddleware crisisGatedToolResultEviction;
+    /** companion 产品闸固定顺序；不进 echo。 */
+    private final CompanionMiddlewareChain companionMiddlewares;
 
     private final AgentShutdown shutdown;
 
@@ -96,21 +76,14 @@ public class HarnessAgentFactory {
     /** companion 共用一份监听，避免每次 customize 新建。 */
     private static final McpServerRegistrationListener MCP_LISTENER = HarnessAgentFactory::onMcpRegistration;
 
-    /** 写文件限制、审批、安全门、人设标记、Eviction/Compaction 闸与 Memory flush 闸都挂上。体积检查更靠前，危机换话术在模型前。 */
+    /** 产品闸经 {@link CompanionMiddlewareChain} 挂载；体积检查更靠前，危机换话术在模型前。 */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,
             ResolvedChatModel chatModel,
             ProductSemanticProvider semantics,
             ObjectProvider<DistributedStore> stores,
             PermissionContextFactory permissionContexts,
-            AuditMiddleware auditMiddleware,
-            ApprovalMiddleware approvalMiddleware,
-            FileWriteLimitMiddleware fileWriteLimit,
-            SafetyGateMiddleware safetyGate,
-            PersonaConsistencyMiddleware personaConsistency,
-            CrisisGatedMemoryFlushMiddleware crisisGatedMemoryFlush,
-            CrisisGatedCompactionMiddleware crisisGatedCompaction,
-            CrisisGatedToolResultEvictionMiddleware crisisGatedToolResultEviction,
+            CompanionMiddlewareChain companionMiddlewares,
             AgentShutdown shutdown,
             List<ProductTool> productTools) {
         this.properties = properties;
@@ -118,14 +91,7 @@ public class HarnessAgentFactory {
         this.semantics = semantics;
         this.stores = stores;
         this.permissionContexts = permissionContexts;
-        this.auditMiddleware = auditMiddleware;
-        this.approvalMiddleware = approvalMiddleware;
-        this.fileWriteLimit = fileWriteLimit;
-        this.safetyGate = safetyGate;
-        this.personaConsistency = personaConsistency;
-        this.crisisGatedMemoryFlush = crisisGatedMemoryFlush;
-        this.crisisGatedCompaction = crisisGatedCompaction;
-        this.crisisGatedToolResultEviction = crisisGatedToolResultEviction;
+        this.companionMiddlewares = companionMiddlewares;
         this.shutdown = shutdown;
         this.productTools = productTools == null ? List.of() : List.copyOf(productTools);
     }
@@ -203,19 +169,8 @@ public class HarnessAgentFactory {
             builder.mcpServerRegistrationListener(MCP_LISTENER);
         }
         applyCompanionFilesystem(builder);
-        // 审计、写文件上限、审批、安全门、人设检查走 Middleware。
-        // 跨会话记忆权威是 Harness Memory（CrisisGated flush）；情景/画像遗留已硬删。
-        builder.middleware(auditMiddleware);
-        builder.middleware(fileWriteLimit);
-        builder.middleware(approvalMiddleware);
-        builder.middleware(safetyGate);
-        // 须在 SafetyGate 之后、Compaction 之前：先截断大工具结果。
-        builder.middleware(crisisGatedToolResultEviction);
-        // 须在 SafetyGate 之后：CRITICAL 整段跳过 Compaction（含压前 flush）。
-        builder.middleware(crisisGatedCompaction);
-        builder.middleware(personaConsistency);
-        // 须在 SafetyGate 之后：靠本轮 RiskLevel 决定是否入队 flush。
-        builder.middleware(crisisGatedMemoryFlush);
+        // 产品闸顺序见 CompanionMiddlewareChain / docs/diagrams/chains.md；情景/画像遗留已硬删。
+        companionMiddlewares.apply(builder);
     }
 
     /**
@@ -271,13 +226,18 @@ public class HarnessAgentFactory {
 
     /**
      * 搭子 build 完成后挂目录工具。加在这次 Agent 自己的 Toolkit 上。
-     * 目录里没有的业务工具不会出现。
+     * 目录里没有的业务工具不会出现。单工具失败只打日志，不让 Gateway 起不来。
      */
     public void attachCompanionTools(HarnessAgent agent) {
         if (agent == null) {
             return;
         }
-        toolRegistrar.register(agent.getToolkit(), semantics.tools(), productTools);
+        CatalogToolRegistrationReport report =
+                toolRegistrar.register(agent.getToolkit(), semantics.tools(), productTools);
+        if (!report.failed().isEmpty()) {
+            LOG.warning("companion catalog tools partial failure failed=" + report.failed()
+                    + " registered=" + report.registered());
+        }
     }
 
     /** 默认搭子标识：语义 → 运行配置 → companion-v1。给 Bootstrap mainAgent / agent 键使用。 */

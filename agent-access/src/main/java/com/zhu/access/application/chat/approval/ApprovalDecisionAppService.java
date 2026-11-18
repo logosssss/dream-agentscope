@@ -3,8 +3,8 @@ package com.zhu.access.application.chat.approval;
 import com.zhu.audit.api.approval.ApprovalDecision;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.runtime.api.PendingAskFacade;
-import com.zhu.runtime.api.PendingAskSummary;
+import com.zhu.runtime.api.approval.PendingAskFacade;
+import com.zhu.runtime.api.approval.PendingAskSummary;
 import org.springframework.stereotype.Service;
 
 /**

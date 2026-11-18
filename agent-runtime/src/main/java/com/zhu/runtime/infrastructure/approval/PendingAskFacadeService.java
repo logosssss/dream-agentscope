@@ -1,7 +1,7 @@
 package com.zhu.runtime.infrastructure.approval;
 
-import com.zhu.runtime.api.PendingAskFacade;
-import com.zhu.runtime.api.PendingAskSummary;
+import com.zhu.runtime.api.approval.PendingAskFacade;
+import com.zhu.runtime.api.approval.PendingAskSummary;
 import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
 import java.util.ArrayList;
 import java.util.List;

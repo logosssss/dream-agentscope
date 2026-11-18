@@ -1,6 +1,6 @@
 package com.zhu.runtime.application.stream;
 
-import com.zhu.runtime.api.AgentStreamEvent;
+import com.zhu.runtime.api.agent.AgentStreamEvent;
 import com.zhu.runtime.domain.ModelTextGuard;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentResultEvent;

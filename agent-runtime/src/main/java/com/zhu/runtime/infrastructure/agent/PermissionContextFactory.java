@@ -8,6 +8,7 @@ import io.agentscope.core.permission.PermissionContextState;
 import io.agentscope.core.permission.PermissionMode;
 import io.agentscope.core.permission.PermissionRule;
 import java.util.List;
+import java.util.logging.Logger;
 import org.springframework.stereotype.Component;
 
 /**
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class PermissionContextFactory {
+
+    private static final Logger log = Logger.getLogger(PermissionContextFactory.class.getName());
 
     /**
      * 当目录为空时用来撑非 trivial 的占位工具名。
@@ -73,7 +76,8 @@ public class PermissionContextFactory {
             case ASK -> builder.addAskRule(toolId, engineRule);
             case DENY -> builder.addDenyRule(toolId, engineRule);
             default -> {
-                // PASSTHROUGH 不在产品三态里，忽略。
+                // PASSTHROUGH 等非产品三态：可观测后跳过，不炸启动。
+                log.warning("permission behavior ignored toolId=" + toolId + " behavior=" + behavior);
             }
         }
     }

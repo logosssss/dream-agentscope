@@ -1,10 +1,10 @@
 # 链路图（9～13）
 
-结论权威：[`HarnessAgentFactory`](../../agent-runtime/src/main/java/com/zhu/runtime/infrastructure/agent/HarnessAgentFactory.java)、各 `docs/*-落地.md`。索引见 [README.md](./README.md)。
+结论权威：[`CompanionMiddlewareChain`](../../agent-runtime/src/main/java/com/zhu/runtime/infrastructure/agent/CompanionMiddlewareChain.java)（产品闸顺序）、[`HarnessAgentFactory`](../../agent-runtime/src/main/java/com/zhu/runtime/infrastructure/agent/HarnessAgentFactory.java)、各 `docs/*-落地.md`。索引见 [README.md](./README.md)。
 
 ## 9. companion 一轮 Middleware 顺序
 
-`configureCommon` 先挂 tracing / shutdown；`customizeCompanion` 再挂产品中间件。Eviction → Compaction 须在 SafetyGate 之后；CRITICAL 整段跳过 Eviction/Compaction；Memory flush 非 CRITICAL 才入队。
+`configureCommon` 先挂 tracing / shutdown；`customizeCompanion` 经 `CompanionMiddlewareChain.apply` 挂产品中间件。Eviction → Compaction 须在 SafetyGate 之后；CRITICAL 整段跳过 Eviction/Compaction；Memory flush 非 CRITICAL 才入队。
 
 ```mermaid
 flowchart TB

@@ -1,11 +1,12 @@
 package com.zhu.runtime.infrastructure.gateway;
 
 import com.zhu.common.util.Ids;
-import com.zhu.runtime.api.AgentExecutor;
-import com.zhu.runtime.api.AgentRequest;
-import com.zhu.runtime.api.AgentResponse;
-import com.zhu.runtime.api.AgentStreamEvent;
-import com.zhu.runtime.api.ResidentAgentReloader;
+import com.zhu.runtime.api.agent.AgentExecutor;
+import com.zhu.runtime.api.agent.AgentRequest;
+import com.zhu.runtime.api.agent.AgentResponse;
+import com.zhu.runtime.api.agent.AgentStreamEvent;
+import com.zhu.runtime.api.agent.RebuildResult;
+import com.zhu.runtime.api.agent.ResidentAgentReloader;
 import com.zhu.runtime.application.turn.AgentTurnSupport;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentRegistry;
@@ -28,8 +29,10 @@ import io.agentscope.harness.agent.gateway.channel.chatui.ChatUiChannel;
 import io.agentscope.harness.agent.gateway.channel.chatui.SendOptions;
 import jakarta.annotation.PreDestroy;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
@@ -77,12 +80,14 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
 
     private GatewayBootstrap bootstrap;
 
-    private ChatUiChannel channel;
+    /** DCL 无锁快路径发布；须 volatile。 */
+    private volatile ChatUiChannel channel;
 
-    /** API Channel；与 ChatUi 一并注册。WEB 主路径不用。 */
-    private ApiChannel apiChannel;
+    /** API Channel；与 ChatUi 一并注册。WEB 主路径不用。DCL 无锁快路径须 volatile。 */
+    private volatile ApiChannel apiChannel;
 
-    private String mainAgentId;
+    /** 启动后供 options / 续跑比路由；无锁读取须 volatile。 */
+    private volatile String mainAgentId;
 
     /** 只接线，不立刻建模型；缺 DASHSCOPE_API_KEY 时仍允许进程起来。 */
     @Autowired
@@ -156,10 +161,11 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
         turns.require(request);
         drain.beginTurn();
-        RuntimeContext context = turns.context(request);
-        long started = System.nanoTime();
-        AtomicReference<String> runId = new AtomicReference<>(Ids.newId());
+        // context / 懒启动若同步抛错须 endTurn；成功路径靠 doFinally。
         try {
+            RuntimeContext context = turns.context(request);
+            long started = System.nanoTime();
+            AtomicReference<String> runId = new AtomicReference<>(Ids.newId());
             return channel()
                     .sendStream(options(request), request.userText())
                     .doOnNext(event -> onStreamEvent(request, runId, started, event))
@@ -179,11 +185,12 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     public Flux<AgentStreamEvent> streamApi(AgentRequest request) {
         turns.require(request);
         drain.beginTurn();
-        RuntimeContext context = turns.context(request);
-        long started = System.nanoTime();
-        AtomicReference<String> runId = new AtomicReference<>(Ids.newId());
-        String agentId = turns.agentId(request);
+        // 与 stream 相同：同步准备失败须放行排水闸。
         try {
+            RuntimeContext context = turns.context(request);
+            long started = System.nanoTime();
+            AtomicReference<String> runId = new AtomicReference<>(Ids.newId());
+            String agentId = turns.agentId(request);
             return apiChannel()
                     .sendStream(
                             request.userId(),
@@ -270,23 +277,46 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
 
     /**
      * 排空在途对话后停掉旧 Gateway，再按当前配置重建 companion + echo。
-     * 尚未懒启动过则空操作。排空上限复用运行超时，避免热更卡死。
+     * 尚未懒启动过则 SKIPPED。排空上限复用运行超时；超时仍重建并标 TIMEOUT。
      */
     @Override
-    public void rebuildAll() {
+    public RebuildResult rebuildAll() {
         Duration timeout = Duration.ofSeconds(Math.max(1, turns.timeoutSeconds()));
-        drain.drainAndRun(timeout, () -> {
-            synchronized (lock) {
-                if (bootstrap == null) {
-                    log.info("channel gateway rebuild skipped: not started yet");
-                    return;
+        AtomicBoolean skipped = new AtomicBoolean(false);
+        AtomicReference<String> failMessage = new AtomicReference<>();
+        boolean drainTimedOut;
+        try {
+            drainTimedOut = drain.drainAndRun(timeout, () -> {
+                synchronized (lock) {
+                    if (bootstrap == null) {
+                        skipped.set(true);
+                        log.info("channel gateway rebuild skipped: not started yet");
+                        return;
+                    }
+                    try {
+                        stopLocked();
+                        startGatewayLocked();
+                        log.info("channel gateway rebuilt main=" + mainAgentId
+                                + " echo=" + HarnessAgentFactory.ECHO_AGENT_ID);
+                    } catch (RuntimeException error) {
+                        failMessage.set(error.getMessage());
+                        log.warning("channel gateway rebuild failed: " + error.getMessage());
+                    }
                 }
-                stopLocked();
-                startGatewayLocked();
-                log.info("channel gateway rebuilt main=" + mainAgentId
-                        + " echo=" + HarnessAgentFactory.ECHO_AGENT_ID);
-            }
-        });
+            });
+        } catch (RuntimeException error) {
+            return RebuildResult.failed(error.getMessage());
+        }
+        if (failMessage.get() != null) {
+            return RebuildResult.failed(failMessage.get());
+        }
+        if (skipped.get()) {
+            return RebuildResult.skipped("not started yet");
+        }
+        if (drainTimedOut) {
+            return RebuildResult.timeout("drain timed out; rebuilt with in-flight risk");
+        }
+        return RebuildResult.success();
     }
 
     /** 进程退出时停 Gateway，并关闭长驻 Agent。 */
@@ -326,19 +356,29 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
             builder.distributedStore(store);
         }
         GatewayBootstrap started = builder.build().start();
-        // room 归一化：跨 Channel 同 session 串行；多副本 / Redis turn 不在本期。
-        started.gateway().setSessionTurnGate(new RoomNormalizedSessionTurnGate(new LocalSessionTurnGate()));
-        HarnessAgent companion = started.agents().get(mainAgentId);
-        // Toolkit 在 build 之后才有，业务工具只能这时候挂。
-        agents.attachCompanionTools(companion);
-        // Middleware 链路里常见 ReAct 委托；危机闸 flush 需按 agentId 回查 Harness。
-        HarnessAgentRegistry.clear();
-        for (HarnessAgent agent : started.agents().values()) {
-            HarnessAgentRegistry.register(agent);
+        try {
+            // room 归一化：跨 Channel 同 session 串行；多副本 / Redis turn 不在本期。
+            started.gateway().setSessionTurnGate(new RoomNormalizedSessionTurnGate(new LocalSessionTurnGate()));
+            HarnessAgent companion = started.agents().get(mainAgentId);
+            // Toolkit 在 build 之后才有，业务工具只能这时候挂。
+            agents.attachCompanionTools(companion);
+            // Middleware 链路里常见 ReAct 委托；危机闸 flush 需按 agentId 回查 Harness。
+            HarnessAgentRegistry.clear();
+            for (HarnessAgent agent : started.agents().values()) {
+                HarnessAgentRegistry.register(agent);
+            }
+            this.bootstrap = started;
+            this.channel = requireChatUi(started.channelManager());
+            this.apiChannel = requireApiChannel(started.channelManager());
+        } catch (RuntimeException error) {
+            // 字段尚未发布；只停局部 started，避免泄漏已 start 的 Bootstrap。
+            try {
+                started.stop();
+            } catch (RuntimeException stopError) {
+                log.warning("channel gateway start rollback stop failed: " + stopError.getMessage());
+            }
+            throw error;
         }
-        this.bootstrap = started;
-        this.channel = requireChatUi(started.channelManager());
-        this.apiChannel = requireApiChannel(started.channelManager());
         log.info("channel gateway started main=" + mainAgentId + " echo=" + HarnessAgentFactory.ECHO_AGENT_ID
                 + " channels=" + started.channelManager().channelIds());
     }
@@ -427,12 +467,14 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
             clearPendingConfirms();
             return;
         }
+        // 先快照 agents：stop() 失败或清空 map 后仍能 unregister / close。
+        List<HarnessAgent> agentsSnapshot = new ArrayList<>(bootstrap.agents().values());
         try {
             bootstrap.stop();
         } catch (RuntimeException error) {
             log.warning("channel gateway stop failed: " + error.getMessage());
         }
-        for (HarnessAgent agent : bootstrap.agents().values()) {
+        for (HarnessAgent agent : agentsSnapshot) {
             HarnessAgentRegistry.unregister(agent.getAgentId());
             closeQuietly(agent);
         }

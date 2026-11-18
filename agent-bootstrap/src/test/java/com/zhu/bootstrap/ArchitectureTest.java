@@ -86,10 +86,10 @@ class ArchitectureTest {
         assertThat(classes.stream().map(JavaClass::getName))
                 .contains(
                         "com.zhu.semantic.contract.product.ProductSemanticProvider",
-                        "com.zhu.runtime.api.AgentExecutor",
+                        "com.zhu.runtime.api.agent.AgentExecutor",
                         "com.zhu.runtime.infrastructure.gateway.ChannelGateway",
-                        "com.zhu.runtime.api.PendingAskFacade",
-                        "com.zhu.runtime.api.WakeupPort",
+                        "com.zhu.runtime.api.approval.PendingAskFacade",
+                        "com.zhu.runtime.api.wakeup.WakeupPort",
                         "com.zhu.state.config.DistributedStoreConfig",
                         "com.zhu.state.config.StateMapperConfig",
                         "com.zhu.vector.api.VectorStore",

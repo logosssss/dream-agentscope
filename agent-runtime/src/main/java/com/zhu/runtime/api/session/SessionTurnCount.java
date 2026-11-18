@@ -1,7 +1,7 @@
-package com.zhu.runtime.api;
+package com.zhu.runtime.api.session;
 
 /**
- * 会话已经成功结束的轮次。人设检查只看这个数，不看进行中的占锁。
+ * 运行层对外端口：会话已经成功结束的轮次。人设检查只看这个数，不看进行中的占锁。
  * 读失败按 0，避免误开检查。
  */
 public interface SessionTurnCount {

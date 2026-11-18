@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.runtime.api.UsageMeter;
+import com.zhu.runtime.api.usage.UsageMeter;
 import com.zhu.runtime.application.usage.AuditUsageMeter;
 import com.zhu.runtime.application.usage.ModelCallUsage;
 import io.agentscope.core.message.Msg;

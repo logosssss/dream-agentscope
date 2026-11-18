@@ -1,7 +1,7 @@
-package com.zhu.runtime.api;
+package com.zhu.runtime.api.agent;
 
 /**
- * 一次执行的入参。接入层组装它，运行层只消费，不从文本里猜产品语义。
+ * 运行层对外入参：一次执行。接入层组装它，运行层只消费，不从文本里猜产品语义。
  *
  * @param agentId      状态命名空间，空则用运行配置里的默认值
  * @param tenantId     租户

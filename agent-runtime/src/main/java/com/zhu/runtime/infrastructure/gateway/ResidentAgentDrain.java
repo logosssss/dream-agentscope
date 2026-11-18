@@ -46,10 +46,12 @@ public final class ResidentAgentDrain {
 
     /**
      * 进入排水：新 turn 排队等待；等在途归零或超时后执行 action；结束后放行。
+     *
+     * @return {@code true} 表示等待在途时已超时（仍会执行 action）
      */
-    public void drainAndRun(Duration timeout, Runnable action) {
+    public boolean drainAndRun(Duration timeout, Runnable action) {
         if (action == null) {
-            return;
+            return false;
         }
         Duration limit = timeout == null || timeout.isNegative() || timeout.isZero()
                 ? Duration.ofSeconds(120)
@@ -58,8 +60,9 @@ public final class ResidentAgentDrain {
             draining = true;
             lock.notifyAll();
             try {
-                waitIdle(limit);
+                boolean timedOut = waitIdle(limit);
                 action.run();
+                return timedOut;
             } finally {
                 draining = false;
                 lock.notifyAll();
@@ -79,13 +82,18 @@ public final class ResidentAgentDrain {
         return inFlight.get();
     }
 
-    private void waitIdle(Duration limit) {
+    /**
+     * 等到在途归零或超时。
+     *
+     * @return {@code true} 超时退出；{@code false} 在途已清零
+     */
+    private boolean waitIdle(Duration limit) {
         long deadline = System.nanoTime() + limit.toNanos();
         while (inFlight.get() > 0) {
             long remainingNanos = deadline - System.nanoTime();
             if (remainingNanos <= 0L) {
                 log.warning("resident agent drain timed out inFlight=" + inFlight.get());
-                return;
+                return true;
             }
             long waitMs = Math.max(1L, Math.min(200L, remainingNanos / 1_000_000L));
             try {
@@ -95,5 +103,6 @@ public final class ResidentAgentDrain {
                 throw new IllegalStateException("interrupted while draining resident agents", ex);
             }
         }
+        return false;
     }
 }

@@ -117,7 +117,22 @@
 - `mvn test`（JDK 21）相关模块通过；不连真实中间件  
 - 只改 admin 门面与引用方 import / README，不改 admin `application`
 
+## ⑫ `runtime.api` 细化（追加）
+
+按域拆对外端口（搬家 + 全仓 import + runtime README 包表）：
+
+| 子包 | 类 |
+| --- | --- |
+| `api`（根） | `package-info` |
+| `api.agent` | `AgentExecutor`、`AgentRequest`、`AgentResponse`、`AgentStreamEvent`、`ResidentAgentReloader` |
+| `api.approval` | `PendingAskFacade`、`PendingAskSummary` |
+| `api.wakeup` | `WakeupPort` |
+| `api.session` | `SessionTurnCount` |
+| `api.usage` | `UsageMeter` |
+
+不改行为 / URL / JSON；ArchUnit 代表类型 FQCN 已对齐。
+
 ## 状态
 
 grill 已结束（含 ⑪ 二次收口）。规范、顺序与 admin / ⑪a～⑪c 域表定稿。  
-①～⑩、⑪a～⑪c 已收口。本轮 packaging ⑪ 热点分包完成。若改规范，先改本文再动代码。
+①～⑩、⑪a～⑪c 已收口；**⑫ `runtime.api` 细化已落地**。若再改规范，先改本文再动代码。

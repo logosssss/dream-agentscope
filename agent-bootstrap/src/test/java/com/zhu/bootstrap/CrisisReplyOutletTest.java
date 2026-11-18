@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.runtime.api.AgentStreamEvent;
+import com.zhu.runtime.api.agent.AgentStreamEvent;
 import com.zhu.runtime.application.stream.CrisisReplyOutlet;
 import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.event.RequireUserConfirmEvent;

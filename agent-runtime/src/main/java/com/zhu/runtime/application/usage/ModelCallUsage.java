@@ -1,6 +1,6 @@
 package com.zhu.runtime.application.usage;
 
-import com.zhu.runtime.api.UsageMeter;
+import com.zhu.runtime.api.usage.UsageMeter;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.model.ChatUsage;
 

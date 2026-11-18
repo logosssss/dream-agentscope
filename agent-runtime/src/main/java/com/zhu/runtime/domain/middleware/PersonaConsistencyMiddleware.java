@@ -1,6 +1,6 @@
 package com.zhu.runtime.domain.middleware;
 
-import com.zhu.runtime.api.SessionTurnCount;
+import com.zhu.runtime.api.session.SessionTurnCount;
 import com.zhu.runtime.domain.CallIdentity;
 import com.zhu.semantic.contract.safety.RiskLevel;
 import io.agentscope.core.agent.Agent;

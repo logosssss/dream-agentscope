@@ -1,10 +1,10 @@
-package com.zhu.runtime.api;
+package com.zhu.runtime.api.approval;
 
 import java.util.List;
 
 /**
- * 运行层待确认端口：列表/详情摘要 + 原子决定续跑。
- * 正式实现持有进程内仓与 {@code ChannelGateway}；接入层不碰 ToolUseBlock。
+ * 运行层对外端口：待确认列表/详情摘要 + 原子决定续跑。
+ * 正式实现持有进程内仓与 ChannelGateway；接入层不碰 ToolUseBlock。
  */
 public interface PendingAskFacade {
 

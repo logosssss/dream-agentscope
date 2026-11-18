@@ -1,7 +1,7 @@
 package com.zhu.access.infrastructure.persistence.session;
 
 import com.zhu.access.infrastructure.persistence.run.AgentRunMapper;
-import com.zhu.runtime.api.SessionTurnCount;
+import com.zhu.runtime.api.session.SessionTurnCount;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 

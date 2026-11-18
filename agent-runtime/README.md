@@ -51,13 +51,13 @@ AgentStreamEvent   接入层再写成 SSE
 
 | 包 | 类型 | 作用 |
 | --- | --- | --- |
-| `api` | `AgentExecutor` | 接入层唯一入口；含 WEB `execute`/`stream` 与 API `executeApi`/`streamApi` |
-| `api` | `PendingAskFacade`、`PendingAskSummary`、`WakeupPort`、`ResidentAgentReloader` | 待确认摘要与原子决定续跑；唤醒 enqueue 端口；业务热更后重建长驻 Agent |
+| `api` | `package-info` | 对外端口根；按域分包，接入层只依赖本树 |
+| `api.agent` | `AgentExecutor`、`AgentRequest`、`AgentResponse`、`AgentStreamEvent`、`ResidentAgentReloader`、`RebuildResult` | 对话执行缝与 DTO；WEB/API 通道；热更后重建长驻 Agent |
+| `api.approval` | `PendingAskFacade`、`PendingAskSummary` | 待确认摘要与原子决定续跑 |
+| `api.wakeup` | `WakeupPort` | 唤醒 enqueue 端口 |
+| `api.session` | `SessionTurnCount` | 会话已经成功结束的轮次；人设检查只看这个数 |
+| `api.usage` | `UsageMeter` | 模型用量出口 |
 | `infrastructure.approval` | `PendingAskStore`、`PendingAsk`、`PendingAskFacadeService` | 进程内 ASK 仓（含 ToolUseBlock）；Facade 正式实现 |
-| `api` | `AgentRequest` | 执行入参。产品语义由调用方填好 |
-| `api` | `AgentResponse` | 运行标识和文本，不泄漏框架的 `Msg` |
-| `api` | `AgentStreamEvent` | 流式事件的类型和短文本 |
-| `api` | `SessionTurnCount` | 会话已经成功结束的轮次。人设检查只看这个数 |
 | `application.turn` | `AgentTurnSupport`、`ResolvedChatModel`、`AbsentSessionTurnCount` | 校验 / RuntimeContext / 流式护栏收口与用量记账入口；模型坐标解析；MySQL 关闭时轮次按 0 |
 | `application.stream` | `AgentStreamEvents`、`CrisisReplyOutlet` | 框架事件收成 `AgentStreamEvent`；危机档流式先扣增量、整段再过规则 |
 | `application.usage` | `AuditUsageMeter`、`ModelCallUsage` | 模型用量写入审计与 `token_usage`；单次调用记账辅助 |

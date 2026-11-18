@@ -3,7 +3,7 @@ package com.zhu.bootstrap;
 import com.zhu.access.application.auth.session.LoginSessionCodec;
 import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.common.security.CallerTokens;
-import com.zhu.runtime.api.AgentExecutor;
+import com.zhu.runtime.api.agent.AgentExecutor;
 import com.zhu.semantic.infrastructure.nacos.AbsentPromptSource;
 import com.zhu.semantic.infrastructure.nacos.PromptSource;
 import com.zhu.runtime.domain.TextEmbedder;

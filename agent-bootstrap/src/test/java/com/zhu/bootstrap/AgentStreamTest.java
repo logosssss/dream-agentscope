@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
 import com.zhu.common.exception.BusinessException;
-import com.zhu.runtime.api.AgentRequest;
-import com.zhu.runtime.api.AgentStreamEvent;
+import com.zhu.runtime.api.agent.AgentRequest;
+import com.zhu.runtime.api.agent.AgentStreamEvent;
 import com.zhu.runtime.application.stream.AgentStreamEvents;
 import com.zhu.runtime.application.turn.AgentTurnSupport;
 import com.zhu.runtime.application.turn.ResolvedChatModel;

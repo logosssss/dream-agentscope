@@ -4,7 +4,7 @@ import com.zhu.access.api.dto.internal.WakeupRequest;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.runtime.api.WakeupPort;
+import com.zhu.runtime.api.wakeup.WakeupPort;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;

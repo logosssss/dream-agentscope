@@ -1,7 +1,7 @@
 package com.zhu.runtime.infrastructure.wakeup;
 
 import com.zhu.common.security.WakeupTokens;
-import com.zhu.runtime.api.WakeupPort;
+import com.zhu.runtime.api.wakeup.WakeupPort;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
 import io.agentscope.harness.agent.bus.MessageBus;

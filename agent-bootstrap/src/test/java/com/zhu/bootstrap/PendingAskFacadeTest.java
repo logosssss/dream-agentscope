@@ -10,7 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.zhu.runtime.api.PendingAskSummary;
+import com.zhu.runtime.api.approval.PendingAskSummary;
 import com.zhu.runtime.infrastructure.approval.PendingAskFacadeService;
 import com.zhu.runtime.infrastructure.approval.PendingAskStore;
 import com.zhu.runtime.infrastructure.gateway.ChannelGateway;

@@ -1,9 +1,9 @@
-package com.zhu.runtime.api;
+package com.zhu.runtime.api.wakeup;
 
 import reactor.core.publisher.Mono;
 
 /**
- * 运行层唤醒端口。正式实现是 {@code WakeupCoordinator}；接入层 HTTP 只依赖本接口，不碰 infrastructure。
+ * 运行层对外端口：唤醒。正式实现是 WakeupCoordinator；接入层 HTTP 只依赖本接口，不碰 infrastructure。
  */
 public interface WakeupPort {
 

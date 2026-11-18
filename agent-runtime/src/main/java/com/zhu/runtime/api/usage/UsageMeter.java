@@ -1,7 +1,7 @@
-package com.zhu.runtime.api;
+package com.zhu.runtime.api.usage;
 
 /**
- * 一次模型调用的用量出口。运行层在回复带 token 数时调用，计费实现不能反向依赖执行细节。
+ * 运行层对外端口：一次模型调用的用量出口。运行层在回复带 token 数时调用，计费实现不能反向依赖执行细节。
  */
 public interface UsageMeter {
 

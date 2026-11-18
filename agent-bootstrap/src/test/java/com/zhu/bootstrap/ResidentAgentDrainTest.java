@@ -81,7 +81,8 @@ class ResidentAgentDrainTest {
         drain.beginTurn();
         AtomicBoolean ran = new AtomicBoolean(false);
         // 不 endTurn：超时后仍执行动作，避免热更永久卡住。
-        drain.drainAndRun(Duration.ofMillis(80), () -> ran.set(true));
+        boolean timedOut = drain.drainAndRun(Duration.ofMillis(80), () -> ran.set(true));
+        assertThat(timedOut).isTrue();
         assertThat(ran.get()).isTrue();
         drain.endTurn();
     }

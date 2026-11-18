@@ -4,7 +4,8 @@ import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.config.listener.Listener;
-import com.zhu.runtime.api.ResidentAgentReloader;
+import com.zhu.runtime.api.agent.RebuildResult;
+import com.zhu.runtime.api.agent.ResidentAgentReloader;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.config.ClientAuthProperties;
 import com.zhu.access.config.WxMiniProperties;
@@ -150,7 +151,19 @@ public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
             return;
         }
         try {
-            reloader.rebuildAll();
+            RebuildResult result = reloader.rebuildAll();
+            if (result == null) {
+                return;
+            }
+            switch (result.status()) {
+                case FAILED -> log.warning("resident agent rebuild after nacos refresh failed: "
+                        + result.message());
+                case TIMEOUT -> log.warning("resident agent rebuild after nacos refresh timed out drain: "
+                        + result.message());
+                case SKIPPED -> log.info("resident agent rebuild after nacos refresh skipped: "
+                        + result.message());
+                case SUCCESS -> log.info("resident agent rebuild after nacos refresh ok");
+            }
         } catch (RuntimeException ex) {
             log.warning("resident agent rebuild after nacos refresh failed: " + ex.getMessage());
         }

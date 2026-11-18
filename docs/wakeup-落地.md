@@ -58,7 +58,7 @@
    默认关；仅 companion；内部 HTTP + 独立令牌；忙跳过；硬失败无静默；  
    不宣称已接调度表消费 / Inbox / TeamWakeups / 多 Channel / `mode=mq`。  
 4. **防腐端口（工程模块 ④）** — 已完成  
-   `runtime.api.WakeupPort`（`isEnabled` + `enqueue`）；`WakeupCoordinator` 实现；  
+   `runtime.api.wakeup.WakeupPort`（`isEnabled` + `enqueue`）；`WakeupCoordinator` 实现；  
    `WakeupController` 只依赖端口；ArchUnit：access 禁 `runtime.infrastructure`。
 
 ## 验收要点

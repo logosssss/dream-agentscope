@@ -22,7 +22,7 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.runtime.api.PendingAskFacade;
+import com.zhu.runtime.api.approval.PendingAskFacade;
 import com.zhu.runtime.infrastructure.approval.PendingAskFacadeService;
 import com.zhu.runtime.infrastructure.approval.PendingAskStore;
 import com.zhu.runtime.infrastructure.gateway.ChannelGateway;
