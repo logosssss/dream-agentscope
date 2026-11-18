@@ -4,47 +4,42 @@ import com.zhu.runtime.application.turn.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.semantic.contract.product.CompletionCriteria;
 import com.zhu.semantic.contract.product.ProductSemanticProvider;
-import com.zhu.semantic.contract.tool.ProductTool;
 import io.agentscope.core.tracing.OtelTracingMiddleware;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
-import io.agentscope.harness.agent.filesystem.spec.SandboxFilesystemSpec;
 import io.agentscope.harness.agent.memory.MemoryConfig;
 import io.agentscope.harness.agent.subagent.SubagentDeclaration;
 import io.agentscope.harness.agent.subagent.WorkspaceMode;
-import io.agentscope.harness.agent.tools.McpServerRegistrationListener;
-import io.agentscope.harness.agent.tools.McpServerRegistrationResult;
-import io.agentscope.harness.agent.tools.ToolsConfig;
 import java.time.Duration;
 import java.util.List;
-import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 /**
- * 长驻 Agent 的 Builder 定制口。真正 {@code build()} 由 {@code GatewayBootstrap} 完成。
- * 公共项走 {@link #configureCommon}；搭子 / echo 差异走各自 customize。
- * companion 产品中间件顺序由 {@link CompanionMiddlewareChain} 固定挂载；tracing / shutdown 只在 common。
- * Skills 窄范围：公共项关动态 skill，工作区默认 skill 仍开；不写种子（见 docs/skills-落地.md）。
- * Skills Curator/manage：common 与 customize 均不调 enable*（框架默认关；单独 Curator 无效；开启另块；见 docs/skills-curator-落地.md）。
- * Subagent：公共项关动态；companion 挂一份 {@code subagent-probe}；echo 不挂（见 docs/subagent-落地.md）。
- * MCP：仅 companion 在清单非空时设 {@code toolsConfig}；echo 不连（见 docs/mcp-落地.md）。
- * Sandbox：仅 companion 在 {@code sandbox.enabled=true} 时换 DockerFilesystem；echo 仍 Remote（见 docs/sandbox-落地.md）。
+ * 长驻 Agent 的平台装配口。真正 {@code build()} 由 {@code GatewayBootstrap} 完成。
+ * 公共项走 {@link #configureCommon}；平台 echo 走 {@link #customizeEcho}。
+ * 产品 Agent 差异由 {@link ResidentAgentBinding} 提供（实现在各 product 模块）。
  * 不要在线程之间共享同一个 Builder 再改提示词。
  */
 @Component
 public class HarnessAgentFactory {
 
-    /** 瘦路由探测 Agent 的固定标识。不进默认 mainAgent。 */
+    /** 瘦路由探测 Agent 的固定标识。不进默认 mainAgent，不进产品 Binding。 */
     public static final String ECHO_AGENT_ID = "echo-v1";
 
     /** 瘦路由探测 Agent 的短系统提示。不挂搭子工具与记忆中间件。 */
     public static final String ECHO_SYS_PROMPT = "你是路由探测助手。用一两句中文直接回答用户，不要调用工具。";
 
-    /** companion 静态子代理探针名。对照用占位，不承诺产品能力。 */
+    /**
+     * @deprecated 探针常量在 product companion Binding；保留以免外部引用断裂。
+     */
+    @Deprecated
     public static final String SUBAGENT_PROBE_NAME = "subagent-probe";
 
-    /** 探针子代理提示词：极简短答，零工具。 */
+    /**
+     * @deprecated 见 product companion Binding。
+     */
+    @Deprecated
     public static final String SUBAGENT_PROBE_PROMPT = "你是对照用占位子代理。用一两句中文直接短答，不要调用工具。";
 
     private final AgentRuntimeProperties properties;
@@ -57,81 +52,45 @@ public class HarnessAgentFactory {
 
     private final PermissionContextFactory permissionContexts;
 
-    /** companion 产品闸固定顺序；不进 echo。 */
-    private final CompanionMiddlewareChain companionMiddlewares;
-
     private final AgentShutdown shutdown;
-
-    private final List<ProductTool> productTools;
 
     /** 每个 Agent 共用这一份。构造函数只注册一次 Reactor 上下文传播，不连接采集器。 */
     private final OtelTracingMiddleware tracing = new OtelTracingMiddleware();
 
-    /** 按目录挑选业务工具。目录为空时不注册。 */
-    private final CatalogToolRegistrar toolRegistrar = new CatalogToolRegistrar();
-
-    /** MCP / Sandbox 结构化日志；不新增 echo 事件。 */
-    private static final Logger LOG = Logger.getLogger(HarnessAgentFactory.class.getName());
-
-    /** companion 共用一份监听，避免每次 customize 新建。 */
-    private static final McpServerRegistrationListener MCP_LISTENER = HarnessAgentFactory::onMcpRegistration;
-
-    /** 产品闸经 {@link CompanionMiddlewareChain} 挂载；体积检查更靠前，危机换话术在模型前。 */
+    /**
+     * 平台公共项与 echo；产品闸与目录工具在 {@link ResidentAgentBinding}。
+     */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,
             ResolvedChatModel chatModel,
             ProductSemanticProvider semantics,
             ObjectProvider<DistributedStore> stores,
             PermissionContextFactory permissionContexts,
-            CompanionMiddlewareChain companionMiddlewares,
-            AgentShutdown shutdown,
-            List<ProductTool> productTools) {
+            AgentShutdown shutdown) {
         this.properties = properties;
         this.chatModel = chatModel;
         this.semantics = semantics;
         this.stores = stores;
         this.permissionContexts = permissionContexts;
-        this.companionMiddlewares = companionMiddlewares;
         this.shutdown = shutdown;
-        this.productTools = productTools == null ? List.of() : List.copyOf(productTools);
     }
 
     /**
      * 给 Bootstrap {@code configureAllAgents} 用的公共项。
-     * 只放 companion 与 echo 都要的：关 web/shell、打开 Harness Memory、
-     * disableCompaction / disableToolResultEviction / disableDynamicSkills / disableDynamicSubagents、
-     * 权限上下文、追踪、停机闸与状态库。
-     * 不调用 enableSkillManageTool / enableSkillCurator（框架默认关；见 docs/skills-curator-落地.md）。
-     * 文件系统不在此处挂：Remote 与 Docker 规格互斥，companion / echo 各自决定（见 docs/sandbox-落地.md）。
-     * Eviction / Compaction 危机闸与静态子代理声明只在 {@link #customizeCompanion} 挂。
+     * 产品与 echo 共用：关 web/shell、打开 Harness Memory、若干 disable*、权限、追踪、停机闸与状态库。
+     * 文件系统不在此处挂：Remote 与 Docker 规格互斥，由各 Binding / echo 决定。
      */
     public void configureCommon(HarnessAgent.Builder builder) {
-        // 未做出口白名单前关掉内置 web 工具，避免会话内 SSRF（元数据/内网）。
-        // 远程工作区路径下 shell 本就不注册；显式关掉防止以后换沙箱文件系统时裸奔。
         builder.disableWebTools();
         builder.disableShellTool();
-        // 跨会话权威迁入 Harness Memory：开放 memory_*；不另配 model（回落对话模型）。
-        // 关掉框架自带 Memory hooks，改由 CrisisGatedMemoryFlushMiddleware 在非 CRITICAL 时触发 flush。
-        // 见 docs/memory-longterm-落地.md。
         builder.memory(MemoryConfig.builder()
                 .flushTrigger(MemoryConfig.FlushTrigger.throttled(Duration.ofMinutes(10)))
                 .build());
         builder.disableMemoryHooks();
-        // companion 再挂危机闸；echo 保持禁用且不挂闸。
-        // 故意不 compaction(config)：公开 API 装 hook 会同时挂未闸链上中间件，打穿危机闸。
-        // 溢出无 hook 时框架硬失败；机制对照见 docs/compaction-hook-落地.md（口径 C）。
-        // 见 docs/compaction-落地.md、docs/tool-result-eviction-落地.md。
         builder.disableCompaction();
-        // 框架默认已挂 eviction；必须显式 disable，否则 CRITICAL 仍可能被框架截断落盘。
         builder.disableToolResultEviction();
-        // 框架默认开动态 skill；关掉后中间件 frozen。工作区默认 skill 仍开（目录可空），本专题不写种子文件。
-        // 见 docs/skills-落地.md。
         builder.disableDynamicSkills();
-        // SkillManage / ProposeSkill / Curator：框架默认关，无对称 disable API；此处与 customize* 均不调 enable*。
-        // 单独 enableSkillCurator 无效（装配嵌在 manage 分支）；开启路径另块。见 docs/skills-curator-落地.md。
-        // 框架默认开动态子代理；关掉后仍可挂静态 SubagentDeclaration。见 docs/subagent-落地.md。
         builder.disableDynamicSubagents();
-        // 无条件规则 + BYPASS；热更后排空重建会再次 create。
         builder.permissionContext(permissionContexts.create());
         builder.middleware(tracing);
         builder.middleware(shutdown.middleware());
@@ -142,40 +101,8 @@ public class HarnessAgentFactory {
     }
 
     /**
-     * 搭子差异：标识、模型、提示词、轮数、产品中间件与工作区路径。
-     * 含 Eviction → Compaction → Memory flush 危机闸（须在 SafetyGate 之后）。
-     * 挂一份静态 {@link #SUBAGENT_PROBE_NAME}（ISOLATED / 继承权限 / 零工具）。
-     * 不开 SkillManage / Curator（开启另块；见 docs/skills-curator-落地.md）。
-     * MCP：清单非空才设 toolsConfig；热更后排空重建会再次走这里。
-     * Sandbox：enabled 时换 DockerFilesystem（硬失败无 Remote 回退）；否则有 Store 则 Remote USER。
-     * 业务工具在 {@link #attachCompanionTools} 里挂，因为 Toolkit 要等 build 之后才有。
-     */
-    public void customizeCompanion(HarnessAgent.Builder builder) {
-        String agentId = companionAgentId();
-        builder.name(properties.getName())
-                .agentId(agentId)
-                .model(chatModel.resolve(null))
-                .sysPrompt(semantics.promptFallback(null))
-                .maxIters(maxIterations());
-        if (!blank(properties.getWorkspace())) {
-            builder.workspace(properties.getWorkspace());
-        }
-        // 静态探针：Mode.SUBAGENT + 空 tools，降低嵌套 spawn 面；难硬禁则见专题已知限制。
-        builder.subagent(subagentProbe());
-        // 空清单不设 toolsConfig，避免覆盖工作区默认工具过滤；有清单才挂 MCP。
-        ToolsConfig mcpTools = McpToolsConfigFactory.createOrNull(properties.getMcp());
-        if (mcpTools != null) {
-            builder.toolsConfig(mcpTools);
-            builder.mcpServerRegistrationListener(MCP_LISTENER);
-        }
-        applyCompanionFilesystem(builder);
-        // 产品闸顺序见 CompanionMiddlewareChain / docs/diagrams/chains.md；情景/画像遗留已硬删。
-        companionMiddlewares.apply(builder);
-    }
-
-    /**
-     * echo 差异：固定标识与短提示，轮数封顶 8，不挂搭子产品中间件，不挂静态子代理，不挂 MCP / Docker。
-     * 不开 SkillManage / Curator。有 Store 时挂 Remote USER；继承 common 的 disable*，不挂危机闸。
+     * echo 差异：固定标识与短提示，轮数封顶 8，不挂产品中间件 / 子代理 / MCP / Docker。
+     * 有 Store 时挂 Remote USER；继承 common 的 disable*。
      */
     public void customizeEcho(HarnessAgent.Builder builder) {
         builder.name("echo")
@@ -183,34 +110,15 @@ public class HarnessAgentFactory {
                 .model(chatModel.resolve(null))
                 .sysPrompt(ECHO_SYS_PROMPT)
                 .maxIters(Math.min(8, maxIterations()));
-        applyRemoteFilesystemIfStorePresent(builder);
-    }
-
-    /**
-     * companion 文件系统：Sandbox 开则 Docker（可硬失败）；否则有 Store 用 Remote USER。
-     * shell 工具仍由 {@link #configureCommon} 关掉。
-     */
-    private void applyCompanionFilesystem(HarnessAgent.Builder builder) {
-        DistributedStore store = stores.getIfAvailable();
-        SandboxFilesystemSpec docker = CompanionSandboxFilesystem.createWhenEnabledOrNull(
-                properties.getSandbox(), store);
-        if (docker != null) {
-            builder.filesystem(docker);
-            return;
-        }
-        applyRemoteFilesystemIfStorePresent(builder);
-    }
-
-    /** 有 DistributedStore 时挂按用户隔离的 Remote；无 Store 不设 filesystem（与旧 common 一致）。 */
-    private void applyRemoteFilesystemIfStorePresent(HarnessAgent.Builder builder) {
         if (stores.getIfAvailable() != null) {
             builder.filesystem(WorkspaceFilesystem.userScoped());
         }
     }
 
     /**
-     * companion 唯一静态子代理声明。不写 Remote、不持久会话、工具名单为空。
+     * @deprecated 使用 product companion {@code CompanionResidentAgentBinding#subagentProbe()}。
      */
+    @Deprecated
     public static SubagentDeclaration subagentProbe() {
         return SubagentDeclaration.builder()
                 .name(SUBAGENT_PROBE_NAME)
@@ -222,34 +130,6 @@ public class HarnessAgentFactory {
                 .tools(List.of())
                 .inlineAgentsBody(SUBAGENT_PROBE_PROMPT)
                 .build();
-    }
-
-    /**
-     * 搭子 build 完成后挂目录工具。加在这次 Agent 自己的 Toolkit 上。
-     * 目录里没有的业务工具不会出现。单工具失败只打日志，不让 Gateway 起不来。
-     */
-    public void attachCompanionTools(HarnessAgent agent) {
-        if (agent == null) {
-            return;
-        }
-        CatalogToolRegistrationReport report =
-                toolRegistrar.register(agent.getToolkit(), semantics.tools(), productTools);
-        if (!report.failed().isEmpty()) {
-            LOG.warning("companion catalog tools partial failure failed=" + report.failed()
-                    + " registered=" + report.registered());
-        }
-    }
-
-    /** 默认搭子标识：语义 → 运行配置 → companion-v1。给 Bootstrap mainAgent / agent 键使用。 */
-    public String companionAgentId() {
-        String fromSemantic = semantics.agentId();
-        if (!blank(fromSemantic)) {
-            return fromSemantic;
-        }
-        if (!blank(properties.getAgentId())) {
-            return properties.getAgentId();
-        }
-        return "companion-v1";
     }
 
     /**
@@ -266,26 +146,5 @@ public class HarnessAgentFactory {
             return 20;
         }
         return completion.maxIterations();
-    }
-
-    private static boolean blank(String value) {
-        return value == null || value.isBlank();
-    }
-
-    /** 记录 MCP 注册结果；FAILED/SKIPPED 打警告，SUCCESS 打信息。 */
-    private static void onMcpRegistration(McpServerRegistrationResult result) {
-        if (result == null) {
-            return;
-        }
-        String name = result.serverName();
-        String transport = result.transport();
-        McpServerRegistrationResult.Status status = result.status();
-        if (status == McpServerRegistrationResult.Status.SUCCESS) {
-            LOG.info(() -> "MCP registered: name=" + name + ", transport=" + transport);
-            return;
-        }
-        Throwable cause = result.cause();
-        String detail = cause == null ? "" : cause.getMessage();
-        LOG.warning("MCP " + status + ": name=" + name + ", transport=" + transport + ", detail=" + detail);
     }
 }

@@ -1,11 +1,11 @@
-package com.zhu.semantic.config.product;
+package com.zhu.product.companion.persona;
 
 import com.zhu.semantic.contract.product.PersonaContract;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
- * 智能搭子的锁定人格。所有用户共用这一份，记忆按用户切开。
+ * 智能搭子的锁定人格。产品层：所有用户共用这一份，记忆按用户切开。
  * 改核心身份时把 AGENT_ID 升到下一版。
  */
 @Component

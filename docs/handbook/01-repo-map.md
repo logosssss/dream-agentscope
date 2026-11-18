@@ -2,7 +2,7 @@
 
 ## 学习目标
 
-建立「两个进程、十来个模块、两个前端」的心智模型；知道边界从哪读、架构长文何时翻。
+建立「两个进程、平台模块 + 产品聚合、两个前端」的心智模型；知道边界从哪读、架构长文何时翻。
 
 ## 必读链接（有序）
 
@@ -15,6 +15,7 @@
    - [`agent-access`](../../agent-access/README.md)  
    - [`agent-runtime`](../../agent-runtime/README.md)  
    - [`agent-semantic`](../../agent-semantic/README.md)  
+   - [`agent-products`](../../agent-products/README.md)（当前 companion）  
    - [`agent-common`](../../agent-common/README.md)  
    - [`agent-state`](../../agent-state/README.md)  
    - [`agent-vector`](../../agent-vector/README.md)  

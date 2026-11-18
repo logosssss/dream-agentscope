@@ -34,26 +34,24 @@ class SkillsCuratorDefaultOffWiringTest {
     Path workspace;
 
     /**
-     * 源码约定：configureCommon / customizeCompanion / customizeEcho 均不调用 manage/Curator 开启 API。
+     * 源码约定：configureCommon / companion Binding / customizeEcho 均不调用 manage/Curator 开启 API。
      */
     @Test
     void factorySource_doesNotEnableManageOrCurator() throws Exception {
-        String source = readFactorySource();
-        int commonStart = source.indexOf("public void configureCommon");
-        int companionStart = source.indexOf("public void customizeCompanion", commonStart);
-        int echoStart = source.indexOf("public void customizeEcho", companionStart);
-        int echoEnd = source.indexOf("private void applyCompanionFilesystem", echoStart);
+        String factory = readModuleSource("agent-runtime",
+                "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java");
+        String companion = readModuleSource("agent-products/agent-product-companion",
+                "com", "zhu", "product", "companion", "binding", "CompanionResidentAgentBinding.java");
+        int commonStart = factory.indexOf("public void configureCommon");
+        int echoStart = factory.indexOf("public void customizeEcho", commonStart);
         assertThat(commonStart).isGreaterThanOrEqualTo(0);
-        assertThat(companionStart).isGreaterThan(commonStart);
-        assertThat(echoStart).isGreaterThan(companionStart);
-        assertThat(echoEnd).isGreaterThan(echoStart);
+        assertThat(echoStart).isGreaterThan(commonStart);
 
-        String common = source.substring(commonStart, companionStart);
-        String companion = source.substring(companionStart, echoStart);
-        String echo = source.substring(echoStart, echoEnd);
+        String common = factory.substring(commonStart, echoStart);
+        String echo = factory.substring(echoStart);
 
         assertNoEnableManageCurator(common, "configureCommon");
-        assertNoEnableManageCurator(companion, "customizeCompanion");
+        assertNoEnableManageCurator(companion, "CompanionResidentAgentBinding");
         assertNoEnableManageCurator(echo, "customizeEcho");
         assertThat(common)
                 .as("configureCommon 仍保持 disableDynamicSkills")
@@ -101,18 +99,20 @@ class SkillsCuratorDefaultOffWiringTest {
                 .doesNotContain(".enableSkillPromotionGate(");
     }
 
-    private static String readFactorySource() throws Exception {
-        Path factory = Path.of("..", "agent-runtime", "src", "main", "java",
-                        "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java")
-                .toAbsolutePath()
-                .normalize();
-        if (!Files.isRegularFile(factory)) {
-            factory = Path.of("agent-runtime", "src", "main", "java",
-                            "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java")
-                    .toAbsolutePath()
-                    .normalize();
+    private static String readModuleSource(String moduleRelative, String... parts) throws Exception {
+        Path path = Path.of("..").resolve(moduleRelative).resolve("src").resolve("main").resolve("java");
+        for (String part : parts) {
+            path = path.resolve(part);
         }
-        return Files.readString(factory, StandardCharsets.UTF_8);
+        path = path.toAbsolutePath().normalize();
+        if (!Files.isRegularFile(path)) {
+            path = Path.of(moduleRelative).resolve("src").resolve("main").resolve("java");
+            for (String part : parts) {
+                path = path.resolve(part);
+            }
+            path = path.toAbsolutePath().normalize();
+        }
+        return Files.readString(path, StandardCharsets.UTF_8);
     }
 
     private static boolean hasMiddleware(HarnessAgent agent, Class<?> type) {

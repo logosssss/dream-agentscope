@@ -74,44 +74,45 @@ class CompanionSandboxFilesystemTest {
         assertThat(CompanionSandboxFilesystem.resolveImage(" custom:tag ")).isEqualTo("custom:tag");
     }
 
-    /** companion 源码须接线；echo 不得调用 CompanionSandboxFilesystem。 */
+    /** companion Binding 源码须接线；echo 不得调用 CompanionSandboxFilesystem。 */
     @Test
     void companionWiresSandboxEchoDoesNot() throws Exception {
-        Path factory = Path.of("..", "agent-runtime", "src", "main", "java",
-                        "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java")
-                .toAbsolutePath()
-                .normalize();
-        if (!Files.isRegularFile(factory)) {
-            factory = Path.of("agent-runtime", "src", "main", "java",
-                            "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java")
-                    .toAbsolutePath()
-                    .normalize();
-        }
-        String source = Files.readString(factory, StandardCharsets.UTF_8);
-        int companionStart = source.indexOf("public void customizeCompanion");
-        int echoStart = source.indexOf("public void customizeEcho", companionStart);
-        // echo 方法体止于其后的 private applyCompanionFilesystem，勿把 companion 私有方法算进 echo。
-        int echoEnd = source.indexOf("private void applyCompanionFilesystem", echoStart);
-        assertThat(companionStart).isGreaterThanOrEqualTo(0);
-        assertThat(echoStart).isGreaterThan(companionStart);
-        assertThat(echoEnd).isGreaterThan(echoStart);
-
-        String companion = source.substring(companionStart, echoStart);
-        String echo = source.substring(echoStart, echoEnd);
+        String companion = readModuleSource("agent-products/agent-product-companion",
+                "com", "zhu", "product", "companion", "binding", "CompanionResidentAgentBinding.java");
+        String factory = readModuleSource("agent-runtime",
+                "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java");
+        int echoStart = factory.indexOf("public void customizeEcho");
+        assertThat(echoStart).isGreaterThanOrEqualTo(0);
+        String echo = factory.substring(echoStart);
         assertThat(companion)
-                .as("customizeCompanion 须走 companion 文件系统装配")
-                .contains("applyCompanionFilesystem");
+                .as("companion Binding 须走 companion 文件系统装配")
+                .contains("applyCompanionFilesystem")
+                .contains("CompanionSandboxFilesystem.createWhenEnabledOrNull");
         assertThat(echo)
                 .as("customizeEcho 不得挂 Docker Sandbox")
                 .doesNotContain("CompanionSandboxFilesystem")
                 .doesNotContain("DockerFilesystemSpec")
                 .doesNotContain("applyCompanionFilesystem")
-                .contains("applyRemoteFilesystemIfStorePresent");
-        // 工厂须有 Docker 接线与 shell 关闭。
-        assertThat(source)
-                .contains("CompanionSandboxFilesystem.createWhenEnabledOrNull")
+                .contains("WorkspaceFilesystem.userScoped()");
+        assertThat(factory)
                 .contains("builder.disableShellTool()");
         assertThat(HarnessAgentFactory.ECHO_AGENT_ID).isEqualTo("echo-v1");
+    }
+
+    private static String readModuleSource(String moduleRelative, String... parts) throws Exception {
+        Path path = Path.of("..").resolve(moduleRelative).resolve("src").resolve("main").resolve("java");
+        for (String part : parts) {
+            path = path.resolve(part);
+        }
+        path = path.toAbsolutePath().normalize();
+        if (!Files.isRegularFile(path)) {
+            path = Path.of(moduleRelative).resolve("src").resolve("main").resolve("java");
+            for (String part : parts) {
+                path = path.resolve(part);
+            }
+            path = path.toAbsolutePath().normalize();
+        }
+        return Files.readString(path, StandardCharsets.UTF_8);
     }
 
     /** 最小 Store 桩：只满足非 null，不碰 JDBC。 */

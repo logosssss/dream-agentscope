@@ -6,9 +6,11 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-vector`、`agent-state`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-access`。测试依赖 `spring-boot-starter-test` 和 ArchUnit。管理进程不依赖 `agent-vector`。
+依赖 `agent-common`、`agent-vector`、`agent-state`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-access`、`agent-product-companion`（及日后其它 `agent-product-*`）。测试依赖 `spring-boot-starter-test` 和 ArchUnit。管理进程不依赖 `agent-vector` / 产品模块。
 
-`@SpringBootApplication(scanBasePackages = "com.zhu")` 会扫到兄弟包。如果只扫 `com.zhu.bootstrap`，接入层控制器和状态配置都不会生效。
+本模块是唯一用户 App（A1）：只做扫描 / 装配 / Nacos / Flyway，不含产品业务类。产品实现落在 `agent-products/*`，经 `ResidentAgentBinding` 挂入。
+
+`@SpringBootApplication(scanBasePackages = "com.zhu")` 会扫到兄弟包（含 `com.zhu.product..`）。如果只扫 `com.zhu.bootstrap`，接入层控制器、状态配置和产品 Binding 都不会生效。
 
 ## 启动
 
@@ -36,7 +38,7 @@ mvn -pl agent-bootstrap -am spring-boot:run
 
 | 测试 | 断言 |
 | --- | --- |
-| `ArchitectureTest` | 语义不依赖运行层和接入层；运行层不碰语义实现包；状态层不碰语义、运行层和接入层；向量层不碰状态、语义、运行层和接入层；接入层不引用 harness；控制器不访问持久化包。导入的类必须包含各模块的代表类型，避免规则空过 |
+| `ArchitectureTest` | 语义不依赖运行层/接入层/产品实现；运行层不碰语义实现包与 `com.zhu.product..`；产品不碰接入层；状态/向量/对象存储不碰业务；接入层不碰 `io.agentscope` 与 `runtime.infrastructure`；控制器不访问持久化包。导入须含各模块代表类型（含 Binding） |
 | `BootstrapContextTest` | 上下文能起来；恰好一个 `AgentExecutor`；没有 `HarnessAgent` Bean；没有 `DistributedStore` Bean；向量口是空实现；有嵌入器但测试不连网；`GET /health/live` 返回 UP；测试配置下 `GET /health/ready` 跳过 MySQL、Redis 和 Milvus |
 | `NacosStartupConfigSupportTest` | 业务白名单含 `agentscope.runtime.mcp.servers` / `sandbox` / `wakeup` 前缀；展平键可热更收进 Environment |
 | `AgentRuntimeSandboxPropertiesTest` | Sandbox 缺省关、镜像空；`DEFAULT_IMAGE` 常量为 `ubuntu:24.04` |

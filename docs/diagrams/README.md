@@ -20,8 +20,8 @@
 | # | 图 | 状态 |
 | --- | --- | --- |
 | 1 | 部署拓扑（双进程 + 中间件 + 双前端） | 已完成 |
-| 2 | Maven/模块依赖方向（含 ArchUnit 禁向） | 已完成 |
-| 3 | 管理进程边界（不依赖 runtime/access/Harness） | 已完成 |
+| 2 | Maven/模块依赖方向（含 `agent-products` 与 ArchUnit 禁向） | 已完成 |
+| 3 | 管理进程边界（不依赖 runtime/access/Harness/product；用户侧 P3 Binding） | 已完成 |
 
 ### flows.md
 

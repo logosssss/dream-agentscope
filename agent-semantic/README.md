@@ -36,8 +36,9 @@
 | --- | --- | --- |
 | `config`（根） | `SemanticConfig` | 打开 `PermissionProperties` 绑定；不在这里创建执行组件 |
 | `config.permission` | `PermissionProperties`、`PermissionMapperConfig`、`ConfiguredPermissionService`、`ConfiguredUnconditionalPermissionCatalog` | Nacos/yml 权限规则；MySQL 关闭时的配置态权限与无条件目录；打开 MySQL 时才扫权限 Mapper |
-| `config.product` | `CompanionPersona`、`PlatformSemanticProvider` | 锁定人格与默认产品语义实现 |
 | `config.safety` | `AbsentSemanticRiskJudge`、`ClasspathCrisisPrompt` | 不连网的风险判定；危机话术从 classpath 读 |
+
+不再保留 `config.product`：搭子人格 / `ProductSemanticProvider` 实现在 `agent-products/agent-product-companion`。
 
 `ConfiguredPermissionService`：MySQL 关闭时按 `agentscope.permission.rules` 匹配。没有命中时一律 `ALLOW`。
 
@@ -62,11 +63,12 @@
 
 `src/main/resources/prompts` 里的 `.md` 和 `.json` 由 `PromptTemplateCheck` 在测试中校验。键必须是 `prompt.{agent}.{purpose}`，占位符必须在 `PlatformPrompt` 里登记。`.json` 把 `{{变量}}` 换成 `sample` 后必须能解析。`PromptRelease` 在校验通过后才把原文交给发布端。`prompt.safety.crisis` 会校验，但不发布。`NacosPromptPublisher` 向管理接口新建一个版本并发布，进程启动时不调用它。地址没配或对方拒绝时这次发布失败，不影响已经在跑的监听。
 
-运行层的架构测试禁止依赖本模块的 `application` 和 `infrastructure`。无运行层依赖的业务工具（如 `echo_text`）放本模块 `infrastructure.tool`；需要嵌入或向量的工具（如 `knowledge_search`）放运行层。
+运行层的架构测试禁止依赖本模块的 `application` / `infrastructure`，并禁止依赖产品实现包 `com.zhu.product..`（与契约包 `contract.product` 不同）。  
+业务工具按归属：`echo_text` 等产品工具在 **`agent-products/agent-product-companion`**；需要嵌入或向量的平台工具（如 `knowledge_search`）仍在运行层。
 
-`infrastructure.tool.EchoTextTool` 是第一把业务工具。实现 `ProductTool`，`toolId` 与 `@Tool` 的 name、目录标识都是 `echo_text`。方法只原样返回，无副作用。容器里始终有这个 Bean；MySQL 关闭时目录为空，运行层仍不注册。MySQL 打开且种子生效时目录命中，权限为全局 `ASK`，用来跑通审批。时间窗按 UTC；`maxLen` / `minLen` 看本次工具入参标量长度。批准后不自动再执行。
+本模块（S1）只保留契约、`api`、共享权限/提示词/目录存储；不再放具体产品实现。
 
-`PlatformSemanticProvider` 是 `ProductSemanticProvider` 的默认实现。Agent 标识和最大轮数读 `agentscope.runtime` 的同名配置，无效时分别用 `companion-v1` 和 `20`。`PersonaContract` 由 `CompanionPersona` 提供锁定身份。主对话键是 `prompt.companion.system`。危机话术键是 `prompt.safety.crisis`，由 `ClasspathCrisisPrompt` 从 classpath 读取，不走 Nacos。`AbsentSemanticRiskJudge` 不连网，一律返回普通陪伴。改核心身份必须升 `agentId`，不要把 userId 拼进去。MySQL 关闭时目录为空；打开时目录来自 `tool_registry`。
+危机话术键是 `prompt.safety.crisis`，由 `ClasspathCrisisPrompt` 从 classpath 读取，不走 Nacos。`AbsentSemanticRiskJudge` 不连网，一律返回普通陪伴。MySQL 关闭时目录为空；打开时目录来自 `tool_registry`。
 
 ## 还没有
 

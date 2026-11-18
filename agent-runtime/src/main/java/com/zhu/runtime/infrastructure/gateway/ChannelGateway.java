@@ -10,6 +10,8 @@ import com.zhu.runtime.api.agent.ResidentAgentReloader;
 import com.zhu.runtime.application.turn.AgentTurnSupport;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentRegistry;
+import com.zhu.runtime.infrastructure.agent.ResidentAgentBinding;
+import com.zhu.runtime.infrastructure.agent.ResidentAgentBindingRegistry;
 import com.zhu.runtime.infrastructure.approval.PendingAskStore;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentResultEvent;
@@ -51,6 +53,7 @@ import reactor.core.publisher.Flux;
  * 同 session 跨 Channel 串行：{@link RoomNormalizedSessionTurnGate} 包一层进程内闸。
  * 实现 {@link AgentExecutor}，是对话执行唯一入口；续跑由 {@code PendingAskFacade} 经 {@link #resumeConfirm} 调用。
  * 模型密钥缺失不阻断进程启动；首次对话才组装长驻 Agent。
+ * 产品 Agent 经 {@link ResidentAgentBindingRegistry} 注册；echo 为平台探针。
  * 业务配置热更后经 {@link #rebuildAll()} 排空再重建。
  * 待确认直写本模块 {@link PendingAskStore}（与 Facade 共用）。
  */
@@ -67,6 +70,8 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     public static final String API_CHANNEL_ID = "api";
 
     private final HarnessAgentFactory agents;
+
+    private final ResidentAgentBindingRegistry residentBindings;
 
     private final AgentTurnSupport turns;
 
@@ -93,10 +98,12 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     @Autowired
     public ChannelGateway(
             HarnessAgentFactory agents,
+            ResidentAgentBindingRegistry residentBindings,
             AgentTurnSupport turns,
             ObjectProvider<DistributedStore> stores,
             PendingAskStore pendingAsks) {
         this.agents = agents;
+        this.residentBindings = residentBindings;
         this.turns = turns;
         this.stores = stores;
         this.pendingAsks = pendingAsks;
@@ -339,15 +346,20 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
         }
     }
 
-    /** 组装并启动 Gateway。companion 为 main，echo 仅显式 agentId 可达。调用方须已持有 lock。 */
+    /**
+     * 组装并启动 Gateway。产品 Agent 来自 {@link ResidentAgentBindingRegistry}；
+     * echo 为平台探针，仅显式 agentId 可达。调用方须已持有 lock。
+     */
     private void startGatewayLocked() {
-        mainAgentId = agents.companionAgentId();
+        ResidentAgentBinding main = residentBindings.main();
+        mainAgentId = main.agentId();
         // configureAllAgents 必须在 agent(Consumer) 之前：框架先跑公共项再跑各 Agent 定制并立刻 build。
-        // chatui + api 在 Builder 上显式挂上；start 后只读 ChannelManager，不再另造通道。
         GatewayBootstrap.Builder builder = GatewayBootstrap.builder()
-                .configureAllAgents(agents::configureCommon)
-                .agent(mainAgentId, agents::customizeCompanion)
-                .agent(HarnessAgentFactory.ECHO_AGENT_ID, agents::customizeEcho)
+                .configureAllAgents(agents::configureCommon);
+        for (ResidentAgentBinding binding : residentBindings.all()) {
+            builder.agent(binding.agentId(), binding::customize);
+        }
+        builder.agent(HarnessAgentFactory.ECHO_AGENT_ID, agents::customizeEcho)
                 .mainAgent(mainAgentId)
                 .channel(ChatUiChannel.create(), ApiChannel.create())
                 .runtimeContextResolver(new AgentChannelRuntimeContextResolver());
@@ -359,9 +371,11 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
         try {
             // room 归一化：跨 Channel 同 session 串行；多副本 / Redis turn 不在本期。
             started.gateway().setSessionTurnGate(new RoomNormalizedSessionTurnGate(new LocalSessionTurnGate()));
-            HarnessAgent companion = started.agents().get(mainAgentId);
-            // Toolkit 在 build 之后才有，业务工具只能这时候挂。
-            agents.attachCompanionTools(companion);
+            // Toolkit 在 build 之后才有；各产品 Binding 自行挂工具。
+            for (ResidentAgentBinding binding : residentBindings.all()) {
+                HarnessAgent agent = started.agents().get(binding.agentId());
+                binding.attachTools(agent);
+            }
             // Middleware 链路里常见 ReAct 委托；危机闸 flush 需按 agentId 回查 Harness。
             HarnessAgentRegistry.clear();
             for (HarnessAgent agent : started.agents().values()) {
@@ -380,6 +394,7 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
             throw error;
         }
         log.info("channel gateway started main=" + mainAgentId + " echo=" + HarnessAgentFactory.ECHO_AGENT_ID
+                + " products=" + residentBindings.all().size()
                 + " channels=" + started.channelManager().channelIds());
     }
 

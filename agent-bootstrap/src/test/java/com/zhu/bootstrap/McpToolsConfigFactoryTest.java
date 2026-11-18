@@ -109,28 +109,15 @@ class McpToolsConfigFactoryTest {
     /** companion 源码须接线；echo 方法体不得出现 toolsConfig / MCP 工厂。 */
     @Test
     void companionWiresMcpEchoDoesNot() throws Exception {
-        Path factory = Path.of("..", "agent-runtime", "src", "main", "java",
-                        "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java")
-                .toAbsolutePath()
-                .normalize();
-        if (!Files.isRegularFile(factory)) {
-            factory = Path.of("agent-runtime", "src", "main", "java",
-                            "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java")
-                    .toAbsolutePath()
-                    .normalize();
-        }
-        String source = Files.readString(factory, StandardCharsets.UTF_8);
-        int companionStart = source.indexOf("public void customizeCompanion");
-        int echoStart = source.indexOf("public void customizeEcho", companionStart);
-        int echoEnd = source.indexOf("public static SubagentDeclaration subagentProbe", echoStart);
-        assertThat(companionStart).isGreaterThanOrEqualTo(0);
-        assertThat(echoStart).isGreaterThan(companionStart);
-        assertThat(echoEnd).isGreaterThan(echoStart);
-
-        String companion = source.substring(companionStart, echoStart);
-        String echo = source.substring(echoStart, echoEnd);
+        String companion = readModuleSource("agent-products/agent-product-companion",
+                "com", "zhu", "product", "companion", "binding", "CompanionResidentAgentBinding.java");
+        String factory = readModuleSource("agent-runtime",
+                "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java");
+        int echoStart = factory.indexOf("public void customizeEcho");
+        assertThat(echoStart).isGreaterThanOrEqualTo(0);
+        String echo = factory.substring(echoStart);
         assertThat(companion)
-                .as("customizeCompanion 须经工厂装配 MCP")
+                .as("companion Binding 须装配 MCP")
                 .contains("McpToolsConfigFactory.createOrNull")
                 .contains("toolsConfig(")
                 .contains("mcpServerRegistrationListener");
@@ -140,6 +127,22 @@ class McpToolsConfigFactoryTest {
                 .doesNotContain("toolsConfig(")
                 .doesNotContain("mcpServerRegistrationListener");
         assertThat(HarnessAgentFactory.SUBAGENT_PROBE_NAME).isEqualTo("subagent-probe");
+    }
+
+    private static String readModuleSource(String moduleRelative, String... parts) throws Exception {
+        Path path = Path.of("..").resolve(moduleRelative).resolve("src").resolve("main").resolve("java");
+        for (String part : parts) {
+            path = path.resolve(part);
+        }
+        path = path.toAbsolutePath().normalize();
+        if (!Files.isRegularFile(path)) {
+            path = Path.of(moduleRelative).resolve("src").resolve("main").resolve("java");
+            for (String part : parts) {
+                path = path.resolve(part);
+            }
+            path = path.toAbsolutePath().normalize();
+        }
+        return Files.readString(path, StandardCharsets.UTF_8);
     }
 
     /** 工厂 toServers 跳过空白名与 null 项。 */

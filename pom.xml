@@ -24,6 +24,7 @@
         <module>agent-state</module>
         <module>agent-semantic</module>
         <module>agent-runtime</module>
+        <module>agent-products</module>
         <module>agent-audit</module>
         <module>agent-access</module>
         <module>agent-admin</module>
@@ -73,6 +74,16 @@
             <dependency>
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-runtime</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-products</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-product-companion</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

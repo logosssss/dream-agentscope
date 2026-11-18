@@ -1,5 +1,6 @@
 package com.zhu.bootstrap;
 
+import com.zhu.product.companion.binding.CompanionResidentAgentBinding;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.TextBlock;
@@ -23,7 +24,7 @@ import reactor.core.publisher.Flux;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Subagent 落地 ②：工厂 configureCommon 关动态；customizeCompanion 挂探针；echo 源码不挂。
+ * Subagent 落地 ②：工厂 configureCommon 关动态；companion Binding 挂探针；echo 源码不挂。
  */
 class DisableDynamicSubagentsWiringTest {
 
@@ -31,38 +32,26 @@ class DisableDynamicSubagentsWiringTest {
     Path workspace;
 
     /**
-     * 源码约定：common 必须 disableDynamicSubagents；companion 挂 subagent；echo 段不出现 subagent(。
+     * 源码约定：common 必须 disableDynamicSubagents；companion Binding 挂 subagent；echo 段不出现 subagent(。
      */
     @Test
     void factorySource_disablesDynamic_companionDeclaresProbe_echoDoesNot() throws Exception {
-        Path factory = Path.of("..", "agent-runtime", "src", "main", "java",
-                        "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java")
-                .toAbsolutePath()
-                .normalize();
-        if (!Files.isRegularFile(factory)) {
-            factory = Path.of("agent-runtime", "src", "main", "java",
-                            "com", "zhu", "runtime", "infrastructure", "agent", "HarnessAgentFactory.java")
-                    .toAbsolutePath()
-                    .normalize();
-        }
-        String source = Files.readString(factory, StandardCharsets.UTF_8);
-        int commonStart = source.indexOf("public void configureCommon");
-        int companionStart = source.indexOf("public void customizeCompanion", commonStart);
-        int echoStart = source.indexOf("public void customizeEcho", companionStart);
+        String factorySource = readRuntimeAgentSource("HarnessAgentFactory.java");
+        String companionSource = readProductCompanionSource("CompanionResidentAgentBinding.java");
+        int commonStart = factorySource.indexOf("public void configureCommon");
+        int echoStart = factorySource.indexOf("public void customizeEcho", commonStart);
         assertThat(commonStart).isGreaterThanOrEqualTo(0);
-        assertThat(companionStart).isGreaterThan(commonStart);
-        assertThat(echoStart).isGreaterThan(companionStart);
-        String common = source.substring(commonStart, companionStart);
-        String companion = source.substring(companionStart, echoStart);
-        String echo = source.substring(echoStart, source.indexOf("public void attachCompanionTools", echoStart));
+        assertThat(echoStart).isGreaterThan(commonStart);
+        String common = factorySource.substring(commonStart, echoStart);
+        String echo = factorySource.substring(echoStart);
         assertThat(common)
                 .as("configureCommon 须 disableDynamicSubagents")
                 .contains("disableDynamicSubagents()");
         assertThat(common)
                 .as("本专题不用整面 disableSubagents")
                 .doesNotContain("disableSubagents()");
-        assertThat(companion)
-                .as("customizeCompanion 须挂静态探针")
+        assertThat(companionSource)
+                .as("companion Binding 须挂静态探针")
                 .contains("subagent(subagentProbe())");
         assertThat(echo)
                 .as("customizeEcho 不挂静态子代理")
@@ -87,15 +76,15 @@ class DisableDynamicSubagentsWiringTest {
                 .disableToolResultEviction()
                 .disableDynamicSkills()
                 .disableDynamicSubagents()
-                .subagent(HarnessAgentFactory.subagentProbe())
+                .subagent(CompanionResidentAgentBinding.subagentProbe())
                 .build()) {
             assertThat(hasMiddleware(agent, DynamicSubagentsMiddleware.class))
                     .as("关动态后无 DynamicSubagentsMiddleware")
                     .isFalse();
-            assertThat(agent.getSubagentAgentManager().hasAgent(HarnessAgentFactory.SUBAGENT_PROBE_NAME))
+            assertThat(agent.getSubagentAgentManager().hasAgent(CompanionResidentAgentBinding.SUBAGENT_PROBE_NAME))
                     .isTrue();
             SubagentDeclaration decl = agent.getSubagentAgentManager()
-                    .getDeclaration(HarnessAgentFactory.SUBAGENT_PROBE_NAME)
+                    .getDeclaration(CompanionResidentAgentBinding.SUBAGENT_PROBE_NAME)
                     .orElseThrow();
             assertThat(decl.getWorkspaceMode()).isEqualTo(WorkspaceMode.ISOLATED);
             assertThat(decl.isInheritParentPermissions()).isTrue();
@@ -106,17 +95,45 @@ class DisableDynamicSubagentsWiringTest {
         }
     }
 
-    /** 工厂探针工厂方法本身满足锁定字段。 */
+    /** companion Binding 探针工厂方法本身满足锁定字段。 */
     @Test
     void subagentProbeFactory_matchesLock() {
-        SubagentDeclaration probe = HarnessAgentFactory.subagentProbe();
-        assertThat(probe.getName()).isEqualTo(HarnessAgentFactory.SUBAGENT_PROBE_NAME);
-        assertThat(probe.getInlineAgentsBody()).isEqualTo(HarnessAgentFactory.SUBAGENT_PROBE_PROMPT);
+        SubagentDeclaration probe = CompanionResidentAgentBinding.subagentProbe();
+        assertThat(probe.getName()).isEqualTo(CompanionResidentAgentBinding.SUBAGENT_PROBE_NAME);
+        assertThat(probe.getInlineAgentsBody()).isEqualTo(CompanionResidentAgentBinding.SUBAGENT_PROBE_PROMPT);
         assertThat(probe.getWorkspaceMode()).isEqualTo(WorkspaceMode.ISOLATED);
         assertThat(probe.isInheritParentPermissions()).isTrue();
         assertThat(probe.isPersistSession()).isFalse();
         assertThat(probe.getTools()).isEmpty();
         assertThat(probe.getMode()).isEqualTo(SubagentDeclaration.Mode.SUBAGENT);
+        assertThat(HarnessAgentFactory.SUBAGENT_PROBE_NAME)
+                .isEqualTo(CompanionResidentAgentBinding.SUBAGENT_PROBE_NAME);
+    }
+
+    private static String readRuntimeAgentSource(String fileName) throws Exception {
+        return readModuleSource("agent-runtime",
+                "com", "zhu", "runtime", "infrastructure", "agent", fileName);
+    }
+
+    private static String readProductCompanionSource(String fileName) throws Exception {
+        return readModuleSource("agent-products/agent-product-companion",
+                "com", "zhu", "product", "companion", "binding", fileName);
+    }
+
+    private static String readModuleSource(String moduleRelative, String... parts) throws Exception {
+        Path path = Path.of("..").resolve(moduleRelative).resolve("src").resolve("main").resolve("java");
+        for (String part : parts) {
+            path = path.resolve(part);
+        }
+        path = path.toAbsolutePath().normalize();
+        if (!Files.isRegularFile(path)) {
+            path = Path.of(moduleRelative).resolve("src").resolve("main").resolve("java");
+            for (String part : parts) {
+                path = path.resolve(part);
+            }
+            path = path.toAbsolutePath().normalize();
+        }
+        return Files.readString(path, StandardCharsets.UTF_8);
     }
 
     private static boolean hasMiddleware(HarnessAgent agent, Class<?> type) {

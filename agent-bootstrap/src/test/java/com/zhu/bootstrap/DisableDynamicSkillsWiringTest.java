@@ -46,7 +46,7 @@ class DisableDynamicSkillsWiringTest {
         String source = Files.readString(factory, StandardCharsets.UTF_8);
         int commonStart = source.indexOf("public void configureCommon");
         assertThat(commonStart).isGreaterThanOrEqualTo(0);
-        int commonEnd = source.indexOf("public void customizeCompanion", commonStart);
+        int commonEnd = source.indexOf("public void customizeEcho", commonStart);
         assertThat(commonEnd).isGreaterThan(commonStart);
         String common = source.substring(commonStart, commonEnd);
         assertThat(common)

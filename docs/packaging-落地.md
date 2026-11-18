@@ -71,7 +71,7 @@
 | --- | --- |
 | `config`（根） | `SemanticConfig` |
 | `config.permission` | `PermissionProperties`、`PermissionMapperConfig`、`ConfiguredPermissionService`、`ConfiguredUnconditionalPermissionCatalog` |
-| `config.product` | `CompanionPersona`、`PlatformSemanticProvider` |
+| ~~`config.product`~~ | **已删空包**；实现在 `agent-products/agent-product-companion`（`persona` / `semantic`） |
 | `config.safety` | `AbsentSemanticRiskJudge`、`ClasspathCrisisPrompt` |
 
 ## ⑪b 域表（`semantic.application`）
@@ -132,7 +132,23 @@
 
 不改行为 / URL / JSON；ArchUnit 代表类型 FQCN 已对齐。
 
+## 多产品拓扑（追加，P3 / A1）
+
+与「混合 C」分包轴独立；产品层 grill 锁定后记此，避免与模块表漂移。
+
+| 项 | 锁定 |
+| --- | --- |
+| 进程拓扑 | **P3**：单用户进程、多产品同 JVM；不另起 companion-app |
+| 用户 App | **A1**：仅 `agent-bootstrap`；依赖 `agent-product-*`；只做扫描 / 装配 / Nacos / Flyway |
+| 产品模块 | **M2**：立刻独立 `agent-product-*`；聚合父 `agent-products/`（reactor）；子模块 parent 仍指根（F1/D1） |
+| semantic | **S1**：契约 + `api` + 共享权限/提示词/目录；产品实现在 `com.zhu.product..` |
+| 装配缝 | **R1**：`ResidentAgentBinding` + 注册表；**E1** echo 仍平台；**C1** 中间件零件在 runtime、链由产品 Binding 组装 |
+| ArchUnit | `runtime`/`semantic` ↛ `com.zhu.product..`；`com.zhu.product..` ↛ `access` |
+| 明确不做 | 第二产品模块；迁 `KnowledgeSearchTool`；拆 companion 独立进程；改架构指南正文 |
+
+图册：[`docs/diagrams/architecture.md`](diagrams/architecture.md)。模块说明：[`agent-products/README.md`](../agent-products/README.md)。
+
 ## 状态
 
 grill 已结束（含 ⑪ 二次收口）。规范、顺序与 admin / ⑪a～⑪c 域表定稿。  
-①～⑩、⑪a～⑪c 已收口；**⑫ `runtime.api` 细化已落地**。若再改规范，先改本文再动代码。
+①～⑩、⑪a～⑪c 已收口；**⑫ `runtime.api` 细化已落地**；**多产品拓扑（P3/A1）文档已收口**。若再改规范，先改本文再动代码。

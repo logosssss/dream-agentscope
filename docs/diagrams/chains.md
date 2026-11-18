@@ -4,7 +4,7 @@
 
 ## 9. companion 一轮 Middleware 顺序
 
-`configureCommon` 先挂 tracing / shutdown；`customizeCompanion` 经 `CompanionMiddlewareChain.apply` 挂产品中间件。Eviction → Compaction 须在 SafetyGate 之后；CRITICAL 整段跳过 Eviction/Compaction；Memory flush 非 CRITICAL 才入队。
+`configureCommon` 先挂 tracing / shutdown；产品 Binding（companion）经 `CompanionMiddlewareChain.apply` 挂产品中间件。Eviction → Compaction 须在 SafetyGate 之后；CRITICAL 整段跳过 Eviction/Compaction；Memory flush 非 CRITICAL 才入队。
 
 ```mermaid
 flowchart TB

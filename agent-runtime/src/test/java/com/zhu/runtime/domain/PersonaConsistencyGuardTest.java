@@ -1,6 +1,7 @@
 package com.zhu.runtime.domain;
 
-import com.zhu.semantic.config.product.CompanionPersona;
+import com.zhu.semantic.contract.product.PersonaContract;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,7 +38,34 @@ class PersonaConsistencyGuardTest {
     /** 基线空白时用代码兜底。盖掉后不再拿基线去过词表。 */
     @Test
     void replacementUsesFallbackAndIsNotRechecked() {
-        String baseline = PersonaConsistencyGuard.baseline(new CompanionPersona());
+        // 不依赖 product 模块：用契约桩拼出与默认基线同文的身份句。
+        PersonaContract persona = new PersonaContract() {
+            @Override
+            public String agentId() {
+                return "test";
+            }
+
+            @Override
+            public String coreIdentity() {
+                return "你是用户的智能搭子，不是工具助手，也不是恋人。";
+            }
+
+            @Override
+            public String speechStyle() {
+                return "自然、克制、不卖惨。";
+            }
+
+            @Override
+            public List<String> boundaries() {
+                return List.of();
+            }
+
+            @Override
+            public String relationshipStage() {
+                return "ACQUAINTANCE";
+            }
+        };
+        String baseline = PersonaConsistencyGuard.baseline(persona);
         assertThat(PersonaConsistencyGuard.finalize("我是你的恋人", true, " "))
                 .isEqualTo(PersonaConsistencyGuard.baseline(null));
         assertThat(PersonaConsistencyGuard.finalize("我是你的恋人", true, baseline)).isEqualTo(baseline);

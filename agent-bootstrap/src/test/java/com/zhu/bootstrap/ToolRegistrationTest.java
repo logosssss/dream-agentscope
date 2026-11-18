@@ -6,7 +6,7 @@ import com.zhu.runtime.infrastructure.agent.CatalogToolRegistrar;
 import com.zhu.runtime.infrastructure.tool.KnowledgeSearchTool;
 import com.zhu.semantic.contract.tool.ProductTool;
 import com.zhu.semantic.contract.tool.ToolDescriptor;
-import com.zhu.semantic.infrastructure.tool.EchoTextTool;
+import com.zhu.product.companion.tool.EchoTextTool;
 import com.zhu.state.api.knowledge.KnowledgeRepository;
 import com.zhu.vector.api.VectorStore;
 import io.agentscope.core.tool.Tool;

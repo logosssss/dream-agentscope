@@ -76,7 +76,8 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 
 要点：
 
-- 用户进程执行 **Flyway**；管理进程**不**跑迁移、不依赖 runtime / access / Harness
+- 用户进程执行 **Flyway**；管理进程**不**跑迁移、不依赖 runtime / access / Harness / 产品模块
+- **单用户进程多产品（P3）**：`agent-bootstrap` 唯一用户 App（A1），classpath 挂 `agent-product-*`；长驻 Agent 经 `ResidentAgentBinding` 注册表挂载（echo 仍平台）
 - 两进程启动都必须能连上 **MySQL、Redis、Milvus**，否则退出（测试配置可关探测）
 - 配了 `NACOS_ADDR` 时，启动必须拉到对应 **infra + 业务** 两份配置，缺一或正文空白则退出
 - 额度/占锁等 Redis 失败返回 **503**，不回落内存/MySQL
@@ -88,8 +89,9 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 | [`agent-bootstrap`](./agent-bootstrap/README.md) | 用户进程入口，聚合扫描 `com.zhu` |
 | [`agent-admin`](./agent-admin/README.md) | 管理进程入口 |
 | [`agent-access`](./agent-access/README.md) | 用户侧 HTTP、身份、额度、聊天接入 |
-| [`agent-runtime`](./agent-runtime/README.md) | 执行内核：HarnessAgent、中间件、工具挂载 |
-| [`agent-semantic`](./agent-semantic/README.md) | 产品语义、提示词、工具目录与权限 |
+| [`agent-runtime`](./agent-runtime/README.md) | 执行内核：HarnessAgent、中间件、Binding 缝、工具挂载 |
+| [`agent-semantic`](./agent-semantic/README.md) | 语义契约 / api / 共享权限·提示词·目录（不含具体产品实现） |
+| [`agent-products/`](./agent-products/README.md) | 产品模块聚合；当前 `agent-product-companion` |
 | [`agent-audit`](./agent-audit/README.md) | 租户/用量/待办等审计与目录 |
 | [`agent-state`](./agent-state/README.md) | DistributedStore / 远程工作区状态 |
 | [`agent-vector`](./agent-vector/README.md) | Milvus 集合与检索相关 |

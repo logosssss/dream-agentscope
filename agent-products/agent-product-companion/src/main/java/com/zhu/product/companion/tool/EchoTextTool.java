@@ -1,4 +1,4 @@
-package com.zhu.semantic.infrastructure.tool;
+package com.zhu.product.companion.tool;
 
 import com.zhu.semantic.contract.tool.ProductTool;
 import io.agentscope.core.tool.Tool;
@@ -6,7 +6,7 @@ import io.agentscope.core.tool.ToolParam;
 import org.springframework.stereotype.Component;
 
 /**
- * 产品域第一把业务工具。只做原样回声，用来跑通目录注册和审批。
+ * 搭子产品第一把业务工具。只做原样回声，用来跑通目录注册和审批。
  * 无副作用，不查库。批准后不会自动再执行。
  */
 @Component

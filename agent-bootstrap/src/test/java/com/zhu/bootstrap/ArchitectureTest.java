@@ -26,6 +26,29 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..semantic.application..", "..semantic.infrastructure..");
 
+    /**
+     * 运行层不得依赖产品实现包（{@code com.zhu.product..}，勿与 {@code semantic.contract.product} 混淆）。
+     * 产品经 {@code ResidentAgentBinding} 注册表挂入，由 bootstrap 扫进 classpath。
+     */
+    private static final ArchRule RUNTIME_MUST_NOT_DEPEND_ON_PRODUCT =
+            noClasses().that().resideInAPackage("..runtime..")
+                    .should().dependOnClassesThat()
+                    .resideInAPackage("com.zhu.product..");
+
+    /**
+     * 产品模块不得依赖接入层。HTTP / 身份 / 额度留在 access；产品只提供 Binding / 语义实现 / 业务工具。
+     */
+    private static final ArchRule PRODUCT_MUST_NOT_DEPEND_ON_ACCESS =
+            noClasses().that().resideInAPackage("com.zhu.product..")
+                    .should().dependOnClassesThat()
+                    .resideInAPackage("..access..");
+
+    /** 语义共享层不得依赖具体产品实现（S1：契约 + api + 共享存储）。 */
+    private static final ArchRule SEMANTIC_MUST_NOT_DEPEND_ON_PRODUCT =
+            noClasses().that().resideInAPackage("..semantic..")
+                    .should().dependOnClassesThat()
+                    .resideInAPackage("com.zhu.product..");
+
     /** 状态层不认识产品语义、执行和接入。 */
     private static final ArchRule STATE_MUST_NOT_DEPEND_ON_BUSINESS =
             noClasses().that().resideInAPackage("..state..")
@@ -90,6 +113,8 @@ class ArchitectureTest {
                         "com.zhu.runtime.infrastructure.gateway.ChannelGateway",
                         "com.zhu.runtime.api.approval.PendingAskFacade",
                         "com.zhu.runtime.api.wakeup.WakeupPort",
+                        "com.zhu.runtime.infrastructure.agent.ResidentAgentBinding",
+                        "com.zhu.product.companion.binding.CompanionResidentAgentBinding",
                         "com.zhu.state.config.DistributedStoreConfig",
                         "com.zhu.state.config.StateMapperConfig",
                         "com.zhu.vector.api.VectorStore",
@@ -101,6 +126,9 @@ class ArchitectureTest {
 
         SEMANTIC_MUST_NOT_DEPEND_ON_RUNTIME_OR_ACCESS.check(classes);
         RUNTIME_ONLY_DEPENDS_ON_SEMANTIC_CONTRACT.check(classes);
+        RUNTIME_MUST_NOT_DEPEND_ON_PRODUCT.check(classes);
+        PRODUCT_MUST_NOT_DEPEND_ON_ACCESS.check(classes);
+        SEMANTIC_MUST_NOT_DEPEND_ON_PRODUCT.check(classes);
         STATE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         VECTOR_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         OBJECT_STORE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);

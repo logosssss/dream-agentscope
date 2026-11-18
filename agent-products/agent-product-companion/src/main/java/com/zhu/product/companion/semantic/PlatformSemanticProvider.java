@@ -1,7 +1,8 @@
-package com.zhu.semantic.config.product;
+package com.zhu.product.companion.semantic;
 
-import com.zhu.semantic.api.tool.NoToolCatalog;
+import com.zhu.product.companion.persona.CompanionPersona;
 import com.zhu.semantic.api.prompt.PlatformPrompt;
+import com.zhu.semantic.api.tool.NoToolCatalog;
 import com.zhu.semantic.api.tool.ToolCatalogService;
 import com.zhu.semantic.contract.product.CompletionCriteria;
 import com.zhu.semantic.contract.product.ProductSemanticProvider;
@@ -11,7 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * 平台默认的产品语义。运行层只依赖契约，具体数值在这里收口。
+ * 搭子产品语义实现。运行层只依赖契约，具体数值在这里收口。
  * 工具列表来自目录。MySQL 打开时目录读 tool_registry，关闭时目录为空。
  */
 @Service
