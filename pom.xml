@@ -41,8 +41,8 @@
         <milvus.version>2.6.17</milvus.version>
         <aliyun.oss.version>0.6.1</aliyun.oss.version>
         <aws.sdk.version>2.29.51</aws.sdk.version>
-        <!-- 与 agentscope-extensions-nacos-prompt 传递依赖对齐，管理进程直接引用客户端。 -->
-        <nacos.client.version>3.2.1-2026.03.30</nacos.client.version>
+        <!-- 现网 Nacos Server 3.3.0；BOM 强制对齐，避免被 agentscope-extensions-nacos-prompt 拉回旧传递依赖。 -->
+        <nacos.client.version>3.3.0</nacos.client.version>
         <!-- 与 Spring Boot 3.5.x / spring-data-redis 3.5 对齐的 Redisson 线。 -->
         <redisson.version>3.50.0</redisson.version>
     </properties>

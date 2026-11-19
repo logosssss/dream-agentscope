@@ -27,8 +27,19 @@ export function saveOperatorId(value: string): void {
   }
 }
 
-/** 环境里是否已配置管理令牌。 */
+/**
+ * 本地联调看 VITE_ADMIN_TOKEN；现网网关模式（VITE_ADMIN_GATEWAY=true）由 Nginx 代填令牌，
+ * 浏览器包内不放密钥，仍视为已就绪。
+ */
 export function hasAdminToken(): boolean {
+  if (import.meta.env.VITE_ADMIN_GATEWAY === 'true') {
+    return true
+  }
   const token = import.meta.env.VITE_ADMIN_TOKEN
   return !!token && token.trim() !== ''
+}
+
+/** 是否走网关代填（生产静态站）。 */
+export function isAdminGateway(): boolean {
+  return import.meta.env.VITE_ADMIN_GATEWAY === 'true'
 }

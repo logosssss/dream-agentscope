@@ -5,13 +5,16 @@ import type { ApiResult } from '@/shared/types/api.types'
  * 管理端 JSON 调用。带 X-Caller-Token（Admin Token）与可选 X-Operator-Id。
  */
 
-/** 组装鉴权头。缺 Admin Token 直接抛错。 */
+/** 组装鉴权头。本地缺 Token 抛错；网关模式不带头，由 Nginx 注入 X-Caller-Token。 */
 export function adminHeaders(extra?: HeadersInit): Headers {
   const headers = new Headers(extra)
   if (!hasAdminToken()) {
     throw new Error('未配置 VITE_ADMIN_TOKEN，请复制 web-admin/.env.example 为 .env.local 并填写')
   }
-  headers.set('X-Caller-Token', import.meta.env.VITE_ADMIN_TOKEN.trim())
+  const token = import.meta.env.VITE_ADMIN_TOKEN
+  if (token && token.trim() !== '') {
+    headers.set('X-Caller-Token', token.trim())
+  }
   const operator = loadOperatorId()
   if (operator) {
     headers.set('X-Operator-Id', operator)

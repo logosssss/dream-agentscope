@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.zhu.access.infrastructure.persistence.usage.TokenUsageMapper">
+<mapper namespace="com.zhu.access.infrastructure.persistence.usage.AccessTokenUsageMapper">
 
     <!-- 没有行时 SUM 得到 NULL，这里收成 0。币种个数用来拒绝混加。 -->
     <select id="sumForPeriod" resultType="com.zhu.access.infrastructure.persistence.usage.UsagePeriodTotal">

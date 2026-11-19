@@ -4,7 +4,7 @@ import com.zhu.runtime.infrastructure.persistence.usage.MysqlTokenUsageWriter;
 import com.zhu.runtime.api.usage.DailyCostAccumulator;
 import com.zhu.runtime.infrastructure.persistence.billing.ModelPriceMapper;
 import com.zhu.runtime.api.usage.TokenUsageWriter;
-import com.zhu.runtime.infrastructure.persistence.usage.TokenUsageMapper;
+import com.zhu.runtime.infrastructure.persistence.usage.RuntimeTokenUsageMapper;
 import com.zhu.runtime.infrastructure.persistence.entity.billing.ModelPrice;
 import com.zhu.runtime.infrastructure.persistence.entity.usage.TokenUsage;
 import java.math.BigDecimal;
@@ -29,7 +29,7 @@ class TokenUsageWriterTest {
     /** 负数 token 记成 0。没有价格时金额是 0。 */
     @Test
     void clampsTokensAndLeavesCostAtZero() {
-        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        RuntimeTokenUsageMapper usages = mock(RuntimeTokenUsageMapper.class);
         ModelPriceMapper prices = mock(ModelPriceMapper.class);
         new MysqlTokenUsageWriter(usages, prices, null).record("t", "u", " ", "run-1", "m", -2, 5);
 
@@ -52,7 +52,7 @@ class TokenUsageWriterTest {
      */
     @Test
     void currentPriceSetsCostAndAccumulatesMicros() {
-        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        RuntimeTokenUsageMapper usages = mock(RuntimeTokenUsageMapper.class);
         ModelPriceMapper prices = mock(ModelPriceMapper.class);
         ModelPrice price = new ModelPrice();
         price.setCurrency("USD");
@@ -74,7 +74,7 @@ class TokenUsageWriterTest {
     /** 没有用户时不插入，也不查价格。 */
     @Test
     void blankUserIsSkipped() {
-        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        RuntimeTokenUsageMapper usages = mock(RuntimeTokenUsageMapper.class);
         ModelPriceMapper prices = mock(ModelPriceMapper.class);
 
         new MysqlTokenUsageWriter(usages, prices, null).record("t", " ", "s", "run-1", "m", 1, 1);
@@ -86,7 +86,7 @@ class TokenUsageWriterTest {
     /** 查价抛错时仍写入 token 行，金额记 0，不挡对话后记账。 */
     @Test
     void priceLookupFailureStillInsertsWithZeroCost() {
-        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        RuntimeTokenUsageMapper usages = mock(RuntimeTokenUsageMapper.class);
         ModelPriceMapper prices = mock(ModelPriceMapper.class);
         when(prices.selectCurrent(eq("m"), any(LocalDateTime.class)))
                 .thenThrow(new RuntimeException("Unknown column 'input_per_1m'"));

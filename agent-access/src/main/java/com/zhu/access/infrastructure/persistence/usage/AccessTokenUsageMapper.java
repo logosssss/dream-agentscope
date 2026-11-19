@@ -7,9 +7,9 @@ import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 /**
- * token_usage 的访问。简单插入用 BaseMapper，合计和列表在 XML 里。
+ * 接入层 token_usage 读 Mapper。Bean 名与 runtime 写入 Mapper 区分，避免用户进程双扫冲突。
  */
-public interface TokenUsageMapper extends BaseMapper<TokenUsage> {
+public interface AccessTokenUsageMapper extends BaseMapper<TokenUsage> {
 
     /**
      * 合计这个租户在区间内的 token 和金额。起点含、终点不含。没有行时合计为 0。

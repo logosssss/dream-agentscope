@@ -28,7 +28,7 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
 
     private static final int MODEL_LIMIT = 128;
 
-    private final TokenUsageMapper usages;
+    private final RuntimeTokenUsageMapper usages;
 
     private final ModelPriceMapper prices;
 
@@ -37,7 +37,7 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
     /** 累加器可缺省。价格缺失时不拒绝写入。 */
     @Autowired
     public MysqlTokenUsageWriter(
-            TokenUsageMapper usages,
+            RuntimeTokenUsageMapper usages,
             ModelPriceMapper prices,
             @Nullable DailyCostAccumulator costs) {
         this.usages = usages;
