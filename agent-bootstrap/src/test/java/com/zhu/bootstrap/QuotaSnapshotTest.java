@@ -4,7 +4,7 @@ import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.cache.api.CacheFacade;
 import com.zhu.cache.api.counter.CounterCache;
-import com.zhu.audit.api.quota.TenantQuotaLookup;
+import com.zhu.access.api.quota.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;

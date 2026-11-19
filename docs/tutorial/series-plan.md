@@ -50,7 +50,7 @@
 | # | 标题 | 要讲清的坑 | 代码位置 | 状态 |
 |---|---|---|---|---|
 | 01 | AgentScope 落地实战 01｜Dream-SaaS：两个进程、十个模块的多 Agent 平台底座 | 两个进程、两个前端、十个模块；六类产品化组件；技术栈与三类外部依赖的启动差异；本地启动路径；明确未实现的部分 | 根 README 全篇 + 各模块 README 包表 | done |
-| 02 | AgentScope 2.0.4 概念地图：200 行跑通最小闭环 | Agent / Msg / Toolkit / Memory / Middleware 各自管什么；哪些是坑（Builder 可变、context 不是 ThreadLocal） | `agent-runtime` 调用链 | idea |
+| 02 | AgentScope 落地实战 02｜概念地图：五个对象、30 个装配点与一次懒启动 | 五个对象（Bootstrap / Builder / Channel / Msg / RuntimeContext）；一条消息的接入层六道门与 Gateway 四件事；公共项按 Agent 数量重复执行；Builder 不可共享；Toolkit 只能在 build 后挂；上下文三层合并；中间件顺序即语义 | `AccessChannelBootstrapAgentTest` / `ChatAppService` / `ChannelGateway` / `AgentTurnSupport` | review |
 | 03 | 流式不是加个 SSE 就完了 | `streamEvents` 的取消/超时/close；为什么流式下不能边推边审核；末帧才知道成败 | `AgentExecutionService` | idea |
 | 04 | 工具不是函数：@Tool 到能上线的距离 | 参数 schema、失败语义、幂等、工具目录与 `toolId` 三处一致 | `CatalogToolRegistrar` / `ProductTool` | idea |
 
@@ -121,7 +121,7 @@ AgentScope 落地实战 NN｜<对象>：<结论或规模>
 | # | 公众号标题 | 字数 |
 |---|---|---|
 | 01 | AgentScope 落地实战 01｜Dream-SaaS：两个进程、十个模块的多 Agent 平台底座 | 52 |
-| 02 | AgentScope 落地实战 02｜Agent 与 Toolkit：200 行跑通最小闭环 | 46 |
+| 02 | AgentScope 落地实战 02｜概念地图：五个对象、30 个装配点与一次懒启动 | 42 |
 | 03 | AgentScope 落地实战 03｜SSE 流式：一次对话的完整生命周期 | 37 |
 
 封面徽标、文首徽标、front matter `title` 三处必须同字，改动时一起改。

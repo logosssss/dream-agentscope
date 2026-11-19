@@ -1,12 +1,13 @@
 package com.zhu.bootstrap;
 
+import com.zhu.runtime.infrastructure.persistence.event.MybatisAuditRecorder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.zhu.audit.infrastructure.persistence.entity.event.AgentEventAudit;
-import com.zhu.audit.infrastructure.persistence.event.AgentEventAuditMapper;
-import com.zhu.audit.infrastructure.persistence.event.MybatisAuditRecorder;
+import com.zhu.runtime.infrastructure.persistence.entity.event.AgentEventAudit;
+import com.zhu.runtime.infrastructure.persistence.event.AgentEventAuditMapper;
+import com.zhu.runtime.api.event.AuditRecorder;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

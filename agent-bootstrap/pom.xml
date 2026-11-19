@@ -19,6 +19,11 @@
             <artifactId>agent-common</artifactId>
         </dependency>
         <dependency>
+            <!-- 全仓 Flyway 脚本；仅本进程执行迁移。 -->
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-db</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.zhu</groupId>
             <artifactId>agent-vector</artifactId>
         </dependency>
@@ -41,10 +46,6 @@
         <dependency>
             <groupId>com.zhu</groupId>
             <artifactId>agent-product-companion</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.zhu</groupId>
-            <artifactId>agent-audit</artifactId>
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>

@@ -1,8 +1,8 @@
 package com.zhu.admin.api.controller.event;
 
 import com.zhu.admin.api.dto.event.OperationAuditRequest;
-import com.zhu.audit.api.event.OperationAuditCatalog;
-import com.zhu.audit.api.event.OperationAuditSummary;
+import com.zhu.admin.api.event.OperationAuditCatalog;
+import com.zhu.admin.api.event.OperationAuditSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

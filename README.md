@@ -87,12 +87,12 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 | 路径 | 说明 |
 |------|------|
 | [`agent-bootstrap`](./agent-bootstrap/README.md) | 用户进程入口，聚合扫描 `com.zhu` |
+| [`agent-db`](./agent-db/README.md) | 全仓 Flyway SQL 唯一来源（无业务 Java；仅用户进程迁移） |
 | [`agent-admin`](./agent-admin/README.md) | 管理进程入口 |
 | [`agent-access`](./agent-access/README.md) | 用户侧 HTTP、身份、额度、聊天接入 |
 | [`agent-runtime`](./agent-runtime/README.md) | 执行内核：HarnessAgent、中间件、Binding 缝、工具挂载 |
 | [`agent-semantic`](./agent-semantic/README.md) | 语义契约 / api / 共享权限·提示词·目录（不含具体产品实现） |
 | [`agent-products/`](./agent-products/README.md) | 产品模块聚合；当前 `agent-product-companion` |
-| [`agent-audit`](./agent-audit/README.md) | 租户/用量/待办等审计与目录 |
 | [`agent-state`](./agent-state/README.md) | DistributedStore / 远程工作区状态 |
 | [`agent-vector`](./agent-vector/README.md) | Milvus 集合与检索相关 |
 | [`agent-object-store`](./agent-object-store/README.md) | 对象存储抽象（local/OSS/S3/MinIO） |

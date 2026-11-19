@@ -1,8 +1,8 @@
 package com.zhu.admin;
 
-import com.zhu.audit.api.event.AuditQuery;
-import com.zhu.audit.api.event.AuditRecorder;
-import com.zhu.audit.api.safety.SafetyInterventionRecorder;
+import com.zhu.admin.api.event.AuditQuery;
+import com.zhu.admin.api.event.AuditRecorder;
+import com.zhu.admin.api.safety.SafetyInterventionRecorder;
 import com.zhu.common.security.CallerTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

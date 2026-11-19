@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.api.event.AuditRecorder;
+import com.zhu.runtime.api.event.AuditRecorder;
 import com.zhu.runtime.task.AgentTask;
 import com.zhu.runtime.task.handle.DispatchingAgentTaskHandler;
 import com.zhu.runtime.task.handle.DocumentIndexExecutor;

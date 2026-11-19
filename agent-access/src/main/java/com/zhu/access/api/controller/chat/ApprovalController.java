@@ -7,7 +7,7 @@ import com.zhu.access.api.dto.chat.PendingApproval;
 import com.zhu.access.application.auth.gate.AccessAccountGate;
 import com.zhu.access.application.chat.approval.ApprovalDecisionAppService;
 import com.zhu.access.domain.channel.AccessChannel;
-import com.zhu.audit.api.approval.ApprovalDecision;
+import com.zhu.access.api.approval.ApprovalDecision;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;

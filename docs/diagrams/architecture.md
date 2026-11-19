@@ -53,7 +53,7 @@ flowchart TB
   access["agent-access"]
   runtime["agent-runtime"]
   semantic["agent-semantic\n契约/api/共享存储"]
-  audit["agent-audit"]
+  db["agent-db\nFlyway SQL"]
   state["agent-state"]
   vector["agent-vector"]
   objectstore["agent-object-store"]
@@ -65,7 +65,7 @@ flowchart TB
   bootstrap --> runtime
   bootstrap --> semantic
   bootstrap --> products
-  bootstrap --> audit
+  bootstrap --> db
   bootstrap --> state
   bootstrap --> vector
   bootstrap --> cacheRedis
@@ -73,25 +73,20 @@ flowchart TB
   products --> semantic
   products --> cacheApi
   products --> common
-  admin --> audit
   admin --> cacheRedis
   admin --> common
   access --> runtime
   access --> semantic
-  access --> audit
   access --> cacheApi
   access --> common
   runtime --> semantic
   runtime --> state
   runtime --> vector
-  runtime --> audit
   runtime --> cacheApi
   runtime --> common
-  audit --> cacheApi
   cacheRedis --> cacheApi
   cacheApi --> common
   semantic --> common
-  audit --> common
   state --> common
   state --> objectstore
   vector --> common
@@ -103,7 +98,7 @@ ArchUnit 要点（禁止）：
 - `semantic` ↛ `runtime` / `access` / `com.zhu.product..` / `cache`
 - `runtime` ↛ `semantic.application` / `semantic.infrastructure`（只碰 contract）；`runtime` ↛ `com.zhu.product..`；`runtime` ↛ `cache.redis`
 - `com.zhu.product..` ↛ `access`；`com.zhu.product..` ↛ `cache.redis`
-- `access` / `audit` ↛ `cache.redis`（只碰 api；实现由启动装配引入）
+- `access` / `runtime` / `product` ↛ `cache.redis`（只碰 api；实现由启动装配引入）
 - `state` / `vector` / `objectstore` ↛ 业务包与 `cache`（细则见测试）
 - `access` ↛ `io.agentscope..`；`access` ↛ `runtime.infrastructure`
 - `access.api.controller` ↛ `infrastructure.persistence`

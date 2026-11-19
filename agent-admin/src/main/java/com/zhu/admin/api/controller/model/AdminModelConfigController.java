@@ -1,8 +1,8 @@
 package com.zhu.admin.api.controller.model;
 
 import com.zhu.admin.api.dto.model.ModelConfigRequest;
-import com.zhu.audit.api.model.ModelConfigCatalog;
-import com.zhu.audit.api.model.ModelConfigSummary;
+import com.zhu.admin.api.model.ModelConfigCatalog;
+import com.zhu.admin.api.model.ModelConfigSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

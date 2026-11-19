@@ -1,8 +1,9 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.application.usage.MysqlTokenUsageQuery;
-import com.zhu.audit.infrastructure.persistence.usage.TokenUsageMapper;
-import com.zhu.audit.infrastructure.persistence.entity.usage.TokenUsage;
+import com.zhu.access.application.usage.MysqlTokenUsageQuery;
+import com.zhu.access.api.usage.TokenUsageQuery;
+import com.zhu.access.infrastructure.persistence.usage.TokenUsageMapper;
+import com.zhu.access.infrastructure.persistence.entity.usage.TokenUsage;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.math.BigDecimal;

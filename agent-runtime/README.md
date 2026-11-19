@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-semantic`、`agent-state`、`agent-vector`、`agent-audit`、`agentscope-harness`、`agentscope-extensions-model-dashscope`。测试依赖 `spring-boot-starter-test`（模块内纯单元测试点；见 `docs/bootstrap-test-sink-落地.md`）。
+依赖 `agent-common`、`agent-semantic`、`agent-state`、`agent-vector`、`agent-cache-api`、MyBatis-Plus、`agentscope-harness`、`agentscope-extensions-model-dashscope`。事件审计写入、token 用量、安全干预、模型查找在本模块本地实现。测试依赖 `spring-boot-starter-test`（模块内纯单元测试点；见 `docs/bootstrap-test-sink-落地.md`）。
 
 对 `agent-semantic` 的 Java 引用只能落在 `com.zhu.semantic.contract` 及其子包（`product` / `tool` / `permission` / `safety`）。不要 import `semantic.application` 或 `semantic.infrastructure`。
 

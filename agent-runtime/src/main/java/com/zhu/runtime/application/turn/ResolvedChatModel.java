@@ -1,6 +1,6 @@
 package com.zhu.runtime.application.turn;
 
-import com.zhu.audit.api.model.ModelConfigLookup;
+import com.zhu.runtime.api.model.ModelConfigLookup;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;

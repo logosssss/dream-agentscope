@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.api.event.AuditRecorder;
+import com.zhu.runtime.api.event.AuditRecorder;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.runtime.task.log.AbsentAgentTaskLog;
 import com.zhu.runtime.task.AgentTask;

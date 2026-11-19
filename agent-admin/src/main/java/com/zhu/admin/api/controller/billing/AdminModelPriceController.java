@@ -1,8 +1,8 @@
 package com.zhu.admin.api.controller.billing;
 
 import com.zhu.admin.api.dto.billing.ModelPriceRequest;
-import com.zhu.audit.api.billing.ModelPriceCatalog;
-import com.zhu.audit.api.billing.ModelPriceEntry;
+import com.zhu.admin.api.billing.ModelPriceCatalog;
+import com.zhu.admin.api.billing.ModelPriceEntry;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

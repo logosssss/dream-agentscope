@@ -1,8 +1,8 @@
 package com.zhu.admin.api.controller.eval;
 
 import com.zhu.admin.api.dto.eval.EvalCaseRequest;
-import com.zhu.audit.api.eval.EvalCaseCatalog;
-import com.zhu.audit.api.eval.EvalCaseSummary;
+import com.zhu.admin.api.eval.EvalCaseCatalog;
+import com.zhu.admin.api.eval.EvalCaseSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

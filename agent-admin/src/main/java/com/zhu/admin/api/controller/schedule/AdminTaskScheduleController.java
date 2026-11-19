@@ -1,8 +1,8 @@
 package com.zhu.admin.api.controller.schedule;
 
 import com.zhu.admin.api.dto.schedule.TaskScheduleRequest;
-import com.zhu.audit.api.schedule.TaskScheduleCatalog;
-import com.zhu.audit.api.schedule.TaskScheduleSummary;
+import com.zhu.admin.api.schedule.TaskScheduleCatalog;
+import com.zhu.admin.api.schedule.TaskScheduleSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

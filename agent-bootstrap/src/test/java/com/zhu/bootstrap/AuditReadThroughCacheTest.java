@@ -1,5 +1,6 @@
 package com.zhu.bootstrap;
 
+import com.zhu.access.application.tenant.MysqlTenantUserCatalog;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -8,14 +9,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.zhu.audit.application.quota.MysqlTenantQuota;
-import com.zhu.audit.application.tenant.MysqlTenantDirectory;
-import com.zhu.audit.application.tenant.MysqlTenantUserCatalog;
-import com.zhu.audit.infrastructure.persistence.entity.tenant.TenantRecord;
-import com.zhu.audit.infrastructure.persistence.entity.tenant.TenantUser;
-import com.zhu.audit.infrastructure.persistence.quota.TenantQuotaMapper;
-import com.zhu.audit.infrastructure.persistence.tenant.TenantMapper;
-import com.zhu.audit.infrastructure.persistence.tenant.TenantUserMapper;
+import com.zhu.access.application.quota.MysqlTenantQuota;
+import com.zhu.access.application.tenant.MysqlTenantDirectory;
+import com.zhu.access.api.tenant.TenantUserCatalog;
+import com.zhu.access.infrastructure.persistence.entity.tenant.TenantRecord;
+import com.zhu.access.infrastructure.persistence.entity.tenant.TenantUser;
+import com.zhu.access.infrastructure.persistence.quota.TenantQuotaMapper;
+import com.zhu.access.infrastructure.persistence.tenant.TenantMapper;
+import com.zhu.access.infrastructure.persistence.tenant.TenantUserMapper;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ import org.junit.jupiter.api.Test;
 /**
  * 审计读穿：第二次 requireActive / 额度 Lookup 不打 Mapper；写后删键；Redis 抛 UNAVAILABLE 仍查库。
  */
-class AuditReadThroughCacheTest {
+class AccessReadThroughCacheTest {
 
     @Test
     void tenantActiveHitsCacheOnSecondCall() {

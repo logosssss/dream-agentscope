@@ -1,11 +1,12 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.api.attachment.StoredAttachment;
-import com.zhu.audit.application.attachment.MysqlAttachmentCatalog;
-import com.zhu.audit.infrastructure.persistence.attachment.AttachmentMapper;
-import com.zhu.audit.infrastructure.persistence.attachment.AttachmentRefMapper;
-import com.zhu.audit.infrastructure.persistence.entity.attachment.Attachment;
-import com.zhu.audit.infrastructure.persistence.entity.attachment.AttachmentRef;
+import com.zhu.access.application.attachment.MysqlAttachmentCatalog;
+import com.zhu.access.api.attachment.StoredAttachment;
+import com.zhu.access.api.attachment.AttachmentCatalog;
+import com.zhu.access.infrastructure.persistence.attachment.AttachmentMapper;
+import com.zhu.access.infrastructure.persistence.attachment.AttachmentRefMapper;
+import com.zhu.access.infrastructure.persistence.entity.attachment.Attachment;
+import com.zhu.access.infrastructure.persistence.entity.attachment.AttachmentRef;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.LocalDateTime;

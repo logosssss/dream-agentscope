@@ -1,7 +1,7 @@
 package com.zhu.runtime.task.handle;
 
 import com.zhu.runtime.task.AgentTask;
-import com.zhu.audit.api.event.AuditRecorder;
+import com.zhu.runtime.api.event.AuditRecorder;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 

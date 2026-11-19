@@ -12,6 +12,7 @@
 4. [根 README — 目录与二次开发入口](../../README.md)（全文扫一遍导航即可）  
 5. 模块 README 包表（先扫标题与「还没有」，不深挖实现）：  
    - [`agent-bootstrap`](../../agent-bootstrap/README.md)  
+   - [`agent-db`](../../agent-db/README.md)  
    - [`agent-access`](../../agent-access/README.md)  
    - [`agent-runtime`](../../agent-runtime/README.md)  
    - [`agent-semantic`](../../agent-semantic/README.md)  
@@ -19,7 +20,6 @@
    - [`agent-common`](../../agent-common/README.md)  
    - [`agent-state`](../../agent-state/README.md)  
    - [`agent-vector`](../../agent-vector/README.md)  
-   - [`agent-audit`](../../agent-audit/README.md)  
    - [`agent-object-store`](../../agent-object-store/README.md)  
    - [`agent-cache`](../../agent-cache/README.md)  
    - [`agent-admin`](../../agent-admin/README.md)  

@@ -1,8 +1,8 @@
 package com.zhu.admin.api.controller.eval;
 
 import com.zhu.admin.api.dto.eval.EvalDatasetRequest;
-import com.zhu.audit.api.eval.EvalDatasetCatalog;
-import com.zhu.audit.api.eval.EvalDatasetSummary;
+import com.zhu.admin.api.eval.EvalDatasetCatalog;
+import com.zhu.admin.api.eval.EvalDatasetSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

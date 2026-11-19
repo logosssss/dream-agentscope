@@ -19,7 +19,7 @@
 1. 不改任何对外 URL / HTTP 方法 / JSON 字段名  
 2. 不改类的业务前缀命名（仍叫 `AdminXxx` 等）  
 3. 不顺手重写业务逻辑、合并或删除接口  
-4. 不把 `agent-audit` 里「以后才抽到 agent-ops」的代码真拆成新模块  
+4. 不把原 `agent-audit`「以后才抽到 agent-ops」的代码真拆成新 ops 模块（**已整包拆进 admin/access/runtime + `agent-db`**，见 [`docs/audit-split-落地.md`](audit-split-落地.md)；不是再造 ops）   
 5. 不改 MyBatis XML 在 namespace 以外的 SQL（persistence 后拆时只动 Java 包与 namespace）  
 6. **第一块**只动 `agent-admin` 的 `api.controller` + `api.dto`（及必要 import / README），不动 `application` / `nacos`
 

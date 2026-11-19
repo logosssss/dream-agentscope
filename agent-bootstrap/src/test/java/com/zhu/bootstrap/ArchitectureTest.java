@@ -67,7 +67,7 @@ class ArchitectureTest {
                             "..admin..",
                             "com.zhu.cache..");
 
-    /** 对象存储不认识状态、产品语义、执行、接入、审计和缓存。 */
+    /** 对象存储不认识状态、产品语义、执行、接入和管理进程与缓存。 */
     private static final ArchRule OBJECT_STORE_MUST_NOT_DEPEND_ON_BUSINESS =
             noClasses().that().resideInAPackage("..objectstore..")
                     .should().dependOnClassesThat()
@@ -77,7 +77,6 @@ class ArchitectureTest {
                             "..runtime..",
                             "..access..",
                             "..admin..",
-                            "..audit..",
                             "..vector..",
                             "com.zhu.cache..");
 
@@ -89,12 +88,12 @@ class ArchitectureTest {
 
     /**
      * 业务侧不得依赖 Redis 族实现包；只许依赖 {@code agent-cache-api}。
-     * admin / bootstrap 装配可引入实现；access/runtime/product/audit 源码不碰 redis 包。
+     * admin / bootstrap 装配可引入实现；access/runtime/product 源码不碰 redis 包。
      */
     private static final ArchRule BUSINESS_MUST_NOT_DEPEND_ON_CACHE_REDIS =
             noClasses()
                     .that()
-                    .resideInAnyPackage("..access..", "..runtime..", "..audit..", "com.zhu.product..")
+                    .resideInAnyPackage("..access..", "..runtime..", "com.zhu.product..")
                     .should()
                     .dependOnClassesThat()
                     .resideInAPackage("com.zhu.cache.redis..");

@@ -1,9 +1,9 @@
 package com.zhu.access.application.attachment;
 
 import com.zhu.access.api.dto.attachment.AttachmentContent;
-import com.zhu.audit.api.attachment.AttachmentCatalog;
-import com.zhu.audit.api.attachment.AttachmentSummary;
-import com.zhu.audit.api.attachment.StoredAttachment;
+import com.zhu.access.api.attachment.AttachmentCatalog;
+import com.zhu.access.api.attachment.AttachmentSummary;
+import com.zhu.access.api.attachment.StoredAttachment;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;

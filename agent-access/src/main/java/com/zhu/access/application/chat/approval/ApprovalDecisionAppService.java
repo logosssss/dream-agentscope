@@ -1,6 +1,6 @@
 package com.zhu.access.application.chat.approval;
 
-import com.zhu.audit.api.approval.ApprovalDecision;
+import com.zhu.access.api.approval.ApprovalDecision;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.runtime.api.approval.PendingAskFacade;

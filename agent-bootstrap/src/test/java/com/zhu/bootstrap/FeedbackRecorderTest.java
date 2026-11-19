@@ -1,8 +1,9 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.application.feedback.MysqlFeedbackRecorder;
-import com.zhu.audit.infrastructure.persistence.feedback.UserFeedbackMapper;
-import com.zhu.audit.infrastructure.persistence.entity.feedback.UserFeedback;
+import com.zhu.access.application.feedback.MysqlFeedbackRecorder;
+import com.zhu.access.api.feedback.FeedbackRecorder;
+import com.zhu.access.infrastructure.persistence.feedback.UserFeedbackMapper;
+import com.zhu.access.infrastructure.persistence.entity.feedback.UserFeedback;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.LocalDateTime;

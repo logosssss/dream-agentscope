@@ -2,8 +2,8 @@ package com.zhu.access.application.auth.session;
 
 import com.zhu.access.api.dto.auth.CurrentUser;
 import com.zhu.access.application.auth.gate.AccessAccountGate;
-import com.zhu.audit.api.tenant.TenantUserLookup;
-import com.zhu.audit.api.tenant.TenantUserSummary;
+import com.zhu.access.api.tenant.TenantUserLookup;
+import com.zhu.access.api.tenant.TenantUserSummary;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import org.springframework.beans.factory.ObjectProvider;

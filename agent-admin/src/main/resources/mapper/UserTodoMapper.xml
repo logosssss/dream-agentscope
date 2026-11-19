@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.admin.infrastructure.persistence.approval.UserTodoMapper">
+
+    <resultMap id="ListResultMap" type="com.zhu.admin.infrastructure.persistence.entity.approval.UserTodo">
+        <id column="id" property="id"/>
+        <result column="todo_type" property="todoType"/>
+        <result column="ref_id" property="refId"/>
+        <result column="title" property="title"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 这个用户还开着的确认与任务。APPROVAL 类型已硬删。 -->
+    <select id="listOpen" resultMap="ListResultMap">
+        SELECT id, todo_type, ref_id, title, status
+        FROM user_todo
+        WHERE user_id = #{userId}
+          AND status = 'OPEN'
+          AND todo_type IN ('CONFIRM', 'TASK')
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 当前用户关确认或任务。已经关上的行不动。 -->
+    <update id="closeOpen">
+        UPDATE user_todo
+        SET status = #{status}
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND status = 'OPEN'
+          AND todo_type IN ('CONFIRM', 'TASK')
+    </update>
+
+    <resultMap id="DetailResultMap" type="com.zhu.admin.infrastructure.persistence.entity.approval.UserTodo">
+        <id column="id" property="id"/>
+        <result column="todo_type" property="todoType"/>
+        <result column="ref_id" property="refId"/>
+        <result column="title" property="title"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="findOwned" resultMap="DetailResultMap">
+        SELECT id, todo_type, ref_id, title, status, created_at
+        FROM user_todo
+        WHERE id = #{id}
+          AND user_id = #{userId}
+        LIMIT 1
+    </select>
+</mapper>

@@ -126,7 +126,7 @@ def request_path() -> Image.Image:
         ("租户与归属校验", "requireUser → 租户可用 → 租户内用户可用 → 会话归属独占", "200 + code"),
         ("QuotaGuard.check", "requestId 去重 → 日请求额度（租户可覆盖）→ 分钟窗口限流", "200 + code"),
         ("SessionTurnGuard + ConcurrentRunGuard", "按 turn:* 占会话锁，再占租户并发名额；失败回滚已占的锁", "200 + code"),
-        ("AgentExecutor.stream", "runtime 唯一入口；HarnessAgentFactory 按请求构建，结束即关闭", None),
+        ("AgentExecutor.stream", "runtime 唯一入口；首次调用才懒启动长驻 Agent，后续复用", None),
         ("doFinally：先落库再放锁", "RunLog 与 RunStep 写完后释放并发名额与会话锁，避免下一轮 seq 交错", None),
     ]
     h = 150 + len(rows) * 96 + 40
@@ -161,14 +161,14 @@ def layers() -> Image.Image:
     tiers = [
         ("进程入口", ["agent-bootstrap", "agent-admin"], "可独立启动，互不调用"),
         ("接入层", ["agent-access"], "HTTP 入口、业务编排、额度与占位"),
-        ("执行层", ["agent-runtime"], "每次请求构建 HarnessAgent，结束即关闭"),
+        ("执行层", ["agent-runtime"], "长驻 HarnessAgent：懒启动，热更排空后重建"),
         ("领域服务", ["agent-semantic", "agent-state", "agent-vector",
-                   "agent-audit", "agent-object-store"], "提示词与工具目录、会话状态、向量、审计、对象存储"),
+                   "agent-db", "agent-object-store"], "提示词与工具目录、会话状态、向量、DDL、对象存储"),
         ("基础", ["agent-common"], "异常、通用结构、请求级上下文；不依赖任何业务模块"),
     ]
     img = Image.new("RGB", (1560, 720), BG)
     d = ImageDraw.Draw(img)
-    head(d, "十个模块的五层依赖栈",
+    head(d, "平台模块的五层依赖栈",
          "依赖只允许向下；层内互不依赖，反向依赖由 ArchUnit 在 bootstrap 的测试里拦住")
 
     for i, (name, chips, note) in enumerate(tiers):
@@ -191,7 +191,7 @@ def layers() -> Image.Image:
 
     arrow(d, (110, 168), (110, 648), width=3)
     d.text((150, 676), "横切模块不反向依赖业务层：agent-common 不依赖任何模块，"
-                       "agent-state / agent-vector / agent-object-store / agent-audit 互不依赖。",
+                       "agent-state / agent-vector / agent-object-store / agent-db 互不依赖。",
            font=fr(15), fill=SUB, anchor="la")
     return img
 

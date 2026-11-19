@@ -2,8 +2,8 @@ package com.zhu.admin.api.controller.retention;
 
 import com.zhu.admin.api.dto.retention.RetentionPolicyRequest;
 import com.zhu.admin.api.dto.retention.RetentionPolicyScopeRequest;
-import com.zhu.audit.api.retention.RetentionPolicyCatalog;
-import com.zhu.audit.api.retention.RetentionPolicySummary;
+import com.zhu.admin.api.retention.RetentionPolicyCatalog;
+import com.zhu.admin.api.retention.RetentionPolicySummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

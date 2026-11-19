@@ -1,7 +1,7 @@
 package com.zhu.runtime.task.handle;
 
 import com.zhu.runtime.task.AgentTask;
-import com.zhu.audit.api.event.AuditRecorder;
+import com.zhu.runtime.api.event.AuditRecorder;
 
 /**
  * 历史占位消费逻辑。只记审计，不调用模型。

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.access.infrastructure.persistence.tenant.TenantMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhu.access.infrastructure.persistence.entity.tenant.TenantRecord">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="name" property="name"/>
+        <result column="plan" property="plan"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 标识唯一。对话只接受查到的这一行。 -->
+    <select id="findByTenantId" resultMap="BaseResultMap">
+        SELECT id, tenant_id, name, plan, status
+        FROM tenant
+        WHERE tenant_id = #{tenantId}
+    </select>
+
+    <!-- 只改还在用的租户。不关户，也不恢复。 -->
+    <update id="suspendActive">
+        UPDATE tenant
+        SET status = 'SUSPENDED'
+        WHERE tenant_id = #{tenantId}
+          AND status = 'ACTIVE'
+    </update>
+
+    <!-- 可用和停用都能关。不删行。 -->
+    <update id="closeNotClosed">
+        UPDATE tenant
+        SET status = 'CLOSED'
+        WHERE tenant_id = #{tenantId}
+          AND status IN ('ACTIVE', 'SUSPENDED')
+    </update>
+
+    <!-- 管理列表看全部状态。创建时间只用于排序。 -->
+    <select id="recent" resultMap="BaseResultMap">
+        SELECT id, tenant_id, name, plan, status
+        FROM tenant
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 停用和关闭都能恢复。不改用户，也不删行。 -->
+    <update id="restoreInactive">
+        UPDATE tenant
+        SET status = 'ACTIVE'
+        WHERE tenant_id = #{tenantId}
+          AND status IN ('SUSPENDED', 'CLOSED')
+    </update>
+</mapper>

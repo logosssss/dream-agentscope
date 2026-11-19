@@ -1,9 +1,9 @@
 package com.zhu.admin.api.controller.deletion;
 
 import com.zhu.admin.api.dto.deletion.DeletionDecisionRequest;
-import com.zhu.audit.api.approval.ApprovalDecision;
-import com.zhu.audit.api.deletion.DeletionRequestDecider;
-import com.zhu.audit.api.deletion.DeletionRequestSummary;
+import com.zhu.admin.api.approval.ApprovalDecision;
+import com.zhu.admin.api.deletion.DeletionRequestDecider;
+import com.zhu.admin.api.deletion.DeletionRequestSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

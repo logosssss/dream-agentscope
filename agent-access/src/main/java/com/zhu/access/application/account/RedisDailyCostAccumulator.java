@@ -1,7 +1,7 @@
 package com.zhu.access.application.account;
 
 import com.zhu.cache.api.CacheFacade;
-import com.zhu.audit.api.usage.DailyCostAccumulator;
+import com.zhu.runtime.api.usage.DailyCostAccumulator;
 import java.time.Clock;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;

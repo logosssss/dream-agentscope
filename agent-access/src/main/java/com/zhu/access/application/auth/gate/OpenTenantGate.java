@@ -1,6 +1,6 @@
 package com.zhu.access.application.auth.gate;
 
-import com.zhu.audit.api.tenant.TenantGate;
+import com.zhu.access.api.tenant.TenantGate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 

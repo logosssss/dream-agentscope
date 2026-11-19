@@ -1,7 +1,7 @@
 package com.zhu.admin.api.controller.quota;
 
-import com.zhu.audit.api.quota.QuotaUsageQuery;
-import com.zhu.audit.api.quota.QuotaUsageRow;
+import com.zhu.admin.api.quota.QuotaUsageQuery;
+import com.zhu.admin.api.quota.QuotaUsageRow;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

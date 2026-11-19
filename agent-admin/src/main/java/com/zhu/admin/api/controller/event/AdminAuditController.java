@@ -1,7 +1,7 @@
 package com.zhu.admin.api.controller.event;
 
-import com.zhu.audit.api.event.AuditEventRow;
-import com.zhu.audit.api.event.AuditQuery;
+import com.zhu.admin.api.event.AuditEventRow;
+import com.zhu.admin.api.event.AuditQuery;
 import com.zhu.common.dto.ApiResult;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;

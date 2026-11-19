@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-state`、`agent-vector`、`agent-cache-api`、`spring-boot-starter-web`、`spring-boot-starter-data-redis`（仅就绪等类型）、`mybatis-plus-spring-boot3-starter`。缓存业务走 `CacheFacade`；Redis 建连由启动模块引入 `agent-cache-redis`。MySQL 关闭时不扫描会话 Mapper。
+依赖 `agent-common`、`agent-semantic`、`agent-runtime`、`agent-state`、`agent-vector`、`agent-object-store`、`agent-cache-api`、`spring-boot-starter-web`、`spring-boot-starter-data-redis`（仅就绪等类型）、`mybatis-plus-spring-boot3-starter`。租户/额度/附件/反馈/待办等用户热路径在本模块本地实现。缓存业务走 `CacheFacade`；Redis 建连由启动模块引入 `agent-cache-redis`。MySQL 关闭时不扫描 Mapper。
 
 架构测试（`ArchitectureTest`）：
 

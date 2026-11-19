@@ -19,6 +19,7 @@
 
     <modules>
         <module>agent-common</module>
+        <module>agent-db</module>
         <module>agent-vector</module>
         <module>agent-object-store</module>
         <module>agent-cache</module>
@@ -26,7 +27,6 @@
         <module>agent-semantic</module>
         <module>agent-runtime</module>
         <module>agent-products</module>
-        <module>agent-audit</module>
         <module>agent-access</module>
         <module>agent-admin</module>
         <module>agent-bootstrap</module>
@@ -52,6 +52,11 @@
             <dependency>
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-db</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -102,11 +107,6 @@
             <dependency>
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-product-companion</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.zhu</groupId>
-                <artifactId>agent-audit</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

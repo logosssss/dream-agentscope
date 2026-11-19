@@ -1,7 +1,7 @@
 package com.zhu.admin;
 
-import com.zhu.audit.api.event.AuditEventRow;
-import com.zhu.audit.api.event.AuditQuery;
+import com.zhu.admin.api.event.AuditEventRow;
+import com.zhu.admin.api.event.AuditQuery;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

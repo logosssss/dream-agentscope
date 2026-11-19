@@ -6,7 +6,7 @@
 
 ## 依赖
 
-不依赖其它业务模块，也不依赖 AgentScope。任何模块都可以依赖它。它不能依赖 `agent-state`、`agent-vector`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-access`。
+不依赖其它业务模块，也不依赖 AgentScope。任何模块都可以依赖它。它不能依赖 `agent-state`、`agent-vector`、`agent-semantic`、`agent-runtime`、`agent-access`、`agent-admin`。
 
 ## 包
 

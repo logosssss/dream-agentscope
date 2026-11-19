@@ -1,6 +1,6 @@
 package com.zhu.runtime.domain.middleware;
 
-import com.zhu.audit.api.safety.SafetyInterventionRecorder;
+import com.zhu.runtime.api.safety.SafetyInterventionRecorder;
 import com.zhu.runtime.domain.CallIdentity;
 import com.zhu.runtime.domain.KeywordRiskClassifier;
 import com.zhu.semantic.contract.safety.CrisisPrompt;

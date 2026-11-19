@@ -2,7 +2,7 @@ package com.zhu.access.application.knowledge;
 
 import com.zhu.access.api.dto.knowledge.KnowledgeBaseDetail;
 import com.zhu.access.api.dto.knowledge.KnowledgeDocumentDetail;
-import com.zhu.audit.api.attachment.AttachmentCatalog;
+import com.zhu.access.api.attachment.AttachmentCatalog;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;

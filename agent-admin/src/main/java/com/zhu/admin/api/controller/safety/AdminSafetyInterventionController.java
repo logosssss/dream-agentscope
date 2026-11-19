@@ -1,7 +1,7 @@
 package com.zhu.admin.api.controller.safety;
 
-import com.zhu.audit.api.safety.SafetyInterventionCatalog;
-import com.zhu.audit.api.safety.SafetyInterventionSummary;
+import com.zhu.admin.api.safety.SafetyInterventionCatalog;
+import com.zhu.admin.api.safety.SafetyInterventionSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

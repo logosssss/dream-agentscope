@@ -1,6 +1,6 @@
 package com.zhu.admin.application;
 
-import com.zhu.audit.api.event.OperationAuditCatalog;
+import com.zhu.admin.api.event.OperationAuditCatalog;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
