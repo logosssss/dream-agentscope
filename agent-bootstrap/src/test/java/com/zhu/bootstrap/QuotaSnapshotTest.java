@@ -2,7 +2,8 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.cache.api.CacheFacade;
+import com.zhu.cache.api.counter.CounterCache;
 import com.zhu.audit.api.quota.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
@@ -25,16 +26,16 @@ class QuotaSnapshotTest {
     /** 租户行覆盖进程请求上限。token / 费用 / 同时运行没有行时上限为空。 */
     @Test
     void snapshotReadsTenantLimitsAndCounters() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         Clock clock = Clock.fixed(Instant.parse("2026-10-30T02:03:00Z"), ZoneOffset.UTC);
         TenantQuotaLookup quotas = mock(TenantQuotaLookup.class);
         when(quotas.dailyRequestLimit("t")).thenReturn(5L);
         when(quotas.dailyTokenLimit("t")).thenReturn(100L);
         when(quotas.dailyCostLimit("t")).thenReturn(1_000_000L);
         when(quotas.concurrentRunLimit("t")).thenReturn(2L);
-        cache.incrementBy(QuotaGuard.tokenKey("t", "u", "20261030"), 7L, QuotaGuard.QUOTA_TTL);
-        cache.incrementBy(QuotaGuard.costKey("t", "u", "20261030"), 20L, QuotaGuard.QUOTA_TTL);
-        cache.incrementBy(QuotaGuard.concurrentKey("t"), 1L, QuotaGuard.QUOTA_TTL);
+        cache.counters().incrementBy(QuotaGuard.tokenKey("t", "u", "20261030"), 7L, QuotaGuard.QUOTA_TTL);
+        cache.counters().incrementBy(QuotaGuard.costKey("t", "u", "20261030"), 20L, QuotaGuard.QUOTA_TTL);
+        cache.counters().incrementBy(QuotaGuard.concurrentKey("t"), 1L, QuotaGuard.QUOTA_TTL);
         QuotaGuard guard = new QuotaGuard(cache, new AccessLimitProperties(), clock, quotas);
         assertThat(guard.snapshot("t", "u")).satisfies(snap -> {
             assertThat(snap.requests().limit()).isEqualTo(5L);
@@ -50,8 +51,10 @@ class QuotaSnapshotTest {
     /** Redis 读失败按不可用，不改走内存。 */
     @Test
     void snapshotPropagatesUnavailable() {
-        AccessCache cache = mock(AccessCache.class);
-        when(cache.getCounter(anyString()))
+        CacheFacade cache = mock(CacheFacade.class);
+        CounterCache counters = mock(CounterCache.class);
+        when(cache.counters()).thenReturn(counters);
+        when(counters.getCounter(anyString()))
                 .thenThrow(new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable"));
         QuotaGuard guard = new QuotaGuard(cache, new AccessLimitProperties(), Clock.systemUTC());
         assertThatThrownBy(() -> guard.snapshot("t", "u"))

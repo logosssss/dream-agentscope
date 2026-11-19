@@ -1,7 +1,7 @@
 package com.zhu.audit.application.tenant;
 
 import com.zhu.audit.application.support.AuditQueryLimits;
-
+import com.zhu.audit.application.support.AuditReadThroughCache;
 import com.zhu.audit.api.tenant.TenantUserCatalog;
 import com.zhu.audit.api.tenant.TenantUserGate;
 import com.zhu.audit.api.tenant.TenantUserLookup;
@@ -9,15 +9,20 @@ import com.zhu.audit.api.tenant.TenantUserSummary;
 import com.zhu.audit.infrastructure.persistence.tenant.TenantMapper;
 import com.zhu.audit.infrastructure.persistence.tenant.TenantUserMapper;
 import com.zhu.audit.infrastructure.persistence.entity.tenant.TenantUser;
+import com.zhu.cache.api.CacheFacade;
+import com.zhu.cache.api.CacheKeys;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.Duration;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的租户用户目录。只在存储开关打开时创建。不写角色。
+ * 审计层：MySQL 租户用户目录。只在存储开关打开时创建。不写角色。
+ * {@link #requireActive} 短 TTL 读穿 Redis；写路径尽力删键。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -33,14 +38,32 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
 
     private static final int NAME_LIMIT = 128;
 
+    private static final String ACTIVE_MARK = "1";
+
+    private static final Duration GATE_TTL = Duration.ofSeconds(30);
+
     private final TenantMapper tenants;
 
     private final TenantUserMapper users;
 
-    /** 先确认租户，再插入用户。重复的租户加用户由唯一键拒绝。 */
-    public MysqlTenantUserCatalog(TenantMapper tenants, TenantUserMapper users) {
+    private final AuditReadThroughCache readCache;
+
+    /**
+     * Spring：可选注入 CacheFacade；测试可只传 Mapper。
+     */
+    @Autowired
+    public MysqlTenantUserCatalog(
+            TenantMapper tenants,
+            TenantUserMapper users,
+            @Autowired(required = false) CacheFacade cache) {
         this.tenants = tenants;
         this.users = users;
+        this.readCache = AuditReadThroughCache.of(cache);
+    }
+
+    /** 测试无缓存。 */
+    public MysqlTenantUserCatalog(TenantMapper tenants, TenantUserMapper users) {
+        this(tenants, users, null);
     }
 
     /**
@@ -68,17 +91,22 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user already exists");
         }
+        readCache.delete(activeKey(tenantId, userId));
         return new TenantUserSummary(tenantId, userId, name, ACTIVE);
     }
 
     /**
      * 空标识、查不到，或状态不是 ACTIVE，都不能继续这次请求。
-     * 不把停用分成另一种错误，调用方只需要知道现在不能用。
+     * 命中共享键则跳过查库。
      */
     @Override
     public void requireActive(String tenantId, String userId) {
         if (tenantId == null || tenantId.isBlank() || userId == null || userId.isBlank()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "tenantId and userId are required");
+        }
+        String key = activeKey(tenantId, userId);
+        if (ACTIVE_MARK.equals(readCache.get(key))) {
+            return;
         }
         TenantUser row = users.findByTenantAndUser(tenantId, userId);
         if (row == null) {
@@ -87,6 +115,7 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
         if (!ACTIVE.equals(row.getStatus())) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user is not active");
         }
+        readCache.put(key, ACTIVE_MARK, GATE_TTL);
     }
 
     /**
@@ -126,6 +155,7 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
         if (updated != 1) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user is not active");
         }
+        readCache.delete(activeKey(tenantId, userId));
         return new TenantUserSummary(existing.getTenantId(), existing.getUserId(), existing.getDisplayName(), DISABLED);
     }
 
@@ -150,6 +180,7 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
         if (updated != 1) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user is already active");
         }
+        readCache.delete(activeKey(tenantId, userId));
         return new TenantUserSummary(existing.getTenantId(), existing.getUserId(), existing.getDisplayName(), ACTIVE);
     }
 
@@ -176,5 +207,9 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
                         row.getDisplayName(),
                         row.getStatus()))
                 .toList();
+    }
+
+    private static String activeKey(String tenantId, String userId) {
+        return CacheKeys.of("gate", tenantId, "user-active", userId);
     }
 }

@@ -1,9 +1,9 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.infrastructure.cache.AccessCache;
 import com.zhu.audit.api.event.AuditEventRow;
 import com.zhu.audit.api.event.AuditQuery;
 import com.zhu.audit.api.event.AuditRecorder;
+import com.zhu.cache.api.CacheFacade;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,10 +15,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class TestDependencyDoubles {
 
-    /** 额度测试用的计数。 */
+    /** 额度 / 会话等测试用的缓存门面。 */
     @Bean
-    public AccessCache accessCache() {
-        return new FakeAccessCache();
+    public CacheFacade cacheFacade() {
+        return new FakeCacheFacade();
     }
 
     /** 审计写入直接丢掉。 */

@@ -166,8 +166,8 @@ class ChatRunTest {
                 executor,
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
-                new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
-                new ConcurrentRunGuard(new FakeAccessCache(), 120),
+                new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC()),
+                new ConcurrentRunGuard(new FakeCacheFacade(), 120),
                 sessions,
                 runs,
                 tenantId -> {

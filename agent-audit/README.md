@@ -6,7 +6,9 @@
 
 ## 依赖
 
-依赖 `agent-common`、Spring 和 `mybatis-plus-spring-boot3-starter`。正式配置打开 MySQL 后，用 `BaseMapper.insert` 写入 `agent_event_audit`。表在 `db/migration`，由用户进程的 Flyway 执行。MyBatis-Plus 不建表。测试关掉开关，不创建 SqlSession。
+依赖 `agent-common`、`agent-cache-api`、Spring 和 `mybatis-plus-spring-boot3-starter`。正式配置打开 MySQL 后，用 `BaseMapper.insert` 写入 `agent_event_audit`。表在 `db/migration`，由用户进程的 Flyway 执行。MyBatis-Plus 不建表。测试关掉开关，不创建 SqlSession。
+
+租户/用户 ACTIVE 门与额度上限 Lookup 短 TTL 读穿 `CacheFacade`（30s / 60s）；写路径尽力删键；Redis 失败直查 MySQL。禁止依赖 `agent-cache-redis`。见 `docs/cache-落地.md` 二期。
 
 不能依赖 `agent-runtime`、`agent-access`、`agent-semantic`。Permission Gate **当前 A** 下对话主路径不经本模块落审批单；旧 `approval_record` / 审批通知已硬删（`V40`）。见 `docs/permission-gate-落地.md`、`docs/approval-hard-delete-落地.md`。
 
@@ -43,7 +45,7 @@
 | `application.retention` | `MysqlRetentionPolicyCatalog` | 数据保留策略 |
 | `application.schedule` | `MysqlTaskScheduleCatalog` | 任务调度登记 |
 | `application.health` | `MysqlReadiness` | 校验数据库连接。关闭时跳过，不跑业务 SQL |
-| `application.support` | `AuditQueryLimits` | 列表查询条数上限，给各实现共用 |
+| `application.support` | `AuditQueryLimits`、`AuditReadThroughCache` | 列表条数上限；读穿缓存（失败直查 MySQL） |
 | `infrastructure.persistence.<域>` | 各域 Mapper、`Mybatis*` 写入实现（如 `event.MybatisAuditRecorder`、`usage.MysqlTokenUsageWriter`、`approval.UserTodoMapper`） | 与 `api.<域>` 对齐。审计来源为 `EXECUTOR` |
 | `infrastructure.persistence.entity.<域>` | 各域实体 | 表行映射；不放业务规则 |
 | `resources/mapper` | 同名 XML（仍扁平目录） | `namespace` 指向域分包 Mapper；`resultMap`、条件查询和决定更新。不把同一条 `INSERT` 再写一遍 |

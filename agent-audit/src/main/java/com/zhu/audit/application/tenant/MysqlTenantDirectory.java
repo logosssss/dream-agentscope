@@ -1,21 +1,26 @@
 package com.zhu.audit.application.tenant;
 
 import com.zhu.audit.application.support.AuditQueryLimits;
-
+import com.zhu.audit.application.support.AuditReadThroughCache;
 import com.zhu.audit.api.tenant.TenantCatalog;
 import com.zhu.audit.api.tenant.TenantGate;
 import com.zhu.audit.api.tenant.TenantSummary;
 import com.zhu.audit.infrastructure.persistence.tenant.TenantMapper;
 import com.zhu.audit.infrastructure.persistence.entity.tenant.TenantRecord;
+import com.zhu.cache.api.CacheFacade;
+import com.zhu.cache.api.CacheKeys;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.Duration;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的租户目录。只在存储开关打开时创建。不建用户，也不改用户状态。
+ * 审计层：MySQL 租户目录。只在存储开关打开时创建。不建用户，也不改用户状态。
+ * {@link #requireActive} 短 TTL 读穿 Redis；写路径尽力删键。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -29,21 +34,41 @@ public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
 
     private static final String PLAN = "standard";
 
+    /** ACTIVE 门命中标记。 */
+    private static final String ACTIVE_MARK = "1";
+
+    private static final Duration GATE_TTL = Duration.ofSeconds(30);
+
     private final TenantMapper tenants;
 
-    /** 查找和插入用同一个 Mapper。重复标识由唯一键拒绝。 */
-    public MysqlTenantDirectory(TenantMapper tenants) {
+    private final AuditReadThroughCache readCache;
+
+    /**
+     * Spring：可选注入 CacheFacade；测试可只传 Mapper（无读缓存）。
+     */
+    @Autowired
+    public MysqlTenantDirectory(TenantMapper tenants, @Autowired(required = false) CacheFacade cache) {
         this.tenants = tenants;
+        this.readCache = AuditReadThroughCache.of(cache);
+    }
+
+    /** 测试无缓存。 */
+    public MysqlTenantDirectory(TenantMapper tenants) {
+        this(tenants, null);
     }
 
     /**
      * 空标识、查不到，或状态不是 ACTIVE，都不能继续这次请求。
-     * 不把停用和关闭分成两种错误，调用方只需要知道现在不能用。
+     * 命中共享键则跳过查库；权威仍是 MySQL。
      */
     @Override
     public void requireActive(String tenantId) {
         if (tenantId == null || tenantId.isBlank()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "tenantId is required");
+        }
+        String key = activeKey(tenantId);
+        if (ACTIVE_MARK.equals(readCache.get(key))) {
+            return;
         }
         TenantRecord row = tenants.findByTenantId(tenantId);
         if (row == null) {
@@ -52,6 +77,7 @@ public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
         if (!ACTIVE.equals(row.getStatus())) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant is not active");
         }
+        readCache.put(key, ACTIVE_MARK, GATE_TTL);
     }
 
     /**
@@ -74,6 +100,7 @@ public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant already exists");
         }
+        readCache.delete(activeKey(tenantId));
         return new TenantSummary(tenantId, name, PLAN, ACTIVE);
     }
 
@@ -97,6 +124,7 @@ public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
         if (updated != 1) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant is not active");
         }
+        readCache.delete(activeKey(tenantId));
         return new TenantSummary(existing.getTenantId(), existing.getName(), existing.getPlan(), SUSPENDED);
     }
 
@@ -120,6 +148,7 @@ public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
         if (updated != 1) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant is already closed");
         }
+        readCache.delete(activeKey(tenantId));
         return new TenantSummary(existing.getTenantId(), existing.getName(), existing.getPlan(), CLOSED);
     }
 
@@ -143,6 +172,7 @@ public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
         if (updated != 1) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant is already active");
         }
+        readCache.delete(activeKey(tenantId));
         return new TenantSummary(existing.getTenantId(), existing.getName(), existing.getPlan(), ACTIVE);
     }
 
@@ -158,5 +188,9 @@ public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
         return rows.stream()
                 .map(row -> new TenantSummary(row.getTenantId(), row.getName(), row.getPlan(), row.getStatus()))
                 .toList();
+    }
+
+    private static String activeKey(String tenantId) {
+        return CacheKeys.of("gate", tenantId, "tenant-active");
     }
 }

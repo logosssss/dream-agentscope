@@ -69,7 +69,7 @@ class ChatMessageHistoryTest {
         SessionMetaStore meta = mock(SessionMetaStore.class);
         when(meta.findOwned("t", "u", "missing")).thenReturn(null);
         SessionListService sessions =
-                new SessionListService(meta, new FakeAccessCache(), new AbsentChatMessageStore());
+                new SessionListService(meta, new FakeCacheFacade(), new AbsentChatMessageStore());
         assertThatThrownBy(() -> sessions.messages("t", "u", "missing", 100))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).errorCode())
@@ -98,7 +98,7 @@ class ChatMessageHistoryTest {
                 return List.of(new ChatMessageItem(1, "user", "嗨", "run-1", "2026-01-01T00:00:00.000"));
             }
         };
-        SessionListService sessions = new SessionListService(meta, new FakeAccessCache(), store);
+        SessionListService sessions = new SessionListService(meta, new FakeCacheFacade(), store);
         assertThat(sessions.messages("t", "u", "s1", 100))
                 .extracting(ChatMessageItem::content)
                 .containsExactly("嗨");
@@ -109,8 +109,8 @@ class ChatMessageHistoryTest {
                 executor,
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
-                new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
-                new ConcurrentRunGuard(new FakeAccessCache(), 120),
+                new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC()),
+                new ConcurrentRunGuard(new FakeCacheFacade(), 120),
                 (tenant, user, session, channel, text) -> {
                 },
                 (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {

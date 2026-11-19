@@ -21,6 +21,7 @@
         <module>agent-common</module>
         <module>agent-vector</module>
         <module>agent-object-store</module>
+        <module>agent-cache</module>
         <module>agent-state</module>
         <module>agent-semantic</module>
         <module>agent-runtime</module>
@@ -42,6 +43,8 @@
         <aws.sdk.version>2.29.51</aws.sdk.version>
         <!-- 与 agentscope-extensions-nacos-prompt 传递依赖对齐，管理进程直接引用客户端。 -->
         <nacos.client.version>3.2.1-2026.03.30</nacos.client.version>
+        <!-- 与 Spring Boot 3.5.x / spring-data-redis 3.5 对齐的 Redisson 线。 -->
+        <redisson.version>3.50.0</redisson.version>
     </properties>
 
     <dependencyManagement>
@@ -59,6 +62,21 @@
             <dependency>
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-object-store</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-cache</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-cache-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-cache-redis</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -172,6 +190,11 @@
                 <version>${aws.sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.redisson</groupId>
+                <artifactId>redisson</artifactId>
+                <version>${redisson.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -4,12 +4,12 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 打开接入层额度和 Redis 开关的配置绑定。连接本身由 RedisCacheConfig 按开关创建。
+ * 打开接入层额度与认证相关配置绑定。
+ * Redis 连接与 {@code CacheFacade} 由 {@code agent-cache-redis} 自动配置提供。
  */
 @Configuration
 @EnableConfigurationProperties({
         AccessLimitProperties.class,
-        RedisCacheProperties.class,
         ClientAuthProperties.class,
         WxMiniProperties.class
 })

@@ -49,19 +49,25 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAPackage("com.zhu.product..");
 
-    /** 状态层不认识产品语义、执行和接入。 */
+    /** 状态层不认识产品语义、执行、接入和缓存。 */
     private static final ArchRule STATE_MUST_NOT_DEPEND_ON_BUSINESS =
             noClasses().that().resideInAPackage("..state..")
                     .should().dependOnClassesThat()
-                    .resideInAnyPackage("..semantic..", "..runtime..", "..access..");
+                    .resideInAnyPackage("..semantic..", "..runtime..", "..access..", "com.zhu.cache..");
 
-    /** 向量层不认识状态、产品语义、执行和接入。 */
+    /** 向量层不认识状态、产品语义、执行、接入和缓存。 */
     private static final ArchRule VECTOR_MUST_NOT_DEPEND_ON_BUSINESS =
             noClasses().that().resideInAPackage("..vector..")
                     .should().dependOnClassesThat()
-                    .resideInAnyPackage("..state..", "..semantic..", "..runtime..", "..access..", "..admin..");
+                    .resideInAnyPackage(
+                            "..state..",
+                            "..semantic..",
+                            "..runtime..",
+                            "..access..",
+                            "..admin..",
+                            "com.zhu.cache..");
 
-    /** 对象存储不认识状态、产品语义、执行、接入和审计。 */
+    /** 对象存储不认识状态、产品语义、执行、接入、审计和缓存。 */
     private static final ArchRule OBJECT_STORE_MUST_NOT_DEPEND_ON_BUSINESS =
             noClasses().that().resideInAPackage("..objectstore..")
                     .should().dependOnClassesThat()
@@ -72,7 +78,26 @@ class ArchitectureTest {
                             "..access..",
                             "..admin..",
                             "..audit..",
-                            "..vector..");
+                            "..vector..",
+                            "com.zhu.cache..");
+
+    /** 语义共享层不得依赖缓存层（只留契约 / api / 共享存储）。 */
+    private static final ArchRule SEMANTIC_MUST_NOT_DEPEND_ON_CACHE =
+            noClasses().that().resideInAPackage("..semantic..")
+                    .should().dependOnClassesThat()
+                    .resideInAPackage("com.zhu.cache..");
+
+    /**
+     * 业务侧不得依赖 Redis 族实现包；只许依赖 {@code agent-cache-api}。
+     * admin / bootstrap 装配可引入实现；access/runtime/product/audit 源码不碰 redis 包。
+     */
+    private static final ArchRule BUSINESS_MUST_NOT_DEPEND_ON_CACHE_REDIS =
+            noClasses()
+                    .that()
+                    .resideInAnyPackage("..access..", "..runtime..", "..audit..", "com.zhu.product..")
+                    .should()
+                    .dependOnClassesThat()
+                    .resideInAPackage("com.zhu.cache.redis..");
 
     /**
      * access 全包不得依赖任何 {@code io.agentscope}（防腐③+⑤：Channel/PendingAsk/Wakeup 已下沉）。
@@ -122,6 +147,8 @@ class ArchitectureTest {
                         "com.zhu.objectstore.api.ObjectStore",
                         "com.zhu.objectstore.infrastructure.LocalObjectStore",
                         "com.zhu.objectstore.infrastructure.S3ObjectStore",
+                        "com.zhu.cache.api.CacheFacade",
+                        "com.zhu.cache.redis.config.RedisCacheAutoConfiguration",
                         "com.zhu.access.api.controller.health.LivenessController");
 
         SEMANTIC_MUST_NOT_DEPEND_ON_RUNTIME_OR_ACCESS.check(classes);
@@ -129,6 +156,8 @@ class ArchitectureTest {
         RUNTIME_MUST_NOT_DEPEND_ON_PRODUCT.check(classes);
         PRODUCT_MUST_NOT_DEPEND_ON_ACCESS.check(classes);
         SEMANTIC_MUST_NOT_DEPEND_ON_PRODUCT.check(classes);
+        SEMANTIC_MUST_NOT_DEPEND_ON_CACHE.check(classes);
+        BUSINESS_MUST_NOT_DEPEND_ON_CACHE_REDIS.check(classes);
         STATE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         VECTOR_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
         OBJECT_STORE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);

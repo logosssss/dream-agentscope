@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-state`、`agent-vector`、`spring-boot-starter-web`、`spring-boot-starter-data-redis`、`mybatis-plus-spring-boot3-starter`。Redis 自动配置在启动模块里排除，避免没配地址时去连本机。MySQL 关闭时不扫描会话 Mapper。
+依赖 `agent-common`、`agent-semantic`、`agent-runtime`、`agent-audit`、`agent-state`、`agent-vector`、`agent-cache-api`、`spring-boot-starter-web`、`spring-boot-starter-data-redis`（仅就绪等类型）、`mybatis-plus-spring-boot3-starter`。缓存业务走 `CacheFacade`；Redis 建连由启动模块引入 `agent-cache-redis`。MySQL 关闭时不扫描会话 Mapper。
 
 架构测试（`ArchitectureTest`）：
 
@@ -48,7 +48,7 @@
 | `infrastructure.security` | `CallerTokenFilter` | `X-Caller-Token` 对上 `AGENTSCOPE_CALLER_TOKEN` 才放行。存活、就绪、小程序确认和 `/api/internal/wakeups` 除外 |
 | `infrastructure.security` | `WakeupTokenFilter` | 只拦 `/api/internal/wakeups`；`X-Wakeup-Token` 对上 `AGENTSCOPE_WAKEUP_TOKEN`。其它路径放行 |
 | `infrastructure.security` | `AccessIdentityFilter` | 只认 `Authorization: Bearer` 登录会话。请求头里的租户和用户不采用 |
-| `infrastructure.cache` | `AccessCache` | 额度、幂等、限流、会话列表和登录会话。只走 Redis |
+| （缓存层） | 见 `agent-cache-api`：`CacheFacade` | 额度、幂等、限流、会话列表和登录会话经门面；实现在 `agent-cache-redis` |
 | `application.auth.session` | `UserLoginService`、`LoginSessionCodec`、`ClientAccountService`、`CurrentUserQuery` | 签发/删除 Redis 登录会话；密码注册登录与微信建号；看当前身份。Redis 失败 503。不接受自报用户，不读剩余 TTL |
 | `application.chat` | `ChatAppService`、`ApiChatAppService` | WEB 对话编排；API 对话编排（额度动作码仍 `chat`/`chat-stream`） |
 | （运行层） | 见 `agent-runtime`：`ChannelGateway`、`ApiChannel`、`WakeupCoordinator` 等 | Channel / SessionTurnGate / room 归一化 / Wakeup 已下沉；access 只保留 HTTP + 应用端口 |
@@ -59,7 +59,7 @@
 | `api.dto.account` | `QuotaSnapshot` / `QuotaMeter` | 请求、token、费用微单位和同时运行的已用量与上限 |
 | `application` | `QuotaGuard`、`RedisDailyTokenAccumulator`、`RedisDailyCostAccumulator`、`SessionTurnGuard`、`ConcurrentRunGuard` | 请求额度键 `quota:{tenant}:{user}:{yyyyMMdd}`；token 键 `quota-tokens:...`；费用键 `quota-cost:...`。会话短锁 `turn:{tenant}:{user}:{session}`，结束即释放。同时运行键 `concurrent:{tenant}`，结束减一 |
 | `application.auth.gate` | `AccessAccountGate`、`OpenTenantGate`、`OpenTenantUserGate` | 对话以外先过登录会话里的租户和用户；MySQL 关闭时已有会话放行、不查 `tenant_user`，打开后改走目录 |
-| `application.auth.wx` | `WxLoginService`、`WxRemote`、`WxWeixin` | 网站出票、小程序确认与微信 HTTP 实现 |
+| `application.auth.wx` | `WxLoginService`、`WxRemote`、`WxWeixin` | 网站出票、小程序确认与微信 HTTP；`access_token` 经 `CacheFacade.kv` 共享 |
 | `api.controller` | `KnowledgeController` | `POST/GET/DELETE /api/kb`，列表带建库时间；`GET /api/kb/{kbId}` 看一个库，含创建时间；`GET /api/kb/{kbId}/documents`；`GET /api/kb/documents/{docId}` 看最新一版的状态和时间，不读正文；`POST /api/kb/documents` JSON 正文；`POST /api/kb/documents/file` 纯文本 multipart（≤2MB）；status / reindex / `DELETE` 文档。立即返回 PENDING |
 | `api.controller` | `AttachmentController` | `GET /api/attachments` 列出本人本租户仍启用的附件；`GET /api/attachments/{id}` 看 MIME、大小和创建时间；`POST /api/attachments` JSON 只登记元数据；`POST /api/attachments/file` multipart 写入 `ObjectStore`（≤5MB）；`POST /api/attachments/{id}/disable` 改成 `DELETED`；`POST /api/attachments/{id}/restore` 改回 `ACTIVE`；`GET /api/attachments/{id}/content` 下载正文；`GET /api/attachments/{id}/refs` 列出引用和挂上的时间；`POST /api/attachments/{id}/refs` 挂引用 |
 | `api.controller` | `DeletionRequestController` | `GET /api/deletion-requests` 列出本人本租户的删除请求；`GET /api/deletion-requests/{requestId}` 看一条，含提出时间；`POST /api/deletion-requests` 登记待处理。不批准，也不真正删除 |

@@ -21,7 +21,7 @@ class UserLoginTest {
     /** 核对通过后写入缓存，退出后读不到。显示名不进缓存。 */
     @Test
     void issueStoresSessionAndLogoutClears() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         AccessLimitProperties limits = new AccessLimitProperties();
         limits.setLoginSessionSeconds(3600);
         UserLoginService logins = new UserLoginService(openTenant(), openUser(), cache, limits);
@@ -33,17 +33,17 @@ class UserLoginTest {
         assertThat(session.tenantId()).isEqualTo("tenant-a");
         assertThat(session.userId()).isEqualTo("user-a");
         assertThat(session.displayName()).isEqualTo("甲");
-        assertThat(cache.get(LoginSessionCodec.key(session.accessToken())))
+        assertThat(cache.kv().get(LoginSessionCodec.key(session.accessToken())))
                 .isEqualTo(LoginSessionCodec.encode("tenant-a", "user-a"));
 
         logins.logout(session.accessToken());
-        assertThat(cache.get(LoginSessionCodec.key(session.accessToken()))).isNull();
+        assertThat(cache.kv().get(LoginSessionCodec.key(session.accessToken()))).isNull();
     }
 
     /** 空白用户或含换行的标识拒绝。停用账号按门抛错上抛。 */
     @Test
     void rejectsInvalidOrInactive() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         UserLoginService logins = new UserLoginService(openTenant(), openUser(), cache, new AccessLimitProperties());
         assertThatThrownBy(() -> logins.issue("t", " ", "甲"))
                 .isInstanceOf(BusinessException.class)

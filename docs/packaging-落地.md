@@ -148,7 +148,23 @@
 
 图册：[`docs/diagrams/architecture.md`](diagrams/architecture.md)。模块说明：[`agent-products/README.md`](../agent-products/README.md)。
 
+## 缓存层拓扑（追加）
+
+与「混合 C」分包轴独立；锁定全文见 [`docs/cache-落地.md`](cache-落地.md)（含一期 L1 与二期）。此处只记 Maven / 依赖方向，避免与模块表漂移。
+
+| 项 | 锁定 |
+| --- | --- |
+| 模块 | **M1/S1**：`agent-cache` 聚合；`agent-cache-api` + `agent-cache-redis`（Lettuce 与 Redisson 同族） |
+| 谁依赖 api | access / runtime / product / **audit** 可依赖 **api**；admin 经 redis 装配间接用 api |
+| 谁引入 redis | 仅启动装配（`agent-bootstrap` / `agent-admin`）引入 **redis 实现** |
+| ArchUnit | semantic / state / vector / objectstore ↛ cache；access / runtime / product / **audit** ↛ `cache.redis` |
+| 计数/占锁失败 | Redis 失败 → `UNAVAILABLE`/503；禁止内存回落 |
+| 二期读穿 | audit ACTIVE 门 / 额度上限：失败 **直查 MySQL**；TTL 30s/60s + 写删键 |
+| 二期原语 | `RateLimiter` / `BloomFilter` 已进 api+redis；**未接**业务额度公式 |
+
+图册：[`docs/diagrams/architecture.md`](diagrams/architecture.md) 图 2。模块说明：[`agent-cache/README.md`](../agent-cache/README.md)。
+
 ## 状态
 
 grill 已结束（含 ⑪ 二次收口）。规范、顺序与 admin / ⑪a～⑪c 域表定稿。  
-①～⑩、⑪a～⑪c 已收口；**⑫ `runtime.api` 细化已落地**；**多产品拓扑（P3/A1）文档已收口**。若再改规范，先改本文再动代码。
+①～⑩、⑪a～⑪c 已收口；**⑫ `runtime.api` 细化已落地**；**多产品拓扑（P3/A1）文档已收口**；**缓存层拓扑（含二期）文档已收口**。若再改规范，先改本文再动代码。

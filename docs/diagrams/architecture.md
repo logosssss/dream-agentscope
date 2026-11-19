@@ -1,7 +1,8 @@
 # 架构图（1～3）
 
 结论权威：现码 / 根 [`README.md`](../../README.md) / 各落地文。索引见 [README.md](./README.md)。  
-多产品锁定见 [`docs/packaging-落地.md`](../packaging-落地.md)「多产品拓扑」与 [`agent-products/README.md`](../../agent-products/README.md)。
+多产品锁定见 [`docs/packaging-落地.md`](../packaging-落地.md)「多产品拓扑」与 [`agent-products/README.md`](../../agent-products/README.md)。  
+缓存层锁定见 [`docs/cache-落地.md`](../cache-落地.md) 与 [`docs/packaging-落地.md`](../packaging-落地.md)「缓存层拓扑」。
 
 ## 1. 部署拓扑
 
@@ -56,6 +57,8 @@ flowchart TB
   state["agent-state"]
   vector["agent-vector"]
   objectstore["agent-object-store"]
+  cacheApi["agent-cache-api"]
+  cacheRedis["agent-cache-redis\nLettuce+Redisson"]
   common["agent-common"]
 
   bootstrap --> access
@@ -65,20 +68,28 @@ flowchart TB
   bootstrap --> audit
   bootstrap --> state
   bootstrap --> vector
+  bootstrap --> cacheRedis
   products --> runtime
   products --> semantic
+  products --> cacheApi
   products --> common
   admin --> audit
+  admin --> cacheRedis
   admin --> common
   access --> runtime
   access --> semantic
   access --> audit
+  access --> cacheApi
   access --> common
   runtime --> semantic
   runtime --> state
   runtime --> vector
   runtime --> audit
+  runtime --> cacheApi
   runtime --> common
+  audit --> cacheApi
+  cacheRedis --> cacheApi
+  cacheApi --> common
   semantic --> common
   audit --> common
   state --> common
@@ -89,12 +100,15 @@ flowchart TB
 
 ArchUnit 要点（禁止）：
 
-- `semantic` ↛ `runtime` / `access` / `com.zhu.product..`
-- `runtime` ↛ `semantic.application` / `semantic.infrastructure`（只碰 contract）；`runtime` ↛ `com.zhu.product..`
-- `com.zhu.product..` ↛ `access`
-- `state` / `vector` / `objectstore` ↛ 业务包（语义/运行/接入等，细则见测试）
+- `semantic` ↛ `runtime` / `access` / `com.zhu.product..` / `cache`
+- `runtime` ↛ `semantic.application` / `semantic.infrastructure`（只碰 contract）；`runtime` ↛ `com.zhu.product..`；`runtime` ↛ `cache.redis`
+- `com.zhu.product..` ↛ `access`；`com.zhu.product..` ↛ `cache.redis`
+- `access` / `audit` ↛ `cache.redis`（只碰 api；实现由启动装配引入）
+- `state` / `vector` / `objectstore` ↛ 业务包与 `cache`（细则见测试）
 - `access` ↛ `io.agentscope..`；`access` ↛ `runtime.infrastructure`
 - `access.api.controller` ↛ `infrastructure.persistence`
+
+二期短记：Wx `access_token`、audit ACTIVE/额度读穿见 [`docs/cache-落地.md`](../cache-落地.md)；`RateLimiter`/`BloomFilter` 已挂门面、未接业务。
 
 ## 3. 管理进程边界
 

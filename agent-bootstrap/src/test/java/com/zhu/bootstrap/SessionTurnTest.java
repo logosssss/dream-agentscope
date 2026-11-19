@@ -35,11 +35,11 @@ class SessionTurnTest {
     /** 对话进行中不再写 turn 键；同会话串行交给 Gateway。 */
     @Test
     void chatDoesNotOccupySessionTurnLock() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         AgentExecutor executor = mock(AgentExecutor.class);
         when(executor.execute(any())).thenAnswer(invocation -> {
-            assertThat(cache.lock("turn:t:u:s", "probe", Duration.ofMinutes(1))).isTrue();
-            cache.unlock("turn:t:u:s", "probe");
+            assertThat(cache.tokenLocks().lock("turn:t:u:s", "probe", Duration.ofMinutes(1))).isTrue();
+            cache.tokenLocks().unlock("turn:t:u:s", "probe");
             return new AgentResponse("run-1", "ok");
         });
         ChatAppService chats = new ChatAppService(
@@ -64,6 +64,6 @@ class SessionTurnTest {
         UserContext.set("u");
         chats.chat(new ChatRequest(null, "t", "u", "s", null, "hi", null));
 
-        assertThat(cache.lock("turn:t:u:s", "again", Duration.ofMinutes(1))).isTrue();
+        assertThat(cache.tokenLocks().lock("turn:t:u:s", "again", Duration.ofMinutes(1))).isTrue();
     }
 }

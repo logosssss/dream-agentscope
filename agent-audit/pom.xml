@@ -19,6 +19,11 @@
             <artifactId>agent-common</artifactId>
         </dependency>
         <dependency>
+            <!-- 二期：ACTIVE 门 / 额度上限读穿；只依赖 api，实现由启动装配引入。 -->
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-cache-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>

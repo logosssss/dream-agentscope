@@ -3,7 +3,7 @@ package com.zhu.access.application.account;
 import com.zhu.access.api.dto.account.QuotaMeter;
 import com.zhu.access.api.dto.account.QuotaSnapshot;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.cache.api.CacheFacade;
 import com.zhu.audit.api.quota.QuotaUsageWriter;
 import com.zhu.audit.api.quota.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
@@ -39,7 +39,7 @@ public class QuotaGuard {
 
     private static final DateTimeFormatter MINUTE = DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneOffset.UTC);
 
-    private final AccessCache cache;
+    private final CacheFacade cache;
 
     private final AccessLimitProperties limits;
 
@@ -56,7 +56,7 @@ public class QuotaGuard {
      */
     @Autowired
     public QuotaGuard(
-            AccessCache cache,
+            CacheFacade cache,
             AccessLimitProperties limits,
             ObjectProvider<TenantQuotaLookup> quotas,
             ObjectProvider<QuotaUsageWriter> usage) {
@@ -64,18 +64,18 @@ public class QuotaGuard {
     }
 
     /** 测试注入时钟，方便把窗口拨到下一分钟。不查租户上限，也不写流水。 */
-    public QuotaGuard(AccessCache cache, AccessLimitProperties limits, Clock clock) {
+    public QuotaGuard(CacheFacade cache, AccessLimitProperties limits, Clock clock) {
         this(cache, limits, clock, null, null);
     }
 
     /** 测试注入租户上限。不写流水。 */
-    public QuotaGuard(AccessCache cache, AccessLimitProperties limits, Clock clock, TenantQuotaLookup quotas) {
+    public QuotaGuard(CacheFacade cache, AccessLimitProperties limits, Clock clock, TenantQuotaLookup quotas) {
         this(cache, limits, clock, quotas, null);
     }
 
     /** 测试同时注入时钟、租户上限和流水。Spring 不用这个构造。 */
     public QuotaGuard(
-            AccessCache cache,
+            CacheFacade cache,
             AccessLimitProperties limits,
             Clock clock,
             TenantQuotaLookup quotas,
@@ -96,7 +96,7 @@ public class QuotaGuard {
      */
     public void check(String tenantId, String userId, String endpoint, String requestId) {
         if (requestId != null && !requestId.isBlank()) {
-            if (!cache.claim("idem:" + segment(requestId), IDEM_TTL)) {
+            if (!cache.tokenLocks().claim("idem:" + segment(requestId), IDEM_TTL)) {
                 throw new BusinessException(ErrorCode.CONFLICT, "duplicate request");
             }
         }
@@ -112,7 +112,7 @@ public class QuotaGuard {
             }
         }
         if (dailyLimit > 0) {
-            long used = cache.increment(requestKey(tenantId, userId, day), QUOTA_TTL);
+            long used = cache.counters().increment(requestKey(tenantId, userId, day), QUOTA_TTL);
             if (used > dailyLimit) {
                 throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "daily quota exceeded");
             }
@@ -121,7 +121,7 @@ public class QuotaGuard {
         int perMinute = limits.getPerMinute();
         if (perMinute > 0) {
             String window = MINUTE.format(clock.instant());
-            long used = cache.increment("rate:" + segment(endpoint) + ":" + user + ":" + window, RATE_TTL);
+            long used = cache.counters().increment("rate:" + segment(endpoint) + ":" + user + ":" + window, RATE_TTL);
             if (used > perMinute) {
                 throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "rate limit exceeded");
             }
@@ -139,7 +139,7 @@ public class QuotaGuard {
         }
         String window = MINUTE.format(clock.instant());
         String key = "auth-rate:" + segment(action) + ":" + segment(accountKey) + ":" + window;
-        long used = cache.increment(key, RATE_TTL);
+        long used = cache.counters().increment(key, RATE_TTL);
         if (used > perMinute) {
             throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "rate limit exceeded");
         }
@@ -163,10 +163,10 @@ public class QuotaGuard {
         Long concurrentLimit = quotas == null ? null : quotas.concurrentRunLimit(tenantId);
         return new QuotaSnapshot(
                 day,
-                new QuotaMeter(cache.getCounter(requestKey(tenantId, userId, day)), requestLimit),
-                new QuotaMeter(cache.getCounter(tokenKey(tenantId, userId, day)), tokenLimit),
-                new QuotaMeter(cache.getCounter(costKey(tenantId, userId, day)), costLimit),
-                new QuotaMeter(cache.getCounter(concurrentKey(tenantId)), concurrentLimit));
+                new QuotaMeter(cache.counters().getCounter(requestKey(tenantId, userId, day)), requestLimit),
+                new QuotaMeter(cache.counters().getCounter(tokenKey(tenantId, userId, day)), tokenLimit),
+                new QuotaMeter(cache.counters().getCounter(costKey(tenantId, userId, day)), costLimit),
+                new QuotaMeter(cache.counters().getCounter(concurrentKey(tenantId)), concurrentLimit));
     }
 
     /**
@@ -205,7 +205,7 @@ public class QuotaGuard {
         if (tokenLimit == null || tokenLimit <= 0) {
             return;
         }
-        long used = cache.getCounter(tokenKey(tenantId, userId, day));
+        long used = cache.counters().getCounter(tokenKey(tenantId, userId, day));
         if (used >= tokenLimit) {
             throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "daily token quota exceeded");
         }
@@ -219,7 +219,7 @@ public class QuotaGuard {
         if (costLimit == null || costLimit <= 0) {
             return;
         }
-        long used = cache.getCounter(costKey(tenantId, userId, day));
+        long used = cache.counters().getCounter(costKey(tenantId, userId, day));
         if (used >= costLimit) {
             throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "daily cost quota exceeded");
         }

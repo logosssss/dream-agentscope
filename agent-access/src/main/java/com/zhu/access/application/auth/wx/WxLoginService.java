@@ -3,7 +3,7 @@ package com.zhu.access.application.auth.wx;
 import com.zhu.access.api.dto.auth.LoginResponse;
 import com.zhu.access.application.auth.session.ClientAccountService;
 import com.zhu.access.config.WxMiniProperties;
-import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.cache.api.CacheFacade;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
@@ -27,7 +27,7 @@ public class WxLoginService {
 
     private final WxMiniProperties settings;
 
-    private final AccessCache cache;
+    private final CacheFacade cache;
 
     private final ClientAccountService accounts;
 
@@ -36,7 +36,7 @@ public class WxLoginService {
     /** 正式进程用微信实现。测试可以换成假的出码。 */
     public WxLoginService(
             WxMiniProperties settings,
-            AccessCache cache,
+            CacheFacade cache,
             ClientAccountService accounts,
             WxRemote weixin) {
         this.settings = settings;
@@ -60,12 +60,12 @@ public class WxLoginService {
         if (ttl < 60 || ttl > 600) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "有效期不对");
         }
-        long issued = cache.increment(WINDOW_KEY, Duration.ofSeconds(ttl));
+        long issued = cache.counters().increment(WINDOW_KEY, Duration.ofSeconds(ttl));
         if (issued > MAX_TICKETS) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "码太多");
         }
         String ticketId = Ids.newId();
-        cache.put(ticketKey(ticketId), "PENDING", Duration.ofSeconds(ttl));
+        cache.kv().put(ticketKey(ticketId), "PENDING", Duration.ofSeconds(ttl));
         byte[] png = weixin.qrCode(ticketId);
         String dataUrl = "data:image/png;base64," + Base64.getEncoder().encodeToString(png);
         return new WxTicket(ticketId, ttl, dataUrl);
@@ -75,7 +75,7 @@ public class WxLoginService {
      * 票不在或已过期时状态是 EXPIRED。确认后的登录结果只在这两分钟内能取走。
      */
     public WxPoll poll(String ticketId) {
-        String raw = ticketId == null || ticketId.isBlank() ? null : cache.get(ticketKey(ticketId.trim()));
+        String raw = ticketId == null || ticketId.isBlank() ? null : cache.kv().get(ticketKey(ticketId.trim()));
         if (raw == null || raw.isBlank() || "PENDING".equals(raw)) {
             return raw == null || raw.isBlank() ? WxPoll.expired() : WxPoll.pending();
         }
@@ -97,11 +97,11 @@ public class WxLoginService {
         }
         String id = ticketId.trim();
         String lockKey = "wx-login-lock:" + id;
-        if (!cache.lock(lockKey, "confirm", Duration.ofSeconds(30))) {
+        if (!cache.tokenLocks().lock(lockKey, "confirm", Duration.ofSeconds(30))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "二维码已使用");
         }
         try {
-            String raw = cache.get(ticketKey(id));
+            String raw = cache.kv().get(ticketKey(id));
             if (raw == null || raw.isBlank()) {
                 throw new BusinessException(ErrorCode.BAD_REQUEST, "二维码已过期，请刷新后重试");
             }
@@ -111,15 +111,15 @@ public class WxLoginService {
             String openId = weixin.openId(jsCode.trim());
             try {
                 LoginResponse login = accounts.wechat(openId);
-                cache.put(ticketKey(id), encode(login), Duration.ofSeconds(120));
+                cache.kv().put(ticketKey(id), encode(login), Duration.ofSeconds(120));
             } catch (BusinessException ex) {
                 if ("登录已停用".equals(ex.getMessage())) {
-                    cache.delete(ticketKey(id));
+                    cache.kv().delete(ticketKey(id));
                 }
                 throw ex;
             }
         } finally {
-            cache.unlock(lockKey, "confirm");
+            cache.tokenLocks().unlock(lockKey, "confirm");
         }
     }
 

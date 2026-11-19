@@ -1,23 +1,28 @@
 package com.zhu.audit.application.quota;
 
 import com.zhu.audit.application.support.AuditQueryLimits;
-
+import com.zhu.audit.application.support.AuditReadThroughCache;
 import com.zhu.audit.api.quota.TenantQuotaCatalog;
 import com.zhu.audit.api.quota.TenantQuotaLookup;
 import com.zhu.audit.api.quota.TenantQuotaSummary;
 import com.zhu.audit.infrastructure.persistence.quota.TenantQuotaMapper;
 import com.zhu.audit.infrastructure.persistence.entity.quota.TenantQuotaRecord;
+import com.zhu.cache.api.CacheFacade;
+import com.zhu.cache.api.CacheKeys;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.Duration;
 import java.util.List;
 import java.util.logging.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
- * MySQL 上的租户每日请求、token、费用与同时运行上限。只在存储开关打开时创建。可列出已登记行。不写已用量。
+ * 审计层：MySQL 租户每日请求、token、费用与同时运行上限。只在存储开关打开时创建。
+ * Lookup 短 TTL 读穿 Redis；写路径尽力删键。不写已用量。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -37,11 +42,27 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
 
     private static final String CURRENT = "CURRENT";
 
+    /** 无启用行时的哨兵，避免反复打库。 */
+    private static final String NONE = "__none__";
+
+    private static final Duration LIMIT_TTL = Duration.ofSeconds(60);
+
     private final TenantQuotaMapper quotas;
 
-    /** 查找和插入用同一个 Mapper。重复的租户加类型加周期由唯一键拒绝。 */
-    public MysqlTenantQuota(TenantQuotaMapper quotas) {
+    private final AuditReadThroughCache readCache;
+
+    /**
+     * Spring：可选注入 CacheFacade；测试可只传 Mapper。
+     */
+    @Autowired
+    public MysqlTenantQuota(TenantQuotaMapper quotas, @Autowired(required = false) CacheFacade cache) {
         this.quotas = quotas;
+        this.readCache = AuditReadThroughCache.of(cache);
+    }
+
+    /** 测试无缓存。 */
+    public MysqlTenantQuota(TenantQuotaMapper quotas) {
+        this(quotas, null);
     }
 
     /**
@@ -49,22 +70,22 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
      */
     @Override
     public Long dailyRequestLimit(String tenantId) {
-        return lookup(tenantId, () -> quotas.findDailyRequestLimit(tenantId));
+        return cachedLookup(tenantId, REQUESTS, () -> quotas.findDailyRequestLimit(tenantId));
     }
 
     @Override
     public Long dailyTokenLimit(String tenantId) {
-        return lookup(tenantId, () -> quotas.findDailyTokenLimit(tenantId));
+        return cachedLookup(tenantId, TOKENS, () -> quotas.findDailyTokenLimit(tenantId));
     }
 
     @Override
     public Long dailyCostLimit(String tenantId) {
-        return lookup(tenantId, () -> quotas.findDailyCostLimit(tenantId));
+        return cachedLookup(tenantId, COST, () -> quotas.findDailyCostLimit(tenantId));
     }
 
     @Override
     public Long concurrentRunLimit(String tenantId) {
-        return lookup(tenantId, () -> quotas.findConcurrentRunLimit(tenantId));
+        return cachedLookup(tenantId, CONCURRENT_RUNS, () -> quotas.findConcurrentRunLimit(tenantId));
     }
 
     /**
@@ -138,10 +159,28 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
         return mapRows(quotas.recentConcurrent(AuditQueryLimits.normalize(limit)));
     }
 
-    private Long lookup(String tenantId, LimitQuery query) {
+    private Long cachedLookup(String tenantId, String quotaType, LimitQuery query) {
         if (tenantId == null || tenantId.isBlank()) {
             return null;
         }
+        String key = limitKey(tenantId, quotaType);
+        String cached = readCache.get(key);
+        if (cached != null) {
+            if (NONE.equals(cached)) {
+                return null;
+            }
+            try {
+                return Long.parseLong(cached);
+            } catch (NumberFormatException ex) {
+                readCache.delete(key);
+            }
+        }
+        Long value = lookup(tenantId, query);
+        readCache.put(key, value == null ? NONE : Long.toString(value), LIMIT_TTL);
+        return value;
+    }
+
+    private Long lookup(String tenantId, LimitQuery query) {
         try {
             return query.get();
         } catch (DataAccessException ex) {
@@ -163,6 +202,7 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.CONFLICT, "tenant quota already exists");
         }
+        readCache.delete(limitKey(tenantId, type));
         return new TenantQuotaSummary(tenantId, type, period, limit);
     }
 
@@ -172,6 +212,7 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
         if (updated != 1) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "tenant quota not found");
         }
+        readCache.delete(limitKey(tenantId, type));
         return new TenantQuotaSummary(tenantId, type, period, limit);
     }
 
@@ -192,6 +233,10 @@ public class MysqlTenantQuota implements TenantQuotaLookup, TenantQuotaCatalog {
                         row.getPeriod(),
                         row.getLimitValue() == null ? 0L : row.getLimitValue()))
                 .toList();
+    }
+
+    private static String limitKey(String tenantId, String quotaType) {
+        return CacheKeys.of("quota-limit", tenantId, quotaType);
     }
 
     @FunctionalInterface

@@ -106,8 +106,6 @@ class DisableDynamicSubagentsWiringTest {
         assertThat(probe.isPersistSession()).isFalse();
         assertThat(probe.getTools()).isEmpty();
         assertThat(probe.getMode()).isEqualTo(SubagentDeclaration.Mode.SUBAGENT);
-        assertThat(HarnessAgentFactory.SUBAGENT_PROBE_NAME)
-                .isEqualTo(CompanionResidentAgentBinding.SUBAGENT_PROBE_NAME);
     }
 
     private static String readRuntimeAgentSource(String fileName) throws Exception {

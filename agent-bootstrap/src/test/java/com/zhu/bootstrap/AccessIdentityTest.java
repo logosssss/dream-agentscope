@@ -51,8 +51,8 @@ class AccessIdentityTest {
         ChatRequest request = new ChatRequest(null, "body-tenant", null, "session-1", "客户端人设", "hi", null);
 
         PromptService prompts = (key, variables, fallback) -> fallback;
-        QuotaGuard quota = new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC());
-        new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, new ConcurrentRunGuard(new FakeAccessCache(), 120), (tenant, user, session, channel, text) -> {
+        QuotaGuard quota = new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC());
+        new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, new ConcurrentRunGuard(new FakeCacheFacade(), 120), (tenant, user, session, channel, text) -> {
         }, (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
         }, tenantId -> {
         }, (tenantId, userId) -> {
@@ -96,8 +96,8 @@ class AccessIdentityTest {
     /** Bearer 登录会话优先于请求头。无效令牌直接 401。 */
     @Test
     void bearerOverridesHeaders() throws Exception {
-        FakeAccessCache cache = new FakeAccessCache();
-        cache.put("login-session:tok-1", "tenant-a\nuser-a", java.time.Duration.ofHours(1));
+        FakeCacheFacade cache = new FakeCacheFacade();
+        cache.kv().put("login-session:tok-1", "tenant-a\nuser-a", java.time.Duration.ofHours(1));
         AccessIdentityFilter filter = new AccessIdentityFilter(caches(cache));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader(AccessIdentityFilter.AUTHORIZATION_HEADER, "Bearer tok-1");
@@ -122,21 +122,21 @@ class AccessIdentityTest {
         assertThat(rejected.getStatus()).isEqualTo(401);
     }
 
-    private static org.springframework.beans.factory.ObjectProvider<com.zhu.access.infrastructure.cache.AccessCache> caches(
-            com.zhu.access.infrastructure.cache.AccessCache cache) {
+    private static org.springframework.beans.factory.ObjectProvider<com.zhu.cache.api.CacheFacade> caches(
+            com.zhu.cache.api.CacheFacade cache) {
         return new org.springframework.beans.factory.ObjectProvider<>() {
             @Override
-            public com.zhu.access.infrastructure.cache.AccessCache getObject() {
+            public com.zhu.cache.api.CacheFacade getObject() {
                 return cache;
             }
 
             @Override
-            public com.zhu.access.infrastructure.cache.AccessCache getIfAvailable() {
+            public com.zhu.cache.api.CacheFacade getIfAvailable() {
                 return cache;
             }
 
             @Override
-            public com.zhu.access.infrastructure.cache.AccessCache getIfUnique() {
+            public com.zhu.cache.api.CacheFacade getIfUnique() {
                 return cache;
             }
         };

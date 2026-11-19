@@ -30,18 +30,6 @@ public class HarnessAgentFactory {
     /** 瘦路由探测 Agent 的短系统提示。不挂搭子工具与记忆中间件。 */
     public static final String ECHO_SYS_PROMPT = "你是路由探测助手。用一两句中文直接回答用户，不要调用工具。";
 
-    /**
-     * @deprecated 探针常量在 product companion Binding；保留以免外部引用断裂。
-     */
-    @Deprecated
-    public static final String SUBAGENT_PROBE_NAME = "subagent-probe";
-
-    /**
-     * @deprecated 见 product companion Binding。
-     */
-    @Deprecated
-    public static final String SUBAGENT_PROBE_PROMPT = "你是对照用占位子代理。用一两句中文直接短答，不要调用工具。";
-
     private final AgentRuntimeProperties properties;
 
     private final ResolvedChatModel chatModel;
@@ -113,23 +101,6 @@ public class HarnessAgentFactory {
         if (stores.getIfAvailable() != null) {
             builder.filesystem(WorkspaceFilesystem.userScoped());
         }
-    }
-
-    /**
-     * @deprecated 使用 product companion {@code CompanionResidentAgentBinding#subagentProbe()}。
-     */
-    @Deprecated
-    public static SubagentDeclaration subagentProbe() {
-        return SubagentDeclaration.builder()
-                .name(SUBAGENT_PROBE_NAME)
-                .description("对照用占位子代理，不承诺产品能力")
-                .workspaceMode(WorkspaceMode.ISOLATED)
-                .inheritParentPermissions(true)
-                .persistSession(false)
-                .mode(SubagentDeclaration.Mode.SUBAGENT)
-                .tools(List.of())
-                .inlineAgentsBody(SUBAGENT_PROBE_PROMPT)
-                .build();
     }
 
     /**

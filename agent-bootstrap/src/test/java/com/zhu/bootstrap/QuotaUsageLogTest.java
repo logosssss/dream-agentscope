@@ -32,7 +32,7 @@ class QuotaUsageLogTest {
         AccessLimitProperties limits = new AccessLimitProperties();
         limits.setDailyLimit(1);
         QuotaUsageWriter writer = mock(QuotaUsageWriter.class);
-        QuotaGuard guard = new QuotaGuard(new FakeAccessCache(), limits, Clock.systemUTC(), null, writer);
+        QuotaGuard guard = new QuotaGuard(new FakeCacheFacade(), limits, Clock.systemUTC(), null, writer);
 
         guard.check("t", "u", "chat", "req-1");
         assertThatThrownBy(() -> guard.check("t", "u", "chat", "req-1"))
@@ -51,14 +51,14 @@ class QuotaUsageLogTest {
     void unlimitedSkipsTheLogAndWriteFailureIsIgnored() {
         AccessLimitProperties open = new AccessLimitProperties();
         QuotaUsageWriter writer = mock(QuotaUsageWriter.class);
-        new QuotaGuard(new FakeAccessCache(), open, Clock.systemUTC(), null, writer)
+        new QuotaGuard(new FakeCacheFacade(), open, Clock.systemUTC(), null, writer)
                 .check("t", "u", "chat", null);
         verifyNoInteractions(writer);
 
         AccessLimitProperties limits = new AccessLimitProperties();
         limits.setDailyLimit(1);
         doThrow(new IllegalStateException("down")).when(writer).recordDailyRequest("t", "u", "chat");
-        QuotaGuard guard = new QuotaGuard(new FakeAccessCache(), limits, Clock.systemUTC(), null, writer);
+        QuotaGuard guard = new QuotaGuard(new FakeCacheFacade(), limits, Clock.systemUTC(), null, writer);
         assertThatCode(() -> guard.check("t", "u", "chat", null)).doesNotThrowAnyException();
     }
 

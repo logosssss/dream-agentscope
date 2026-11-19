@@ -1,6 +1,6 @@
 package com.zhu.access.application.chat.run;
 
-import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.cache.api.CacheFacade;
 import com.zhu.audit.api.quota.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
@@ -21,7 +21,7 @@ public class ConcurrentRunGuard {
     /** 比单次调用超时多留的时间，避免对话还没结束键就过期。 */
     private static final Duration EXTRA = Duration.ofSeconds(30);
 
-    private final AccessCache cache;
+    private final CacheFacade cache;
 
     private final AgentRuntimeProperties runtime;
 
@@ -35,7 +35,7 @@ public class ConcurrentRunGuard {
      */
     @Autowired
     public ConcurrentRunGuard(
-            AccessCache cache,
+            CacheFacade cache,
             AgentRuntimeProperties runtime,
             ObjectProvider<TenantQuotaLookup> quotas) {
         this.cache = cache;
@@ -45,7 +45,7 @@ public class ConcurrentRunGuard {
     }
 
     /** 测试注入固定超时。没有上限时不占位。 */
-    public ConcurrentRunGuard(AccessCache cache, int timeoutSeconds, TenantQuotaLookup quotas) {
+    public ConcurrentRunGuard(CacheFacade cache, int timeoutSeconds, TenantQuotaLookup quotas) {
         this.cache = cache;
         this.runtime = null;
         this.fixedTimeoutSeconds = timeoutSeconds < 1 ? 120 : timeoutSeconds;
@@ -53,7 +53,7 @@ public class ConcurrentRunGuard {
     }
 
     /** 测试不查租户上限。 */
-    public ConcurrentRunGuard(AccessCache cache, int timeoutSeconds) {
+    public ConcurrentRunGuard(CacheFacade cache, int timeoutSeconds) {
         this(cache, timeoutSeconds, (TenantQuotaLookup) null);
     }
 
@@ -78,7 +78,7 @@ public class ConcurrentRunGuard {
         }
         String key = "concurrent:" + segment(tenantId);
         Duration ttl = ttl();
-        long used = cache.add(key, 1L, ttl);
+        long used = cache.counters().add(key, 1L, ttl);
         if (used > limit) {
             rollback(key);
             throw new BusinessException(ErrorCode.QUOTA_EXCEEDED, "concurrent run quota exceeded");
@@ -95,7 +95,7 @@ public class ConcurrentRunGuard {
             return;
         }
         try {
-            cache.add(slot.key(), -1L, ttl());
+            cache.counters().add(slot.key(), -1L, ttl());
         } catch (BusinessException error) {
             if (error.errorCode() != ErrorCode.UNAVAILABLE) {
                 throw error;
@@ -105,7 +105,7 @@ public class ConcurrentRunGuard {
 
     private void rollback(String key) {
         try {
-            cache.add(key, -1L, ttl());
+            cache.counters().add(key, -1L, ttl());
         } catch (BusinessException error) {
             if (error.errorCode() != ErrorCode.UNAVAILABLE) {
                 throw error;

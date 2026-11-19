@@ -75,8 +75,8 @@ class ApiAgentChatPathTest {
                 gateway,
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
-                new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
-                new ConcurrentRunGuard(new FakeAccessCache(), 120),
+                new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC()),
+                new ConcurrentRunGuard(new FakeCacheFacade(), 120),
                 (tenant, user, session, channel, text) -> recordedChannel.set(channel),
                 (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
                 },
@@ -97,8 +97,8 @@ class ApiAgentChatPathTest {
                 executor,
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
-                new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
-                new ConcurrentRunGuard(new FakeAccessCache(), 120),
+                new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC()),
+                new ConcurrentRunGuard(new FakeCacheFacade(), 120),
                 (tenant, user, session, channel, text) -> {
                 },
                 (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {

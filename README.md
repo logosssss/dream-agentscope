@@ -96,11 +96,13 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 | [`agent-state`](./agent-state/README.md) | DistributedStore / 远程工作区状态 |
 | [`agent-vector`](./agent-vector/README.md) | Milvus 集合与检索相关 |
 | [`agent-object-store`](./agent-object-store/README.md) | 对象存储抽象（local/OSS/S3/MinIO） |
+| [`agent-cache`](./agent-cache/README.md) | 缓存层聚合：`api`（门面/键/限流·布隆形状）+ `redis`（Lettuce + Redisson） |
 | [`agent-common`](./agent-common/README.md) | 异常、DTO、上下文、令牌比较等 |
 | [`web`](./web/README.md) | 用户端（介绍页、搭子、附件、知识库等） |
 | [`web-admin`](./web-admin/README.md) | 管理端 |
 | [`deploy/`](./deploy/) | Nacos / MySQL / Nginx / Milvus 示例 |
 | [`docs/release-gate.md`](./docs/release-gate.md) | 开源前/上线前门禁清单 |
+| [`docs/cache-落地.md`](./docs/cache-落地.md) | 缓存层窄专题（L1 连接/门面；二期 Wx token、audit 读穿、原语形状） |
 | [`docs/wakeup-落地.md`](./docs/wakeup-落地.md) | Wakeup 窄专题（进程内 Bus / 内部 HTTP，默认关） |
 | [`docs/sandbox-落地.md`](./docs/sandbox-落地.md) | Sandbox 窄专题（companion Docker，默认关） |
 | [`docs/mcp-落地.md`](./docs/mcp-落地.md) | MCP 清单接线（不做服务发现） |

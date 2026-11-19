@@ -2,7 +2,7 @@ package com.zhu.access.application.auth.session;
 
 import com.zhu.access.api.dto.auth.LoginResponse;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.cache.api.CacheFacade;
 import com.zhu.audit.api.tenant.TenantGate;
 import com.zhu.audit.api.tenant.TenantUserGate;
 import com.zhu.common.exception.BusinessException;
@@ -28,15 +28,15 @@ public class UserLoginService {
 
     private final TenantUserGate tenantUsers;
 
-    private final AccessCache cache;
+    private final CacheFacade cache;
 
     private final AccessLimitProperties limits;
 
-    /** 正式进程里 AccessCache 是 Redis。测试用假实现。 */
+    /** 正式进程里 CacheFacade 是 Redis。测试用假实现。 */
     public UserLoginService(
             TenantGate tenants,
             TenantUserGate tenantUsers,
-            AccessCache cache,
+            CacheFacade cache,
             AccessLimitProperties limits) {
         this.tenants = tenants;
         this.tenantUsers = tenantUsers;
@@ -60,7 +60,7 @@ public class UserLoginService {
         tenantUsers.requireActive(tenant, user);
         long ttlSeconds = ttlSeconds();
         String token = Ids.newId();
-        cache.put(LoginSessionCodec.key(token), LoginSessionCodec.encode(tenant, user), Duration.ofSeconds(ttlSeconds));
+        cache.kv().put(LoginSessionCodec.key(token), LoginSessionCodec.encode(tenant, user), Duration.ofSeconds(ttlSeconds));
         return new LoginResponse(token, ttlSeconds, tenant, user, shown);
     }
 
@@ -72,7 +72,7 @@ public class UserLoginService {
         if (accessToken == null || accessToken.isBlank()) {
             return;
         }
-        cache.delete(LoginSessionCodec.key(accessToken.trim()));
+        cache.kv().delete(LoginSessionCodec.key(accessToken.trim()));
     }
 
     /** 配置小于 1 时按一天。 */

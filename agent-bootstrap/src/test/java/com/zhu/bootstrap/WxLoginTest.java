@@ -25,7 +25,7 @@ class WxLoginTest {
     @Test
     void confirmPutsSessionOnTheTicket() {
         WxMiniProperties settings = ready();
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         WxLoginService wx = service(settings, cache, activeStore());
 
         assertThatThrownBy(() -> new WxLoginService(new WxMiniProperties(), cache, accounts(cache, activeStore()), remote())
@@ -51,7 +51,7 @@ class WxLoginTest {
     /** 已停用的微信用户不留下可取走的会话。 */
     @Test
     void disabledWechatExpiresTheTicket() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         WxLoginService wx = service(ready(), cache, new ClientLoginStore() {
             @Override
             public RegisteredClient registerPassword(
@@ -80,7 +80,7 @@ class WxLoginTest {
     @Test
     void tooManyTicketsAreRejected() {
         WxMiniProperties settings = ready();
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         WxLoginService wx = service(settings, cache, activeStore());
         BusinessException error = null;
         for (int i = 0; i < 101; i++) {
@@ -95,11 +95,11 @@ class WxLoginTest {
         assertThat(error.getMessage()).isEqualTo("码太多");
     }
 
-    private static WxLoginService service(WxMiniProperties settings, FakeAccessCache cache, ClientLoginStore store) {
+    private static WxLoginService service(WxMiniProperties settings, FakeCacheFacade cache, ClientLoginStore store) {
         return new WxLoginService(settings, cache, accounts(cache, store), remote());
     }
 
-    private static ClientAccountService accounts(FakeAccessCache cache, ClientLoginStore store) {
+    private static ClientAccountService accounts(FakeCacheFacade cache, ClientLoginStore store) {
         UserLoginService sessions = new UserLoginService(tenantId -> {
         }, (tenantId, userId) -> {
         }, cache, new AccessLimitProperties());

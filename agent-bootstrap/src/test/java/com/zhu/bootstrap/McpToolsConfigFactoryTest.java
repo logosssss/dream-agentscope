@@ -1,5 +1,6 @@
 package com.zhu.bootstrap;
 
+import com.zhu.product.companion.binding.CompanionResidentAgentBinding;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import com.zhu.runtime.infrastructure.agent.McpToolsConfigFactory;
@@ -126,7 +127,7 @@ class McpToolsConfigFactoryTest {
                 .doesNotContain("McpToolsConfigFactory")
                 .doesNotContain("toolsConfig(")
                 .doesNotContain("mcpServerRegistrationListener");
-        assertThat(HarnessAgentFactory.SUBAGENT_PROBE_NAME).isEqualTo("subagent-probe");
+        assertThat(CompanionResidentAgentBinding.SUBAGENT_PROBE_NAME).isEqualTo("subagent-probe");
     }
 
     private static String readModuleSource(String moduleRelative, String... parts) throws Exception {

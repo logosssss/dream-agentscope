@@ -1,6 +1,6 @@
 package com.zhu.access.application.account;
 
-import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.cache.api.CacheFacade;
 import com.zhu.audit.api.usage.DailyCostAccumulator;
 import java.time.Clock;
 import java.time.ZoneOffset;
@@ -18,12 +18,12 @@ public class RedisDailyCostAccumulator implements DailyCostAccumulator {
 
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC);
 
-    private final AccessCache cache;
+    private final CacheFacade cache;
 
     private final Clock clock;
 
     /** 唯一构造。 */
-    public RedisDailyCostAccumulator(AccessCache cache) {
+    public RedisDailyCostAccumulator(CacheFacade cache) {
         this.cache = cache;
         this.clock = Clock.systemUTC();
     }
@@ -38,7 +38,7 @@ public class RedisDailyCostAccumulator implements DailyCostAccumulator {
         }
         try {
             String day = DAY.format(clock.instant());
-            cache.incrementBy(QuotaGuard.costKey(tenantId, userId, day), micros, QuotaGuard.QUOTA_TTL);
+            cache.counters().incrementBy(QuotaGuard.costKey(tenantId, userId, day), micros, QuotaGuard.QUOTA_TTL);
         } catch (RuntimeException ex) {
             log.warning("daily cost accumulate failed");
         }

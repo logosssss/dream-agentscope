@@ -7,7 +7,7 @@ import com.zhu.access.api.dto.chat.ChatMessageItem;
 import com.zhu.access.api.dto.chat.SessionDetail;
 import com.zhu.access.api.dto.chat.SessionSummary;
 import com.zhu.access.application.chat.message.ChatMessageStore;
-import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.cache.api.CacheFacade;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Duration;
@@ -28,14 +28,14 @@ public class SessionListService implements SessionIndex {
 
     private final SessionMetaStore store;
 
-    private final AccessCache cache;
+    private final CacheFacade cache;
 
     private final ChatMessageStore chatMessages;
 
     private final ObjectMapper json = new ObjectMapper();
 
     /** 存储和缓存都由启动模块注入。测试关掉 MySQL 时存储是空实现。 */
-    public SessionListService(SessionMetaStore store, AccessCache cache, ChatMessageStore chatMessages) {
+    public SessionListService(SessionMetaStore store, CacheFacade cache, ChatMessageStore chatMessages) {
         this.store = store;
         this.cache = cache;
         this.chatMessages = chatMessages;
@@ -53,7 +53,7 @@ public class SessionListService implements SessionIndex {
         String tenant = tenantId == null ? "" : tenantId;
         store.touch(tenant, userId, sessionId, channel, title(text));
         try {
-            cache.delete(cacheKey(tenant, userId));
+            cache.kv().delete(cacheKey(tenant, userId));
         } catch (BusinessException error) {
             if (error.errorCode() != ErrorCode.UNAVAILABLE) {
                 throw error;
@@ -129,7 +129,7 @@ public class SessionListService implements SessionIndex {
     /** 读失败视为未命中，接着查库。 */
     private String readCache(String key) {
         try {
-            return cache.get(key);
+            return cache.kv().get(key);
         } catch (BusinessException error) {
             if (error.errorCode() == ErrorCode.UNAVAILABLE) {
                 return null;
@@ -141,7 +141,7 @@ public class SessionListService implements SessionIndex {
     /** 回填失败不影响这次返回。 */
     private void writeCache(String key, List<SessionSummary> rows) {
         try {
-            cache.put(key, json.writeValueAsString(rows), TTL);
+            cache.kv().put(key, json.writeValueAsString(rows), TTL);
         } catch (BusinessException error) {
             if (error.errorCode() != ErrorCode.UNAVAILABLE) {
                 throw error;
