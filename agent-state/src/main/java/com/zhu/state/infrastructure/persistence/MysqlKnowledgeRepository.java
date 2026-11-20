@@ -2,12 +2,12 @@ package com.zhu.state.infrastructure.persistence;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.state.api.KnowledgeBaseItem;
-import com.zhu.state.api.KnowledgeBaseOwned;
-import com.zhu.state.api.KnowledgeChunkItem;
-import com.zhu.state.api.KnowledgeDocumentItem;
-import com.zhu.state.api.KnowledgeDocumentVersion;
-import com.zhu.state.api.KnowledgeRepository;
+import com.zhu.state.api.knowledge.KnowledgeBaseItem;
+import com.zhu.state.api.knowledge.KnowledgeBaseOwned;
+import com.zhu.state.api.knowledge.KnowledgeChunkItem;
+import com.zhu.state.api.knowledge.KnowledgeDocumentItem;
+import com.zhu.state.api.knowledge.KnowledgeDocumentVersion;
+import com.zhu.state.api.knowledge.KnowledgeRepository;
 import com.zhu.state.infrastructure.persistence.entity.KbChunk;
 import com.zhu.state.infrastructure.persistence.entity.KbDocument;
 import com.zhu.state.infrastructure.persistence.entity.KbKnowledgeBase;

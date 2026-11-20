@@ -1,6 +1,6 @@
 package com.zhu.runtime.domain;
 
-import com.zhu.semantic.contract.CrisisPrompt;
+import com.zhu.semantic.contract.safety.CrisisPrompt;
 import java.util.List;
 import java.util.Locale;
 

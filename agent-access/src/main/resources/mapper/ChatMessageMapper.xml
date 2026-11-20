@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.zhu.access.infrastructure.persistence.ChatMessageMapper">
+<mapper namespace="com.zhu.access.infrastructure.persistence.message.ChatMessageMapper">
 
     <select id="maxSeq" resultType="long">
         SELECT COALESCE(MAX(seq), 0)
@@ -18,7 +18,7 @@
             (#{tenantId}, #{userId}, #{sessionId}, #{seq}, #{role}, #{content}, #{runId}, #{createdAt})
     </insert>
 
-    <select id="listOwned" resultType="com.zhu.access.infrastructure.persistence.entity.ChatMessage">
+    <select id="listOwned" resultType="com.zhu.access.infrastructure.persistence.entity.message.ChatMessage">
         SELECT seq, role, content, run_id, created_at
         FROM chat_message
         WHERE tenant_id = #{tenantId}

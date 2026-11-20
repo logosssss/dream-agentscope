@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.zhu.access.infrastructure.persistence.SessionMetaMapper">
+<mapper namespace="com.zhu.access.infrastructure.persistence.session.SessionMetaMapper">
 
     <!-- 已有标题保留。轮数在库里加一，避免并发下读出来再写回去。 -->
     <insert id="touch">
@@ -16,7 +16,7 @@
             title = IF(title IS NULL OR title = '', VALUES(title), title)
     </insert>
 
-    <select id="listActive" resultType="com.zhu.access.infrastructure.persistence.entity.SessionMeta">
+    <select id="listActive" resultType="com.zhu.access.infrastructure.persistence.entity.session.SessionMeta">
         SELECT session_id, title, channel, last_active_at
         FROM agent_session_meta
         WHERE tenant_id = #{tenantId}
@@ -45,7 +45,7 @@
     </update>
 
     <!-- 本人本租户的一次会话。已归档的也返回。不带回对话正文。 -->
-    <select id="findOwned" resultType="com.zhu.access.infrastructure.persistence.entity.SessionMeta">
+    <select id="findOwned" resultType="com.zhu.access.infrastructure.persistence.entity.session.SessionMeta">
         SELECT session_id, title, channel, status, last_run_id, message_count, last_active_at
         FROM agent_session_meta
         WHERE tenant_id = #{tenantId}

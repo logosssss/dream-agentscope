@@ -1,6 +1,7 @@
 package com.zhu.access.infrastructure.security;
 
 import com.zhu.common.security.CallerTokens;
+import com.zhu.common.security.WakeupTokens;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,7 +37,11 @@ public class CallerTokenFilter extends OncePerRequestFilter {
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain chain) throws ServletException, IOException {
-        if (CallerTokens.isHealth(path(request)) || CallerTokens.isWxConfirm(path(request))) {
+        String path = path(request);
+        // 内部唤醒只验 X-Wakeup-Token，不走 Caller；见 docs/wakeup-落地.md。
+        if (CallerTokens.isHealth(path)
+                || CallerTokens.isWxConfirm(path)
+                || WakeupTokens.isInternalWakeup(path)) {
             chain.doFilter(request, response);
             return;
         }

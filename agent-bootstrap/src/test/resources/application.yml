@@ -39,3 +39,9 @@ agentscope:
   caller:
     # 只给测试请求带上。正式配置为空，不把这个值当成生产令牌。
     token: test-token
+  wakeup:
+    # 测试用唤醒令牌；正式环境用 AGENTSCOPE_WAKEUP_TOKEN。
+    token: test-wakeup-token
+  runtime:
+    wakeup:
+      enabled: false

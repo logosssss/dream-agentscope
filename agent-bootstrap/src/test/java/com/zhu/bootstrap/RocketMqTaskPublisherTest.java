@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.runtime.task.AgentTask;
-import com.zhu.runtime.task.RocketMqTaskPublisher;
+import com.zhu.runtime.task.publish.RocketMqTaskPublisher;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 

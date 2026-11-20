@@ -29,6 +29,9 @@ agentscope:
     # 必填。留空或写 change-me / change-me-caller 时用户进程拒绝启动。
     # 可用环境变量 AGENTSCOPE_CALLER_TOKEN 覆盖。
     token: ""
+  wakeup:
+    # 仅 wakeup.enabled=true 时必填。可用 AGENTSCOPE_WAKEUP_TOKEN 覆盖；勿与 Caller/Admin 相同。
+    token: ""
   cache:
     redis:
       enabled: true

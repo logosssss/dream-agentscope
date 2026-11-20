@@ -32,11 +32,16 @@
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
-            <artifactId>agent-audit</artifactId>
+            <artifactId>agent-cache-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <!-- 事件/用量/安全/模型查找 Mapper 已迁入本模块。 -->
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
         </dependency>
         <dependency>
             <groupId>io.agentscope</groupId>
@@ -53,6 +58,12 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+        <!-- 试点：模块内纯单元测（见 docs/bootstrap-test-sink-落地.md） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

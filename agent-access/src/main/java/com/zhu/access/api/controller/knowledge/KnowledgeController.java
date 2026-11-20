@@ -1,18 +1,18 @@
 package com.zhu.access.api.controller.knowledge;
 
-import com.zhu.access.api.dto.KnowledgeBaseCreateRequest;
-import com.zhu.access.api.dto.KnowledgeBaseDetail;
-import com.zhu.access.api.dto.KnowledgeDocumentDetail;
-import com.zhu.access.api.dto.KnowledgeDocumentUploadRequest;
-import com.zhu.access.application.auth.AccessAccountGate;
+import com.zhu.access.api.dto.knowledge.KnowledgeBaseCreateRequest;
+import com.zhu.access.api.dto.knowledge.KnowledgeBaseDetail;
+import com.zhu.access.api.dto.knowledge.KnowledgeDocumentDetail;
+import com.zhu.access.api.dto.knowledge.KnowledgeDocumentUploadRequest;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
 import com.zhu.access.application.knowledge.KnowledgeAppService;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.state.api.KnowledgeBaseItem;
-import com.zhu.state.api.KnowledgeDocumentItem;
+import com.zhu.state.api.knowledge.KnowledgeBaseItem;
+import com.zhu.state.api.knowledge.KnowledgeDocumentItem;
 import java.io.IOException;
 import java.util.List;
 import org.springframework.http.MediaType;

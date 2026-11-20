@@ -1,22 +1,21 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.api.advice.AccessExceptionHandler;
-import com.zhu.access.api.dto.ChatRequest;
-import com.zhu.access.application.chat.AbsentChatMessageStore;
+import com.zhu.access.api.dto.chat.ChatRequest;
+import com.zhu.access.application.chat.message.AbsentChatMessageStore;
 import com.zhu.access.application.chat.ChatAppService;
-import com.zhu.access.application.chat.ConcurrentRunGuard;
+import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.application.chat.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.access.infrastructure.cache.AccessCache;
-import com.zhu.access.infrastructure.cache.RedisAccessCache;
-import com.zhu.audit.api.TenantQuotaLookup;
+import com.zhu.cache.api.CacheFacade;
+import com.zhu.cache.redis.counter.StringRedisCounterCache;
+import com.zhu.access.api.quota.TenantQuotaLookup;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.runtime.api.AgentExecutor;
+import com.zhu.runtime.api.agent.AgentExecutor;
 import java.time.Clock;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
@@ -48,14 +47,13 @@ class RedisUnavailableTest {
     void chatStopsBeforeExecute() {
         AccessLimitProperties limits = new AccessLimitProperties();
         limits.setDailyLimit(1);
-        AccessCache cache = new ThrowingCache();
+        CacheFacade cache = new ThrowingCacheFacade();
         AgentExecutor executor = mock(AgentExecutor.class);
         ChatAppService chats = new ChatAppService(
                 executor,
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
                 new QuotaGuard(cache, limits, Clock.systemUTC()),
-                new SessionTurnGuard(cache, 120),
                 new ConcurrentRunGuard(cache, 120),
                 (tenant, user, session, channel, text) -> {
                 },
@@ -83,7 +81,7 @@ class RedisUnavailableTest {
     void redisFailureBecomesUnavailable() {
         StringRedisTemplate redis = mock(StringRedisTemplate.class);
         when(redis.opsForValue()).thenThrow(new RedisConnectionFailureException("127.0.0.1 down"));
-        RedisAccessCache cache = new RedisAccessCache(redis);
+        StringRedisCounterCache cache = new StringRedisCounterCache(redis);
 
         BusinessException error = caught(() -> cache.increment("quota:t", Duration.ofHours(1)));
 
@@ -107,14 +105,6 @@ class RedisUnavailableTest {
         assertThat(quota.getBody().code()).isEqualTo("QUOTA_EXCEEDED");
     }
 
-    /** 回复已经生成后，释放锁失败不向外抛。 */
-    @Test
-    void unlockFailureDoesNotEscape() {
-        SessionTurnGuard turns = new SessionTurnGuard(new ThrowingCache(), 120);
-
-        turns.close(new SessionTurnGuard.Turn("turn:t:u:s", "token"));
-    }
-
     /** 占并发名额时 Redis 不可用，不放行。 */
     @Test
     void concurrentAcquireFailureIsUnavailable() {
@@ -129,7 +119,7 @@ class RedisUnavailableTest {
                 return 1L;
             }
         };
-        ConcurrentRunGuard guard = new ConcurrentRunGuard(new ThrowingCache(), 120, quotas);
+        ConcurrentRunGuard guard = new ConcurrentRunGuard(new ThrowingCacheFacade(), 120, quotas);
         assertThatThrownBy(() -> guard.open("t"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
@@ -139,7 +129,7 @@ class RedisUnavailableTest {
     /** 归还并发名额失败不向外抛。 */
     @Test
     void concurrentReleaseFailureDoesNotEscape() {
-        new ConcurrentRunGuard(new ThrowingCache(), 120)
+        new ConcurrentRunGuard(new ThrowingCacheFacade(), 120)
                 .close(new ConcurrentRunGuard.Slot("concurrent:t"));
     }
 
@@ -153,57 +143,4 @@ class RedisUnavailableTest {
         throw new AssertionError("expected BusinessException");
     }
 
-    /** 所有缓存操作都视为 Redis 不可用。 */
-    private static final class ThrowingCache implements AccessCache {
-
-        @Override
-        public long increment(String key, Duration ttl) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-
-        @Override
-        public long incrementBy(String key, long delta, Duration ttl) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-
-        @Override
-        public long add(String key, long delta, Duration ttl) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-
-        @Override
-        public long getCounter(String key) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-
-        @Override
-        public boolean claim(String key, Duration ttl) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-
-        @Override
-        public boolean lock(String key, String token, Duration ttl) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-
-        @Override
-        public void unlock(String key, String token) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-
-        @Override
-        public String get(String key) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-
-        @Override
-        public void put(String key, String value, Duration ttl) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-
-        @Override
-        public void delete(String key) {
-            throw new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-    }
 }

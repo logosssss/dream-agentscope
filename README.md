@@ -5,7 +5,7 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 同仓提供：
 
 - **用户进程**（`agent-bootstrap`，默认 `8080`）：对话、登录、知识库、附件等业务 API
-- **管理进程**（`agent-admin`，默认 `8100`）：租户、额度、工具权限、审批等运维 API（不跑对话）
+- **管理进程**（`agent-admin`，默认 `8100`）：租户、额度、工具权限、模型与审计等运维 API（不跑对话；旧审批页已硬删）
 - **用户端** `web`、**管理端** `web-admin`
 
 仓库：<https://github.com/logosssss/dream-agentscope>  
@@ -46,14 +46,16 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 | 附件 | 上传、列表、下载、停用/恢复；对象可落 local / OSS / S3 / MinIO |
 | 知识库 | 建库、纯文本/文件入库、索引状态、对话侧 `knowledge_search` |
 | 额度与限流 | 日请求 / token / 费用等；分钟级限流；注册登录也走分钟限流 |
-| 管理端运维面 | 租户与用户、各类额度、工具目录与权限、审批、模型配置与单价、审计只读、保留策略/调度登记、评测登记、账单状态机等（见 `web-admin`） |
+| 管理端运维面 | 租户与用户、各类额度、工具目录与权限、模型配置与单价、审计只读、保留策略/调度登记、评测登记、账单状态机等（见 `web-admin`；旧审批页已硬删） |
 | 微信扫码登录 | 密钥配齐后可用；小程序确认路径不校验 Caller Token（仍校验票与微信 code） |
 | 配置中心 | Nacos 双份 yaml：infra 启动一次；业务可热更（白名单 + 非法拒收） |
 
 ### 明确不是什么 / 当前不做
 
 - **RocketMQ / `agentscope.task.mode=mq`**：依赖未引入；切到 mq 会启动失败
-- **Nacos 服务发现、MCP**
+- **Nacos 服务发现**；**MCP 服务发现**（清单可进用户进程业务配置，companion 已接线；不做把 MCP 当注册中心，见 `docs/mcp-落地.md`）
+- **默认不开 Docker 沙箱**（`sandbox.enabled` 默认 false；打开后仅 companion，缺 Store/Docker CLI 硬失败；见 `docs/sandbox-落地.md`）
+- **默认不开 Wakeup**（`wakeup.enabled` 默认 false；打开后仅 companion + 进程内 Bus；`POST /api/internal/wakeups` 用 `AGENTSCOPE_WAKEUP_TOKEN`；不做调度表消费 / Inbox / TeamWakeups；见 `docs/wakeup-落地.md`）
 - **infra（连接/密钥）热更新**：改完需重启；只有业务 yaml 可热更
 - **管理端账号登录页**：现阶段靠 Admin Token
 - **保留策略真正清理、删除批准后真删、调度真正消费**：可登记/改状态，不执行落地清理
@@ -63,83 +65,47 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 
 ## 架构鸟瞰
 
-### 部署拓扑
+**图真相源**在 [`docs/diagrams/`](./docs/diagrams/README.md)（Mermaid：架构 / 流程 / 链路 / 扩展面）。本节省要点；改图只改图册，避免双写。
 
-```mermaid
-flowchart LR
-  Browser["浏览器"]
-  Web["web :5173"]
-  WebAdmin["web-admin :5174"]
-  Nginx["Nginx 可选\n代填 X-Caller-Token"]
-  User["用户进程\nagent-bootstrap :8080"]
-  Admin["管理进程\nagent-admin :8100"]
-  MySQL[(MySQL)]
-  Redis[(Redis)]
-  Milvus[(Milvus)]
-  Nacos[(Nacos\nAGENT_PLATFORM)]
-  Model["模型服务\n如 DashScope"]
-
-  Browser --> Web
-  Browser --> WebAdmin
-  Browser --> Nginx
-  Web --> User
-  WebAdmin --> Admin
-  Nginx --> User
-  User --> MySQL
-  User --> Redis
-  User --> Milvus
-  User --> Nacos
-  User --> Model
-  Admin --> MySQL
-  Admin --> Redis
-  Admin --> Milvus
-  Admin --> Nacos
-```
+| 想看 | 打开 |
+| --- | --- |
+| 部署拓扑、模块依赖、管理进程边界 | [`architecture.md`](./docs/diagrams/architecture.md)（图 1～3） |
+| 登录准入、WEB/API 主路径、落库、ASK 续跑 | [`flows.md`](./docs/diagrams/flows.md)（图 4～8） |
+| Middleware、Gateway、Memory、知识检索 | [`chains.md`](./docs/diagrams/chains.md)（图 9～13） |
+| MCP / Sandbox / Wakeup 等（默认关或学习面） | [`extensions.md`](./docs/diagrams/extensions.md)（图 14～18） |
 
 要点：
 
-- 用户进程执行 **Flyway**；管理进程**不**跑迁移、不依赖 runtime / access / Harness
+- 用户进程执行 **Flyway**；管理进程**不**跑迁移、不依赖 runtime / access / Harness / 产品模块
+- **单用户进程多产品（P3）**：`agent-bootstrap` 唯一用户 App（A1），classpath 挂 `agent-product-*`；长驻 Agent 经 `ResidentAgentBinding` 注册表挂载（echo 仍平台）
 - 两进程启动都必须能连上 **MySQL、Redis、Milvus**，否则退出（测试配置可关探测）
 - 配了 `NACOS_ADDR` 时，启动必须拉到对应 **infra + 业务** 两份配置，缺一或正文空白则退出
-
-### 一次对话请求（简化）
-
-```mermaid
-sequenceDiagram
-  participant C as 客户端
-  participant F as CallerTokenFilter
-  participant I as AccessIdentityFilter
-  participant A as ChatAppService
-  participant H as HarnessAgent
-  participant M as 模型
-
-  C->>F: POST /api/chat/stream<br/>X-Caller-Token + Bearer
-  F->>I: 令牌通过
-  I->>A: 写入租户/用户上下文
-  A->>A: 额度/占锁/登录校验
-  A->>H: 按请求 build Agent
-  H->>M: 推理与工具循环
-  M-->>C: SSE 增量 / 终态
-```
+- 额度/占锁等 Redis 失败返回 **503**，不回落内存/MySQL
 
 ### 模块表
 
 | 路径 | 说明 |
 |------|------|
 | [`agent-bootstrap`](./agent-bootstrap/README.md) | 用户进程入口，聚合扫描 `com.zhu` |
+| [`agent-db`](./agent-db/README.md) | 全仓 Flyway SQL 唯一来源（无业务 Java；仅用户进程迁移） |
 | [`agent-admin`](./agent-admin/README.md) | 管理进程入口 |
 | [`agent-access`](./agent-access/README.md) | 用户侧 HTTP、身份、额度、聊天接入 |
-| [`agent-runtime`](./agent-runtime/README.md) | 执行内核：HarnessAgent、中间件、工具挂载 |
-| [`agent-semantic`](./agent-semantic/README.md) | 产品语义、提示词、工具目录与权限 |
-| [`agent-audit`](./agent-audit/README.md) | 租户/审批/用量等审计与目录 |
+| [`agent-runtime`](./agent-runtime/README.md) | 执行内核：HarnessAgent、中间件、Binding 缝、工具挂载 |
+| [`agent-semantic`](./agent-semantic/README.md) | 语义契约 / api / 共享权限·提示词·目录（不含具体产品实现） |
+| [`agent-products/`](./agent-products/README.md) | 产品模块聚合；当前 `agent-product-companion` |
 | [`agent-state`](./agent-state/README.md) | DistributedStore / 远程工作区状态 |
 | [`agent-vector`](./agent-vector/README.md) | Milvus 集合与检索相关 |
 | [`agent-object-store`](./agent-object-store/README.md) | 对象存储抽象（local/OSS/S3/MinIO） |
+| [`agent-cache`](./agent-cache/README.md) | 缓存层聚合：`api`（门面/键/限流·布隆形状）+ `redis`（Lettuce + Redisson） |
 | [`agent-common`](./agent-common/README.md) | 异常、DTO、上下文、令牌比较等 |
 | [`web`](./web/README.md) | 用户端（介绍页、搭子、附件、知识库等） |
 | [`web-admin`](./web-admin/README.md) | 管理端 |
 | [`deploy/`](./deploy/) | Nacos / MySQL / Nginx / Milvus 示例 |
 | [`docs/release-gate.md`](./docs/release-gate.md) | 开源前/上线前门禁清单 |
+| [`docs/cache-落地.md`](./docs/cache-落地.md) | 缓存层窄专题（L1 连接/门面；二期 Wx token、audit 读穿、原语形状） |
+| [`docs/wakeup-落地.md`](./docs/wakeup-落地.md) | Wakeup 窄专题（进程内 Bus / 内部 HTTP，默认关） |
+| [`docs/sandbox-落地.md`](./docs/sandbox-落地.md) | Sandbox 窄专题（companion Docker，默认关） |
+| [`docs/mcp-落地.md`](./docs/mcp-落地.md) | MCP 清单接线（不做服务发现） |
 
 ---
 
@@ -149,10 +115,10 @@ sequenceDiagram
 |------|------|
 | JDK | **21**（仓库根 `mvn`；勿用 JDK 8 的 `JAVA_HOME`） |
 | 构建 | Maven 3.6+（与父 POM Spring Boot **3.5.5** 对齐） |
-| AgentScope | `2.0.4`（父 POM `agentscope.version`） |
+| AgentScope | `2.0.5`（父 POM `agentscope.version`；2.0.x 维护版） |
 | Node | 建议 20+；前端包管理器统一 **pnpm**（勿与 npm 混用 lockfile） |
 | MySQL | 用户与管理进程共用库；用户进程跑 Flyway |
-| Redis | 会话、额度、占锁；Redis 失败返回 **503**，不回落内存/MySQL |
+| Redis | 会话、额度、占锁；额度/占锁等失败返回 **503**，不回落内存/MySQL。**行为以本表与现码为准**；架构长文若仍写「Redis 故障不影响 Agent 主链路 / 额度降级」，视为过时，勿按该句放宽 |
 | Milvus | 用户进程连通后创建检索集合；管理进程只探测 |
 | Nacos | **推荐**；group=`AGENT_PLATFORM` |
 | 模型 | 默认坐标 `dashscope:qwen-plus`；密钥 `DASHSCOPE_API_KEY` 或写在 infra |
@@ -381,11 +347,15 @@ mvn test
 
 | 文档 | 说明 |
 |------|------|
-| [`doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`](./doc/AgentScope%20Java%202.0.4%20产品级架构与工程落地指南%20(2).md) | 架构与工程设计长文 |
+| [`docs/handbook/README.md`](./docs/handbook/README.md) | **仓库内学习手册**（从 0 到深入的索引路径：顺序、问题、检查点） |
+| [`docs/diagrams/README.md`](./docs/diagrams/README.md) | **对内图册**（架构 / 流程 / 链路 Mermaid 真相源） |
+| [`docs/agentscope-landing-review.md`](./docs/agentscope-landing-review.md) | AgentScope 落地评估（框架用法 vs 工程契约；含指南↔现码漂移表） |
+| [`docs/engineering-module-review.md`](./docs/engineering-module-review.md) | 工程 / 模块评估（边界、软退役、测试债；access 防腐分阶段） |
+| [`doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`](./doc/AgentScope%20Java%202.0.4%20产品级架构与工程落地指南%20(2).md) | 架构与工程设计长文（**含历史草案**；冲突时听现码 / 本 README / `docs/*-落地.md`） |
 | [`doc/企业级多 Agent 平台前端工程开发方案 (1).md`](./doc/企业级多%20Agent%20平台前端工程开发方案%20(1).md) | 前端方案 |
 | [`docs/tutorial/series-plan.md`](./docs/tutorial/series-plan.md) | 系列教程《AgentScope 落地实战》：选题池、进度与双平台发布约定 |
 
-以上偏设计与历史口径；**行为以当前代码与各模块 README 为准**。
+以上偏设计、学习索引与历史口径；**行为以当前代码与各模块 README 为准**。读长文时注意：Agent 状态在 MySQL `DistributedStore`（勿把文中早期 Redis Store 示例当现网）；**不引入 RocketMQ**，`mode=mq` 启动失败（勿按「接口先行、实现后补」去半套接入）。
 
 ---
 

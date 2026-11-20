@@ -1,12 +1,12 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.auth.ClientAccountService;
+import com.zhu.access.application.auth.session.ClientAccountService;
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.application.auth.UserLoginService;
+import com.zhu.access.application.auth.session.UserLoginService;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.config.ClientAuthProperties;
-import com.zhu.audit.api.ClientLoginStore;
-import com.zhu.audit.api.RegisteredClient;
+import com.zhu.access.api.tenant.ClientLoginStore;
+import com.zhu.access.api.tenant.RegisteredClient;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;
@@ -25,7 +25,7 @@ class ClientAccountTest {
     /** 注册成功直接带上账号名。密码不对和停用都是同一句。 */
     @Test
     void registerLogsInAndBadPasswordStaysVague() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         ClientLoginStore store = new ClientLoginStore() {
             @Override
             public RegisteredClient registerPassword(
@@ -49,7 +49,7 @@ class ClientAccountTest {
         assertThat(session.displayName()).isEqualTo("cat");
         assertThat(session.tenantId()).isEqualTo("demo");
         assertThat(session.userId()).isNotBlank();
-        assertThat(cache.get("login-session:" + session.accessToken())).contains("demo\n");
+        assertThat(cache.kv().get("login-session:" + session.accessToken())).contains("demo\n");
 
         assertThatThrownBy(() -> accounts.login("cat", "nope"))
                 .isInstanceOf(BusinessException.class)
@@ -66,7 +66,7 @@ class ClientAccountTest {
     /** 没有凭证表时不改走内存。 */
     @Test
     void missingStoreIsUnavailable() {
-        ClientAccountService accounts = service(null, new FakeAccessCache());
+        ClientAccountService accounts = service(null, new FakeCacheFacade());
         assertThatThrownBy(() -> accounts.login("cat", "secret1"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
@@ -76,7 +76,7 @@ class ClientAccountTest {
     /** 同一账号登录超过每分钟上限时拒收，不进入验密。 */
     @Test
     void loginIsRateLimited() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         AccessLimitProperties limits = new AccessLimitProperties();
         limits.setPerMinute(1);
         QuotaGuard quotas = new QuotaGuard(cache, limits, Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC));
@@ -110,7 +110,7 @@ class ClientAccountTest {
     }
 
     /** 门在测试里放行。租户用默认 demo。 */
-    private static ClientAccountService service(ClientLoginStore store, FakeAccessCache cache) {
+    private static ClientAccountService service(ClientLoginStore store, FakeCacheFacade cache) {
         UserLoginService sessions = new UserLoginService(tenantId -> {
         }, (tenantId, userId) -> {
         }, cache, new AccessLimitProperties());

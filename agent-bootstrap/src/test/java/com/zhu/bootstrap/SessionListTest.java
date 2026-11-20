@@ -1,11 +1,11 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.dto.SessionDetail;
-import com.zhu.access.api.dto.SessionSummary;
-import com.zhu.access.application.chat.AbsentChatMessageStore;
-import com.zhu.access.application.chat.SessionListService;
-import com.zhu.access.application.chat.SessionMetaStore;
-import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.access.api.dto.chat.SessionDetail;
+import com.zhu.access.api.dto.chat.SessionSummary;
+import com.zhu.access.application.chat.message.AbsentChatMessageStore;
+import com.zhu.access.application.chat.session.SessionListService;
+import com.zhu.access.application.chat.session.SessionMetaStore;
+import com.zhu.cache.api.CacheFacade;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Duration;
@@ -24,7 +24,7 @@ class SessionListTest {
     /** 命中缓存后不再查库。新的一轮对话删掉缓存。 */
     @Test
     void cacheHitSkipsStoreUntilNextRecord() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         CountingStore store = new CountingStore();
         store.rows.add(new SessionSummary("s", "你好", "WEB", "2026-10-31T01:02:03"));
         SessionListService sessions = new SessionListService(store, cache, new AbsentChatMessageStore());
@@ -43,8 +43,8 @@ class SessionListTest {
     /** 事先写入的缓存按租户和用户分开。冒号不能留在键里。 */
     @Test
     void cacheKeyIncludesTenant() {
-        FakeAccessCache cache = new FakeAccessCache();
-        cache.put(
+        FakeCacheFacade cache = new FakeCacheFacade();
+        cache.kv().put(
                 "session-list:a_b:u",
                 "[{\"sessionId\":\"cached\",\"title\":\"c\",\"channel\":\"WEB\",\"lastActiveAt\":\"\"}]",
                 Duration.ofMinutes(5));
@@ -60,7 +60,7 @@ class SessionListTest {
     void redisOutageFallsBackToStore() {
         CountingStore store = new CountingStore();
         store.rows.add(new SessionSummary("s", "hi", "API", "2026-10-31T00:00:00"));
-        SessionListService sessions = new SessionListService(store, new ThrowingCache(), new AbsentChatMessageStore());
+        SessionListService sessions = new SessionListService(store, new ThrowingCacheFacade(), new AbsentChatMessageStore());
 
         assertThat(sessions.list("t", "u")).containsExactly(store.rows.get(0));
         sessions.record("t", "u", "s", "API", "x".repeat(50));
@@ -73,7 +73,7 @@ class SessionListTest {
     void getReadsStoreAndRejectsBlank() {
         CountingStore store = new CountingStore();
         store.detail = new SessionDetail("s", "hi", "WEB", "ACTIVE", "run-1", 3, "2026-10-31T01:02:03");
-        SessionListService sessions = new SessionListService(store, new FakeAccessCache(), new AbsentChatMessageStore());
+        SessionListService sessions = new SessionListService(store, new FakeCacheFacade(), new AbsentChatMessageStore());
         assertThat(sessions.get("t", "u", "s")).isEqualTo(store.detail);
         assertThat(store.owned).isEqualTo(1);
         assertThatThrownBy(() -> sessions.get("t", "u", " "))
@@ -91,7 +91,7 @@ class SessionListTest {
     @Test
     void blankIdentityIsSkipped() {
         CountingStore store = new CountingStore();
-        SessionListService sessions = new SessionListService(store, new FakeAccessCache(), new AbsentChatMessageStore());
+        SessionListService sessions = new SessionListService(store, new FakeCacheFacade(), new AbsentChatMessageStore());
         sessions.record("t", " ", "s", "WEB", "hi");
         sessions.record("t", "u", "", "WEB", "hi");
         assertThat(store.touches).isZero();
@@ -139,69 +139,4 @@ class SessionListTest {
         }
     }
 
-    /** 会话缓存的读写都视为 Redis 不可用。 */
-    private static final class ThrowingCache implements AccessCache {
-
-        /** 计数不参与这次测试。 */
-        @Override
-        public long increment(String key, Duration ttl) {
-            throw unavailable();
-        }
-
-        @Override
-        public long incrementBy(String key, long delta, Duration ttl) {
-            throw unavailable();
-        }
-
-        @Override
-        public long add(String key, long delta, Duration ttl) {
-            throw unavailable();
-        }
-
-        @Override
-        public long getCounter(String key) {
-            throw unavailable();
-        }
-
-        /** 占位不参与这次测试。 */
-        @Override
-        public boolean claim(String key, Duration ttl) {
-            throw unavailable();
-        }
-
-        /** 加锁不参与这次测试。 */
-        @Override
-        public boolean lock(String key, String token, Duration ttl) {
-            throw unavailable();
-        }
-
-        /** 解锁不参与这次测试。 */
-        @Override
-        public void unlock(String key, String token) {
-            throw unavailable();
-        }
-
-        /** 读缓存失败。 */
-        @Override
-        public String get(String key) {
-            throw unavailable();
-        }
-
-        /** 回填失败。 */
-        @Override
-        public void put(String key, String value, Duration ttl) {
-            throw unavailable();
-        }
-
-        /** 失效失败。 */
-        @Override
-        public void delete(String key) {
-            throw unavailable();
-        }
-
-        /** 和线上 Redis 失败同一错误码。 */
-        private static BusinessException unavailable() {
-            return new BusinessException(ErrorCode.UNAVAILABLE, "redis is unavailable");
-        }
-    }
 }

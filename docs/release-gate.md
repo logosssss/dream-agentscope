@@ -16,7 +16,7 @@
 - [x] Node / pnpm；`web`、`web-admin` 可 `pnpm install`
 - [x] 本机可连 **Redis、MySQL、Milvus**（与线上同一类实例配置即可）
 - [x] **Nacos** 已部署且本机 `NACOS_ADDR` 指向同一套；能拉到启动配置（用户：`agent-bootstrap-infra.yaml` + `agent-bootstrap.yaml`；管理：`agent-admin-infra.yaml` + `agent-admin.yaml`，group `AGENT_PLATFORM`）
-- [x] 根目录 `.env` 至少含 Nacos 四件套（及未迁 infra 时的连接/密钥兜底）；`AGENTSCOPE_CALLER_TOKEN` 与 `AGENTSCOPE_ADMIN_TOKEN` 必须不同（可在对应 infra yaml）
+- [x] 根目录 `.env` 至少含 Nacos 四件套（及未迁 infra 时的连接/密钥兜底）；`AGENTSCOPE_CALLER_TOKEN` 与 `AGENTSCOPE_ADMIN_TOKEN` 必须不同（可在对应 infra yaml）；若打开 `wakeup.enabled` 另配 `AGENTSCOPE_WAKEUP_TOKEN`（勿与 Caller/Admin 相同）
 - [x] 模型可用（如百炼）；本地联调注意月额度与租户每人额度
 - [x] MySQL 已迁移；已执行 `deploy/mysql/seed-demo-tenant-user.sql`（或等价演示租户）
 - [x] 用户进程 `8080`、管理进程 `8100` 能起来；`web`（5173）、`web-admin`（5174）能起来
@@ -75,7 +75,7 @@ cd ../web-admin && pnpm build
 - [x] `GET http://127.0.0.1:8100/health/live` 正常
 - [x] `GET http://127.0.0.1:8100/health/ready` 正常
 - [x] 管理端带正确 Admin Token 访问业务接口**不再** `caller token is invalid`
-- [x] 用 **CALLER** Token 打管理审批接口应失败；用 **ADMIN** Token 应成功（确认两者未串）
+- [x] 用 **CALLER** Token 打管理业务接口（如租户/工具目录）应失败；用 **ADMIN** Token 应成功（确认两者未串；旧管理端审批 API 已硬删）
 
 ---
 
@@ -118,8 +118,8 @@ cd ../web-admin && pnpm build
 ## 5. 手测冒烟 — 管理端（`web-admin` / 8100）
 
 - [x] 顶栏 Admin Token 有效，业务页可加载
-- [x] **审批**：能看到待审批列表；批准或拒绝成功（操作人空时默认 `admin`）（本轮列表为空属正常；Token 与接口 200；用户端批准/拒绝已验）
-- [x] 其它已接页面（租户、用户、工具、额度、模型等）**点开不白屏、不 401**（不要求每条都做写操作）（租户/审批/工具 UI + 多条 admin API 200）
+- [x] 旧管理端**审批页已硬删**（见 `docs/approval-hard-delete-落地.md`）；Gate ASK 活单在用户进程 `/api/approvals*`（§4.3）
+- [x] 其它已接页面（租户、用户、工具、额度、模型等）**点开不白屏、不 401**（不要求每条都做写操作）（多条 admin API 200）
 
 ---
 
@@ -136,11 +136,17 @@ cd ../web-admin && pnpm build
 
 以下保持「还没有 / 弱依赖 / 非目标」，不因未做而判门禁失败：
 
-- RocketMQ、服务发现、MCP  
+- RocketMQ、Nacos 服务发现、MCP 服务发现（MCP 清单可进用户进程业务配置且 companion 已接线，见 `docs/mcp-落地.md`；不做服务发现仍不挡门禁）  
+- Docker 沙箱默认关（`sandbox.enabled=false`）；打开后仅 companion、硬失败不回退 Remote；手测环境无 Docker 时保持默认关即可（见 `docs/sandbox-落地.md`）  
+- Wakeup 默认关（`wakeup.enabled=false`）；打开后仅 companion + 进程内 Bus；内部 HTTP 用独立唤醒令牌；不做调度表消费 / Inbox / TeamWakeups / 跨副本 Bus（见 `docs/wakeup-落地.md`）  
+- 紧急溢出 `compactionHook`：**不装**（公开 API 无法只装 hook，装则与危机闸双压；溢出时框架硬失败；口径 C，见 `docs/compaction-hook-落地.md`）  
 - Nacos **infra**（连接/密钥）热更新；业务 yaml 热更新已落地（非法拒收、仅影响新请求）
 - 管理员账号登录页（管理端现阶段靠 Admin Token）  
 - 按保留策略真正清理、批准删除后真删、调度真正消费  
 - 教程正文与配图（另开 Agent）  
+- 旧管理端审批表 / 审批页：**已硬删**；不挡门禁（见 `docs/approval-hard-delete-落地.md`）  
+- 对内图册与 runtime/access「还没有」拆条：文档卫生，不挡门禁（见 `docs/diagrams-落地.md`、`docs/readme-debt-d1-落地.md`）  
+
 
 ---
 
@@ -148,9 +154,9 @@ cd ../web-admin && pnpm build
 
 | 项 | 记录 |
 | --- | --- |
-| 日期 | 2026-11-04 |
-| 分支 / 提交 | `feat/agentscope-platform-base` @ `b8fe762`（工作区含 KB 集合名修复，未提交） |
-| 自动化 | 通过 |
-| 冒烟 | **通过**（4.5 重启后复验通过） |
-| 敏感面 | **部分通过**（handoff 仍跟踪；LICENSE / 根 `.env.example` 开源前补；不挡本地冒烟） |
-| 备注（缺陷与是否已修） | KB 硬编码集合名已修并经重启复验：索引 SUCCESS，对话 `knowledge_search` 命中。开源前仍须：停跟踪 handoff、补 LICENSE、可选根 `.env.example`。 |
+| 日期 | 2026-11-17 |
+| 分支 / 提交 | `feat/agentscope-channel-gateway` @ `b9e1bff`（R1；签字刷新提交另计） |
+| 自动化 | **通过**（本轮 JDK 21 `mvn test` 全绿；`web` / `web-admin` `vue-tsc -b` exit 0） |
+| 冒烟 | **本轮跳过**（S2：本机中间件/8080/8100 未起；用户确认跳过；**不**沿用旧「通过」冒充本轮实跑） |
+| 敏感面 | **通过**（工作区未跟踪 `.env`；根与前端 `.env.example`、`LICENSE` Apache-2.0 在；临时 `.tmp`/`io` 未纳入门禁提交） |
+| 备注（缺陷与是否已修） | R1 专题见 `docs/release-gate-r1-落地.md`。§4.2「停止生成」、可选 `pnpm build` 仍空/不挡。合并 `main` / 现网属 R2+，本轮不做。 |

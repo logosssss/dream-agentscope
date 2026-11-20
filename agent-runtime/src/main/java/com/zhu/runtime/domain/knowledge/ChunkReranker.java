@@ -1,6 +1,6 @@
 package com.zhu.runtime.domain.knowledge;
 
-import com.zhu.state.api.KnowledgeChunkItem;
+import com.zhu.state.api.knowledge.KnowledgeChunkItem;
 import java.util.List;
 
 /**

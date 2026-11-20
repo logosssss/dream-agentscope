@@ -1,6 +1,6 @@
 package com.zhu.runtime.domain;
 
-import com.zhu.semantic.contract.PersonaContract;
+import com.zhu.semantic.contract.product.PersonaContract;
 import java.util.List;
 import java.util.Locale;
 

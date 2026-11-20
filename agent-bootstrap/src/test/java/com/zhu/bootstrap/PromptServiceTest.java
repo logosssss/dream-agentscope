@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.common.exception.BusinessException;
-import com.zhu.semantic.application.PromptAppService;
+import com.zhu.semantic.application.prompt.PromptAppService;
 import com.zhu.semantic.infrastructure.nacos.PromptSource;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

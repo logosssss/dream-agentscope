@@ -1,5 +1,6 @@
 package com.zhu.semantic.config;
 
+import com.zhu.semantic.config.permission.PermissionProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 

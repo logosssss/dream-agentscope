@@ -8,7 +8,7 @@
 
 依赖 `agent-common`、`spring-boot-autoconfigure`、`alibabacloud-oss-v2`、`software.amazon.awssdk:s3`。
 
-不能依赖 `agent-state`、`agent-semantic`、`agent-runtime`、`agent-access`、`agent-audit`、`agent-admin`、`agent-vector`。
+不能依赖 `agent-state`、`agent-semantic`、`agent-runtime`、`agent-access`、`agent-admin`、`agent-vector`。
 
 管理进程不要依赖本模块。
 

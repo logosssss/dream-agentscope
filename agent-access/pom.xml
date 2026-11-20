@@ -26,9 +26,10 @@
             <groupId>com.zhu</groupId>
             <artifactId>agent-runtime</artifactId>
         </dependency>
+        <!-- Channel / Gateway 在接入层直接使用；版本由父 BOM 管理。 -->
         <dependency>
-            <groupId>com.zhu</groupId>
-            <artifactId>agent-audit</artifactId>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-harness</artifactId>
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
@@ -43,9 +44,14 @@
             <artifactId>agent-object-store</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-cache-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- 就绪探测仍用 RedisConnectionFactory 类型；建连在 agent-cache-redis。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>

@@ -1,19 +1,18 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.dto.ChatRequest;
-import com.zhu.access.application.chat.AbsentChatMessageStore;
+import com.zhu.access.api.dto.chat.ChatRequest;
+import com.zhu.access.application.chat.message.AbsentChatMessageStore;
 import com.zhu.access.application.chat.ChatAppService;
-import com.zhu.access.application.chat.ConcurrentRunGuard;
+import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.application.chat.SessionTurnGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.runtime.api.AgentExecutor;
-import com.zhu.runtime.api.AgentRequest;
-import com.zhu.runtime.api.AgentResponse;
+import com.zhu.runtime.api.agent.AgentExecutor;
+import com.zhu.runtime.api.agent.AgentRequest;
+import com.zhu.runtime.api.agent.AgentResponse;
 import java.time.Clock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -80,14 +79,13 @@ class ChatCompanionTest {
     }
 
     /** 额度不限制。会话归属由测试传入。 */
-    private static ChatAppService service(AgentExecutor executor, com.zhu.access.application.chat.SessionOwnerGate owners) {
+    private static ChatAppService service(AgentExecutor executor, com.zhu.access.application.chat.session.SessionOwnerGate owners) {
         return new ChatAppService(
                 executor,
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
-                new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
-                new SessionTurnGuard(new FakeAccessCache(), 120),
-                new ConcurrentRunGuard(new FakeAccessCache(), 120),
+                new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC()),
+                new ConcurrentRunGuard(new FakeCacheFacade(), 120),
                 (tenant, user, session, channel, text) -> {
                 },
                 (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {

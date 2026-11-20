@@ -1,6 +1,6 @@
 package com.zhu.semantic.infrastructure.prompt;
 
-import com.zhu.semantic.api.PlatformPrompt;
+import com.zhu.semantic.api.prompt.PlatformPrompt;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

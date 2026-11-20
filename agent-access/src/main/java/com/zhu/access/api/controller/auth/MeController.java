@@ -1,7 +1,7 @@
 package com.zhu.access.api.controller.auth;
 
-import com.zhu.access.api.dto.CurrentUser;
-import com.zhu.access.application.auth.CurrentUserQuery;
+import com.zhu.access.api.dto.auth.CurrentUser;
+import com.zhu.access.application.auth.session.CurrentUserQuery;
 import com.zhu.common.dto.ApiResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

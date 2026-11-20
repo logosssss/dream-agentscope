@@ -136,9 +136,6 @@ function shortId(id: string | null | undefined): string {
 
 /** 待办类型的短标签。 */
 function typeLabel(todoType: string | null | undefined): string {
-  if (todoType === 'APPROVAL') {
-    return '审批'
-  }
   if (todoType === 'CONFIRM') {
     return '确认'
   }

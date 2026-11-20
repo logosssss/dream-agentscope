@@ -69,7 +69,7 @@ class QuotaGuardTest {
 
     /** 计数和判断用同一只时钟，拨分钟时两边一起动。 */
     private static QuotaGuard guard(AccessLimitProperties limits, Clock clock) {
-        return new QuotaGuard(new FakeAccessCache(clock), limits, clock);
+        return new QuotaGuard(new FakeCacheFacade(clock), limits, clock);
     }
 
     /** 取出业务异常，方便断言错误码。 */

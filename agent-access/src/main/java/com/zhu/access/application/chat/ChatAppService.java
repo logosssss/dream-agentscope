@@ -1,9 +1,16 @@
 package com.zhu.access.application.chat;
 
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.api.dto.ChatRequest;
-import com.zhu.audit.api.TenantGate;
-import com.zhu.audit.api.TenantUserGate;
+import com.zhu.access.application.chat.message.ChatMessageStore;
+import com.zhu.access.application.chat.run.ConcurrentRunGuard;
+import com.zhu.access.application.chat.run.RunLog;
+import com.zhu.access.application.chat.run.RunStep;
+import com.zhu.access.application.chat.session.SessionIndex;
+import com.zhu.access.application.chat.session.SessionListService;
+import com.zhu.access.application.chat.session.SessionOwnerGate;
+import com.zhu.access.api.dto.chat.ChatRequest;
+import com.zhu.access.api.tenant.TenantGate;
+import com.zhu.access.api.tenant.TenantUserGate;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
@@ -11,13 +18,13 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
-import com.zhu.semantic.api.PlatformPrompt;
-import com.zhu.semantic.api.PromptService;
-import com.zhu.semantic.contract.ProductSemanticProvider;
-import com.zhu.runtime.api.AgentExecutor;
-import com.zhu.runtime.api.AgentRequest;
-import com.zhu.runtime.api.AgentResponse;
-import com.zhu.runtime.api.AgentStreamEvent;
+import com.zhu.semantic.api.prompt.PlatformPrompt;
+import com.zhu.semantic.api.prompt.PromptService;
+import com.zhu.semantic.contract.product.ProductSemanticProvider;
+import com.zhu.runtime.api.agent.AgentExecutor;
+import com.zhu.runtime.api.agent.AgentRequest;
+import com.zhu.runtime.api.agent.AgentResponse;
+import com.zhu.runtime.api.agent.AgentStreamEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +36,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.SignalType;
 
 /**
- * 把接入层请求译成 AgentRequest。这里不接触 HarnessAgent。
+ * 把接入层请求译成 AgentRequest，再交给 Channel Gateway（同 session 由框架排队）。
  */
 @Service
 public class ChatAppService {
@@ -43,8 +50,6 @@ public class ChatAppService {
     private final ProductSemanticProvider semantics;
 
     private final QuotaGuard quota;
-
-    private final SessionTurnGuard turns;
 
     private final ConcurrentRunGuard concurrent;
 
@@ -61,14 +66,14 @@ public class ChatAppService {
     private final ChatMessageStore messages;
 
     /**
-     * 租户、租户用户和会话归属在额度和占锁之前。MySQL 关闭时这三项放行。
+     * 租户、租户用户和会话归属在额度和租户并发占位之前。MySQL 关闭时门禁放行。
+     * 同会话串行交给 Gateway，不再用 SessionTurnGuard 忙则拒。
      */
     public ChatAppService(
             AgentExecutor executor,
             PromptService prompts,
             ProductSemanticProvider semantics,
             QuotaGuard quota,
-            SessionTurnGuard turns,
             ConcurrentRunGuard concurrent,
             SessionIndex sessions,
             RunLog runs,
@@ -80,7 +85,6 @@ public class ChatAppService {
         this.prompts = prompts;
         this.semantics = semantics;
         this.quota = quota;
-        this.turns = turns;
         this.concurrent = concurrent;
         this.sessions = sessions;
         this.runs = runs;
@@ -91,24 +95,19 @@ public class ChatAppService {
     }
 
     /**
-     * 同步执行一次对话。
+     * 同步执行一次对话（WEB / 默认通道）。
      * 租户和用户只取登录会话写进线程的值。请求体里的身份丢掉。通道留在接入层。
+     * 显式 {@code channel=API} 须改走 {@code /api/agent/chat*}。
      */
     public AgentResponse chat(ChatRequest request) {
+        rejectExplicitApiChannel(request);
         AgentRequest agentRequest = toRequest(request);
         requireUser(agentRequest.userId());
         tenants.requireActive(agentRequest.tenantId());
         tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
         owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
-        SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
-        ConcurrentRunGuard.Slot slot;
-        try {
-            slot = concurrent.open(agentRequest.tenantId());
-        } catch (RuntimeException error) {
-            turns.close(turn);
-            throw error;
-        }
+        ConcurrentRunGuard.Slot slot = concurrent.open(agentRequest.tenantId());
         long started = System.nanoTime();
         try {
             remember(request, agentRequest);
@@ -120,29 +119,23 @@ public class ChatAppService {
             throw error;
         } finally {
             concurrent.close(slot);
-            turns.close(turn);
         }
     }
 
     /**
-     * 流式执行。身份在返回 Flux 之前就抄进 AgentRequest，避免过滤器清掉线程上下文后流才开始读。
+     * 流式执行（WEB / 默认通道）。身份在返回 Flux 之前就抄进 AgentRequest，避免过滤器清掉线程上下文后流才开始读。
      * 会话锁和并发占位在流结束时释放。调用方不要 block。
+     * 显式 {@code channel=API} 须改走 {@code /api/agent/chat/stream}。
      */
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
+        rejectExplicitApiChannel(request);
         AgentRequest agentRequest = toRequest(request);
         requireUser(agentRequest.userId());
         tenants.requireActive(agentRequest.tenantId());
         tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
         owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
         quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
-        SessionTurnGuard.Turn turn = turns.open(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
-        ConcurrentRunGuard.Slot slot;
-        try {
-            slot = concurrent.open(agentRequest.tenantId());
-        } catch (RuntimeException error) {
-            turns.close(turn);
-            throw error;
-        }
+        ConcurrentRunGuard.Slot slot = concurrent.open(agentRequest.tenantId());
         long started = System.nanoTime();
         try {
             remember(request, agentRequest);
@@ -158,11 +151,10 @@ public class ChatAppService {
                         try {
                             String status = streamStatus(signal);
                             String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
-                            // 先落库再放锁，避免同会话下一轮抢到锁后 seq 交错。
+                            // 先落库再放租户并发占位，避免同租户下一轮抢名额。
                             finish(request, agentRequest, status, runId, output.get(), code, started, stepsFrom(seen, status));
                         } finally {
                             concurrent.close(held);
-                            turns.close(turn);
                         }
                     });
         } catch (RuntimeException error) {
@@ -170,7 +162,6 @@ public class ChatAppService {
                 finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), started, reasoning(RunLog.FAILED));
             } finally {
                 concurrent.close(slot);
-                turns.close(turn);
             }
             throw error;
         }
@@ -330,6 +321,16 @@ public class ChatAppService {
     private static void requireUser(String userId) {
         if (userId == null || userId.isBlank()) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "login is required");
+        }
+    }
+
+    /**
+     * 旧 {@code /api/chat*} 显式 API 通道拒绝，避免与 ApiChannel 入口双歧。
+     */
+    private static void rejectExplicitApiChannel(ChatRequest request) {
+        if (request != null && request.channelOrDefault() == AccessChannel.API) {
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST, "use /api/agent/chat or /api/agent/chat/stream for channel=API");
         }
     }
 

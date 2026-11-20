@@ -20,6 +20,9 @@ function iconLabel(icon: string, name: string): string {
   if (icon === 'Heart') {
     return '搭'
   }
+  if (icon === 'Radar') {
+    return '探'
+  }
   if (icon === 'Pen') {
     return '记'
   }
@@ -99,6 +102,17 @@ function iconLabel(icon: string, name: string): string {
       title="反馈"
     >
       评
+    </RouterLink>
+
+    <RouterLink
+      to="/api-console"
+      class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
+      :class="currentSlug === 'api-console'
+        ? 'text-white bg-[var(--color-brand-primary)]'
+        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'"
+      title="API 控制台"
+    >
+      API
     </RouterLink>
 
     <button

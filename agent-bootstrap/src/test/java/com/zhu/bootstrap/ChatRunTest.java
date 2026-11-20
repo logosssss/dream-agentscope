@@ -1,21 +1,20 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.dto.ChatRequest;
-import com.zhu.access.application.chat.AbsentChatMessageStore;
+import com.zhu.access.api.dto.chat.ChatRequest;
+import com.zhu.access.application.chat.message.AbsentChatMessageStore;
 import com.zhu.access.application.chat.ChatAppService;
-import com.zhu.access.application.chat.ConcurrentRunGuard;
+import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.application.chat.RunLog;
-import com.zhu.access.application.chat.RunStep;
-import com.zhu.access.application.chat.SessionIndex;
-import com.zhu.access.application.chat.SessionTurnGuard;
+import com.zhu.access.application.chat.run.RunLog;
+import com.zhu.access.application.chat.run.RunStep;
+import com.zhu.access.application.chat.session.SessionIndex;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
-import com.zhu.runtime.api.AgentExecutor;
-import com.zhu.runtime.api.AgentResponse;
-import com.zhu.runtime.api.AgentStreamEvent;
+import com.zhu.runtime.api.agent.AgentExecutor;
+import com.zhu.runtime.api.agent.AgentResponse;
+import com.zhu.runtime.api.agent.AgentStreamEvent;
 import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -41,7 +40,7 @@ class ChatRunTest {
         UserContext.clear();
     }
 
-    /** 成功时记下回复标识，输出超过 40 个字符被截断。 */
+    /** 成功时记下回复标识，输出超过 40 个字符被截断。WEB 主路径 trigger=USER。 */
     @Test
     void successStoresRunIdAndShortSummary() {
         Captured captured = new Captured();
@@ -50,17 +49,27 @@ class ChatRunTest {
         when(executor.execute(any())).thenReturn(new AgentResponse("run-1", "y".repeat(50)));
         ChatAppService chats = chats(executor, captured, attached);
 
-        AgentResponse response = chats.chat(request("x".repeat(50), AccessChannel.API));
+        AgentResponse response = chats.chat(request("x".repeat(50), AccessChannel.WEB));
 
         assertThat(response.runId()).isEqualTo("run-1");
         assertThat(captured.status).isEqualTo(RunLog.SUCCEEDED);
         assertThat(captured.runId).isEqualTo("run-1");
-        assertThat(captured.trigger).isEqualTo("API");
+        assertThat(captured.trigger).isEqualTo("USER");
         assertThat(captured.input).hasSize(40);
         assertThat(captured.output).hasSize(40);
         assertThat(captured.errorCode).isNull();
         assertThat(attached.get()).isEqualTo("run-1");
         assertThat(captured.steps).containsExactly(new RunStep(RunStep.REASONING, null, RunLog.SUCCEEDED));
+    }
+
+    /** 旧 /api/chat 显式 channel=API 须改走 /api/agent/chat*。 */
+    @Test
+    void explicitApiChannelRejected() {
+        AgentExecutor executor = mock(AgentExecutor.class);
+        ChatAppService chats = chats(executor, new Captured(), new AtomicReference<>());
+
+        assertThatThrownBy(() -> chats.chat(request("hi", AccessChannel.API)))
+                .hasMessageContaining("/api/agent/chat");
     }
 
     /** 失败只留异常类型。异常原文里的输入不会进记录，异常仍向外抛。 */
@@ -157,9 +166,8 @@ class ChatRunTest {
                 executor,
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
-                new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
-                new SessionTurnGuard(new FakeAccessCache(), 120),
-                new ConcurrentRunGuard(new FakeAccessCache(), 120),
+                new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC()),
+                new ConcurrentRunGuard(new FakeCacheFacade(), 120),
                 sessions,
                 runs,
                 tenantId -> {

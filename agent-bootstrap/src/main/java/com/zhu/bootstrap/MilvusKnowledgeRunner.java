@@ -11,7 +11,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
- * 连通性通过之后准备知识集合和情景记忆集合。测试关掉启动依赖时不创建，避免去连 Milvus。
+ * 连通性通过之后准备知识集合。不再创建遗留情景集合。测试关掉启动依赖时不创建，避免去连 Milvus。
  */
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)

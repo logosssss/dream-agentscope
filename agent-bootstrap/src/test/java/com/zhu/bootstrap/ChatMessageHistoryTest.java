@@ -1,23 +1,22 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.api.dto.ChatMessageItem;
-import com.zhu.access.api.dto.ChatRequest;
-import com.zhu.access.api.dto.SessionDetail;
-import com.zhu.access.application.chat.AbsentChatMessageStore;
+import com.zhu.access.api.dto.chat.ChatMessageItem;
+import com.zhu.access.api.dto.chat.ChatRequest;
+import com.zhu.access.api.dto.chat.SessionDetail;
+import com.zhu.access.application.chat.message.AbsentChatMessageStore;
 import com.zhu.access.application.chat.ChatAppService;
-import com.zhu.access.application.chat.ChatMessageStore;
-import com.zhu.access.application.chat.ConcurrentRunGuard;
+import com.zhu.access.application.chat.message.ChatMessageStore;
+import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.application.chat.SessionListService;
-import com.zhu.access.application.chat.SessionMetaStore;
-import com.zhu.access.application.chat.SessionTurnGuard;
+import com.zhu.access.application.chat.session.SessionListService;
+import com.zhu.access.application.chat.session.SessionMetaStore;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.runtime.api.AgentExecutor;
-import com.zhu.runtime.api.AgentResponse;
+import com.zhu.runtime.api.agent.AgentExecutor;
+import com.zhu.runtime.api.agent.AgentResponse;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
@@ -70,7 +69,7 @@ class ChatMessageHistoryTest {
         SessionMetaStore meta = mock(SessionMetaStore.class);
         when(meta.findOwned("t", "u", "missing")).thenReturn(null);
         SessionListService sessions =
-                new SessionListService(meta, new FakeAccessCache(), new AbsentChatMessageStore());
+                new SessionListService(meta, new FakeCacheFacade(), new AbsentChatMessageStore());
         assertThatThrownBy(() -> sessions.messages("t", "u", "missing", 100))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).errorCode())
@@ -99,7 +98,7 @@ class ChatMessageHistoryTest {
                 return List.of(new ChatMessageItem(1, "user", "嗨", "run-1", "2026-01-01T00:00:00.000"));
             }
         };
-        SessionListService sessions = new SessionListService(meta, new FakeAccessCache(), store);
+        SessionListService sessions = new SessionListService(meta, new FakeCacheFacade(), store);
         assertThat(sessions.messages("t", "u", "s1", 100))
                 .extracting(ChatMessageItem::content)
                 .containsExactly("嗨");
@@ -110,9 +109,8 @@ class ChatMessageHistoryTest {
                 executor,
                 (key, variables, fallback) -> fallback,
                 new TestSemanticProvider(),
-                new QuotaGuard(new FakeAccessCache(), new AccessLimitProperties(), Clock.systemUTC()),
-                new SessionTurnGuard(new FakeAccessCache(), 120),
-                new ConcurrentRunGuard(new FakeAccessCache(), 120),
+                new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC()),
+                new ConcurrentRunGuard(new FakeCacheFacade(), 120),
                 (tenant, user, session, channel, text) -> {
                 },
                 (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {

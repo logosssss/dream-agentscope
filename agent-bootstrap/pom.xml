@@ -19,6 +19,11 @@
             <artifactId>agent-common</artifactId>
         </dependency>
         <dependency>
+            <!-- 全仓 Flyway 脚本；仅本进程执行迁移。 -->
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-db</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.zhu</groupId>
             <artifactId>agent-vector</artifactId>
         </dependency>
@@ -40,11 +45,15 @@
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
-            <artifactId>agent-audit</artifactId>
+            <artifactId>agent-product-companion</artifactId>
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
             <artifactId>agent-access</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-cache-redis</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

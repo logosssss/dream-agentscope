@@ -26,20 +26,6 @@ export interface TenantUserSummary {
   status: string
 }
 
-/** GET /api/admin/approvals 一行。不含工具参数。 */
-export interface ApprovalRow {
-  approvalId: string
-  userId: string
-  sessionId: string
-  toolName: string
-  decision: string
-  requestedAt: string | null
-  approver: string | null
-  channel: string | null
-  reason: string | null
-  decidedAt: string | null
-}
-
 /**
  * 租户额度一行。类型/周期随接口固定；
  * COST 的 limit 为金额微单位（×1e6）；0 表示不限额。

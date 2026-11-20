@@ -45,7 +45,7 @@ dream-agentscope 是 Dream-SaaS 的开源仓库，基于 [AgentScope Java](https
 | 用户前端 | `web` | 5173 | 介绍页、对话、附件、知识库 |
 | 管理前端 | `web-admin` | 5174 | 运维界面 |
 
-十个模块中，`agent-bootstrap` 与 `agent-admin` 是两个可独立启动的进程入口，其余八个为库：`agent-access` 提供 HTTP 入口，`agent-runtime` 为执行内核，`agent-semantic` 存放提示词与工具目录，`agent-common` / `agent-audit` / `agent-state` / `agent-vector` / `agent-object-store` 为横切支撑。依赖方向与边界约束见第 13 篇。
+平台模块中，`agent-bootstrap` 与 `agent-admin` 是两个可独立启动的进程入口；其余为库：`agent-access` 提供 HTTP 入口，`agent-runtime` 为执行内核，`agent-semantic` 存放提示词与工具目录，`agent-db` 收拢 Flyway，`agent-common` / `agent-state` / `agent-vector` / `agent-object-store` / `agent-cache` 为横切支撑。原 `agent-audit` 已拆进 admin/access/runtime（见 `docs/audit-split-落地.md`）。依赖方向与边界约束见第 13 篇。
 
 ## 已具备的产品能力
 
@@ -111,8 +111,8 @@ POST /api/chat/stream
   → CallerTokenFilter      校验 X-Caller-Token
   → AccessIdentityFilter   校验 Bearer，写入线程身份
   → ChatAppService         额度、占位、幂等
-  → AgentExecutor.stream   runtime 唯一入口
-  → HarnessAgentFactory    每次构建 Agent 实例
+  → AgentExecutor.stream   runtime 唯一入口（ChannelGateway）
+  → GatewayBootstrap       首次调用懒启动，构建长驻 Agent
   → AgentStreamEvent       接入层转为 SSE
 ```
 

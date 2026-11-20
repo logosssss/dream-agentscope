@@ -4,11 +4,13 @@ import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.config.listener.Listener;
+import com.zhu.runtime.api.agent.RebuildResult;
+import com.zhu.runtime.api.agent.ResidentAgentReloader;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.config.ClientAuthProperties;
 import com.zhu.access.config.WxMiniProperties;
 import com.zhu.runtime.config.AgentRuntimeProperties;
-import com.zhu.semantic.config.PermissionProperties;
+import com.zhu.semantic.config.permission.PermissionProperties;
 import jakarta.annotation.PreDestroy;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +18,7 @@ import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -29,9 +32,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * 监听用户进程业务 yaml。合法变更覆盖属性源并 rebind Properties；非法推送保留上一份（R1）。
- * 只影响之后新请求（L1）。infra 不在这里听。
- * 用 ApplicationRunner 且靠后执行：等 DataSource/Flyway 建连完成后再开 Nacos gRPC，
- * 避免构造期 @DependsOn("flywayInitializer") 在 Flyway 未装配时直接启动失败。
+ * rebind 成功后通知接入层排空重建长驻 Agent，使 model / 轮数 / 权限等对长驻实例生效。
+ * infra 不在这里听。用 ApplicationRunner 且靠后执行：等 DataSource/Flyway 建连完成后再开 Nacos gRPC。
  */
 @Component
 @ConditionalOnExpression("T(org.springframework.util.StringUtils).hasText('${agentscope.nacos.server-addr:}')")
@@ -51,12 +53,15 @@ public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
 
     private final ClientAuthProperties auth;
 
+    private final ObjectProvider<ResidentAgentReloader> residentAgents;
+
     private final AtomicReference<ConfigService> client = new AtomicReference<>();
 
     private final AtomicReference<Listener> listener = new AtomicReference<>();
 
     /**
      * 只保存依赖。真正连 Nacos 放到 {@link #run(ApplicationArguments)}，排在基础设施之后。
+     * Reloader 未装配时热更只改 Properties。
      */
     public NacosBusinessConfigWatcher(
             ConfigurableEnvironment environment,
@@ -64,13 +69,15 @@ public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
             AgentRuntimeProperties runtime,
             PermissionProperties permissions,
             WxMiniProperties wxMini,
-            ClientAuthProperties auth) {
+            ClientAuthProperties auth,
+            ObjectProvider<ResidentAgentReloader> residentAgents) {
         this.environment = environment;
         this.accessLimits = accessLimits;
         this.runtime = runtime;
         this.permissions = permissions;
         this.wxMini = wxMini;
         this.auth = auth;
+        this.residentAgents = residentAgents;
     }
 
     /**
@@ -122,6 +129,7 @@ public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
             MapPropertySource next = NacosStartupConfigSupport.parseBusinessRefresh(configInfo);
             replace(next);
             rebind();
+            rebuildResidents();
             log.info("nacos business config refreshed");
         } catch (RuntimeException ex) {
             if (previous != null) {
@@ -133,6 +141,31 @@ public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
                 }
             }
             log.warning("nacos business config refresh rejected: " + ex.getMessage());
+        }
+    }
+
+    /** 长驻 Gateway 尚未装配时跳过。重建失败不回滚已生效的 Properties。 */
+    private void rebuildResidents() {
+        ResidentAgentReloader reloader = residentAgents.getIfAvailable();
+        if (reloader == null) {
+            return;
+        }
+        try {
+            RebuildResult result = reloader.rebuildAll();
+            if (result == null) {
+                return;
+            }
+            switch (result.status()) {
+                case FAILED -> log.warning("resident agent rebuild after nacos refresh failed: "
+                        + result.message());
+                case TIMEOUT -> log.warning("resident agent rebuild after nacos refresh timed out drain: "
+                        + result.message());
+                case SKIPPED -> log.info("resident agent rebuild after nacos refresh skipped: "
+                        + result.message());
+                case SUCCESS -> log.info("resident agent rebuild after nacos refresh ok");
+            }
+        } catch (RuntimeException ex) {
+            log.warning("resident agent rebuild after nacos refresh failed: " + ex.getMessage());
         }
     }
 
@@ -189,7 +222,7 @@ public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
                 throw new IllegalStateException("permission rule " + i + " requires decision");
             }
             try {
-                com.zhu.semantic.contract.PermissionDecision.valueOf(rule.getDecision());
+                com.zhu.semantic.contract.permission.PermissionDecision.valueOf(rule.getDecision());
             } catch (IllegalArgumentException ex) {
                 throw new IllegalStateException("permission rule " + i + " has unknown decision");
             }

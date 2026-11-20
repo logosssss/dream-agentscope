@@ -1,6 +1,6 @@
 package com.zhu.semantic.domain;
 
-import com.zhu.semantic.contract.PermissionDecision;
+import com.zhu.semantic.contract.permission.PermissionDecision;
 import java.util.List;
 
 /**

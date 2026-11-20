@@ -1,6 +1,6 @@
 package com.zhu.access.application.health;
 
-import com.zhu.audit.application.MysqlReadiness;
+import com.zhu.access.application.health.MysqlReadiness;
 import com.zhu.common.health.MilvusProbe;
 import com.zhu.common.health.ReadinessSnapshot;
 import java.util.LinkedHashMap;

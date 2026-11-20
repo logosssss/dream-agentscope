@@ -19,8 +19,9 @@
             <artifactId>agent-common</artifactId>
         </dependency>
         <dependency>
+            <!-- 管理侧审计/租户/额度等已迁入本模块；读穿只依赖 cache-api。 -->
             <groupId>com.zhu</groupId>
-            <artifactId>agent-audit</artifactId>
+            <artifactId>agent-cache-api</artifactId>
         </dependency>
         <dependency>
             <!-- 工具目录在产品语义模块；管理进程只引登记接口，不引运行层。 -->
@@ -32,12 +33,17 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.alibaba.nacos</groupId>
             <artifactId>nacos-client</artifactId>
         </dependency>
+        <!-- Redis 建连与探测走 agent-cache-redis 自动配置，不再本地建厂。 -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-cache-redis</artifactId>
         </dependency>
         <dependency>
             <!-- 管理进程直连 MySQL；不依赖 agent-state，需自带驱动。 -->

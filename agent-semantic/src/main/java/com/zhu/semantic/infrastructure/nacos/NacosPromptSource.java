@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 产品提示词监听。只在配了 Nacos 地址时注册，和缺省来源互斥。
- * 不管动态配置、服务发现和 MCP。拉不到由 PromptService 退回兜底，这里不让进程退出。
+ * 不管动态配置、服务发现；提示词客户端不装配 MCP。拉不到由 PromptService 退回兜底，这里不让进程退出。
  */
 @Component
 @ConditionalOnExpression("T(org.springframework.util.StringUtils).hasText('${agentscope.nacos.server-addr:}')")

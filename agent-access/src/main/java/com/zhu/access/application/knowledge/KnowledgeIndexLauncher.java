@@ -2,9 +2,9 @@ package com.zhu.access.application.knowledge;
 
 import com.zhu.common.util.Ids;
 import com.zhu.runtime.task.AgentTask;
-import com.zhu.runtime.task.AgentTaskPublisher;
-import com.zhu.runtime.task.DocumentIndexExecutor;
-import com.zhu.state.api.KnowledgeRepository;
+import com.zhu.runtime.task.publish.AgentTaskPublisher;
+import com.zhu.runtime.task.handle.DocumentIndexExecutor;
+import com.zhu.state.api.knowledge.KnowledgeRepository;
 import java.time.Instant;
 import java.util.Map;
 import java.util.logging.Logger;

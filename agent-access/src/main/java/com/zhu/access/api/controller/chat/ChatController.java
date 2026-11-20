@@ -1,10 +1,10 @@
 package com.zhu.access.api.controller.chat;
 
-import com.zhu.access.api.dto.ChatRequest;
+import com.zhu.access.api.dto.chat.ChatRequest;
 import com.zhu.access.application.chat.ChatAppService;
 import com.zhu.common.dto.ApiResult;
-import com.zhu.runtime.api.AgentResponse;
-import com.zhu.runtime.api.AgentStreamEvent;
+import com.zhu.runtime.api.agent.AgentResponse;
+import com.zhu.runtime.api.agent.AgentStreamEvent;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
 /**
- * 聊天入口。同步 JSON 和 SSE 都只做参数接入，执行交给 ChatAppService。
+ * WEB 聊天入口。同步 JSON 和 SSE 都只做参数接入，执行交给 ChatAppService。
+ * 显式 {@code channel=API} 会被拒绝；程序调用请走 {@link ApiAgentChatController}。
  */
 @RestController
 public class ChatController {

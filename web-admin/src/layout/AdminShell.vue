@@ -2,7 +2,7 @@
 /**
  * 管理端壳：顶栏导航、操作人、缺 Token 提示；子路由为业务页。
  */
-import { hasAdminToken, loadOperatorId, saveOperatorId } from '@/shared/auth/operator'
+import { hasAdminToken, isAdminGateway, loadOperatorId, saveOperatorId } from '@/shared/auth/operator'
 import { onMounted, ref } from 'vue'
 
 const tokenReady = hasAdminToken()
@@ -38,13 +38,6 @@ function persistOperator() {
               active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
             >
               用户
-            </RouterLink>
-            <RouterLink
-              to="/approvals"
-              class="rounded-md px-2.5 py-1"
-              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
-            >
-              审批
             </RouterLink>
             <RouterLink
               to="/quotas"
@@ -122,7 +115,7 @@ function persistOperator() {
           />
         </label>
       </div>
-      <p v-if="!tokenReady" class="text-sm text-[var(--color-danger)]">
+      <p v-if="!tokenReady && !isAdminGateway()" class="text-sm text-[var(--color-danger)]">
         未配置 VITE_ADMIN_TOKEN。请复制 web-admin/.env.example 为 .env.local，填写与 AGENTSCOPE_ADMIN_TOKEN 一致的值后重启 pnpm dev。列表与操作已禁用。
       </p>
     </header>

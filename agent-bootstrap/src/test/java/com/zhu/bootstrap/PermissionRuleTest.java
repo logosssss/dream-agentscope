@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.semantic.config.ConfiguredPermissionService;
-import com.zhu.semantic.config.PermissionProperties;
-import com.zhu.semantic.contract.PermissionDecision;
+import com.zhu.semantic.config.permission.ConfiguredPermissionService;
+import com.zhu.semantic.config.permission.PermissionProperties;
+import com.zhu.semantic.contract.permission.PermissionDecision;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

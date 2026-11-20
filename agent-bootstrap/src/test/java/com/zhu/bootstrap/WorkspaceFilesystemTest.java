@@ -11,9 +11,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class WorkspaceFilesystemTest {
 
-    /** 按对话隔离，不使用框架默认的按用户隔离。 */
+    /** 按用户隔离，跨会话共享 MEMORY.md（Harness Memory 终态）。 */
     @Test
-    void workspaceIsIsolatedBySession() {
-        assertThat(WorkspaceFilesystem.sessionScoped().getIsolationScope()).isEqualTo(IsolationScope.SESSION);
+    void workspaceIsIsolatedByUser() {
+        assertThat(WorkspaceFilesystem.userScoped().getIsolationScope()).isEqualTo(IsolationScope.USER);
     }
 }

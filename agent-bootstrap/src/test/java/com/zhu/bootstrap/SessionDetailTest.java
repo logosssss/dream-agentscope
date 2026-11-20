@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.infrastructure.persistence.MysqlSessionMetaStore;
-import com.zhu.access.infrastructure.persistence.SessionMetaMapper;
-import com.zhu.access.infrastructure.persistence.entity.SessionMeta;
+import com.zhu.access.infrastructure.persistence.session.MysqlSessionMetaStore;
+import com.zhu.access.infrastructure.persistence.session.SessionMetaMapper;
+import com.zhu.access.infrastructure.persistence.entity.session.SessionMeta;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 

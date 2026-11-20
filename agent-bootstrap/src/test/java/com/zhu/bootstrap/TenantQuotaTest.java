@@ -1,14 +1,14 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.chat.ConcurrentRunGuard;
+import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.application.account.RedisDailyCostAccumulator;
 import com.zhu.access.application.account.RedisDailyTokenAccumulator;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.audit.api.TenantQuotaLookup;
-import com.zhu.audit.application.MysqlTenantQuota;
-import com.zhu.audit.infrastructure.persistence.TenantQuotaMapper;
-import com.zhu.audit.infrastructure.persistence.entity.TenantQuotaRecord;
+import com.zhu.access.api.quota.TenantQuotaLookup;
+import com.zhu.access.application.quota.MysqlTenantQuota;
+import com.zhu.access.infrastructure.persistence.quota.TenantQuotaMapper;
+import com.zhu.access.infrastructure.persistence.entity.quota.TenantQuotaRecord;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;
@@ -33,14 +33,14 @@ class TenantQuotaTest {
     @Test
     void dailyRequestsFollowTheTenantRow() {
         AccessLimitProperties limits = new AccessLimitProperties();
-        QuotaGuard limited = new QuotaGuard(new FakeAccessCache(), limits, Clock.systemUTC(), requestsOnly(1L));
+        QuotaGuard limited = new QuotaGuard(new FakeCacheFacade(), limits, Clock.systemUTC(), requestsOnly(1L));
         limited.check("t", "u", "chat", "req-1");
         assertThatThrownBy(() -> limited.check("t", "u", "chat", "req-2"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.QUOTA_EXCEEDED);
 
-        QuotaGuard open = new QuotaGuard(new FakeAccessCache(), limits, Clock.systemUTC(), requestsOnly(null));
+        QuotaGuard open = new QuotaGuard(new FakeCacheFacade(), limits, Clock.systemUTC(), requestsOnly(null));
         open.check("t", "u", "chat", "req-1");
         open.check("t", "u", "chat", "req-2");
     }
@@ -48,7 +48,7 @@ class TenantQuotaTest {
     /** 已用量达到 token 上限后下一次对话拒绝。记账累加与校验共用键。 */
     @Test
     void dailyTokensBlockAfterUsage() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         AccessLimitProperties limits = new AccessLimitProperties();
         TenantQuotaLookup quotas = new TenantQuotaLookup() {
             @Override
@@ -154,7 +154,7 @@ class TenantQuotaTest {
     /** 已用量达到费用微单位上限后下一次对话拒绝。 */
     @Test
     void dailyCostBlocksAfterUsage() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         AccessLimitProperties limits = new AccessLimitProperties();
         TenantQuotaLookup quotas = new TenantQuotaLookup() {
             @Override
@@ -179,7 +179,7 @@ class TenantQuotaTest {
     /** 已占用到同时运行上限后下一次对话拒绝；结束后可以再进。 */
     @Test
     void concurrentRunsBlockUntilReleased() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         TenantQuotaLookup quotas = new TenantQuotaLookup() {
             @Override
             public Long dailyRequestLimit(String tenantId) {
@@ -206,12 +206,12 @@ class TenantQuotaTest {
     /** 没有行时不占 Redis。释放空槽没有副作用。 */
     @Test
     void concurrentRunsSkipWhenNoRow() {
-        FakeAccessCache cache = new FakeAccessCache();
+        FakeCacheFacade cache = new FakeCacheFacade();
         ConcurrentRunGuard guard = new ConcurrentRunGuard(cache, 120, requestsOnly(null));
         ConcurrentRunGuard.Slot slot = guard.open("t");
         assertThat(slot.key()).isNull();
         guard.close(slot);
-        assertThat(cache.getCounter("concurrent:t")).isZero();
+        assertThat(cache.counters().getCounter("concurrent:t")).isZero();
     }
 
     /** 登记 CONCURRENT_RUNS / CURRENT，列表单独读。 */

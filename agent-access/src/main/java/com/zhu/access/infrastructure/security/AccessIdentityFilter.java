@@ -1,7 +1,7 @@
 package com.zhu.access.infrastructure.security;
 
-import com.zhu.access.application.auth.LoginSessionCodec;
-import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.access.application.auth.session.LoginSessionCodec;
+import com.zhu.cache.api.CacheFacade;
 import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
@@ -37,12 +37,12 @@ public class AccessIdentityFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final AccessCache cache;
+    private final CacheFacade cache;
 
     /**
      * 没有缓存时，带了 Bearer 按不可用处理。正式进程和测试都会提供缓存。
      */
-    public AccessIdentityFilter(ObjectProvider<AccessCache> caches) {
+    public AccessIdentityFilter(ObjectProvider<CacheFacade> caches) {
         this.cache = caches == null ? null : caches.getIfAvailable();
     }
 
@@ -111,7 +111,7 @@ public class AccessIdentityFilter extends OncePerRequestFilter {
         }
         String raw;
         try {
-            raw = cache.get(LoginSessionCodec.key(token));
+            raw = cache.kv().get(LoginSessionCodec.key(token));
         } catch (BusinessException ex) {
             if (ex.errorCode() == ErrorCode.UNAVAILABLE) {
                 reject(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "UNAVAILABLE", ex.getMessage());

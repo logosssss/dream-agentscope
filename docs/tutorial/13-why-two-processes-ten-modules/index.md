@@ -51,7 +51,7 @@ flowchart TD
   Access["agent-access<br/>HTTP / 身份 / 额度"]
   Runtime["agent-runtime<br/>执行内核"]
   Semantic["agent-semantic<br/>提示词 / 工具目录 / 权限"]
-  Support["common · audit · state · vector · object-store<br/>横切支撑"]
+  Support["common · db · state · vector · object-store · cache<br/>横切支撑"]
 
   Boot --> Access
   Boot --> Runtime
@@ -65,11 +65,11 @@ flowchart TD
 | 模块 | 职责 | 拆分依据 |
 |---|---|---|
 | `agent-bootstrap` | 用户进程入口，聚合扫描 `com.zhu` | 仅装配，不含业务 |
-| `agent-admin` | 管理进程入口 | 与对话内核零依赖 |
+| `agent-admin` | 管理进程入口（含管理侧目录/审计查询） | 与对话内核零依赖 |
 | `agent-access` | 认证后的 HTTP 入口、线程身份、额度 | 协议扩展只改此模块 |
-| `agent-runtime` | Agent 生命周期、中间件、工具挂载 | 不含 HTTP，可独立复用 |
+| `agent-runtime` | Agent 生命周期、中间件、工具挂载、事件/用量写入 | 不含 HTTP，可独立复用 |
 | `agent-semantic` | 产品语义、提示词、工具目录与权限 | 文案变更不影响执行逻辑 |
-| `agent-audit` | 租户、审批、用量审计与目录 | 事件总线，解耦上下游 |
+| `agent-db` | 全仓 Flyway SQL | 仅用户进程迁移；无业务 Java |
 | `agent-state` | 分布式存储、远程工作区 | 会话状态与产品无关 |
 | `agent-vector` | Milvus 集合与检索 | 向量库替换只改此模块 |
 | `agent-object-store` | local / OSS / S3 / MinIO 统一接口 | 存储选型不进入业务层 |
@@ -83,7 +83,7 @@ flowchart TD
 
 **一、接入层禁止引用 Harness。** `com.zhu.access` 不得 import `..harness..`。接入层只依赖 `AgentExecutor` 接口，与具体 Agent 框架解耦；框架替换的影响范围限定在 runtime。
 
-**二、runtime 禁止依赖 access。** 反向依赖会形成循环，且执行内核感知 HTTP 层后，控制器逻辑会逐步内移。工具需要 ASK 审批时的通知路径是：runtime 发布 `agent-audit` 事件，接入层订阅。
+**二、runtime 禁止依赖 access。** 反向依赖会形成循环，且执行内核感知 HTTP 层后，控制器逻辑会逐步内移。工具需要 ASK 审批时经 `PendingAskFacade` 等运行层端口，由接入层消费，不走共享业务 jar。
 
 **三、管理端禁止依赖 runtime。** 管理端需要的是数据访问，不是执行能力。依赖 runtime 会将模型调用与向量检索引入运维进程。
 

@@ -20,20 +20,26 @@ export interface StreamHandlers {
   onDone?: () => void
 }
 
+/** 默认走 WEB ChatUi；API 控制台传 `/api/agent/chat/stream`。 */
+export const DEFAULT_CHAT_STREAM_PATH = '/api/chat/stream'
+
 /**
- * 发起 /api/chat/stream。返回 abort 函数供「停止生成」。
+ * 发起流式对话。路径可覆盖，默认 {@link DEFAULT_CHAT_STREAM_PATH}。
  */
 export function useStreaming() {
   /**
    * 解析 SSE：按行缓冲，遇到 data: 后尝试 JSON。
    * 流结束以 reader 完成或 abort 为准，不依赖 [DONE]。
+   * @param streamPath 相对站点根的 SSE 路径；空则用默认 WEB 路径
    */
   async function startStream(
     payload: ChatStreamRequest,
     handlers: StreamHandlers,
     signal?: AbortSignal,
+    streamPath: string = DEFAULT_CHAT_STREAM_PATH,
   ): Promise<void> {
-    const response = await fetch('/api/chat/stream', {
+    const path = (streamPath || DEFAULT_CHAT_STREAM_PATH).trim() || DEFAULT_CHAT_STREAM_PATH
+    const response = await fetch(path, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(payload),

@@ -1,12 +1,8 @@
 package com.zhu.runtime.domain.middleware;
 
-import com.zhu.runtime.api.SessionTurnCount;
+import com.zhu.runtime.api.session.SessionTurnCount;
 import com.zhu.runtime.domain.CallIdentity;
-import com.zhu.semantic.contract.RiskLevel;
-import com.zhu.state.api.EpisodicMemoryItem;
-import com.zhu.state.api.EpisodicMemoryRepository;
-import com.zhu.state.api.UserProfileItem;
-import com.zhu.state.api.UserProfileRepository;
+import com.zhu.semantic.contract.safety.RiskLevel;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
@@ -22,9 +18,11 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
 /**
- * 人设一致性。长对话、跨会话恢复或用户纠正身份时打开检查标记。
+ * 人设一致性。长对话或用户纠正身份时打开检查标记。
  * 规则检查在执行层做。这里不调模型，也不写干预。
  * 挂在安全门之后，危机档不打开标记。标记只活这一轮。
+ * 情景/画像表已硬删：不再用「跨会话恢复」读表触发；只留纠正短句 + 满 20 轮。
+ * 跨会话记忆权威是 {@code MEMORY.md}。
  */
 @Component
 public class PersonaConsistencyMiddleware implements MiddlewareBase {
@@ -52,22 +50,13 @@ public class PersonaConsistencyMiddleware implements MiddlewareBase {
 
     private final SessionTurnCount turns;
 
-    private final UserProfileRepository profiles;
-
-    private final EpisodicMemoryRepository memories;
-
-    /** 计数口或记忆口可空。空或读失败都不当成触发。 */
-    public PersonaConsistencyMiddleware(
-            SessionTurnCount turns,
-            UserProfileRepository profiles,
-            EpisodicMemoryRepository memories) {
+    /** 计数口可空。空或读失败不当成触发。 */
+    public PersonaConsistencyMiddleware(SessionTurnCount turns) {
         this.turns = turns;
-        this.profiles = profiles;
-        this.memories = memories;
     }
 
     /**
-     * 先看档位和触发条件，再往下走。读库失败不当成触发。
+     * 先看档位和触发条件，再往下走。
      * 危机档保持关闭，避免盖掉危机话术。
      */
     @Override
@@ -83,8 +72,7 @@ public class PersonaConsistencyMiddleware implements MiddlewareBase {
     }
 
     /**
-     * 纠正身份、满 20 轮，或本会话第 1 轮且已有跨会话记忆，才打开。
-     * 轮次读失败时这两条都不开，纠正仍可凭原文打开。
+     * 纠正身份或满 20 轮才打开。轮次读失败时轮次条件不开，纠正仍可凭原文打开。
      */
     private boolean ready(RuntimeContext context, AgentInput input) {
         if (corrected(userText(input))) {
@@ -96,39 +84,9 @@ public class PersonaConsistencyMiddleware implements MiddlewareBase {
         CallIdentity identity = CallIdentity.from(context);
         try {
             int succeeded = turns.succeeded(identity.tenantId(), identity.userId(), identity.sessionId());
-            if (succeeded >= TURN_THRESHOLD) {
-                return true;
-            }
-            return succeeded == 0 && remembered(identity);
+            return succeeded >= TURN_THRESHOLD;
         } catch (RuntimeException ex) {
             log.warning("session turn count failed");
-            return false;
-        }
-    }
-
-    /**
-     * 画像或最近一条情景记忆任一存在就算跨会话恢复。
-     * 某一边读失败只跳过那一边，两边都没有或都失败则不开。
-     */
-    private boolean remembered(CallIdentity identity) {
-        if (profiles != null) {
-            try {
-                UserProfileItem profile = profiles.find(identity.tenantId(), identity.userId());
-                if (profile != null) {
-                    return true;
-                }
-            } catch (RuntimeException ex) {
-                log.warning("persona profile lookup failed");
-            }
-        }
-        if (memories == null) {
-            return false;
-        }
-        try {
-            List<EpisodicMemoryItem> rows = memories.recent(identity.tenantId(), identity.userId(), 1);
-            return rows != null && !rows.isEmpty();
-        } catch (RuntimeException ex) {
-            log.warning("persona memory lookup failed");
             return false;
         }
     }

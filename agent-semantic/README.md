@@ -12,57 +12,64 @@
 
 ## 包
 
-### `contract`：给运行层的缝
+### `contract`：给运行层的缝（按域分包）
 
-| 类型 | 作用 |
-| --- | --- |
-| `ProductSemanticProvider` | 运行层能看见的产品语义：Agent 标识、工具、停止条件、提示词兜底 |
-| `ToolDescriptor` | 一条工具描述。运行层用它决定哪些实现可以注册 |
-| `ProductTool` | 业务工具实例。`toolId` 必须和 `@Tool` 的 name、目录标识一致 |
-| `CompletionCriteria` | 何时停止，目前只有最大推理轮数 |
-| `PermissionDecision` | `ALLOW` / `ASK` / `DENY` |
-| `PermissionRuleService` | 按工具、租户、角色给出决定。运行层审批 Hook 用这个契约 |
-| `PersonaContract` | 锁定人格。改核心身份必须升 `agentId` |
-| `RiskLevel` | 安全门档位。`CRITICAL` 换危机话术 |
-| `CrisisPrompt` | 危机话术。只从 classpath 读 |
-| `SemanticRiskJudge` | 语义风险判定。测试注入假实现，生产默认不连网 |
+| 包 | 类型 | 作用 |
+| --- | --- | --- |
+| `contract.product` | `ProductSemanticProvider`、`CompletionCriteria`、`PersonaContract` | 产品语义、停止条件、锁定人格 |
+| `contract.tool` | `ToolDescriptor`、`ProductTool` | 工具描述与可注册实现 |
+| `contract.permission` | `PermissionDecision`、`PermissionRuleService`、`UnconditionalPermissionCatalog`、`UnconditionalToolRule` | 工具权限决定；可带工具入参；无条件规则目录给引擎 PermissionContext |
+| `contract.safety` | `RiskLevel`、`CrisisPrompt`、`SemanticRiskJudge` | 安全档、危机话术、语义风险判定 |
 
 `agentId()` 是状态命名空间，不是展示名。改展示名不能改这个值，否则旧会话会对到空状态。
 
-### `api`：给接入层的缝
+### `api`：给接入层的缝（按域分包）
 
-| 类型 | 作用 |
-| --- | --- |
-| `PromptService` | 按 key 取提示词。外部配置失败时必须退回调用方传入的 fallback，不能返回空串 |
-| `PlatformPrompt` | 请求没带系统提示词时的键和兜底。产品话术不放这里 |
-| `ToolCatalogService` | 当前启用的工具，不含停用项 |
+| 包 | 类型 | 作用 |
+| --- | --- | --- |
+| `api.prompt` | `PromptService`、`PlatformPrompt` | 按 key 取提示词；请求没带系统提示词时的键和兜底 |
+| `api.tool` | `ToolCatalogService`、`NoToolCatalog`、`ToolRegistryCatalog`、`ToolRegistrySummary`、`ToolPermissionCatalog`、`ToolPermissionSummary` | 工具目录与权限登记缝；MySQL 关闭时目录为空实现 |
 
-### `config`
+### `config`（按域分包，与 `contract` 对齐）
+
+| 包 | 类型 | 作用 |
+| --- | --- | --- |
+| `config`（根） | `SemanticConfig` | 打开 `PermissionProperties` 绑定；不在这里创建执行组件 |
+| `config.permission` | `PermissionProperties`、`PermissionMapperConfig`、`ConfiguredPermissionService`、`ConfiguredUnconditionalPermissionCatalog` | Nacos/yml 权限规则；MySQL 关闭时的配置态权限与无条件目录；打开 MySQL 时才扫权限 Mapper |
+| `config.safety` | `AbsentSemanticRiskJudge`、`ClasspathCrisisPrompt` | 不连网的风险判定；危机话术从 classpath 读 |
+
+不再保留 `config.product`：搭子人格 / `ProductSemanticProvider` 实现在 `agent-products/agent-product-companion`。
 
 `ConfiguredPermissionService`：MySQL 关闭时按 `agentscope.permission.rules` 匹配。没有命中时一律 `ALLOW`。
 
-`StoredPermissionService`：MySQL 打开时改为读 `tool_permission`。配置里的规则不再参与。表由用户进程的 Flyway `V4__tool_permission.sql` 创建。`conditions` 只解释 UTC 时分窗 `after` / `before`；不能识别的 JSON 仍跳过整条。命中的 `decision` 写错时这次调用失败，不当成允许。容器里两种实现不会同时存在。
-
-`NoToolCatalog`：MySQL 关闭时目录为空。
+`StoredPermissionService`：MySQL 打开时改为读 `tool_permission`。配置里的规则不再参与。表由 [`agent-db`](../agent-db/README.md) 的 Flyway `V4__tool_permission.sql` 创建。`conditions` 解释 UTC 时分窗 `after` / `before`，以及参数长度 `maxLen` / `minLen`（与时间窗取与）；不能识别的 JSON 仍跳过整条。缺参数按长度 0。命中的 `decision` 写错时这次调用失败，不当成允许。容器里两种实现不会同时存在。
 
 `StoredToolCatalog`：MySQL 打开时读 `tool_registry` 的启用行，表由 `V6__tool_registry.sql` 创建。空白标识跳过。表是空的则目录为空。参数结构只保存在表里，不参与注册。没有对应 `ProductTool` 时运行层仍不把名字交给模型。`V32__echo_text_tool.sql` 种子插入 `echo_text` 目录行，以及全局 `ASK` 权限。`V35__knowledge_search_tool.sql` 种子插入 `knowledge_search`，全局 `ALLOW`；实现在运行层。
 
-### `application`
+### `application`（按域分包）
+
+| 包 | 类型 | 作用 |
+| --- | --- | --- |
+| `application`（根） | `package-info` | 实现包说明；运行层不允许依赖这里 |
+| `application.prompt` | `PromptAppService` | 实现 `PromptService`；外部模板 `{{变量}}` 替换与 fallback |
+| `application.tool` | `MysqlToolRegistryCatalog`、`StoredToolCatalog`、`CatalogQueryLimits` | 工具目录登记/只读目录；列表 limit 归一 |
+| `application.permission` | `StoredPermissionService`、`StoredUnconditionalPermissionCatalog`、`MysqlToolPermissionCatalog` | MySQL 打开时的权限判定与登记；无条件目录 |
 
 `PromptAppService` 实现 `PromptService`。外部模板用 `{{变量}}` 替换。来源缺失、空白、抛错，或替换后仍有占位符时返回 fallback，并打一条只含 key 的警告。不把 `{{name}}` 原文交给模型。fallback 为空则拒绝。容器里只能有一个 `PromptService`。
 
 ### `infrastructure.nacos`
 
-`PromptSource` 是外部原文的缝。`agentscope.nacos.server-addr` 为空时用 `AbsentPromptSource`，始终返回 null，不访问网络。配了地址才注册 `NacosPromptSource`，两者不要同时存在。监听器建不起来或拉取失败时，`PromptService` 仍用 fallback。不做动态配置、服务发现和 MCP。地址、命名空间和账号只来自环境变量。
+`PromptSource` 是外部原文的缝。`agentscope.nacos.server-addr` 为空时用 `AbsentPromptSource`，始终返回 null，不访问网络。配了地址才注册 `NacosPromptSource`，两者不要同时存在。监听器建不起来或拉取失败时，`PromptService` 仍用 fallback。不做动态配置、服务发现；提示词客户端不装配 MCP。地址、命名空间和账号只来自环境变量。
 
 `src/main/resources/prompts` 里的 `.md` 和 `.json` 由 `PromptTemplateCheck` 在测试中校验。键必须是 `prompt.{agent}.{purpose}`，占位符必须在 `PlatformPrompt` 里登记。`.json` 把 `{{变量}}` 换成 `sample` 后必须能解析。`PromptRelease` 在校验通过后才把原文交给发布端。`prompt.safety.crisis` 会校验，但不发布。`NacosPromptPublisher` 向管理接口新建一个版本并发布，进程启动时不调用它。地址没配或对方拒绝时这次发布失败，不影响已经在跑的监听。
 
-运行层的架构测试禁止依赖本模块的 `application` 和 `infrastructure`。无运行层依赖的业务工具（如 `echo_text`）放本模块 `infrastructure.tool`；需要嵌入或向量的工具（如 `knowledge_search`）放运行层。
+运行层的架构测试禁止依赖本模块的 `application` / `infrastructure`，并禁止依赖产品实现包 `com.zhu.product..`（与契约包 `contract.product` 不同）。  
+业务工具按归属：`echo_text` 等产品工具在 **`agent-products/agent-product-companion`**；需要嵌入或向量的平台工具（如 `knowledge_search`）仍在运行层。
 
-`infrastructure.tool.EchoTextTool` 是第一把业务工具。实现 `ProductTool`，`toolId` 与 `@Tool` 的 name、目录标识都是 `echo_text`。方法只原样返回，无副作用。容器里始终有这个 Bean；MySQL 关闭时目录为空，运行层仍不注册。MySQL 打开且种子生效时目录命中，权限为全局 `ASK`，用来跑通审批。时间窗条件按 UTC 解释；参数范围还不看。批准后不自动再执行。
+本模块（S1）只保留契约、`api`、共享权限/提示词/目录存储；不再放具体产品实现。
 
-`PlatformSemanticProvider` 是 `ProductSemanticProvider` 的默认实现。Agent 标识和最大轮数读 `agentscope.runtime` 的同名配置，无效时分别用 `companion-v1` 和 `20`。`PersonaContract` 由 `CompanionPersona` 提供锁定身份。主对话键是 `prompt.companion.system`。危机话术键是 `prompt.safety.crisis`，由 `ClasspathCrisisPrompt` 从 classpath 读取，不走 Nacos。`AbsentSemanticRiskJudge` 不连网，一律返回普通陪伴。改核心身份必须升 `agentId`，不要把 userId 拼进去。MySQL 关闭时目录为空；打开时目录来自 `tool_registry`。
+危机话术键是 `prompt.safety.crisis`，由 `ClasspathCrisisPrompt` 从 classpath 读取，不走 Nacos。`AbsentSemanticRiskJudge` 不连网，一律返回普通陪伴。MySQL 关闭时目录为空；打开时目录来自 `tool_registry`。
 
 ## 还没有
 
-`conditions` 已解释 UTC 时分窗（`after` / `before`）。参数范围还不看，因为权限判定没有工具入参。`param_schema` 只保存。动态配置、服务发现和 MCP 不走这次的提示词客户端。提示词发布不在进程启动时发生。主对话话术在 `prompts/prompt.companion.system.md`。危机话术在 `prompts/prompt.safety.crisis.md`，只从 classpath 读。`SemanticRiskJudge` 的生产实现不连网，一律普通陪伴。真正的模型判定以后再换。工具名、JSON 结构和安全护栏留在代码里。管理端可通过 `ToolRegistryCatalog` / `POST /api/admin/tool-registries` 登记目录行，以及 `ToolPermissionCatalog` / `POST /api/admin/tool-permissions` 登记权限（conditions 固定空）。仍不在批准后执行工具。
+`conditions` 已解释 UTC 时分窗（`after` / `before`）和参数长度（`maxLen` / `minLen`）。审批中间件把 `ToolUseBlock` 入参交给判定；配置实现仍忽略入参。`param_schema` 只保存，不参与注册。动态配置、服务发现不走这次的提示词客户端；MCP 装配见用户进程 `docs/mcp-落地.md`。提示词发布不在进程启动时发生。主对话话术在 `prompts/prompt.companion.system.md`。危机话术在 `prompts/prompt.safety.crisis.md`，只从 classpath 读。`SemanticRiskJudge` 的生产实现不连网，一律普通陪伴。真正的模型判定以后再换。工具名、JSON 结构和安全护栏留在代码里。管理端可通过 `ToolRegistryCatalog` / `POST /api/admin/tool-registries` 登记目录行，以及 `ToolPermissionCatalog` / `POST /api/admin/tool-permissions` 登记权限（conditions 固定空，长度条件需直接写表）。仍不在批准后执行工具。

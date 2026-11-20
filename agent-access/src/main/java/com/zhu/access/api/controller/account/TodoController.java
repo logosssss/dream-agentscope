@@ -1,10 +1,10 @@
 package com.zhu.access.api.controller.account;
 
-import com.zhu.access.api.dto.TodoRequest;
-import com.zhu.access.application.auth.AccessAccountGate;
-import com.zhu.audit.api.UserTodoCatalog;
-import com.zhu.audit.api.UserTodoDetail;
-import com.zhu.audit.api.UserTodoRow;
+import com.zhu.access.api.dto.account.TodoRequest;
+import com.zhu.access.application.auth.gate.AccessAccountGate;
+import com.zhu.access.api.approval.UserTodoCatalog;
+import com.zhu.access.api.approval.UserTodoDetail;
+import com.zhu.access.api.approval.UserTodoRow;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
@@ -44,7 +44,7 @@ public class TodoController {
         if (catalog == null) {
             throw new BusinessException(ErrorCode.UNAVAILABLE, "todo catalog is unavailable");
         }
-        return ApiResult.ok(catalog.openApprovals(UserContext.get(), limit));
+        return ApiResult.ok(catalog.listOpen(UserContext.get(), limit));
     }
 
     /**
@@ -75,7 +75,7 @@ public class TodoController {
     }
 
     /**
-     * 只关这个用户还开着的确认或任务。审批待办仍走决定接口。
+     * 只关这个用户还开着的确认或任务。
      */
     @PostMapping("/api/todos/{todoId}/done")
     public ApiResult<UserTodoRow> complete(@PathVariable Long todoId) {
@@ -88,7 +88,7 @@ public class TodoController {
     }
 
     /**
-     * 只取消这个用户还开着的确认或任务。审批待办仍走决定接口。
+     * 只取消这个用户还开着的确认或任务。
      */
     @PostMapping("/api/todos/{todoId}/cancel")
     public ApiResult<UserTodoRow> cancel(@PathVariable Long todoId) {

@@ -6,11 +6,13 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-semantic`、`agent-state`、`agent-vector`、`agent-audit`、`agentscope-harness`、`agentscope-extensions-model-dashscope`。
+依赖 `agent-common`、`agent-semantic`、`agent-state`、`agent-vector`、`agent-cache-api`、MyBatis-Plus、`agentscope-harness`、`agentscope-extensions-model-dashscope`。事件审计写入、token 用量、安全干预、模型查找在本模块本地实现。测试依赖 `spring-boot-starter-test`（模块内纯单元测试点；见 `docs/bootstrap-test-sink-落地.md`）。
 
-对 `agent-semantic` 的 Java 引用只能落在 `com.zhu.semantic.contract`。不要 import `semantic.application` 或 `semantic.infrastructure`。
+对 `agent-semantic` 的 Java 引用只能落在 `com.zhu.semantic.contract` 及其子包（`product` / `tool` / `permission` / `safety`）。不要 import `semantic.application` 或 `semantic.infrastructure`。
 
-不能依赖 `agent-access`。审批要通知前端时，发布 `agent-audit` 里的事件，由接入层订阅。
+纯领域测在本模块 `src/test`（如 `domain` / `domain.knowledge` 下 Guard、切块、Hybrid 合并）。**新测优先写本模块**；不宣称 bootstrap 旧测已清完。
+
+不能依赖 `agent-access`。Permission Gate **运行入口 = 当前 A**：无条件判定交框架 Gate；产品条件闸在 `ApprovalMiddleware`；ASK 活单与续跑在本模块 `PendingAskStore` / `PendingAskFacade`。旧审批表链路已硬删（见 `docs/approval-hard-delete-落地.md`）。见 `docs/permission-gate-落地.md`。
 
 ## 调用链
 
@@ -41,7 +43,7 @@ AgentStreamEvent   接入层再写成 SSE
 
 容器里只有 `AgentExecutionService` 和 `HarnessAgentFactory`。没有 `HarnessAgent` 这个 Bean。Builder 是可变的，所以不在多线程之间共享同一个 Builder 再改提示词。
 
-正式启动会挂上 `DistributedStore`，并把工作区设成 `RemoteFilesystemSpec`，隔离粒度固定 `SESSION`。文件进 MySQL 的 `agentscope_store`，不落在本机盘。开关关闭时没有这个 Bean，只留给测试。
+正式启动会挂上 `DistributedStore`。默认工作区是 `RemoteFilesystemSpec`，隔离粒度固定 `USER`（companion / echo 各自挂载；Remote 与 Docker 规格互斥）。`sandbox.enabled=true` 时仅 companion 换 `DockerFilesystemSpec`（缺 Store 或 `docker version` 失败则硬失败，不回退 Remote）；echo 仍 Remote。文件/快照进 MySQL（含 JDBC 沙箱快照与执行守卫），不落在本机盘。开关关闭时没有 Store Bean，只留给测试。见 `docs/sandbox-落地.md`。
 
 停机时 `AgentShutdown` 让进程不再接新的 Agent 调用，并按 `timeout-seconds` 等待已经开始的调用。Web 容器使用 `server.shutdown=graceful`。容器的终止宽限不要短于这个等待时间。
 
@@ -49,25 +51,28 @@ AgentStreamEvent   接入层再写成 SSE
 
 | 包 | 类型 | 作用 |
 | --- | --- | --- |
-| `api` | `AgentExecutor` | 接入层唯一入口 |
-| `api` | `AgentRequest` | 执行入参。产品语义由调用方填好 |
-| `api` | `AgentResponse` | 运行标识和文本，不泄漏框架的 `Msg` |
-| `api` | `AgentStreamEvent` | 流式事件的类型和短文本 |
-| `api` | `SessionTurnCount` | 会话已经成功结束的轮次。人设检查只看这个数 |
-| `application` | `AgentExecutionService` | 同步 `block` 和流式 `streamEvents`，结束时关闭 Agent。危机档和打开人设检查时过整段回复，不另写干预 |
-| `application` | `ResolvedChatModel` | MySQL 打开时用启用的 `model_config`，拼成 `provider:model`。没有行再用进程配置 |
-| `application` | `AgentStreamEvents` | 框架事件收成 `AgentStreamEvent` |
-| `application` | `CrisisReplyOutlet` | 需要攒齐再查的流式出口。增量先扣下，整段结束再过规则 |
-| `application` | `AbsentSessionTurnCount` | MySQL 关闭时成功轮次按 0，人设检查保持关闭 |
-| `infrastructure.agent` | `HarnessAgentFactory`、`CatalogToolRegistrar`、`WorkspaceFilesystem`、`AgentShutdown` | 按请求组装 Agent，并把目录里的业务工具挂到这次 Toolkit。有状态库时工作区按对话隔离。停机时等待在途调用 |
+| `api` | `package-info` | 对外端口根；按域分包，接入层只依赖本树 |
+| `api.agent` | `AgentExecutor`、`AgentRequest`、`AgentResponse`、`AgentStreamEvent`、`ResidentAgentReloader`、`RebuildResult` | 对话执行缝与 DTO；WEB/API 通道；热更后重建长驻 Agent |
+| `api.approval` | `PendingAskFacade`、`PendingAskSummary` | 待确认摘要与原子决定续跑 |
+| `api.wakeup` | `WakeupPort` | 唤醒 enqueue 端口 |
+| `api.session` | `SessionTurnCount` | 会话已经成功结束的轮次；人设检查只看这个数 |
+| `api.usage` | `UsageMeter` | 模型用量出口 |
+| `infrastructure.approval` | `PendingAskStore`、`PendingAsk`、`PendingAskFacadeService` | 进程内 ASK 仓（含 ToolUseBlock）；Facade 正式实现 |
+| `application.turn` | `AgentTurnSupport`、`ResolvedChatModel`、`AbsentSessionTurnCount` | 校验 / RuntimeContext / 流式护栏收口与用量记账入口；模型坐标解析；MySQL 关闭时轮次按 0 |
+| `application.stream` | `AgentStreamEvents`、`CrisisReplyOutlet` | 框架事件收成 `AgentStreamEvent`；危机档流式先扣增量、整段再过规则 |
+| `application.usage` | `AuditUsageMeter`、`ModelCallUsage` | 模型用量写入审计与 `token_usage`；单次调用记账辅助 |
+| `infrastructure.agent` | `HarnessAgentFactory`、`ResidentAgentBinding` / `ResidentAgentBindingRegistry`、`CompanionMiddlewareChain`、`McpToolsConfigFactory`、`CompanionSandboxFilesystem`、`DockerCliProbe`、`PermissionContextFactory`、`CatalogToolRegistrar`、`WorkspaceFilesystem`、`HarnessAgentRegistry`、`AgentShutdown` | 给 GatewayBootstrap 提供 `configureCommon` / `customizeEcho`；**产品 Agent 经 Binding 注册表挂载**（companion 实现在 `agent-product-companion`）；公共项关 web/shell、**打开 Harness Memory**、若干 disable*、BYPASS 权限；MCP/Sandbox 零件供 Binding 使用；echo 仍平台挂。见各 `docs/*-落地.md` |
+| `infrastructure.gateway` | `ChannelGateway`、`ApiChannel`、`RoomNormalizedSessionTurnGate`、`AgentChannelRuntimeContextResolver`、`ResidentAgentDrain` | 长驻 companion+echo；白名单 `{chatui,api}`；room 归一化闸；实现 `AgentExecutor`/`ResidentAgentReloader`。见 `docs/channel-gateway-落地.md`、`docs/api-channel-落地.md` |
+| `infrastructure.wakeup` | `InMemoryMessageBus`、`WakeupCoordinator` | 进程内 Bus + Dispatcher；实现 `WakeupPort`；Target 懒解析 `ChannelGateway`。见 `docs/wakeup-落地.md` |
 | `infrastructure.embed` | `DashScopeTextEmbedder` | 密钥读 `DASHSCOPE_API_KEY`。空密钥或失败返回空向量，不让进程退出 |
 | `config` | `AgentRuntimeProperties` | 前缀 `agentscope.runtime` |
 | `config` | `RuntimeConfig` | 只打开配置绑定，不创建 Agent |
-| `domain` | `CallIdentity`、`TextEmbedder`、`RecalledMemories`、`CrisisReplyGuard`、`PersonaConsistencyGuard` | 从这次 `RuntimeContext` 读租户、用户、会话，不用 ThreadLocal。嵌入锁 `text-embedding-v4` / 1024。召回结果去重最多 5 条，再由中间件追加到系统提示词。危机回复按玩笑、暧昧、扮演、危险方法四类词表检查，命中换成 `CrisisPrompt`。人设回复按恋人、助手、替人决定三类词表检查，命中换成短基线 |
-| `domain.middleware` | `AuditMiddleware`、`ApprovalMiddleware`、`FileWriteLimitMiddleware`、`SafetyGateMiddleware`、`PersonaConsistencyMiddleware`、`CompanionMemoryMiddleware` | 执行策略。ASK 时发布审批事件。写文件超过 `max-write-bytes` 时丢掉，不调用接入层。关键词或语义判定到危机时换危机话术，升高时只加克制标记。已经成功 20 轮、本会话第 1 轮且已有跨会话记忆，或用户纠正身份时打开人设检查标记，危机档不打开。普通和升高在对话开始时召回最近 3 加近邻 3，去重最多 5 条；成功结束后写短摘要和相识画像。系统提示词追加短画像和最多 5 条召回。危机不召回、不写、不注入。读失败或没密钥不改变回复。不用已标删除的 Hook |
-| `task` | `AgentTask`、`AgentTaskPublisher` | 任务消息体和发布口。业务层调用，工厂和 Middleware 不感知 |
-| `task` | `SyncTaskPublisher`、`DispatchingAgentTaskHandler`、`DocumentIndexExecutor` | `mode=sync` 时当前线程执行。`DOCUMENT_INDEX` 切块嵌入双写；其它类型只记审计。`SyncAgentTaskHandler` 留给测试直接构造 |
-| `task` | `RocketMqTaskPublisher` | `mode=mq` 时的占位。启动即失败，topic 预留为 `agentscope-tasks`，不引入 RocketMQ 依赖 |
+| `domain` | `CallIdentity`、`TextEmbedder`、`CrisisReplyGuard`、`PersonaConsistencyGuard` | 从这次 `RuntimeContext` 读租户、用户、会话，不用 ThreadLocal。嵌入锁 `text-embedding-v4` / 1024。危机回复按玩笑、暧昧、扮演、危险方法四类词表检查，命中换成 `CrisisPrompt`。人设回复按恋人、助手、替人决定三类词表检查，命中换成短基线 |
+| `domain.middleware` | `AuditMiddleware`、`ApprovalMiddleware`、`FileWriteLimitMiddleware`、`SafetyGateMiddleware`、`CrisisGatedToolResultEvictionMiddleware`、`CrisisGatedCompactionMiddleware`、`PersonaConsistencyMiddleware`、`CrisisGatedMemoryFlushMiddleware` | 执行策略。`ApprovalMiddleware` 只做产品条件闸（ALLOW 下放，ASK/DENY 丢掉；无条件判定交 Gate，不落单）。写文件超过 `max-write-bytes` 时丢掉，不调用接入层。关键词或语义判定到危机时换危机话术，升高时只加克制标记。已经成功 20 轮或用户纠正身份时打开人设检查标记，危机档不打开。**跨会话记忆权威为 Harness Memory**（`MEMORY.md` + flush/consolidation，与对话同模型，throttled 10m；`memory_*` 已开）。工厂 `disableMemoryHooks`，由 `CrisisGatedMemoryFlushMiddleware` 在非 CRITICAL 时触发框架 flush/maintenance；**CRITICAL 不入队**。**companion** 在 SafetyGate 后顺序挂：`CrisisGatedToolResultEvictionMiddleware`（`defaults()`）→ `CrisisGatedCompactionMiddleware`；二者均为工厂 disable 后产品闸，**CRITICAL 整段跳过**；echo 不挂。紧急溢出 `compactionHook`：**不装**（公开 API 无法只装 hook，装则双压打穿危机闸；溢出硬失败；spike 见 `docs/compaction-hook-落地.md` 口径 C）。情景/画像遗留已硬删（见 `docs/memory-hard-delete-落地.md`）。读失败或没密钥不改变回复。见 `docs/memory-longterm-落地.md`、`docs/compaction-落地.md`、`docs/compaction-hook-落地.md`、`docs/tool-result-eviction-落地.md`、`docs/permission-gate-落地.md` |
+| `task` | `AgentTask` | 任务消息体。业务层与发布/消费共用，工厂和 Middleware 不感知 |
+| `task.publish` | `AgentTaskPublisher`、`SyncTaskPublisher`、`RocketMqTaskPublisher` | 发布口；`mode=sync` 当前线程执行；`mode=mq` 启动即失败，topic 预留 `agentscope-tasks`，不引入 RocketMQ 依赖 |
+| `task.handle` | `AgentTaskHandler`、`DispatchingAgentTaskHandler`、`DocumentIndexExecutor`、`SyncAgentTaskHandler` | 消费入口按 type 分发；`DOCUMENT_INDEX` 切块嵌入双写；其它类型只记审计；`SyncAgentTaskHandler` 留给测试直接构造 |
+| `task.log` | `AgentTaskLog`、`AbsentAgentTaskLog` | 任务状态落库缝；MySQL 关闭时空实现（测试用，不是写失败降级） |
 | `domain.knowledge` | `TextChunker`、`HybridChunkMerger`、`ChunkReranker` | 固定 500/50 字符切块。不做语义切块。Hybrid 合并：向量优先、全文补缺、按 id 去重。重排缝：失败退回原序截断 |
 | `infrastructure.rerank` | `DashScopeChunkReranker` | 百炼 `qwen3.7-text-rerank`。固定 `dashscope.aliyuncs.com`；密钥读 `DASHSCOPE_API_KEY`，空密钥/超时/失败不抛；不记账、不占额度 |
 | `infrastructure.tool` | `KnowledgeSearchTool` | Agentic `knowledge_search`。身份只从 `RuntimeContext` 取；Hybrid（向量 + FULLTEXT）合并最多 20 条，再 Rerank 到 5；向量失败降级全文，Rerank 失败退回 Hybrid 原序；只回 SUCCESS 切块。放在运行层是因为要嵌入和向量 |
@@ -83,6 +88,10 @@ AgentStreamEvent   接入层再写成 SSE
 | `agentscope.runtime.max-iters` | `20` | 单次最大推理轮数。由产品语义提供，小于 1 时仍按 20 |
 | `agentscope.runtime.max-write-bytes` | `5242880` | 单次写文件内容上限，5MB。小于 1 时仍按 5MB |
 | `agentscope.runtime.timeout-seconds` | `120` | 同步 `block` 和流式 `timeout` 的上限 |
+| `agentscope.runtime.mcp.servers` | 空 map | companion MCP 清单（name → transport / command\|url / args / env 占位 / required 等）。空则不连；热更走 `rebuildAll()`；密钥用 `${ENV}`，不进 Nacos 明文。见 `docs/mcp-落地.md` |
+| `agentscope.runtime.sandbox.enabled` | `false` | companion 是否换 DockerFilesystem。true 时缺 Store / Docker CLI 硬失败。热更走 `rebuildAll()`。见 `docs/sandbox-落地.md` |
+| `agentscope.runtime.sandbox.image` | 空（接线回落 `ubuntu:24.04`） | Docker 镜像 tag；可 Nacos 覆盖。拉取凭证不进本字段 |
+| `agentscope.runtime.wakeup.enabled` | `false` | 是否启进程内 Wakeup Bus + Dispatcher（`WakeupCoordinator` 在本模块）。true 时令牌必填且非占位。见 `docs/wakeup-落地.md` |
 | `agentscope.task.mode` | `sync` | 当前线程执行任务。`mq` 会拒绝启动 |
 
 系统提示词来自接入层填好的 `AgentRequest.systemPrompt`。接入层丢掉请求体人设，按 `prompt.companion.system` 取值。工厂在空值时用产品兜底，避免空提示词进入模型。
@@ -102,9 +111,32 @@ AgentStreamEvent   接入层再写成 SSE
 1. 在 `agent-runtime` 引入 `rocketmq-spring-boot-starter`。现在不要加。
 2. 配置 `rocketmq.name-server`，地址只来自环境变量。不要把地址写进仓库。
 3. 增加消费者，监听 topic `agentscope-tasks`，收到消息后调用现有的 `AgentTaskHandler.handle`。消息 key 用 `taskId`。不要再注册第二个 `AgentTaskHandler`。
+## 已交付（摘要）
+
+- 安全与人设：关键词/语义定档；危机输出红线；人设纠正短句或满 20 轮；流式增量可先扣后盖。图见 [`docs/diagrams/chains.md`](../docs/diagrams/chains.md)
+- Memory：用户工作区 `MEMORY.md` + 危机闸 flush；`memory_*` 已开；情景/画像 **已硬删**（[`memory-longterm-落地.md`](../docs/memory-longterm-落地.md)、[`memory-hard-delete-落地.md`](../docs/memory-hard-delete-落地.md)）
+- 上下文：危机闸 Eviction → Compaction；echo 不挂（[`compaction-落地.md`](../docs/compaction-落地.md)、[`tool-result-eviction-落地.md`](../docs/tool-result-eviction-落地.md)）
+- Skills 窄面：`disableDynamicSkills`；工作区默认 skill 可空；`load_skill` 保留（[`skills-落地.md`](../docs/skills-落地.md)）
+- Subagent：动态关；companion 静态 `subagent-probe`（[`subagent-落地.md`](../docs/subagent-落地.md)）
+- Permission Gate 运行入口 A + `PendingAsk*`；旧审批链路硬删（[`permission-gate-落地.md`](../docs/permission-gate-落地.md)、[`approval-hard-delete-落地.md`](../docs/approval-hard-delete-落地.md)）
+- MCP / Sandbox / Wakeup 接线已收口（默认关或空清单不连；见对应落地文）
+- 知识：`knowledge_search` Hybrid + Rerank；索引 sync 发布 + 入口 `@Async`；删库/附件 multipart 在接入层
+- 图册：[`docs/diagrams/`](../docs/diagrams/README.md)
+
+## 已知限制（刻意不做）
+
+- 紧急 `compactionHook`：**不装**（口径 C；[`compaction-hook-落地.md`](../docs/compaction-hook-落地.md)）
+- Skills manage / Curator / Marketplace / Promotion：**不开**（[`skills-curator-落地.md`](../docs/skills-curator-落地.md)）
+- 动态 Subagent / 多角色工人：**不上**；Remote **仅学习声明面**，工厂不挂（[`remote-subagent-落地.md`](../docs/remote-subagent-落地.md)）
+- MCP **服务发现**、Sandbox 私有仓库拉取 / 沙箱体积旋钮 / echo 扩事件、Wakeup 调度表·Inbox·TeamWakeups·跨副本 Bus：**不做**
+- `mode=mq`：启动失败；不引入 RocketMQ 依赖（切 mq 前须另专题完成客户端与消费者）
+- 本模块不写 HTTP/SSE 控制器；不注册第二个 `AgentTaskHandler`
+- 不按产品预构建多份常驻 Builder（每次请求 build）
 
 ## 还没有
 
-按产品预构建多份 Builder。进出模型仍检查长度和未替换的 `{{变量}}`。关键词命中 `CRITICAL` 时换成危机话术，不再问语义判定。语义判定失败按 `ELEVATED`。干预写失败不改变话术。危机档同步和流式都检查输出红线，流式先攒齐再查，命中换成 `CrisisPrompt`，不另写干预。升高档不查输出红线。普通人设检查时流式仍推送文本增量，结束再按基线覆盖。会话已经成功 20 轮、本会话第 1 轮且已有画像或情景记忆，或用户对准身份纠正时，按规则看人设漂移。短基线来自 `PersonaContract`，不调模型。纠正只认固定短句。标记只活这一轮。情景记忆只留用户输入的短句，不调用对话模型。普通和升高把短画像和最多 5 条召回追加到系统提示词，危机不追加。嵌入失败、向量写入失败或画像读失败不改变回复。Persona 仍不读画像表，注入时从表读阶段，没有行再用锁定阶段。管理列表在 `agent-admin`。RocketMQ 客户端和消费者还没接。`stream` 返回 `Flux<AgentStreamEvent>`，SSE 控制器放在 `agent-access`，不要在本模块写控制器。不要再注册第二个 `AgentTaskHandler`。知识库删库/删文档与纯文本文件上传在接入层完成。Hybrid + 百炼 Rerank 已接。索引仍走 sync 发布器，只是入口 `@Async` 离开 HTTP 线程。对象存储在 `agent-object-store`（local / OSS / S3 / MinIO 可切换）。通用附件 multipart 写入和正文下载已在接入层。知识库删文档/删库时按 DOCUMENT 引用清对象。
+- RocketMQ 客户端与 `agentscope-tasks` 消费者（仅当未来真开 `mode=mq`）
+- 产品级 Remote Subagent（鉴权、超时、失败语义、工厂旋钮）
+- Skills manage/Curator **产品开启路径**（若另 grill 锁定）
+- 框架若仍向子代理注入 `agent_*`：继续标已知限制，本专题不宣称已根治
 
-`ApprovalMiddleware` 在 `ASK` 时把本次工具标成 `ASKING` 并发出事件，在 `DENY` 时把这次工具从后续执行里拿掉。同一用户、会话和工具已有未执行的批准单时，这次调用放行，结束后回写执行状态，不存工具输出。同一用户、会话和工具已有 `PENDING` 时只标 `ASKING`，不插新单、不发事件，避免 `max-iters` 多轮各开一张。它不改框架的 `PermissionEngine`：默认权限上下文是 trivial，临时加规则要么这次判定读不到，要么会让同一次调用里没匹配到的工具也变成询问。框架自 2.0.0 起把 `Hook` 标成删除，执行策略挂在 `Middleware` 上。

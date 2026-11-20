@@ -18,6 +18,12 @@ public interface ToolPermissionMapper extends BaseMapper<ToolPermission> {
     List<ToolPermission> selectEnabled(@Param("toolId") String toolId);
 
     /**
+     * 仍启用、租户与角色均为 {@code *}、且 conditions 空白的规则。
+     * 给引擎 PermissionContext 注入；有条件或写明范围的行不在这里。
+     */
+    List<ToolPermission> selectEnabledGlobalUnconditional();
+
+    /**
      * 最近登记的规则，含停用。管理列表用，不按工具再滤。
      */
     List<ToolPermission> recent(@Param("limit") int limit);

@@ -5,7 +5,7 @@ package com.zhu.vector.api;
  *
  * @param collection 集合名
  * @param vector     查询向量，维度与集合一致
- * @param tenantId   情景记忆必填。知识集合忽略
+ * @param tenantId   保留字段；知识集合忽略（情景集合已硬删）
  * @param userId     用户，必填
  * @param agentId    Agent，必填
  * @param limit      返回条数。小于 1 时按 1

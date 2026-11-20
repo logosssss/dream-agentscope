@@ -1,6 +1,6 @@
 package com.zhu.semantic.domain;
 
-import com.zhu.semantic.contract.PermissionDecision;
+import com.zhu.semantic.contract.permission.PermissionDecision;
 
 /**
  * 一条已经校验过的工具权限规则。产品语义内部使用，运行层只看决定结果。

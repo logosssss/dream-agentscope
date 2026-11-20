@@ -1,9 +1,9 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.auth.LoginSessionCodec;
-import com.zhu.access.infrastructure.cache.AccessCache;
+import com.zhu.access.application.auth.session.LoginSessionCodec;
+import com.zhu.cache.api.CacheFacade;
 import com.zhu.common.security.CallerTokens;
-import com.zhu.runtime.api.AgentExecutor;
+import com.zhu.runtime.api.agent.AgentExecutor;
 import com.zhu.semantic.infrastructure.nacos.AbsentPromptSource;
 import com.zhu.semantic.infrastructure.nacos.PromptSource;
 import com.zhu.runtime.domain.TextEmbedder;
@@ -47,10 +47,10 @@ class BootstrapContextTest {
     private MockMvc mvc;
 
     @Autowired
-    private AccessCache cache;
+    private CacheFacade cache;
 
     /**
-     * 执行入口只有一个 AgentExecutor。Agent 按请求创建，不注册成 Bean。
+     * 执行入口只有一个 AgentExecutor（Channel Gateway）。HarnessAgent 不注册成 Bean；首次对话才组装。
      * 存活检查不依赖 MySQL。默认开关关闭时就绪检查跳过 MySQL 和 Redis。
      */
     @Test
@@ -74,7 +74,7 @@ class BootstrapContextTest {
                 .andExpect(jsonPath("$.mysql").value("SKIPPED"))
                 .andExpect(jsonPath("$.redis").value("SKIPPED"))
                 .andExpect(jsonPath("$.milvus").value("SKIPPED"));
-        cache.put(LoginSessionCodec.key("test-session"), LoginSessionCodec.encode("demo", "u"), Duration.ofHours(1));
+        cache.kv().put(LoginSessionCodec.key("test-session"), LoginSessionCodec.encode("demo", "u"), Duration.ofHours(1));
         mvc.perform(get("/api/sessions"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
@@ -119,11 +119,12 @@ class BootstrapContextTest {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
         mvc.perform(get("/api/notifications").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
-                .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
         mvc.perform(get("/api/notifications/1").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
-                .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.code").value("UNAVAILABLE"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(false))
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
         mvc.perform(get("/api/runs").header(CallerTokens.HEADER, "test-token").header("Authorization", "Bearer test-session"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("UNAVAILABLE"));

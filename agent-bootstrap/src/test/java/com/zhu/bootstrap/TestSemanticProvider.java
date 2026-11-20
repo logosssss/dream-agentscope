@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.semantic.contract.CompletionCriteria;
-import com.zhu.semantic.contract.ProductSemanticProvider;
-import com.zhu.semantic.contract.ToolDescriptor;
+import com.zhu.semantic.contract.product.CompletionCriteria;
+import com.zhu.semantic.contract.product.ProductSemanticProvider;
+import com.zhu.semantic.contract.tool.ToolDescriptor;
 import java.util.List;
 
 /**

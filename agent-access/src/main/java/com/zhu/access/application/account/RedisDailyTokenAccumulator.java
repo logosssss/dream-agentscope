@@ -1,7 +1,7 @@
 package com.zhu.access.application.account;
 
-import com.zhu.access.infrastructure.cache.AccessCache;
-import com.zhu.audit.api.DailyTokenAccumulator;
+import com.zhu.cache.api.CacheFacade;
+import com.zhu.runtime.api.usage.DailyTokenAccumulator;
 import java.time.Clock;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -18,12 +18,12 @@ public class RedisDailyTokenAccumulator implements DailyTokenAccumulator {
 
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC);
 
-    private final AccessCache cache;
+    private final CacheFacade cache;
 
     private final Clock clock;
 
-    /** 唯一构造。测试要拨时钟时自行包装 AccessCache。 */
-    public RedisDailyTokenAccumulator(AccessCache cache) {
+    /** 唯一构造。测试要拨时钟时自行包装 CacheFacade。 */
+    public RedisDailyTokenAccumulator(CacheFacade cache) {
         this.cache = cache;
         this.clock = Clock.systemUTC();
     }
@@ -38,7 +38,7 @@ public class RedisDailyTokenAccumulator implements DailyTokenAccumulator {
         }
         try {
             String day = DAY.format(clock.instant());
-            cache.incrementBy(QuotaGuard.tokenKey(tenantId, userId, day), tokens, QuotaGuard.QUOTA_TTL);
+            cache.counters().incrementBy(QuotaGuard.tokenKey(tenantId, userId, day), tokens, QuotaGuard.QUOTA_TTL);
         } catch (RuntimeException ex) {
             log.warning("daily token accumulate failed");
         }

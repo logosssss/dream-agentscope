@@ -2,8 +2,8 @@ package com.zhu.bootstrap;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.semantic.api.ToolPermissionSummary;
-import com.zhu.semantic.application.MysqlToolPermissionCatalog;
+import com.zhu.semantic.api.tool.ToolPermissionSummary;
+import com.zhu.semantic.application.permission.MysqlToolPermissionCatalog;
 import com.zhu.semantic.infrastructure.persistence.ToolPermissionMapper;
 import com.zhu.semantic.infrastructure.persistence.entity.ToolPermission;
 import java.util.List;

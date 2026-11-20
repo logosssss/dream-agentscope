@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.application.MysqlTenantDirectory;
-import com.zhu.audit.infrastructure.persistence.TenantMapper;
-import com.zhu.audit.infrastructure.persistence.entity.TenantRecord;
+import com.zhu.access.application.tenant.MysqlTenantDirectory;
+import com.zhu.access.infrastructure.persistence.tenant.TenantMapper;
+import com.zhu.access.infrastructure.persistence.entity.tenant.TenantRecord;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.util.List;

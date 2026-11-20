@@ -4,7 +4,8 @@ import { createRouter, createWebHistory } from 'vue-router'
  * 管理端路由。无登录页；缺 Token 由壳层禁用操作。
  */
 const router = createRouter({
-  history: createWebHistory(),
+  // BASE_URL 跟 Vite base 走；现网 /ops/ 时路由也要挂在子路径下。
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
@@ -20,11 +21,6 @@ const router = createRouter({
           path: 'users',
           name: 'users',
           component: () => import('@/views/UsersView.vue'),
-        },
-        {
-          path: 'approvals',
-          name: 'approvals',
-          component: () => import('@/views/ApprovalsView.vue'),
         },
         {
           path: 'quotas',

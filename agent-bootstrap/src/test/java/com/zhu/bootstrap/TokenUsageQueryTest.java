@@ -1,8 +1,9 @@
 package com.zhu.bootstrap;
 
-import com.zhu.audit.application.MysqlTokenUsageQuery;
-import com.zhu.audit.infrastructure.persistence.TokenUsageMapper;
-import com.zhu.audit.infrastructure.persistence.entity.TokenUsage;
+import com.zhu.access.application.usage.MysqlTokenUsageQuery;
+import com.zhu.access.api.usage.TokenUsageQuery;
+import com.zhu.access.infrastructure.persistence.usage.AccessTokenUsageMapper;
+import com.zhu.access.infrastructure.persistence.entity.usage.TokenUsage;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.math.BigDecimal;
@@ -27,7 +28,7 @@ class TokenUsageQueryTest {
     /** 只列出本人本租户的行。空白租户按空串。条数 0 按默认 50。 */
     @Test
     void ownedListsRowsForTenant() {
-        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        AccessTokenUsageMapper usages = mock(AccessTokenUsageMapper.class);
         MysqlTokenUsageQuery query = new MysqlTokenUsageQuery(usages);
         TokenUsage row = new TokenUsage();
         row.setId(3L);
@@ -57,7 +58,7 @@ class TokenUsageQueryTest {
     /** 空用户按请求错误，不查库。 */
     @Test
     void ownedRejectsBlankUser() {
-        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        AccessTokenUsageMapper usages = mock(AccessTokenUsageMapper.class);
         MysqlTokenUsageQuery query = new MysqlTokenUsageQuery(usages);
         assertThatThrownBy(() -> query.owned(" ", "t", 10))
                 .isInstanceOf(BusinessException.class)
@@ -69,7 +70,7 @@ class TokenUsageQueryTest {
     /** 记账时间为空时用空串。不改金额。 */
     @Test
     void ownedOneReturnsTokensAndCreatedAt() {
-        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        AccessTokenUsageMapper usages = mock(AccessTokenUsageMapper.class);
         MysqlTokenUsageQuery query = new MysqlTokenUsageQuery(usages);
         TokenUsage row = new TokenUsage();
         row.setId(3L);
@@ -101,7 +102,7 @@ class TokenUsageQueryTest {
     /** 别人的或没有的按找不到。空用户或非法主键不查库。 */
     @Test
     void ownedOneRejectsMissingOrBlank() {
-        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        AccessTokenUsageMapper usages = mock(AccessTokenUsageMapper.class);
         MysqlTokenUsageQuery query = new MysqlTokenUsageQuery(usages);
         when(usages.findOwned(9L, "u", "t")).thenReturn(null);
         assertThatThrownBy(() -> query.ownedOne("u", "t", 9L))

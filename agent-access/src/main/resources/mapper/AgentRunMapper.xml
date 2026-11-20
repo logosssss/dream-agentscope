@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.zhu.access.infrastructure.persistence.AgentRunMapper">
+<mapper namespace="com.zhu.access.infrastructure.persistence.run.AgentRunMapper">
 
     <!-- 只在结束时插入。error_message 留空，不把异常原文写进表。 -->
     <insert id="insertFinished">
@@ -24,7 +24,7 @@
     </select>
 
     <!-- 本人本租户最近结束的运行。不带回异常原文和步骤。 -->
-    <select id="listOwned" resultType="com.zhu.access.infrastructure.persistence.entity.AgentRun">
+    <select id="listOwned" resultType="com.zhu.access.infrastructure.persistence.entity.run.AgentRun">
         SELECT run_id, tenant_id, user_id, session_id, trigger_type, status, model,
                input_summary, output_summary, error_code, duration_ms
         FROM agent_run
@@ -35,7 +35,7 @@
     </select>
 
     <!-- 本人本租户的一次运行。比列表多开始和结束时间，不带回异常原文。 -->
-    <select id="findOwned" resultType="com.zhu.access.infrastructure.persistence.entity.AgentRun">
+    <select id="findOwned" resultType="com.zhu.access.infrastructure.persistence.entity.run.AgentRun">
         SELECT run_id, tenant_id, user_id, session_id, trigger_type, status, model,
                input_summary, output_summary, error_code, duration_ms, started_at, finished_at
         FROM agent_run

@@ -19,8 +19,19 @@ agentscope:
     # 状态命名空间与展示名不进 Nacos 热更白名单；改身份请升 agent-id。
     agent-id: companion-v1
     name: companion
+    # 对话经接入层 Channel Gateway（长驻 companion + echo-v1）。
     # model / max-iters / timeout-seconds / max-user-chars / max-write-bytes
     # → agent-bootstrap.yaml（Java 字段自带缺省，无 Nacos 时用类默认值）
+    # Sandbox 默认关；enabled/image 可进 Nacos 业务白名单，见 docs/sandbox-落地.md。
+    sandbox:
+      enabled: false
+      # image: ubuntu:24.04
+    # Wakeup 默认关；令牌只用 AGENTSCOPE_WAKEUP_TOKEN，见 docs/wakeup-落地.md。
+    wakeup:
+      enabled: false
+  # 内部唤醒令牌（infra / 环境变量）。enabled=true 时启动校验非空非占位。
+  wakeup:
+    token: ${AGENTSCOPE_WAKEUP_TOKEN:}
   startup:
     dependencies:
       # 正式启动探测 MySQL、Redis、Milvus。测试配置关掉。

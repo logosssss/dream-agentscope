@@ -45,7 +45,7 @@ dream-agentscope 是 Dream-SaaS 的开源仓库，基于 [AgentScope Java](https
 | `agent-semantic` | `com.zhu.semantic` | 提示词契约、工具目录、权限决定 | 不能依赖 runtime 与 access |
 | `agent-state` | `com.zhu.state` | 会话状态、工作区文件、沙箱执行锁的持久化 | 不认识产品名，不调用模型 |
 | `agent-vector` | `com.zhu.vector` | 集合确保与向量存取 | 只碰 Milvus SDK，不认识业务 |
-| `agent-audit` | `com.zhu.audit` | 审计记录与审批落库的门面 | 不反向依赖被审计的模块 |
+| `agent-db` | （无业务 Java） | 全仓 Flyway SQL 唯一来源 | 仅用户进程执行迁移 |
 | `agent-object-store` | `com.zhu.objectstore` | 按相对键读写字节：local / OSS / S3 / MinIO | 不认识知识库、附件表与模型 |
 | `agent-common` | `com.zhu.common` | 异常、通用数据结构、请求级上下文 | 不依赖任何业务模块，也不依赖 AgentScope |
 
@@ -65,7 +65,7 @@ dream-agentscope 是 Dream-SaaS 的开源仓库，基于 [AgentScope Java](https
 | `RUNTIME_ONLY_DEPENDS_ON_SEMANTIC_CONTRACT` | runtime → `semantic.application`、`semantic.infrastructure` |
 | `STATE_MUST_NOT_DEPEND_ON_BUSINESS` | state → semantic、runtime、access |
 | `VECTOR_MUST_NOT_DEPEND_ON_BUSINESS` | vector → state、semantic、runtime、access、admin |
-| `OBJECT_STORE_MUST_NOT_DEPEND_ON_BUSINESS` | objectstore → state、semantic、runtime、access、admin、audit、vector |
+| `OBJECT_STORE_MUST_NOT_DEPEND_ON_BUSINESS` | objectstore → state、semantic、runtime、access、admin、vector |
 | `ACCESS_MUST_NOT_TOUCH_HARNESS` | access → harness |
 | `CONTROLLERS_MUST_NOT_ACCESS_REPOSITORIES` | 控制器 → `infrastructure.persistence` |
 
@@ -214,8 +214,8 @@ POST /api/chat/stream
   → CallerTokenFilter      校验 X-Caller-Token
   → AccessIdentityFilter   校验 Bearer，写入线程身份
   → ChatAppService         额度、占位、幂等
-  → AgentExecutor.stream   runtime 唯一入口
-  → HarnessAgentFactory    每次构建 Agent 实例
+  → AgentExecutor.stream   runtime 唯一入口（ChannelGateway）
+  → GatewayBootstrap       首次调用懒启动，构建长驻 Agent
   → AgentStreamEvent       接入层转为 SSE
 ```
 

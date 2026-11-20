@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.application.account.MysqlTaskQuery;
-import com.zhu.access.infrastructure.persistence.AgentTaskMapper;
-import com.zhu.access.infrastructure.persistence.entity.AgentTaskRow;
+import com.zhu.access.infrastructure.persistence.task.AgentTaskMapper;
+import com.zhu.access.infrastructure.persistence.entity.task.AgentTaskRow;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.LocalDateTime;

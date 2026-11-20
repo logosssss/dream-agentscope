@@ -84,7 +84,7 @@
       <p style="margin:3px 0 0;font-size:11px;color:#185FA5;line-height:1.6;">HTTP 入口 · 身份 · 额度 · 限流</p>
     </section>
     <section style="background:#F1EFE8;border:1px solid #d3d1c7;border-radius:6px;padding:10px 12px;text-align:center;margin-top:6px;">
-      <p style="margin:0;font-size:12px;font-weight:600;color:#2C2C2A;line-height:1.6;">common · audit · state · vector · object-store</p>
+      <p style="margin:0;font-size:12px;font-weight:600;color:#2C2C2A;line-height:1.6;">common · db · state · vector · object-store</p>
       <p style="margin:3px 0 0;font-size:11px;color:#5F5E5A;">横切支撑，可被任意模块依赖</p>
     </section>
   </section>
@@ -107,7 +107,7 @@
     </section>
   </section>
 
-  <p style="margin:0 0 20px;font-size:12.5px;color:#888780;text-align:center;">图 1：依赖方向自上而下单向流动，反向通信走 agent-audit 事件</p>
+  <p style="margin:0 0 20px;font-size:12.5px;color:#888780;text-align:center;">图 1：依赖方向自上而下单向流动，反向经运行层端口而非共享业务 jar</p>
 
   <p style="margin:0 0 16px;">依赖关系构成有向无环图，而非分层结构。<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-common</code> 可被任意模块依赖，自身不依赖其他模块；runtime 依赖 semantic 的契约包，反向禁止。</p>
 
@@ -117,7 +117,7 @@
 
   <p style="margin:0 0 12px;"><strong>一、接入层禁止引用 Harness。</strong><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">com.zhu.access</code> 不得 import <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">..harness..</code>。接入层只依赖 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">AgentExecutor</code> 接口，框架替换的影响范围限定在 runtime。</p>
 
-  <p style="margin:0 0 12px;"><strong>二、runtime 禁止依赖 access。</strong>反向依赖会形成循环，且执行内核感知 HTTP 层后，控制器逻辑会逐步内移。工具需要 ASK 审批时的通知路径是：runtime 发布 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-audit</code> 事件，接入层订阅。</p>
+  <p style="margin:0 0 12px;"><strong>二、runtime 禁止依赖 access。</strong>反向依赖会形成循环，且执行内核感知 HTTP 层后，控制器逻辑会逐步内移。工具需要 ASK 审批时经 PendingAskFacade 等运行层端口，由接入层消费，不走共享业务 jar。</p>
 
   <p style="margin:0 0 18px;"><strong>三、管理端禁止依赖 runtime。</strong>管理端需要的是数据访问，不是执行能力。依赖 runtime 会将模型调用与向量检索引入运维进程。</p>
 

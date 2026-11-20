@@ -1,9 +1,9 @@
 package com.zhu.access.application.account;
 
-import com.zhu.access.api.dto.TaskDetail;
-import com.zhu.access.api.dto.TaskSummary;
-import com.zhu.access.infrastructure.persistence.AgentTaskMapper;
-import com.zhu.access.infrastructure.persistence.entity.AgentTaskRow;
+import com.zhu.access.api.dto.account.TaskDetail;
+import com.zhu.access.api.dto.account.TaskSummary;
+import com.zhu.access.infrastructure.persistence.task.AgentTaskMapper;
+import com.zhu.access.infrastructure.persistence.entity.task.AgentTaskRow;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.format.DateTimeFormatter;

@@ -1,11 +1,12 @@
 package com.zhu.bootstrap;
 
+import com.zhu.access.application.quota.MysqlQuotaUsageWriter;
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.audit.api.QuotaUsageWriter;
-import com.zhu.audit.application.MysqlQuotaUsageWriter;
-import com.zhu.audit.infrastructure.persistence.QuotaUsageLogMapper;
-import com.zhu.audit.infrastructure.persistence.entity.QuotaUsageLog;
+import com.zhu.access.api.quota.QuotaUsageWriter;
+import com.zhu.access.api.quota.QuotaUsageWriter;
+import com.zhu.access.infrastructure.persistence.quota.QuotaUsageLogMapper;
+import com.zhu.access.infrastructure.persistence.entity.quota.QuotaUsageLog;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Clock;
@@ -32,7 +33,7 @@ class QuotaUsageLogTest {
         AccessLimitProperties limits = new AccessLimitProperties();
         limits.setDailyLimit(1);
         QuotaUsageWriter writer = mock(QuotaUsageWriter.class);
-        QuotaGuard guard = new QuotaGuard(new FakeAccessCache(), limits, Clock.systemUTC(), null, writer);
+        QuotaGuard guard = new QuotaGuard(new FakeCacheFacade(), limits, Clock.systemUTC(), null, writer);
 
         guard.check("t", "u", "chat", "req-1");
         assertThatThrownBy(() -> guard.check("t", "u", "chat", "req-1"))
@@ -51,14 +52,14 @@ class QuotaUsageLogTest {
     void unlimitedSkipsTheLogAndWriteFailureIsIgnored() {
         AccessLimitProperties open = new AccessLimitProperties();
         QuotaUsageWriter writer = mock(QuotaUsageWriter.class);
-        new QuotaGuard(new FakeAccessCache(), open, Clock.systemUTC(), null, writer)
+        new QuotaGuard(new FakeCacheFacade(), open, Clock.systemUTC(), null, writer)
                 .check("t", "u", "chat", null);
         verifyNoInteractions(writer);
 
         AccessLimitProperties limits = new AccessLimitProperties();
         limits.setDailyLimit(1);
         doThrow(new IllegalStateException("down")).when(writer).recordDailyRequest("t", "u", "chat");
-        QuotaGuard guard = new QuotaGuard(new FakeAccessCache(), limits, Clock.systemUTC(), null, writer);
+        QuotaGuard guard = new QuotaGuard(new FakeCacheFacade(), limits, Clock.systemUTC(), null, writer);
         assertThatCode(() -> guard.check("t", "u", "chat", null)).doesNotThrowAnyException();
     }
 

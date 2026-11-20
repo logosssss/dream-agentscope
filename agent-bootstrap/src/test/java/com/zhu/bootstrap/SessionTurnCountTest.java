@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.infrastructure.persistence.AgentRunMapper;
-import com.zhu.access.infrastructure.persistence.MysqlSessionTurnCount;
-import com.zhu.runtime.application.AbsentSessionTurnCount;
+import com.zhu.access.infrastructure.persistence.run.AgentRunMapper;
+import com.zhu.access.infrastructure.persistence.session.MysqlSessionTurnCount;
+import com.zhu.runtime.application.turn.AbsentSessionTurnCount;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

@@ -14,7 +14,7 @@ import org.springframework.core.env.StandardEnvironment;
 
 /**
  * 管理进程启动时从 Nacos 拉 infra 与业务两份配置。地址为空跳过。
- * 配了地址却缺一份或正文空白时拒绝启动。不做热更新、服务发现和 MCP。
+ * 配了地址却缺一份或正文空白时拒绝启动。不做热更新、服务发现；管理进程不装配 MCP。
  */
 public class NacosAdminStartupConfigLoader implements EnvironmentPostProcessor, Ordered {
 

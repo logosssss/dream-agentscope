@@ -1,15 +1,11 @@
 package com.zhu.runtime.domain.middleware;
 
-import com.zhu.audit.api.ApprovalRecorder;
-import com.zhu.audit.domain.event.ApprovalRequestedEvent;
-import com.zhu.common.util.Ids;
 import com.zhu.runtime.domain.CallIdentity;
-import com.zhu.semantic.contract.PermissionDecision;
-import com.zhu.semantic.contract.PermissionRuleService;
+import com.zhu.semantic.contract.permission.PermissionDecision;
+import com.zhu.semantic.contract.permission.PermissionRuleService;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
-import io.agentscope.core.message.ToolCallState;
 import io.agentscope.core.message.ToolUseBlock;
 import io.agentscope.core.middleware.ActingInput;
 import io.agentscope.core.middleware.MiddlewareBase;
@@ -17,14 +13,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.logging.Logger;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.SignalType;
 
 /**
- * 工具执行前的审批。ASK 时落审批单并发布事件，接入层订阅后推送。运行层不依赖接入层。
- * 用 Middleware，不用已标删除的 Hook。
+ * 运行层：产品条件闸（租户/角色/conditions）。Permission Gate **运行入口 = 当前 A**。
+ * 无条件判定交框架 PermissionGate；不再 {@code checkPermission}、不落审批单、不 claim、不发审批事件。
+ * 产品侧 ASK 运行期按 DENY。见 docs/permission-gate-落地.md。
  */
 @Component
 public class ApprovalMiddleware implements MiddlewareBase {
@@ -33,24 +28,13 @@ public class ApprovalMiddleware implements MiddlewareBase {
 
     private final PermissionRuleService permissions;
 
-    private final ApprovalRecorder approvals;
-
-    private final ApplicationEventPublisher events;
-
-    public ApprovalMiddleware(
-            PermissionRuleService permissions,
-            ApprovalRecorder approvals,
-            ApplicationEventPublisher events) {
+    public ApprovalMiddleware(PermissionRuleService permissions) {
         this.permissions = permissions;
-        this.approvals = approvals;
-        this.events = events;
     }
 
     /**
-     * 逐个工具看产品规则。ASK 的调用换成 ASKING 再交给后续中间件。DENY 的调用从这次输入里拿掉。
-     * 已批准且还没执行的单会放行这次同名工具，结束后回写状态。管理进程不执行工具。
-     * 不往 PermissionEngine 追加规则：默认上下文是 trivial，引擎规则这次判定读不到；
-     * 一旦把上下文改成非 trivial，没匹配到的工具会走默认 ASK，误伤同一次调用里的其它工具。
+     * 逐个工具只问产品闸：ALLOW 原样下放；DENY 或 ASK 从本次输入拿掉。
+     * 无条件 ASK/DENY/ALLOW 由后续 Gate 处理，这里不得二次判引擎。
      */
     @Override
     public Flux<AgentEvent> onActing(
@@ -64,72 +48,40 @@ public class ApprovalMiddleware implements MiddlewareBase {
         }
         CallIdentity identity = CallIdentity.from(context);
         List<ToolUseBlock> rewritten = new ArrayList<>(calls.size());
-        List<String> claimed = new ArrayList<>();
         for (ToolUseBlock use : calls) {
-            keep(use, identity, rewritten, claimed);
+            keep(use, identity, rewritten);
         }
-        try {
-            return next.apply(new ActingInput(rewritten)).doFinally(signal -> finish(claimed, signal));
-        } catch (RuntimeException ex) {
-            finish(claimed, SignalType.ON_ERROR);
-            throw ex;
-        }
+        return next.apply(new ActingInput(rewritten));
     }
 
     /**
-     * 工具名为空无法匹配规则，原样留下。DENY 不记审批，也不交给后续执行。
-     * 有未执行的批准单时原样放行。已有同会话同工具的 PENDING 只标 ASKING，不插新单、不发事件。
-     * 否则 ASK 记单、发事件，并把状态标成等待确认。
+     * 工具名为空无法匹配，原样留下。产品 DENY/ASK 丢弃；仅 ALLOW 留下。
      */
-    private void keep(ToolUseBlock use, CallIdentity identity, List<ToolUseBlock> out, List<String> claimed) {
+    private void keep(ToolUseBlock use, CallIdentity identity, List<ToolUseBlock> out) {
         if (use == null || use.getName() == null || use.getName().isBlank()) {
             out.add(use);
             return;
         }
-        PermissionDecision decision = permissions.decide(use.getName(), identity.tenantId(), null);
-        if (decision == PermissionDecision.DENY) {
+        // 入参交给产品条件里的 maxLen / minLen；配置实现会忽略 Map。
+        PermissionDecision product =
+                permissions.decide(use.getName(), identity.tenantId(), null, use.getInput());
+        PermissionDecision effective = asAllowOrDeny(product);
+        if (effective == PermissionDecision.DENY) {
+            if (product == PermissionDecision.ASK) {
+                log.info("product ASK treated as DENY for tool " + use.getName());
+            }
             return;
         }
-        if (decision != PermissionDecision.ASK) {
-            out.add(use);
-            return;
-        }
-        String userId = identity.userId() == null ? "" : identity.userId();
-        String tenantId = identity.tenantId() == null ? "" : identity.tenantId();
-        String sessionId = identity.sessionId() == null ? "" : identity.sessionId();
-        String approved = approvals.claimApproved(tenantId, userId, sessionId, use.getName());
-        if (approved != null) {
-            claimed.add(approved);
-            out.add(use);
-            return;
-        }
-        String pending = approvals.findPending(tenantId, userId, sessionId, use.getName());
-        if (pending != null) {
-            out.add(use.withState(ToolCallState.ASKING));
-            return;
-        }
-        String approvalId = Ids.newId();
-        approvals.requested(approvalId, use.getName(), userId, sessionId, tenantId);
-        events.publishEvent(new ApprovalRequestedEvent(
-                approvalId, use.getName(), identity.tenantId(), identity.userId()));
-        out.add(use.withState(ToolCallState.ASKING));
+        out.add(use);
     }
 
     /**
-     * 回写失败只记日志。工具调用已经结束，不能再因为记账失败把结果改掉。
+     * 产品闸对外只保留 ALLOW / DENY；ASK 收成 DENY，避免无审批表可 claim。
      */
-    private void finish(List<String> claimed, SignalType signal) {
-        if (claimed.isEmpty()) {
-            return;
+    public static PermissionDecision asAllowOrDeny(PermissionDecision decision) {
+        if (decision == null || decision == PermissionDecision.ALLOW) {
+            return PermissionDecision.ALLOW;
         }
-        String status = signal == SignalType.ON_COMPLETE ? "SUCCEEDED"
-                : signal == SignalType.CANCEL ? "CANCELLED" : "FAILED";
-        for (String approvalId : claimed) {
-            try {
-                approvals.executed(approvalId, status);
-            } catch (RuntimeException ex) {
-                log.warning("approval execution record failed");
-            }
-        }
+        return PermissionDecision.DENY;
     }
 }
