@@ -8,17 +8,12 @@ import com.zhu.semantic.contract.product.CompletionCriteria;
 import com.zhu.semantic.contract.product.ProductSemanticProvider;
 import com.zhu.semantic.contract.tool.ToolDescriptor;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 
 /**
- * 搭子产品语义实现。运行层只依赖契约，具体数值在这里收口。
- * 工具列表来自目录。MySQL 打开时目录读 tool_registry，关闭时目录为空。
+ * 搭子产品语义。纯对象，不是 Bean：唯一的 Bean 是 {@code CompanionResidentAgentBinding}（ProductModule），
+ * 两条缝共用同一份数值，避免 agentId / 轮数在装配与语义两处漂移。
  */
-@Service
-public class PlatformSemanticProvider implements ProductSemanticProvider {
-
-    private static final String DEFAULT_AGENT_ID = CompanionPersona.AGENT_ID;
+public final class CompanionSemantics implements ProductSemanticProvider {
 
     private static final int DEFAULT_MAX_ITERATIONS = 20;
 
@@ -30,12 +25,13 @@ public class PlatformSemanticProvider implements ProductSemanticProvider {
 
     /**
      * 标识或轮数没配、配成无效值时用缺省，避免空标识把会话写进无名状态。
+     *
+     * @param agentId       运行配置里的标识，可为空
+     * @param maxIterations 运行配置里的上限，可小于 1
+     * @param catalog       工具目录，可为 null（等价空目录）
      */
-    public PlatformSemanticProvider(
-            @Value("${agentscope.runtime.agent-id:companion-v1}") String agentId,
-            @Value("${agentscope.runtime.max-iters:20}") int maxIterations,
-            ToolCatalogService catalog) {
-        this.agentId = agentId == null || agentId.isBlank() ? DEFAULT_AGENT_ID : agentId;
+    public CompanionSemantics(String agentId, int maxIterations, ToolCatalogService catalog) {
+        this.agentId = agentId == null || agentId.isBlank() ? CompanionPersona.AGENT_ID : agentId;
         this.maxIterations = maxIterations < 1 ? DEFAULT_MAX_ITERATIONS : maxIterations;
         this.catalog = catalog == null ? new NoToolCatalog() : catalog;
     }
@@ -64,12 +60,11 @@ public class PlatformSemanticProvider implements ProductSemanticProvider {
 
     /**
      * 已知的平台键返回约定兜底。其它键也返回非空占位，避免空提示词进入模型。
+     *
+     * @param key 提示词键
      */
     @Override
     public String promptFallback(String key) {
-        if (PlatformPrompt.SYSTEM_KEY.equals(key)) {
-            return PlatformPrompt.SYSTEM_FALLBACK;
-        }
         return PlatformPrompt.SYSTEM_FALLBACK;
     }
 }

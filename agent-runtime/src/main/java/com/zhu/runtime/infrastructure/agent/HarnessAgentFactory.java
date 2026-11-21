@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 /**
  * 长驻 Agent 的平台装配口。真正 {@code build()} 由 {@code GatewayBootstrap} 完成。
  * 公共项走 {@link #configureCommon}；平台 echo 走 {@link #customizeEcho}。
- * 产品 Agent 差异由 {@link ResidentAgentBinding} 提供（实现在各 product 模块）。
+ * 产品 Agent 差异由 {@link com.zhu.product.api.ProductModule} 提供（实现在各 product 模块）。
  * 不要在线程之间共享同一个 Builder 再改提示词。
  */
 @Component
@@ -46,7 +46,7 @@ public class HarnessAgentFactory {
     private final OtelTracingMiddleware tracing = new OtelTracingMiddleware();
 
     /**
-     * 平台公共项与 echo；产品闸与目录工具在 {@link ResidentAgentBinding}。
+     * 平台公共项与 echo；产品闸与目录工具在 {@link com.zhu.product.api.ProductModule}。
      */
     public HarnessAgentFactory(
             AgentRuntimeProperties properties,

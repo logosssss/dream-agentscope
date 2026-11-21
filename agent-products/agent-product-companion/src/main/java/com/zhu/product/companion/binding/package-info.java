@@ -1,4 +1,4 @@
 /**
- * 搭子长驻 Agent 装配（{@link com.zhu.runtime.infrastructure.agent.ResidentAgentBinding}）。
+ * 搭子长驻 Agent 装配（{@link com.zhu.product.api.ProductModule}）。
  */
 package com.zhu.product.companion.binding;

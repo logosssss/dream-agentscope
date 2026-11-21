@@ -1,6 +1,7 @@
 package com.zhu.product.companion.binding;
 
-import com.zhu.product.companion.persona.CompanionPersona;
+import com.zhu.product.api.ProductModule;
+import com.zhu.product.companion.semantic.CompanionSemantics;
 import com.zhu.runtime.application.turn.ResolvedChatModel;
 import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.infrastructure.agent.CatalogToolRegistrationReport;
@@ -8,11 +9,11 @@ import com.zhu.runtime.infrastructure.agent.CatalogToolRegistrar;
 import com.zhu.runtime.infrastructure.agent.CompanionMiddlewareChain;
 import com.zhu.runtime.infrastructure.agent.CompanionSandboxFilesystem;
 import com.zhu.runtime.infrastructure.agent.McpToolsConfigFactory;
-import com.zhu.runtime.infrastructure.agent.ResidentAgentBinding;
 import com.zhu.runtime.infrastructure.agent.WorkspaceFilesystem;
+import com.zhu.semantic.api.tool.ToolCatalogService;
 import com.zhu.semantic.contract.product.CompletionCriteria;
-import com.zhu.semantic.contract.product.ProductSemanticProvider;
 import com.zhu.semantic.contract.tool.ProductTool;
+import com.zhu.semantic.contract.tool.ToolDescriptor;
 import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import io.agentscope.harness.agent.filesystem.spec.SandboxFilesystemSpec;
@@ -27,10 +28,16 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 /**
- * 搭子产品长驻 Binding。产品层：组装差异项与目录工具；中间件顺序经 runtime {@link CompanionMiddlewareChain}（C1）。
+ * 搭子产品模块：一个 Bean 同时提供语义（agentId / 工具 / 轮数 / 提示词兜底）、装配（customize）与工具挂载。
+ *
+ * <p>原先是 {@code CompanionResidentAgentBinding} 与 {@code PlatformSemanticProvider} 两个 Bean，
+ * 同一份 agentId 两处维护；合并后本类是 {@code ProductModule} 的唯一实现，也是容器里唯一的
+ * {@code ProductSemanticProvider}。
+ *
+ * <p>中间件顺序经 runtime {@link CompanionMiddlewareChain}（C1）。
  */
 @Component
-public class CompanionResidentAgentBinding implements ResidentAgentBinding {
+public class CompanionResidentAgentBinding implements ProductModule {
 
     private static final Logger LOG = Logger.getLogger(CompanionResidentAgentBinding.class.getName());
 
@@ -47,7 +54,7 @@ public class CompanionResidentAgentBinding implements ResidentAgentBinding {
 
     private final ResolvedChatModel chatModel;
 
-    private final ProductSemanticProvider semantics;
+    private final CompanionSemantics semantics;
 
     private final ObjectProvider<DistributedStore> stores;
 
@@ -58,18 +65,25 @@ public class CompanionResidentAgentBinding implements ResidentAgentBinding {
     private final CatalogToolRegistrar toolRegistrar = new CatalogToolRegistrar();
 
     /**
-     * 产品语义与中间件链来自容器；不依赖 HarnessAgentFactory。
+     * 语义数值从运行配置取一次，语义与装配共用；工具目录在 MySQL 关闭时为空。
+     *
+     * @param properties            运行配置
+     * @param chatModel             已解析的模型
+     * @param catalog               工具目录
+     * @param stores                分布式存储，可缺席
+     * @param companionMiddlewares  产品中间件链
+     * @param productTools          产品自带工具
      */
     public CompanionResidentAgentBinding(
             AgentRuntimeProperties properties,
             ResolvedChatModel chatModel,
-            ProductSemanticProvider semantics,
+            ToolCatalogService catalog,
             ObjectProvider<DistributedStore> stores,
             CompanionMiddlewareChain companionMiddlewares,
             List<ProductTool> productTools) {
         this.properties = properties;
         this.chatModel = chatModel;
-        this.semantics = semantics;
+        this.semantics = new CompanionSemantics(properties.getAgentId(), properties.getMaxIters(), catalog);
         this.stores = stores;
         this.companionMiddlewares = companionMiddlewares;
         this.productTools = productTools == null ? List.of() : List.copyOf(productTools);
@@ -77,19 +91,27 @@ public class CompanionResidentAgentBinding implements ResidentAgentBinding {
 
     @Override
     public String agentId() {
-        String fromSemantic = semantics.agentId();
-        if (!blank(fromSemantic)) {
-            return fromSemantic;
-        }
-        if (!blank(properties.getAgentId())) {
-            return properties.getAgentId();
-        }
-        return CompanionPersona.AGENT_ID;
+        return semantics.agentId();
     }
 
     @Override
     public boolean mainAgent() {
         return true;
+    }
+
+    @Override
+    public List<ToolDescriptor> tools() {
+        return semantics.tools();
+    }
+
+    @Override
+    public CompletionCriteria completion() {
+        return semantics.completion();
+    }
+
+    @Override
+    public String promptFallback(String key) {
+        return semantics.promptFallback(key);
     }
 
     /**
@@ -102,9 +124,9 @@ public class CompanionResidentAgentBinding implements ResidentAgentBinding {
         builder.name(properties.getName())
                 .agentId(id)
                 .model(chatModel.resolve(null))
-                .sysPrompt(semantics.promptFallback(null))
-                .maxIters(maxIterations());
-        if (!blank(properties.getWorkspace())) {
+                .sysPrompt(promptFallback(null))
+                .maxIters(completion().maxIterations());
+        if (properties.getWorkspace() != null && !properties.getWorkspace().isBlank()) {
             builder.workspace(properties.getWorkspace());
         }
         builder.subagent(subagentProbe());
@@ -126,7 +148,7 @@ public class CompanionResidentAgentBinding implements ResidentAgentBinding {
             return;
         }
         CatalogToolRegistrationReport report =
-                toolRegistrar.register(agent.getToolkit(), semantics.tools(), productTools);
+                toolRegistrar.register(agent.getToolkit(), tools(), productTools);
         if (!report.failed().isEmpty()) {
             LOG.warning("companion catalog tools partial failure failed=" + report.failed()
                     + " registered=" + report.registered());
@@ -160,22 +182,6 @@ public class CompanionResidentAgentBinding implements ResidentAgentBinding {
         if (store != null) {
             builder.filesystem(WorkspaceFilesystem.userScoped());
         }
-    }
-
-    private int maxIterations() {
-        int configured = properties.getMaxIters();
-        if (configured >= 1) {
-            return configured;
-        }
-        CompletionCriteria completion = semantics.completion();
-        if (completion == null || completion.maxIterations() < 1) {
-            return 20;
-        }
-        return completion.maxIterations();
-    }
-
-    private static boolean blank(String value) {
-        return value == null || value.isBlank();
     }
 
     private static void onMcpRegistration(McpServerRegistrationResult result) {

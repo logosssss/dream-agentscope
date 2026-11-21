@@ -109,6 +109,11 @@
             </dependency>
             <dependency>
                 <groupId>com.zhu</groupId>
+                <artifactId>agent-product-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
                 <artifactId>agent-runtime</artifactId>
                 <version>${project.version}</version>
             </dependency>

@@ -27,6 +27,11 @@
             <artifactId>agent-semantic</artifactId>
         </dependency>
         <dependency>
+            <!-- 产品契约。runtime 只认 ProductModule，不认识具体产品实现。 -->
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-product-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.zhu</groupId>
             <artifactId>agent-state</artifactId>
         </dependency>

@@ -5,7 +5,7 @@ import com.zhu.access.domain.channel.AccessChannel;
 /**
  * 聊天接口的入参。和运行层的 AgentRequest 分开，接入层可以改字段而不带动执行内核。
  *
- * @param agentId      可选，空则用运行配置的默认 Agent
+ * @param agentId      可选，仅 API 通道生效；WEB 通道恒走 main Agent，这个字段被忽略
  * @param tenantId     已忽略。身份只来自登录会话
  * @param userId       已忽略。身份只来自登录会话
  * @param sessionId    会话
