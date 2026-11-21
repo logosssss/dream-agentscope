@@ -115,7 +115,8 @@
 - 流式 ASK → `PendingAskFacade`；`GET/POST /api/approvals*` 续跑；旧审批表/通知/`APPROVAL` 待办 **已硬删**（[`approval-hard-delete-落地.md`](../docs/approval-hard-delete-落地.md)、[`permission-gate-落地.md`](../docs/permission-gate-落地.md)）
 - 会话/消息/运行/步骤/任务/用量/额度/待办/反馈/附件/删除请求/知识库 HTTP 面（细则见上文各段）
 - 通知 API 固定空列表（硬删后口径）；Wakeup 内部 HTTP（默认关；[`wakeup-落地.md`](../docs/wakeup-落地.md)）
-- 调度触发面：`TaskScheduleFirer` 按 `agentscope.schedule.enabled` 扫到期行，乐观锁推进下次触发后发布任务（[`engineering-p9-schedule-落地.md`](../docs/engineering-p9-schedule-落地.md)）
+- 调度触发面：TaskScheduleFirer 按 gentscope.schedule.enabled 扫到期行，乐观锁推进下次触发后发布任务（[ngineering-p9-schedule-落地.md](../docs/engineering-p9-schedule-落地.md))
+- 任务消费面：`application.task` 下的 `KnowledgeBackfillExecutor`（BACKFILL）/ `UsageReportExecutor`（REPORT）/ `RetentionBatchExecutor`（BATCH）实现运行层的 `AgentTaskExecutor` 端口（[`engineering-p10-task-handlers-落地.md`](../docs/engineering-p10-task-handlers-落地.md)）
 - 数据生命周期：`DeletionExecutionWorker` 真删、`RetentionSweeper` 真清理（默认关 + dry-run；[`engineering-p6-data-lifecycle-落地.md`](../docs/engineering-p6-data-lifecycle-落地.md)）
 - 图册流程：[`docs/diagrams/flows.md`](../docs/diagrams/flows.md)
 
@@ -133,5 +134,5 @@
 
 - JWT
 - IM **消息**通道适配（扫码登录保持原状）
-- 调度任务的真实 handler（`BACKFILL` / `REPORT` / `BATCH` 触发后只走管线记审计）
+- `BACKFILL` 只扫「未成功」的文档，不看已归档的旧版本（要清旧版本得走删除）
 

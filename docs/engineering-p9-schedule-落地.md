@@ -59,7 +59,7 @@
 
 ## 残留
 
-1. **payload 仍是空的**：触发时任务里只有 `scheduleId`。真正按 `BACKFILL` / `REPORT` / `BATCH` 做事的 handler 还没写，`DispatchingAgentTaskHandler` 对非 `DOCUMENT_INDEX` 的类型只记一条审计。
+1. **触发出去的任务没有参数**：触发时任务里只有 `scheduleId`。三类任务的最小实现由 P10 补上（见 `engineering-p10-task-handlers-落地.md`），但要按库/按天细化时仍得先让调度表能存 payload。
 2. **没有「最后一轮结果」之外的观测**：`last_status` 只有成功/失败，不带原因；要看原因得翻 `agent_event_audit`。
 3. **没有租户隔离的强校验**：触发时用行上的 `tenant_id`，但不校验该用户此刻是否仍属于该租户；跨租户迁移的账户可能触发到旧租户名下。
 4. **时间都是进程本地时区算的**（`LocalDateTime.now()`），部署在多时区时需要统一到 UTC——P6 的保留策略用的是 UTC，这里不一致。
@@ -67,4 +67,4 @@
 ## 下一步
 
 - 推 CI：本地又累积了 P9 一个提交。
-- 之后候选：**调度任务的真实 handler**（`BACKFILL` / `REPORT` / `BATCH` 各自做什么），或把 P6 与 P9 的时间都统一到 UTC。
+- 三类任务的最小实现已由 P10 补上（`engineering-p10-task-handlers-落地.md`）；下一个候选是把 P6 与 P9 的时间都统一到 UTC，或补对话链路的多轮与失败路径。

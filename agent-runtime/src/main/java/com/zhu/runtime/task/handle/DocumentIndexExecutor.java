@@ -10,7 +10,6 @@ import com.zhu.vector.api.VectorRecord;
 import com.zhu.vector.api.VectorStore;
 import com.zhu.vector.infrastructure.MilvusCollections;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -19,7 +18,7 @@ import org.springframework.stereotype.Component;
  * DOCUMENT_INDEX 任务的实际索引逻辑。切块、嵌入、双写；失败改文档 FAILED。
  */
 @Component
-public class DocumentIndexExecutor {
+public class DocumentIndexExecutor implements AgentTaskExecutor {
 
     private static final Logger log = Logger.getLogger(DocumentIndexExecutor.class.getName());
 
@@ -45,12 +44,24 @@ public class DocumentIndexExecutor {
         this.knowledgeCollection = MilvusCollections.resolveKnowledge(knowledgeCollection);
     }
 
+    /** 这个执行器负责的类型。注册到分发器时用它做键。 */
+    @Override
+    public String type() {
+        return TYPE;
+    }
+
+    /** 分发器的入口，与 {@link #index(AgentTask)} 是同一件事。 */
+    @Override
+    public void execute(AgentTask task) {
+        index(task);
+    }
+
     /**
      * payload 必须带 docId 与 version。身份以任务上的 tenant/user/agent 为准。
      */
     public void index(AgentTask task) {
-        String docId = text(task.payload(), "docId");
-        int version = number(task.payload(), "version");
+        String docId = TaskPayload.text(task.payload(), "docId");
+        int version = TaskPayload.number(task.payload(), "version", 0);
         if (docId.isEmpty() || version < 1) {
             throw new IllegalArgumentException("docId and version are required");
         }
@@ -114,31 +125,5 @@ public class DocumentIndexExecutor {
 
     static String chunkId(String docId, int version, int index) {
         return docId + "_v" + version + "_" + index;
-    }
-
-    private static String text(Map<String, Object> payload, String key) {
-        if (payload == null || key == null) {
-            return "";
-        }
-        Object value = payload.get(key);
-        return value == null ? "" : value.toString().trim();
-    }
-
-    private static int number(Map<String, Object> payload, String key) {
-        if (payload == null || key == null) {
-            return 0;
-        }
-        Object value = payload.get(key);
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        if (value == null) {
-            return 0;
-        }
-        try {
-            return Integer.parseInt(value.toString().trim());
-        } catch (NumberFormatException ex) {
-            return 0;
-        }
     }
 }

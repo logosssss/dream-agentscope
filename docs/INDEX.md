@@ -1,10 +1,10 @@
 # 文档索引
 
-仓库里文档分四层：**工程调整记录**（按 P0–P9 顺序做过的结构性改动）、**能力落地记录**（每个功能块一份，含「明确不做」）、**手册 / 图册 / 教程**（面向人读）、**参考长文**（含历史草案，冲突时听现码）。
+仓库里文档分四层：**工程调整记录**（按 P0–P10 顺序做过的结构性改动）、**能力落地记录**（每个功能块一份，含「明确不做」）、**手册 / 图册 / 教程**（面向人读）、**参考长文**（含历史草案，冲突时听现码）。
 
 约定：每份 `*-落地.md` 都在标题下写 `状态：**已完成**`；相对链接由 `agent-bootstrap` 的 `DocsLinkTest` 在 CI 里守着，改名或搬家时不会悄悄烂掉。
 
-## 工程调整（P0 → P9）
+## 工程调整（P0 → P10）
 
 | 文档 | 一句话 |
 | --- | --- |
@@ -18,6 +18,7 @@
 | [P7 `agent-ops` 抽取](./engineering-p7-ops-落地.md) | access/admin 的 45 个同名运营类收成一份，两进程只留一个定义 |
 | [P8 对话链路端到端](./engineering-p8-chat-e2e-落地.md) | `POST /api/chat` 一整轮：只替身执行缝，运行记录与气泡真落库 |
 | [P9 调度真消费](./engineering-p9-schedule-落地.md) | `agent_task_schedule` 到期自动触发：算下次触发、抢推进、发布任务、写回结果 |
+| [P10 任务真实 handler](./engineering-p10-task-handlers-落地.md) | BACKFILL / REPORT / BATCH 有真实行为；分发器改按 AgentTaskExecutor 找实现 |
 | [工程 / 模块评估](./engineering-module-review.md) | P0 之前的模块与测试现状评估（决策用，已被 P0–P4 部分推翻） |
 | [AgentScope 落地评估](./agentscope-landing-review.md) | 与参考长文的漂移对照 |
 

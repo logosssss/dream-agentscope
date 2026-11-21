@@ -47,7 +47,7 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 | 知识库 | 建库、纯文本/文件入库、索引状态、对话侧 `knowledge_search` |
 | 额度与限流 | 日请求 / token / 费用等；分钟级限流；注册登录也走分钟限流 |
 | 数据生命周期 | 删除请求批准后由用户进程真删：会话/消息/附件（含字节）/知识库（含向量）/记忆/凭据硬删，审计与计费行脱敏保留；保留策略按天清理；用户端「账号与数据」页（`/privacy`）可提交并被批准，管理端 `GET /api/admin/deletion-requests` 与用户端列表都能查到执行结果（DONE / FAILED + 执行摘要）；默认关、`dry-run` 默认开 |
-| 管理端运维面 | 租户与用户、各类额度、工具目录与权限、模型配置与单价、审计只读、保留策略/调度登记与触发、评测登记、账单状态机等（见 `web-admin`；旧审批页已硬删） |
+| 管理端运维面 | 租户与用户、各类额度、工具目录与权限、模型配置与单价、审计只读、保留策略/调度登记与触发/任务消费、评测登记、账单状态机等（见 `web-admin`；旧审批页已硬删） |
 | 微信扫码登录 | 密钥配齐后可用；小程序确认路径不校验 Caller Token（仍校验票与微信 code） |
 | 配置中心 | Nacos 双份 yaml：infra 启动一次；业务可热更（白名单 + 非法拒收） |
 
@@ -59,7 +59,7 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 - **默认不开 Wakeup**（`wakeup.enabled` 默认 false；打开后仅 companion + 进程内 Bus；`POST /api/internal/wakeups` 用 `AGENTSCOPE_WAKEUP_TOKEN`；不做 Inbox / TeamWakeups（调度表由 P9 的触发面消费）；见 `docs/wakeup-落地.md`）
 - **infra（连接/密钥）热更新**：改完需重启；只有业务 yaml 可热更
 - **管理端账号登录页**：现阶段靠 Admin Token
-- **调度任务的真实 handler**：`agent_task_schedule` 现在会按 cron/延迟真触发（`agentscope.schedule.enabled` 默认关），但 `BACKFILL` / `REPORT` / `BATCH` 三类任务还没有各自的活，触发后只走管线记一条审计（见 `docs/engineering-p9-schedule-落地.md`）
+- **三类任务只有最小实现**：`BACKFILL` 重跑未成功索引的文档（单次上限 100 篇）、`REPORT` 把最近 N 天的 token/金额/运行数/消息数写进审计、`BATCH` 跑一轮保留策略清理；都只做这一件事，没有重试队列、没有报表表、没有按库细化（见 `docs/engineering-p10-task-handlers-落地.md`）
 - **删除请求执行需要显式打开**：审批在管理进程改状态，真删在用户进程（`agentscope.lifecycle.enabled`，默认 false、`dry-run` 默认 true），见 `docs/engineering-p6-data-lifecycle-落地.md`
 - **保留策略只执行 `action=DELETE`**：ARCHIVE / ANONYMIZE 没有真实管线；按类型清 SESSION / MESSAGE / EVENT / ATTACHMENT 四张表，附件只删表行、不删对象存储字节
 - **内置 Web 工具任意外连**：进程侧已 `disableWebTools` / `disableShellTool`；业务样例对 `web_fetch` / `web_search` DENY
