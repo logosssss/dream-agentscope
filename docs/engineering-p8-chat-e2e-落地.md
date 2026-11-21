@@ -51,8 +51,9 @@ P5 的 E2E 只到「注册 → 登录 → 附件」，**最主的那条路没测
 1. 流式路径（`/api/chat/stream`）没有进这条 E2E：SSE 在 `MockMvc` 下能跑，但断言增量与 `doFinally` 落库要多写不少，留待需要时补。
 2. `agent_run_step` 在同步路径本来就不写（只有流式带步骤），所以这里没有断言。
 3. 断言用的是 JDBC 直查，没有封装成断言库；后续如果再加两条链路，可以抽 `E2eDatabaseAssertions`。
+4. 只覆盖一轮成功；第二轮与失败路径见 P11（`engineering-p11-chat-multiturn-落地.md`）。
 
 ## 下一步
 
-- 推 CI：本地未推提交已累积到 4 个（P6、账号与数据页、P7、P8）。
-- 之后候选：**调度真消费**（`agent_task_schedule` 目前只登记），或流式对话的端到端。
+- 第二轮与失败路径已由 P11 补上（`engineering-p11-chat-multiturn-落地.md`）。
+- 之后候选：流式对话的端到端，或并发同会话的串行验证。

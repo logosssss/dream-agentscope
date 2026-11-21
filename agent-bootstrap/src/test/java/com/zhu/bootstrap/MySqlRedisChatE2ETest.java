@@ -24,7 +24,8 @@ import reactor.core.publisher.Flux;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -35,6 +36,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>唯一被替身的是模型调用那一层（{@link ChannelGateway} 的四个执行方法），因为它要真的大模型和网络；
  * 其余全部是真的：身份过滤器、额度与并发闸门、会话索引、{@code chat_message} 双写、controller 与 DTO。
+ *
+ * <p>覆盖单轮成功、两轮追加、执行失败三种情形。失败那一轮必须验到「运行记 FAILED、气泡一条都不写」——
+ * 否则用户会看到一条自己没发过的消息，或者看到上一轮的内容被追加进下一轮。
  *
  * <p>本机没有 Docker 时整个类跳过（{@code disabledWithoutDocker = true}），所以本地 {@code mvn test} 仍是绿的；
  * CI 的 Linux runner 有 Docker，会真跑。
@@ -59,6 +63,8 @@ class MySqlRedisChatE2ETest {
 
     /** 替身回复。带中文和引号，顺带验证 JSON 编码不会把它弄坏。 */
     private static final String REPLY = "我先记下这句话：\"你好\"。";
+
+    private static final String SECOND_REPLY = "第二句我也记下了。";
 
     @Container
     private static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4")
@@ -97,10 +103,10 @@ class MySqlRedisChatE2ETest {
 
     @BeforeEach
     void stubModel() {
-        when(gateway.execute(any())).thenReturn(new AgentResponse("run-e2e-chat", REPLY));
-        when(gateway.executeApi(any())).thenReturn(new AgentResponse("run-e2e-api", REPLY));
-        when(gateway.stream(any())).thenReturn(Flux.just(new AgentStreamEvent("text_block_delta", REPLY)));
-        when(gateway.streamApi(any())).thenReturn(Flux.just(new AgentStreamEvent("text_block_delta", REPLY)));
+        doReturn(new AgentResponse("run-e2e-chat", REPLY)).when(gateway).execute(any());
+        doReturn(new AgentResponse("run-e2e-api", REPLY)).when(gateway).executeApi(any());
+        doReturn(Flux.just(new AgentStreamEvent("text_block_delta", REPLY))).when(gateway).stream(any());
+        doReturn(Flux.just(new AgentStreamEvent("text_block_delta", REPLY))).when(gateway).streamApi(any());
         seedTenant();
     }
 
@@ -114,30 +120,42 @@ class MySqlRedisChatE2ETest {
         }
     }
 
-    @Test
-    void oneChatTurnPersistsRunMessagesAndSession() throws Exception {
+    /** 注册一个新账号，返回 {userId, accessToken}。 */
+    private String[] register(String accountName) throws Exception {
         String registered = mvc.perform(post("/api/register")
                         .header(CallerTokens.HEADER, CALLER)
                         .contentType("application/json")
-                        .content("{\"accountName\":\"chat-user\",\"password\":\"secret1\"}"))
+                        .content("{\"accountName\":\"" + accountName + "\",\"password\":\"secret1\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true))
                 .andReturn().getResponse().getContentAsString();
         JsonNode data = json.readTree(registered).path("data");
-        String userId = data.path("userId").asText();
-        String token = data.path("accessToken").asText();
+        return new String[] {data.path("userId").asText(), data.path("accessToken").asText()};
+    }
 
+    /** 发一轮对话，返回 {runId, text}。 */
+    private String[] chat(String token, String sessionId, String text) throws Exception {
         String sent = mvc.perform(post("/api/chat")
                         .header(CallerTokens.HEADER, CALLER)
                         .header("Authorization", "Bearer " + token)
                         .contentType("application/json")
-                        .content("{\"sessionId\":\"s-chat-1\",\"text\":\"你好\"}"))
+                        .content("{\"sessionId\":\"" + sessionId + "\",\"text\":\"" + text + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true))
-                .andExpect(jsonPath("$.data.text").value(REPLY))
                 .andExpect(jsonPath("$.data.runId").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();
-        String runId = json.readTree(sent).path("data").path("runId").asText();
+        JsonNode data = json.readTree(sent).path("data");
+        return new String[] {data.path("runId").asText(), data.path("text").asText()};
+    }
+
+    @Test
+    void oneChatTurnPersistsRunMessagesAndSession() throws Exception {
+        String[] account = register("chat-user");
+        String userId = account[0];
+        String token = account[1];
+
+        String[] turn = chat(token, "s-chat-1", "你好");
+        String runId = turn[0];
 
         // 运行记录：成功、触发者 USER、能被本人按 id 读回。
         assertThat(jdbc.queryForObject(
@@ -192,6 +210,108 @@ class MySqlRedisChatE2ETest {
                 .andExpect(jsonPath("$.data[1].content").value(REPLY));
 
         // 额度：只有对话计一次日请求。
+        mvc.perform(get("/api/quota")
+                        .header(CallerTokens.HEADER, CALLER)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.requests.used").value(1));
+    }
+
+    @Test
+    void secondTurnAppendsMessagesAndKeepsFirstTitle() throws Exception {
+        String[] account = register("chat-user-2");
+        String userId = account[0];
+        String token = account[1];
+        doReturn(
+                        new AgentResponse("run-e2e-chat", REPLY),
+                        new AgentResponse("run-e2e-chat-2", SECOND_REPLY))
+                .when(gateway).execute(any());
+
+        chat(token, "s-chat-2", "你好");
+        String[] second = chat(token, "s-chat-2", "再说一句");
+        String secondRunId = second[0];
+        assertThat(second[1]).isEqualTo(SECOND_REPLY);
+
+        // 两轮四条气泡，seq 连续递增；第二轮不能把第一轮的内容覆盖或重排。
+        assertThat(jdbc.queryForList(
+                "SELECT seq, role, content FROM chat_message WHERE session_id = ? ORDER BY seq",
+                "s-chat-2"))
+                .hasSize(4)
+                .extracting(row -> row.get("seq"))
+                .containsExactly(1L, 2L, 3L, 4L);
+        assertThat(jdbc.queryForObject(
+                "SELECT content FROM chat_message WHERE session_id = ? AND seq = 3",
+                String.class, "s-chat-2")).isEqualTo("再说一句");
+        assertThat(jdbc.queryForObject(
+                "SELECT content FROM chat_message WHERE session_id = ? AND seq = 4",
+                String.class, "s-chat-2")).isEqualTo(SECOND_REPLY);
+
+        // 会话索引：轮数累加到 2，标题仍取第一轮的输入，最近运行指向第二轮。
+        assertThat(jdbc.queryForObject(
+                "SELECT message_count FROM agent_session_meta WHERE session_id = ?",
+                Integer.class, "s-chat-2")).isEqualTo(2);
+        assertThat(jdbc.queryForObject(
+                "SELECT title FROM agent_session_meta WHERE session_id = ?",
+                String.class, "s-chat-2")).isEqualTo("你好");
+        assertThat(jdbc.queryForObject(
+                "SELECT last_run_id FROM agent_session_meta WHERE session_id = ?",
+                String.class, "s-chat-2")).isEqualTo(secondRunId);
+
+        // 两次运行都在，都是 SUCCEEDED；额度累计到 2。
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM agent_run WHERE session_id = ? AND user_id = ? AND status = 'SUCCEEDED'",
+                Integer.class, "s-chat-2", userId)).isEqualTo(2);
+        mvc.perform(get("/api/quota")
+                        .header(CallerTokens.HEADER, CALLER)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.requests.used").value(2));
+
+        // 回读：四条气泡按顺序返回。
+        mvc.perform(get("/api/sessions/s-chat-2/messages")
+                        .header(CallerTokens.HEADER, CALLER)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(4))
+                .andExpect(jsonPath("$.data[2].content").value("再说一句"))
+                .andExpect(jsonPath("$.data[3].content").value(SECOND_REPLY));
+    }
+
+    @Test
+    void failedTurnRecordsFailedRunWithoutMessages() throws Exception {
+        String[] account = register("chat-user-3");
+        String userId = account[0];
+        String token = account[1];
+        doThrow(new IllegalStateException("model down")).when(gateway).execute(any());
+
+        // 未分类异常不被接入层吞掉，按容器默认的错误响应返回。
+        mvc.perform(post("/api/chat")
+                        .header(CallerTokens.HEADER, CALLER)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType("application/json")
+                        .content("{\"sessionId\":\"s-chat-3\",\"text\":\"这一轮会失败\"}"))
+                .andExpect(status().is5xxServerError());
+
+        // 运行记为 FAILED，错误码只有异常类型，不带异常原文。
+        assertThat(jdbc.queryForObject(
+                "SELECT status FROM agent_run WHERE session_id = ? AND user_id = ?",
+                String.class, "s-chat-3", userId)).isEqualTo("FAILED");
+        assertThat(jdbc.queryForObject(
+                "SELECT error_code FROM agent_run WHERE session_id = ? AND user_id = ?",
+                String.class, "s-chat-3", userId)).isEqualTo("IllegalStateException");
+
+        // 失败一轮一条气泡都不写：用户不会看到自己没发过的消息，也不会看到半截回复。
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM chat_message WHERE session_id = ?",
+                Integer.class, "s-chat-3")).isZero();
+
+        // 会话索引仍然建了（用户在列表里看得到这次尝试）。
+        // message_count 是「尝试过的轮数」：record 在执行前就 +1，失败那一轮也计一次，这是现有口径。
+        assertThat(jdbc.queryForObject(
+                "SELECT message_count FROM agent_session_meta WHERE session_id = ? AND user_id = ?",
+                Integer.class, "s-chat-3", userId)).isEqualTo(1);
+
+        // 额度在失败前已扣：失败也占一次日请求，不能靠失败刷额外次数。
         mvc.perform(get("/api/quota")
                         .header(CallerTokens.HEADER, CALLER)
                         .header("Authorization", "Bearer " + token))
