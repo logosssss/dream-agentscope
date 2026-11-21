@@ -301,7 +301,7 @@ pnpm dev
 ./mvnw -Pstrict -Dtest=ArchitectureTest,SchemaContractTest,MigrationCatalogTest test   # 只跑边界护栏，秒级
 ```
 
-测试**不**连接真实 Redis / MySQL / Milvus / Nacos。surefire 已在父 pom 固定
+常规测试**不**连接真实 Redis / MySQL / Milvus / Nacos（唯一例外是下面那条 Testcontainers 端到端）。surefire 已在父 pom 固定
 `-Duser.home=${project.build.directory}/test-home`，所以不用再手工准备 `~/.agentscope`。
 
 前端（`web` / `web-admin` 各自独立）：
@@ -316,6 +316,11 @@ CI 见 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)：`boundary`（�
 `agent-access` 不允许直接依赖 `io.agentscope:*`，业务模块不允许依赖 `com.zhu:agent-cache-redis`。
 
 上线 / 开源前人工门禁见 [`docs/release-gate.md`](./docs/release-gate.md)（自动化全绿 + 固定冒烟路径）。
+
+真 MySQL + 真 Redis 的端到端链路（Flyway → 注册 → 登录 → 附件上传下载 → 落库）在
+`agent-bootstrap/src/test/java/com/zhu/bootstrap/MySqlRedisE2ETest.java`，靠 Testcontainers 起容器。
+本机没有 Docker 时该类自动跳过（`disabledWithoutDocker = true`），所以本地 `mvn test` 仍是绿的；
+CI 的 Ubuntu runner 有 Docker，会真跑。它不覆盖模型调用——一轮对话需要真实 `DASHSCOPE_API_KEY`。
 
 ---
 

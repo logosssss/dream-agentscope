@@ -24,7 +24,7 @@ P2 结束时，`agent-access` 仍然是全仓**唯一没有测试**的业务模�
 
 ## 明确不做
 
-- **X1**：不做 Testcontainers 端到端。本机没有 Docker，写了也验证不了；CI 的 `verify` job 目前也没有 service 容器。
+- **X1**：不做 Testcontainers 端到端 → **已由 P5 落地**（`MySqlRedisE2ETest`；CI 的 Ubuntu runner 有 Docker，会真跑）。
 - **X2**：不抽 Spring slice 基类。唯一的上下文测试在 `agent-bootstrap`（它要扫真实 `com.zhu` 全包），抽出来没有第二个使用者。
 - **X3**：不迁移 bootstrap 既有的 120+ 测试。它们多数是「装配/契约/边界」，迁到各模块会把 bootstrap 的 `scanBasePackages` 语义拆散。
 - **X4**：不把 `GateChain` 做成可注入的 Bean，也不引入责任链框架。
@@ -57,7 +57,7 @@ P2 结束时，`agent-access` 仍然是全仓**唯一没有测试**的业务模�
 ## 残留
 
 - `agent-semantic`、`agent-state`、`agent-cache`、`agent-products`、`agent-common` 仍然没有测试；它们要么是纯数据形状，要么只有 spring 装配，优先级低于 access。
-- 端到端（Flyway → 登录 → 一轮 chat → run/message 落库）仍未自动化，见 X1。
+- 端到端：Flyway → 注册/登录 → 附件落库已自动化（P5）；「一轮 chat → run/message 落库」仍未自动化（需要模型）。
 - `GateChainTest` 只覆盖顺序与短路，不覆盖 `QuotaGuard` 的额度计算细节（那部分仍由 bootstrap 的 `QuotaGuardTest` 覆盖）。
 
 ## 下一块
