@@ -31,6 +31,20 @@ agentscope:
   auth:
     # 自助注册进入的租户。必须已登记且 ACTIVE。
     tenant-id: demo
+  lifecycle:
+    # 删除请求执行器与保留策略清理的总开关。默认关：进程起来不会自己删数据，改成 true 才开始。
+    # 第一次打开请保持 dry-run=true，看 executed_note 里的计数，确认后再关 dry-run。
+    # 见 docs/engineering-p6-data-lifecycle-落地.md。
+    enabled: false
+    dry-run: true
+    # 单表一次最多删多少行；超过整表跳过，留给人工。
+    max-rows-per-table: 5000
+    interval-millis: 60000
+    initial-delay-millis: 20000
+    # 保留策略清理与删除请求分开开关，可以只开一个。
+    retention-enabled: false
+    retention-interval-millis: 300000
+    retention-batch-rows: 1000
   wx:
     mini:
       login-page: pages/login-confirm/index

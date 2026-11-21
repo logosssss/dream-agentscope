@@ -35,4 +35,9 @@ public interface DataDeletionRequestMapper extends BaseMapper<DataDeletionReques
             @Param("requestId") String requestId,
             @Param("userId") String userId,
             @Param("tenantId") String tenantId);
+
+    /**
+     * 管理端看近期请求。status 为空表示不过滤；新的在前，条数由调用方截好。
+     */
+    List<DataDeletionRequest> listRecent(@Param("status") String status, @Param("limit") int limit);
 }

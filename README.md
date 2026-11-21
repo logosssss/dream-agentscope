@@ -46,6 +46,7 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 | 附件 | 上传、列表、下载、停用/恢复；对象可落 local / OSS / S3 / MinIO |
 | 知识库 | 建库、纯文本/文件入库、索引状态、对话侧 `knowledge_search` |
 | 额度与限流 | 日请求 / token / 费用等；分钟级限流；注册登录也走分钟限流 |
+| 数据生命周期 | 删除请求批准后由用户进程真删：会话/消息/附件（含字节）/知识库（含向量）/记忆/凭据硬删，审计与计费行脱敏保留；保留策略按天清理；管理端 `GET /api/admin/deletion-requests` 可查执行结果（DONE / FAILED + 执行摘要）；默认关、`dry-run` 默认开 |
 | 管理端运维面 | 租户与用户、各类额度、工具目录与权限、模型配置与单价、审计只读、保留策略/调度登记、评测登记、账单状态机等（见 `web-admin`；旧审批页已硬删） |
 | 微信扫码登录 | 密钥配齐后可用；小程序确认路径不校验 Caller Token（仍校验票与微信 code） |
 | 配置中心 | Nacos 双份 yaml：infra 启动一次；业务可热更（白名单 + 非法拒收） |
@@ -58,7 +59,9 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 - **默认不开 Wakeup**（`wakeup.enabled` 默认 false；打开后仅 companion + 进程内 Bus；`POST /api/internal/wakeups` 用 `AGENTSCOPE_WAKEUP_TOKEN`；不做调度表消费 / Inbox / TeamWakeups；见 `docs/wakeup-落地.md`）
 - **infra（连接/密钥）热更新**：改完需重启；只有业务 yaml 可热更
 - **管理端账号登录页**：现阶段靠 Admin Token
-- **保留策略真正清理、删除批准后真删、调度真正消费**：可登记/改状态，不执行落地清理
+- **调度真正消费**：可登记/改状态，不执行落地清理（`agent_task_schedule` 只登记）
+- **删除请求执行需要显式打开**：审批在管理进程改状态，真删在用户进程（`agentscope.lifecycle.enabled`，默认 false、`dry-run` 默认 true），见 `docs/engineering-p6-data-lifecycle-落地.md`
+- **保留策略只执行 `action=DELETE`**：ARCHIVE / ANONYMIZE 没有真实管线；按类型清 SESSION / MESSAGE / EVENT / ATTACHMENT 四张表，附件只删表行、不删对象存储字节
 - **内置 Web 工具任意外连**：进程侧已 `disableWebTools` / `disableShellTool`；业务样例对 `web_fetch` / `web_search` DENY
 
 ---

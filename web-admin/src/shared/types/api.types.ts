@@ -145,6 +145,10 @@ export interface DeletionRequestSummary {
   dataType: string
   status: string
   reason: string | null
+  /** 执行时间；还没执行时为空串。 */
+  executedAt: string
+  /** 执行结果摘要；还没执行时为空串。 */
+  executedNote: string
 }
 
 /** GET /api/admin/tool-registries 一行。不含 param_schema。 */

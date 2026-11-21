@@ -49,8 +49,12 @@ class SchemaContractTest {
     private static final Pattern CREATE_TABLE = Pattern.compile(
             "(?is)CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?`?([a-z0-9_]+)`?\\s*\\((.*?)\\)\\s*ENGINE");
 
-    private static final Pattern ADD_COLUMN = Pattern.compile(
-            "(?is)ALTER\\s+TABLE\\s+`?([a-z0-9_]+)`?\\s+ADD\\s+(?:COLUMN\\s+)?`?([a-z0-9_]+)`?");
+    /** 一条 ALTER 语句带上它的所有子句：ADD / CHANGE / DROP 可能一次写多条。 */
+    private static final Pattern ALTER_TABLE = Pattern.compile(
+            "(?is)ALTER\\s+TABLE\\s+`?([a-z0-9_]+)`?\\s+(.*?);");
+
+    private static final Pattern ADD_CLAUSE = Pattern.compile(
+            "(?is)\\bADD\\s+(?:COLUMN\\s+)?`?([a-z0-9_]+)`?");
 
     private static final Pattern CHANGE_COLUMN = Pattern.compile(
             "(?is)CHANGE\\s+(?:COLUMN\\s+)?`?([a-z0-9_]+)`?\\s+`?([a-z0-9_]+)`?");
@@ -215,15 +219,22 @@ class SchemaContractTest {
         return parts;
     }
 
+    /**
+     * 一条 ALTER 里可以写多个 ADD：老版本正则只认第一个，
+     * 所以 V42 一次加两列时第二列被判成「表里没有」。
+     */
     private static void applyAddColumn(Map<String, Set<String>> schema, String sql) {
-        Matcher matcher = ADD_COLUMN.matcher(sql);
-        while (matcher.find()) {
-            String table = matcher.group(1).toLowerCase(Locale.ROOT);
-            String column = matcher.group(2).toLowerCase(Locale.ROOT);
-            if (NON_COLUMN_LINE.contains(column)) {
-                continue;
+        Matcher alter = ALTER_TABLE.matcher(sql);
+        while (alter.find()) {
+            String table = alter.group(1).toLowerCase(Locale.ROOT);
+            Matcher clause = ADD_CLAUSE.matcher(alter.group(2));
+            while (clause.find()) {
+                String column = clause.group(1).toLowerCase(Locale.ROOT);
+                if (NON_COLUMN_LINE.contains(column)) {
+                    continue;
+                }
+                schema.computeIfAbsent(table, key -> new LinkedHashSet<>()).add(column);
             }
-            schema.computeIfAbsent(table, key -> new LinkedHashSet<>()).add(column);
         }
     }
 

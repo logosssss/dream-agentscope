@@ -6,7 +6,8 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import java.time.LocalDateTime;
 
 /**
- * data_deletion_request 的一行。只表示用户提出了删除，不表示已经执行。
+ * data_deletion_request 的一行。登记时只表示用户提出了删除；
+ * 用户进程执行完才写 executedAt / executedNote，并把状态改成 DONE 或 FAILED。
  */
 @TableName("data_deletion_request")
 public class DataDeletionRequest {
@@ -35,6 +36,12 @@ public class DataDeletionRequest {
 
     /** 提出时间。详情才读，列表不带。 */
     private LocalDateTime requestedAt;
+
+    /** 执行时间。用户进程真删（或 dry-run 预览）后写入。 */
+    private LocalDateTime executedAt;
+
+    /** 执行结果摘要。失败时是异常摘要，正常时是各表计数。 */
+    private String executedNote;
 
     /** 主键。 */
     public Long getId() {
@@ -114,5 +121,25 @@ public class DataDeletionRequest {
     /** 写入提出时间。 */
     public void setRequestedAt(LocalDateTime requestedAt) {
         this.requestedAt = requestedAt;
+    }
+
+    /** 执行时间。还没执行时为空。 */
+    public LocalDateTime getExecutedAt() {
+        return executedAt;
+    }
+
+    /** 写入执行时间。 */
+    public void setExecutedAt(LocalDateTime executedAt) {
+        this.executedAt = executedAt;
+    }
+
+    /** 执行结果摘要。还没执行时为空。 */
+    public String getExecutedNote() {
+        return executedNote;
+    }
+
+    /** 写入执行结果摘要。 */
+    public void setExecutedNote(String executedNote) {
+        this.executedNote = executedNote;
     }
 }

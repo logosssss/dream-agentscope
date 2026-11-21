@@ -3,7 +3,8 @@ package com.zhu.admin.api.deletion;
 import java.util.List;
 
 /**
- * 登记数据删除请求。不批准，也不执行删除。
+ * 登记数据删除请求。决定与执行都发生在别的进程：
+ * 本接口只负责读，执行结果由用户进程写回同一张表。
  */
 public interface DeletionRequestCatalog {
 
@@ -14,13 +15,19 @@ public interface DeletionRequestCatalog {
 
     /**
      * 当前用户在这个租户下的删除请求。默认 50 条，最多 100 条。
-     * 含已决定的行，仍不执行删除。
+     * 含已决定与已执行的行。
      */
     List<DeletionRequestSummary> owned(String userId, String tenantId, int limit);
 
     /**
      * 当前用户在这个租户下的一条删除请求。别人的或没有时按找不到。
-     * 含已决定的行和提出时间，仍不执行删除。
+     * 含提出时间与执行结果。
      */
     DeletionRequestDetail ownedOne(String userId, String tenantId, String requestId);
+
+    /**
+     * 管理端看近期请求。status 为空或 ALL 表示不过滤，默认 50 条、最多 100 条。
+     * 批准之后靠这张列表看执行结果（DONE / FAILED 与 executedNote）。
+     */
+    List<DeletionRequestSummary> recent(String status, int limit);
 }

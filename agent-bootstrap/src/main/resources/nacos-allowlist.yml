@@ -16,6 +16,13 @@ business:
     - agentscope.wx.mini.env-version
     - agentscope.wx.mini.ticket-ttl-seconds
     - agentscope.auth.tenant-id
+    # 数据生命周期：默认全关、dry-run 默认开。见 docs/engineering-p6-data-lifecycle-落地.md。
+    - agentscope.lifecycle.enabled
+    - agentscope.lifecycle.dry-run
+    - agentscope.lifecycle.max-rows-per-table
+    - agentscope.lifecycle.interval-millis
+    - agentscope.lifecycle.retention-enabled
+    - agentscope.lifecycle.retention-batch-rows
   prefixes:
     - agentscope.permission.rules
     # MCP 服务器清单（map）；密钥用 ${ENV} 占位，不进明文。见 docs/mcp-落地.md。

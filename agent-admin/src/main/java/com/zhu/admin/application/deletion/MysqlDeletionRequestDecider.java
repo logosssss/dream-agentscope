@@ -11,7 +11,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * 把 PENDING 的删除请求改成通过或拒绝。只在 MySQL 打开时创建。不执行删除。
+ * 把 PENDING 的删除请求改成通过或拒绝。只在 MySQL 打开时创建。
+ *
+ * <p>本进程只改状态、不执行删除：附件对象和知识向量只有用户进程装配了，
+ * 批准后由用户进程的执行器扫 APPROVED 真删，再把状态写成 DONE / FAILED。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -53,6 +56,8 @@ public class MysqlDeletionRequestDecider implements DeletionRequestDecider {
                 existing.getTenantId(),
                 existing.getDataType(),
                 decision.name(),
-                existing.getReason());
+                existing.getReason(),
+                "",
+                "");
     }
 }
