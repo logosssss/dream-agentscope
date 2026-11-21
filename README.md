@@ -352,7 +352,8 @@ CI 见 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)：`boundary`（�
 真 MySQL + 真 Redis 的端到端链路（Flyway → 注册 → 登录 → 附件上传下载 → 落库）在
 `agent-bootstrap/src/test/java/com/zhu/bootstrap/MySqlRedisE2ETest.java`，靠 Testcontainers 起容器。
 本机没有 Docker 时该类自动跳过（`disabledWithoutDocker = true`），所以本地 `mvn test` 仍是绿的；
-CI 的 Ubuntu runner 有 Docker，会真跑。
+CI 的 Ubuntu runner 有 Docker，会真跑。`verify` job 之后还有一步会检查四类端到端的 surefire 报告，
+**skipped 不为 0 就直接红**——避免「本机跳过、CI 也跳过」的假绿。
 
 对话链路另有一条：`MySqlRedisChatE2ETest` 走 `POST /api/chat`，覆盖单轮、同会话第二轮（`seq` 连续、标题不被覆盖、轮数累加）与执行失败（`agent_run` FAILED、一条气泡都不写、额度不返还），只有执行缝（`ChannelGateway` 的四个执行方法）被替身，
 其余全真——身份过滤器、GateChain 的额度与并发、`agent_run` / `chat_message` / `agent_session_meta` 落库、`/api/sessions` 回读。

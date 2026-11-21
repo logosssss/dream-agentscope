@@ -63,6 +63,42 @@ jobs:
       - name: mvnw verify
         run: ./mvnw -B -ntp -Pstrict verify
 
+      # 四条端到端只在有 Docker 的机器上真跑。本机没有 Docker 时它们整类跳过，
+      # 所以「CI 绿」必须能证明它们在 runner 上真的执行过，否则覆盖是假的。
+      - name: 端到端用例必须真跑
+        run: |
+          python3 - <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          names = [
+              "MySqlRedisE2ETest",
+              "MySqlRedisChatE2ETest",
+              "DataLifecycleE2ETest",
+              "TaskScheduleFiringE2ETest",
+          ]
+          skipped = []
+          for name in names:
+              path = f"agent-bootstrap/target/surefire-reports/TEST-com.zhu.bootstrap.{name}.xml"
+              try:
+                  root = ET.parse(path).getroot()
+              except FileNotFoundError:
+                  print(f"{name}: 没有报告文件，说明整个类没跑")
+                  skipped.append(name)
+                  continue
+              tests = int(root.get("tests"))
+              skipped_count = int(root.get("skipped"))
+              print(
+                  f"{name}: tests={tests} skipped={skipped_count} "
+                  f"failures={root.get('failures')} errors={root.get('errors')}"
+              )
+              if tests == 0 or skipped_count:
+                  skipped.append(name)
+          if skipped:
+              print("这些端到端类没有真正执行（runner 缺 Docker？）：" + ", ".join(skipped))
+              sys.exit(1)
+          PY
+
       - name: 失败时上传 surefire 报告
         if: failure()
         uses: actions/upload-artifact@v4

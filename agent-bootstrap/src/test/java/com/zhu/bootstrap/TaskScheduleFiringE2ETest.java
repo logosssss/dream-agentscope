@@ -110,9 +110,12 @@ class TaskScheduleFiringE2ETest {
         assertThat(task.get("tenant_id")).isEqualTo(TENANT);
         assertThat(task.get("user_id")).isEqualTo("u-schedule");
 
+        // REPORT 执行器留一行审计：动作名是 task.report，payload 里是统计口径与数字。
+        // 注意列名是 event_type / payload（不是 action / detail），旧断言查错了列。
         Integer audited = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM agent_event_audit WHERE action = 'task.handle' AND detail LIKE ?",
-                Integer.class, "%" + SCHEDULE_ID + "%");
+                "SELECT COUNT(*) FROM agent_event_audit"
+                        + " WHERE event_type = 'task.report' AND user_id = ? AND payload LIKE ?",
+                Integer.class, "u-schedule", "%days=%");
         assertThat(audited).isNotNull().isPositive();
     }
 
