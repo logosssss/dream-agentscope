@@ -21,7 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 删除请求只登记待处理。不连接 MySQL，也不删数据。
+ * 删除请求只登记待处理，并读回执行结果。不连接 MySQL，也不删数据。
  */
 class DeletionRequestCatalogTest {
 
@@ -41,6 +41,8 @@ class DeletionRequestCatalogTest {
             assertThat(saved.tenantId()).isEmpty();
             assertThat(saved.reason()).isNull();
             assertThat(saved.requestId()).isNotBlank();
+            assertThat(saved.executedAt()).isEmpty();
+            assertThat(saved.executedNote()).isEmpty();
         });
         ArgumentCaptor<DataDeletionRequest> saved = ArgumentCaptor.forClass(DataDeletionRequest.class);
         verify(requests).insert(saved.capture());
@@ -111,6 +113,30 @@ class DeletionRequestCatalogTest {
         pending.setStatus("PENDING");
         when(requests.findOwned("req-2", "u", "")).thenReturn(pending);
         assertThat(catalog.ownedOne("u", " ", "req-2").requestedAt()).isEqualTo("");
+        assertThat(catalog.ownedOne("u", " ", "req-2").executedAt()).isEmpty();
+        assertThat(catalog.ownedOne("u", " ", "req-2").executedNote()).isEmpty();
+    }
+
+    /** 执行结果原样读出：时间按 ISO 文本，摘要有则给，没执行给空串。 */
+    @Test
+    void ownedOneReturnsExecutionResult() {
+        DataDeletionRequestMapper requests = mock(DataDeletionRequestMapper.class);
+        MysqlDeletionRequestCatalog catalog = new MysqlDeletionRequestCatalog(requests);
+        DataDeletionRequest done = new DataDeletionRequest();
+        done.setRequestId("req-3");
+        done.setTenantId("t");
+        done.setDataType("ALL");
+        done.setStatus("DONE");
+        done.setRequestedAt(LocalDateTime.of(2026, 11, 21, 1, 0, 0));
+        done.setExecutedAt(LocalDateTime.of(2026, 11, 21, 2, 30, 0));
+        done.setExecutedNote("deleted=7 skipped=[]");
+        when(requests.findOwned("req-3", "u", "t")).thenReturn(done);
+        assertThat(catalog.ownedOne("u", "t", "req-3")).satisfies(detail -> {
+            assertThat(detail.status()).isEqualTo("DONE");
+            assertThat(detail.requestedAt()).isEqualTo("2026-11-21T01:00:00");
+            assertThat(detail.executedAt()).isEqualTo("2026-11-21T02:30:00");
+            assertThat(detail.executedNote()).isEqualTo("deleted=7 skipped=[]");
+        });
     }
 
     /** 别人的或没有的按找不到。空标识不查库。 */

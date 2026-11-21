@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 当前用户提出并查看数据删除请求。不批准，也不真正删除。
+ * 当前用户提出并查看数据删除请求。本进程不批准；批准后由用户进程的删除执行器真删。
  */
 @RestController
 public class DeletionRequestController {
@@ -51,7 +51,7 @@ public class DeletionRequestController {
 
     /**
      * 只返回这次请求头里的用户和租户。条数默认 50，最多 100。
-     * 含已决定的行，仍不执行删除。
+     * 含已决定与已执行的行，前端据此展示进度。
      */
     @GetMapping("/api/deletion-requests")
     public ApiResult<List<DeletionRequestSummary>> list(@RequestParam(defaultValue = "50") int limit) {
@@ -65,7 +65,7 @@ public class DeletionRequestController {
     }
 
     /**
-     * 别人的标识按找不到处理。含已决定的行和提出时间，仍不执行删除。
+     * 别人的标识按找不到处理。含提出时间与执行结果。
      */
     @GetMapping("/api/deletion-requests/{requestId}")
     public ApiResult<DeletionRequestDetail> get(@PathVariable String requestId) {

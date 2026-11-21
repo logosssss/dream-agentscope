@@ -115,6 +115,17 @@ function iconLabel(icon: string, name: string): string {
       API
     </RouterLink>
 
+    <RouterLink
+      to="/privacy"
+      class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
+      :class="currentSlug === 'privacy'
+        ? 'text-white bg-[var(--color-brand-primary)]'
+        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'"
+      title="账号与数据"
+    >
+      数
+    </RouterLink>
+
     <button
       type="button"
       class="mt-auto w-10 h-10 rounded-xl text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"

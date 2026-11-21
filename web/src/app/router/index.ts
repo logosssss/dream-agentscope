@@ -71,6 +71,14 @@ const router = createRouter({
           },
         },
         {
+          path: 'privacy',
+          name: 'privacy',
+          component: () => import('@/platform/privacy/PrivacyView.vue'),
+          meta: {
+            themeColor: '#7c3aed',
+          },
+        },
+        {
           path: 'api-console',
           name: 'api-console',
           component: () => import('@/platform/api-console/ApiConsoleView.vue'),

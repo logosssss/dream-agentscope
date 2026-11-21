@@ -298,3 +298,31 @@ export interface KnowledgeDocumentItem {
   status: string
   errorMsg: string | null
 }
+
+/**
+ * 一条数据删除请求。status 就是真实进度：
+ * PENDING 待决定 → APPROVED / REJECTED 已决定 → RUNNING 执行中 → DONE / FAILED 已执行。
+ * 执行列还没写时是空串。
+ */
+export interface DeletionRequestSummary {
+  requestId: string
+  userId: string
+  tenantId: string
+  dataType: string
+  status: string
+  reason: string | null
+  executedAt: string
+  executedNote: string
+}
+
+/** GET /api/deletion-requests/{requestId}。比列表多提出时间与执行结果。 */
+export interface DeletionRequestDetail {
+  requestId: string
+  tenantId: string
+  dataType: string
+  status: string
+  reason: string | null
+  requestedAt: string
+  executedAt: string
+  executedNote: string
+}

@@ -10,6 +10,7 @@ import com.zhu.readmodel.entity.deletion.DataDeletionRequest;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
@@ -17,7 +18,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * 登记数据删除请求。只在存储开关打开时创建。不批准，也不执行。
+ * 登记并读取数据删除请求。只在存储开关打开时创建。
+ *
+ * <p>本类不批准、也不执行：批准在管理进程，真删在用户进程的
+ * {@code DeletionExecutionWorker}，执行结果回写到同一行的 executed_at / executed_note。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -67,12 +71,13 @@ public class MysqlDeletionRequestCatalog implements DeletionRequestCatalog {
         row.setStatus(PENDING);
         row.setReason(savedReason);
         requests.insert(row);
-        return new DeletionRequestSummary(requestId, userId, savedTenant, dataType, PENDING, savedReason);
+        return new DeletionRequestSummary(
+                requestId, userId, savedTenant, dataType, PENDING, savedReason, "", "");
     }
 
     /**
      * 空用户拒绝。空白租户按空串，和登记时一致。
-     * 已通过或拒绝的行也返回，调用方据此知道决定，仍不删数据。
+     * 已通过、已拒绝、已执行的行都返回，调用方据此看进度。
      */
     @Override
     public List<DeletionRequestSummary> owned(String userId, String tenantId, int limit) {
@@ -90,7 +95,7 @@ public class MysqlDeletionRequestCatalog implements DeletionRequestCatalog {
 
     /**
      * 空标识拒绝。找不到或不是本人本租户按找不到，避免把别人的原因交出去。
-     * 已通过或拒绝的行也返回，仍不删数据。
+     * 含提出时间与执行结果。
      */
     @Override
     public DeletionRequestDetail ownedOne(String userId, String tenantId, String requestId) {
@@ -105,12 +110,18 @@ public class MysqlDeletionRequestCatalog implements DeletionRequestCatalog {
             throw new BusinessException(ErrorCode.NOT_FOUND, "deletion request not found");
         }
         String tenant = row.getTenantId() == null ? "" : row.getTenantId();
-        String requested = row.getRequestedAt() == null ? "" : TIME.format(row.getRequestedAt());
         return new DeletionRequestDetail(
-                row.getRequestId(), tenant, row.getDataType(), row.getStatus(), row.getReason(), requested);
+                row.getRequestId(),
+                tenant,
+                row.getDataType(),
+                row.getStatus(),
+                row.getReason(),
+                time(row.getRequestedAt()),
+                time(row.getExecutedAt()),
+                note(row.getExecutedNote()));
     }
 
-    /** 列表和登记共用同一份摘要。 */
+    /** 列表和登记共用同一份摘要。执行列还没写时为空串，前端不用判 null。 */
     private static DeletionRequestSummary summary(DataDeletionRequest row) {
         String tenant = row.getTenantId() == null ? "" : row.getTenantId();
         return new DeletionRequestSummary(
@@ -119,6 +130,18 @@ public class MysqlDeletionRequestCatalog implements DeletionRequestCatalog {
                 tenant,
                 row.getDataType(),
                 row.getStatus(),
-                row.getReason());
+                row.getReason(),
+                time(row.getExecutedAt()),
+                note(row.getExecutedNote()));
+    }
+
+    /** 时间统一成不带时区的 ISO 文本；空值给空串。 */
+    private static String time(LocalDateTime value) {
+        return value == null ? "" : TIME.format(value);
+    }
+
+    /** 结果摘要空值给空串。 */
+    private static String note(String value) {
+        return value == null ? "" : value;
     }
 }

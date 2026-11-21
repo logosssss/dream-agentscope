@@ -29,6 +29,7 @@ P0–P5 之后还有一个明显的说不过去的地方：**用户点「删除�
 | 安全阀 | `agentscope.lifecycle.enabled` 默认 **false**；`dry-run` 默认 **true**（只统计不删）；单表超过 `max-rows-per-table` 整表跳过交人工 |
 | 幂等 | `RUNNING` 是抢占状态；dry-run 也写 `executed_at`（只留预览），要再预览就清空该行 `executed_at` |
 | 迁移 | `V42__data_deletion_execution.sql`：`executed_at` / `executed_note` + `idx_status_requested` |
+| 用户端入口 | `web/src/platform/privacy/PrivacyView.vue`（路由 `/privacy`，左侧轨「数」）：提交 `SESSION`/`ATTACHMENT`/`ALL`，列表展示真实进度，点开看提出时间与执行结果；状态词由 `deletionStatus.ts` 纯函数翻译并有单测 |
 
 ## 明确不做
 
@@ -49,7 +50,8 @@ P0–P5 之后还有一个明显的说不过去的地方：**用户点「删除�
 7. `agent-admin/.../MysqlDeletionRequestDecider.java`：注释改成「本进程只改状态，真删在用户进程」。
 9. `agent-bootstrap/src/test/java/com/zhu/bootstrap/DataLifecycleE2ETest.java`：真 MySQL + 真 Redis，种一批 PII 行 → 调 `worker.runOnce()` → 断言行消失、审计脱敏、请求 `DONE`。
 10. `agent-access/src/test/java/.../RetentionTargetsTest.java`：4 种类型映射 + 未知类型跳过。
-11. 配置与文档：`deploy/nacos/agent-bootstrap.yaml` 加 `agentscope.lifecycle` 段；`nacos-allowlist.yml` 加六个键；`README.md` 的「明确不做」与能力表改写；`MigrationCatalogTest` 从 V41 提到 V42；本文件 + `docs/INDEX.md`。
+11. 用户端：`web/src/platform/privacy/{PrivacyView.vue,deletionStatus.ts,deletionStatus.test.ts}` + `shared/api/deletion-api.ts` + `shared/types/api.types.ts` 两个类型 + 路由与左侧轨入口；`main.css` 补 `--color-warning` / `--color-success` 两个 token。
+12. 配置与文档：`deploy/nacos/agent-bootstrap.yaml` 加 `agentscope.lifecycle` 段；`nacos-allowlist.yml` 加六个键；`README.md` 的「明确不做」与能力表改写；`MigrationCatalogTest` 从 V41 提到 V42；本文件 + `docs/INDEX.md`。
 
 ## 验收实测
 
