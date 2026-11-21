@@ -7,9 +7,9 @@ name: CI
 #    只能靠这里的 Linux runner 给结论）。
 
 on:
-  push:
-    branches: [main]
+  push:                    # 任何分支的任何推送都跑（不写 branches 过滤；以前只写 main 导致开发分支不触发）
   pull_request:
+  workflow_dispatch:       # 允许在 Actions 页面手动重跑
 
 concurrency:
   group: ci-${{ github.ref }}
