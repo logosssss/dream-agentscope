@@ -1,0 +1,5 @@
+# 与 web 同口径：pnpm 11 的 settings 放这里。
+# hoisted：Windows 上 Node 对 junction 布局的解析不稳定（vue-tsc/eslint/vitest 会报模块找不到）。
+nodeLinker: hoisted
+overrides:
+  estree-walker: 2.0.2

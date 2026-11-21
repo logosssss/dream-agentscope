@@ -180,14 +180,22 @@ if ($SkipBuild) {
         if ($env:VITE_CALLER_TOKEN) {
             Fail-Gate 2 "检测到 VITE_CALLER_TOKEN：生产构建禁止打进前端包" "清掉该环境变量后重跑；Token 由 Nginx 注入"
         }
-        Write-Host "== web: npm ci && npm run build =="
+        if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+            Fail-Gate 2 "本机找不到 pnpm" "npm i -g pnpm；仓库统一 pnpm，web 与 web-admin 只保留 pnpm-lock.yaml"
+        }
+        # 生产包必须走网关模式：浏览器不带令牌，X-Caller-Token 由 Nginx 注入。
+        $env:VITE_GATEWAY = "true"
+        Write-Host "== web: pnpm install --frozen-lockfile && pnpm run build =="
         Push-Location (Join-Path $RepoRoot "web")
         try {
-            npm ci
-            if ($LASTEXITCODE -ne 0) { throw "npm ci failed" }
-            npm run build
-            if ($LASTEXITCODE -ne 0) { throw "npm run build failed" }
-        } finally { Pop-Location }
+            pnpm install --frozen-lockfile
+            if ($LASTEXITCODE -ne 0) { throw "pnpm install failed" }
+            pnpm run build
+            if ($LASTEXITCODE -ne 0) { throw "pnpm run build failed" }
+        } finally {
+            Remove-Item Env:\VITE_GATEWAY -ErrorAction SilentlyContinue
+            Pop-Location
+        }
         $idx = Join-Path $RepoRoot "web\dist\index.html"
         if (-not (Test-Path $idx)) { Fail-Gate 2 "缺少 web/dist/index.html" "本机 npm 终端最后 80 行" }
         $built += "web/dist"

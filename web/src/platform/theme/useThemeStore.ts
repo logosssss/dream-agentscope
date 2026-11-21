@@ -23,14 +23,18 @@ export const useThemeStore = defineStore('theme', () => {
     }
   }
 
+  /** 读本地；隐私模式等读失败按"没存过"处理。 */
+  function readStoredTheme(): string | null {
+    try {
+      return localStorage.getItem(STORAGE_KEY)
+    } catch {
+      return null
+    }
+  }
+
   /** 启动时读本地；非法值按 light。 */
   function hydrate() {
-    let saved: string | null = null
-    try {
-      saved = localStorage.getItem(STORAGE_KEY)
-    } catch {
-      saved = null
-    }
+    const saved = readStoredTheme()
     apply(saved === 'dark' ? 'dark' : 'light')
   }
 

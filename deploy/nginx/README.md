@@ -14,7 +14,7 @@
 
 手动备忘：
 
-1. 本机或 CI：`cd web && npm ci && npm run build`（**不要**设 `VITE_CALLER_TOKEN`）。
+1. 本机或 CI：`cd web && pnpm install --frozen-lockfile && VITE_GATEWAY=true pnpm run build`（**不要**设 `VITE_CALLER_TOKEN`；生产包靠网关代填令牌）。
 2. 把 `web/dist/*` 同步到 Nginx `root`（现网为 `/opt/dream-saas/web-dist`）。
 3. Nginx 里 Caller Token 仅用于 `proxy_set_header X-Caller-Token`（与进程一致）。
 4. 演示额度：同步 Nacos `agent-bootstrap.yaml`，并按需执行 `seed-demo-tenant-user.sql` 中 `tenant_quota`。

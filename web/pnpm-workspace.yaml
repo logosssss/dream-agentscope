@@ -1,0 +1,8 @@
+# pnpm 11 起 settings 写在 pnpm-workspace.yaml（package.json 的 pnpm 字段与 .npmrc 不再全量生效）。
+# 1) hoisted：Windows 上 Node 的 CJS/ESM 解析对 junction 布局不稳定，本地 vue-tsc/eslint/vitest 会解析失败；
+#    hoisted 仍是 pnpm + 单一 pnpm-lock.yaml，只是 node_modules 变成扁平真实目录。
+# 2) overrides：vitest 5 的 @vitest/mocker 拉 estree-walker 3.0.3（ESM-only），
+#    与 vue-tsc 依赖的 2.0.2（CJS）冲突；2.0.2 同时提供 require/import 入口，钉住它两边都能用。
+nodeLinker: hoisted
+overrides:
+  estree-walker: 2.0.2

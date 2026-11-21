@@ -6,14 +6,27 @@ import type { ApiResult } from '@/shared/types/api.types'
  * 聊天流式请走 useStreaming，不要用本模块的 json 解析。
  */
 
-/** 组装鉴权头。缺 Caller Token 直接抛错。登录和出码可以不带旧会话。 */
+/**
+ * 现网静态站走网关代填：Nginx 注入 X-Caller-Token，浏览器包内不放令牌。
+ * 部署脚本检查到 VITE_CALLER_TOKEN 会直接失败，所以生产构建必须把 VITE_GATEWAY 设成 true。
+ * 本地直连后端（vite dev / 自建环境）仍读 VITE_CALLER_TOKEN。
+ */
+export function isGatewayMode(): boolean {
+  return import.meta.env.VITE_GATEWAY === 'true'
+}
+
+/** 组装鉴权头。网关模式不带令牌；本地模式缺 Caller Token 直接抛错。登录和出码可以不带旧会话。 */
 export function authHeaders(extra?: HeadersInit, bearer = true): Headers {
   const headers = new Headers(extra)
-  const caller = import.meta.env.VITE_CALLER_TOKEN
-  if (!caller || caller.trim() === '') {
-    throw new Error('未配置 VITE_CALLER_TOKEN，请复制 web/.env.example 为 .env.local 并填写')
+  if (!isGatewayMode()) {
+    const caller = import.meta.env.VITE_CALLER_TOKEN
+    if (!caller || caller.trim() === '') {
+      throw new Error(
+        '未配置调用方令牌：本地开发请复制 web/.env.example 为 .env.local 并填写 VITE_CALLER_TOKEN；现网构建请设 VITE_GATEWAY=true 由网关代填',
+      )
+    }
+    headers.set('X-Caller-Token', caller.trim())
   }
-  headers.set('X-Caller-Token', caller.trim())
   if (bearer) {
     const session = loadSession()
     if (session) {

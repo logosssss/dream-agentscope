@@ -22,7 +22,7 @@ Agent **只准调用该脚本**，禁止手写乱序 scp / java / nohup。
 
 | 目标 | 含义 | 本机构建 | 上传 | 重启 |
 |------|------|----------|------|------|
-| `frontend` | 主站静态资源 | `cd web && npm ci && npm run build` | `web-dist-scp-deploy.ps1` | 无 |
+| `frontend` | 主站静态资源 | `cd web && pnpm install --frozen-lockfile && VITE_GATEWAY=true pnpm run build` | `web-dist-scp-deploy.ps1` | 无 |
 | `user` | 用户进程 | `mvn -pl agent-bootstrap -am package -DskipTests` | → `boot.jar` | nohup 8093 |
 | `admin` | 管理进程 | `mvn -pl agent-admin -am package -DskipTests` | → `admin.jar` | nohup 8100 |
 | `full` | 上三者 | 按序 frontend → user → admin | 同上 | 同上 |

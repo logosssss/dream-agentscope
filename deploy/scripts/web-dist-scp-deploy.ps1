@@ -33,7 +33,7 @@ function Ssh-Run([string]$remoteCmd) {
 
 $dist = Join-Path $RepoRoot "web\dist"
 if (-not (Test-Path (Join-Path $dist "index.html"))) {
-    throw "missing web/dist — run: cd web && npm ci && npm run build"
+    throw "missing web/dist — run: cd web && pnpm install --frozen-lockfile && VITE_GATEWAY=true pnpm run build"
 }
 
 $applySh = Join-Path $PSScriptRoot "remote-apply-web-dist.sh"

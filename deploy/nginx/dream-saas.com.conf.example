@@ -1,14 +1,15 @@
 # 示例：www.dream-saas.com 托管 web/dist，并把 /api /health 反代到用户进程。
 # 用法概要：
-#   1) cd web && npm ci && npm run build   （构建时不要设置 VITE_CALLER_TOKEN）
+#   1) cd web && pnpm install --frozen-lockfile && VITE_GATEWAY=true pnpm run build
+#      （网关代填令牌，构建时不要设置 VITE_CALLER_TOKEN）
 #   2) 将 web/dist 同步到下方 root
 #   3) 把 CALLER_TOKEN 换成与 agentscope.caller.token 一致的值（仅服务端可见）
 #   4) 配好 TLS 后 include 本文件或改成站点配置
 #
-# 证书路径、upstream 端口按机器修改。
+# 证书路径、upstream 端口按机器修改；默认与现网一致（用户进程 8093，管理进程 8100）。
 
 upstream agentscope_user {
-    server 127.0.0.1:8080;
+    server 127.0.0.1:8093;
     keepalive 16;
 }
 
