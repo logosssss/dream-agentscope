@@ -14,7 +14,7 @@ flowchart LR
   Web["web :5173"]
   WebAdmin["web-admin :5174"]
   Nginx["Nginx 可选\n代填 X-Caller-Token"]
-  User["用户进程\nagent-bootstrap :8080"]
+  User["用户进程\nagent-bootstrap :8093（现网）/ :8080（本地）"]
   Admin["管理进程\nagent-admin :8100"]
   MySQL[(MySQL)]
   Redis[(Redis)]
@@ -53,6 +53,8 @@ flowchart TB
   access["agent-access"]
   runtime["agent-runtime"]
   semantic["agent-semantic\n契约/api/共享存储"]
+  productApi["agent-product-api\nProductModule 契约"]
+  readmodel["agent-readmodel\n共享表 entity/Mapper/XML"]
   db["agent-db\nFlyway SQL"]
   state["agent-state"]
   vector["agent-vector"]
@@ -64,22 +66,29 @@ flowchart TB
   bootstrap --> access
   bootstrap --> runtime
   bootstrap --> semantic
+  bootstrap --> productApi
+  bootstrap --> readmodel
   bootstrap --> products
   bootstrap --> db
   bootstrap --> state
   bootstrap --> vector
   bootstrap --> cacheRedis
   products --> runtime
+  products --> productApi
   products --> semantic
   products --> cacheApi
   products --> common
   admin --> cacheRedis
+  admin --> readmodel
   admin --> common
   access --> runtime
+  access --> readmodel
   access --> semantic
   access --> cacheApi
   access --> common
   runtime --> semantic
+  runtime --> productApi
+  runtime --> readmodel
   runtime --> state
   runtime --> vector
   runtime --> cacheApi
@@ -96,7 +105,8 @@ flowchart TB
 ArchUnit 要点（禁止）：
 
 - `semantic` ↛ `runtime` / `access` / `com.zhu.product..` / `cache`
-- `runtime` ↛ `semantic.application` / `semantic.infrastructure`（只碰 contract）；`runtime` ↛ `com.zhu.product..`；`runtime` ↛ `cache.redis`
+- `runtime` ↛ `semantic.application` / `semantic.infrastructure`（只碰 contract）；`runtime` 只许看 `com.zhu.product.api..`（具体产品实现不可见）；`runtime` ↛ `cache.redis`
+- `agent-readmodel` ↛ access / admin / runtime / product / state / vector / objectstore / cache / AgentScope；其中不得出现 `@Service` / `@Component` / `@Transactional`
 - `com.zhu.product..` ↛ `access`；`com.zhu.product..` ↛ `cache.redis`
 - `access` / `runtime` / `product` ↛ `cache.redis`（只碰 api；实现由启动装配引入）
 - `state` / `vector` / `objectstore` ↛ 业务包与 `cache`（细则见测试）
@@ -108,7 +118,7 @@ ArchUnit 要点（禁止）：
 ## 3. 管理进程边界
 
 管理进程不依赖运行层、接入层、Harness、产品模块；不执行 Flyway；不跑对话模型链路。  
-用户进程（P3/A1）：**单 JVM**；`bootstrap` 唯一用户 App；classpath 挂 `agent-product-*`；Gateway 按 `ResidentAgentBinding` 注册表挂长驻 Agent（echo 仍平台挂）。
+用户进程（P3/A1）：**单 JVM**；`bootstrap` 唯一用户 App；classpath 挂 `agent-product-*`；Gateway 按 `ProductModuleRegistry` 挂长驻 Agent（echo 仍平台挂）。
 
 ```mermaid
 flowchart TB

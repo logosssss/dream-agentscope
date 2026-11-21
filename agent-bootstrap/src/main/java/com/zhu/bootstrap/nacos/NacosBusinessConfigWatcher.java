@@ -195,6 +195,8 @@ public class NacosBusinessConfigWatcher implements ApplicationRunner, Ordered {
         Binder binder = Binder.get(environment);
         binder.bind("agentscope.access", Bindable.ofInstance(accessLimits));
         binder.bind("agentscope.runtime", Bindable.ofInstance(runtime));
+        // 语法合法但语义非法的推送（max-iters=0 等）在这里被拒，外层回滚到上一份
+        runtime.validate();
         binder.bind("agentscope.permission", Bindable.ofInstance(permissions));
         binder.bind("agentscope.wx.mini", Bindable.ofInstance(wxMini));
         binder.bind("agentscope.auth", Bindable.ofInstance(auth));

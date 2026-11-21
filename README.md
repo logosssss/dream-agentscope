@@ -77,7 +77,7 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 要点：
 
 - 用户进程执行 **Flyway**；管理进程**不**跑迁移、不依赖 runtime / access / Harness / 产品模块
-- **单用户进程多产品（P3）**：`agent-bootstrap` 唯一用户 App（A1），classpath 挂 `agent-product-*`；长驻 Agent 经 `ResidentAgentBinding` 注册表挂载（echo 仍平台）
+- **单用户进程多产品（P3）**：`agent-bootstrap` 唯一用户 App（A1），classpath 挂 `agent-product-*`；长驻 Agent 经 `ProductModuleRegistry` 按 `ProductModule` 契约挂载（echo 仍平台）
 - 两进程启动都必须能连上 **MySQL、Redis、Milvus**，否则退出（测试配置可关探测）
 - 配了 `NACOS_ADDR` 时，启动必须拉到对应 **infra + 业务** 两份配置，缺一或正文空白则退出
 - 额度/占锁等 Redis 失败返回 **503**，不回落内存/MySQL
@@ -90,14 +90,17 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 | [`agent-db`](./agent-db/README.md) | 全仓 Flyway SQL 唯一来源（无业务 Java；仅用户进程迁移） |
 | [`agent-admin`](./agent-admin/README.md) | 管理进程入口 |
 | [`agent-access`](./agent-access/README.md) | 用户侧 HTTP、身份、额度、聊天接入 |
-| [`agent-runtime`](./agent-runtime/README.md) | 执行内核：HarnessAgent、中间件、Binding 缝、工具挂载 |
+| [`agent-runtime`](./agent-runtime/README.md) | 执行内核：HarnessAgent、中间件、产品缝（`ProductModule`）、工具挂载 |
 | [`agent-semantic`](./agent-semantic/README.md) | 语义契约 / api / 共享权限·提示词·目录（不含具体产品实现） |
+| [`agent-product-api`](./agent-product-api/README.md) | 产品契约：`ProductModule`（agentId / 工具 / 完成判据 / 装配） |
 | [`agent-products/`](./agent-products/README.md) | 产品模块聚合；当前 `agent-product-companion` |
 | [`agent-state`](./agent-state/README.md) | DistributedStore / 远程工作区状态 |
 | [`agent-vector`](./agent-vector/README.md) | Milvus 集合与检索相关 |
 | [`agent-object-store`](./agent-object-store/README.md) | 对象存储抽象（local/OSS/S3/MinIO） |
 | [`agent-cache`](./agent-cache/README.md) | 缓存层聚合：`api`（门面/键/限流·布隆形状）+ `redis`（Lettuce + Redisson） |
 | [`agent-common`](./agent-common/README.md) | 异常、DTO、上下文、令牌比较等 |
+| [`agent-readmodel`](./agent-readmodel/README.md) | 多进程共用表的唯一 owner：entity + Mapper + XML（只放数据形状，不含业务规则） |
+| [`agent-test-support`](./agent-test-support/README.md) | 测试替身与夹具（`test-jar`，不进部署包） |
 | [`web`](./web/README.md) | 用户端（介绍页、搭子、附件、知识库等） |
 | [`web-admin`](./web-admin/README.md) | 管理端 |
 | [`deploy/`](./deploy/) | Nacos / MySQL / Nginx / Milvus 示例 |
@@ -290,13 +293,27 @@ pnpm dev
 
 ## 测试与门禁
 
-仓库根目录、JDK 21：
+仓库根目录、JDK 21（用仓库自带的 wrapper，版本已钉住）：
 
 ```bash
-mvn test
+./mvnw test                                 # 全量单测（Windows: mvnw.cmd test）
+./mvnw -Pstrict verify                      # 叠依赖收敛/Java 版本/模块依赖禁令
+./mvnw -Pstrict -Dtest=ArchitectureTest,SchemaContractTest,MigrationCatalogTest test   # 只跑边界护栏，秒级
 ```
 
-测试**不**连接真实 Redis / MySQL / Milvus / Nacos。
+测试**不**连接真实 Redis / MySQL / Milvus / Nacos。surefire 已在父 pom 固定
+`-Duser.home=${project.build.directory}/test-home`，所以不用再手工准备 `~/.agentscope`。
+
+前端（`web` / `web-admin` 各自独立）：
+
+```bash
+cd web && pnpm install --frozen-lockfile
+pnpm lint && pnpm test && pnpm build
+```
+
+CI 见 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)：`boundary`（分层与契约）→ `verify`（全量）→
+`frontend`（两个前端各自的 lint / 单测 / 构建）。**`-Pstrict` 的 enforcer 规则是构建期边界**：
+`agent-access` 不允许直接依赖 `io.agentscope:*`，业务模块不允许依赖 `com.zhu:agent-cache-redis`。
 
 上线 / 开源前人工门禁见 [`docs/release-gate.md`](./docs/release-gate.md)（自动化全绿 + 固定冒烟路径）。
 
@@ -347,12 +364,13 @@ mvn test
 
 | 文档 | 说明 |
 |------|------|
+| [`docs/INDEX.md`](./docs/INDEX.md) | **文档总索引**（工程调整 P0–P4 / 能力落地 / 门禁 / 手册图册教程 / 参考长文） |
 | [`docs/handbook/README.md`](./docs/handbook/README.md) | **仓库内学习手册**（从 0 到深入的索引路径：顺序、问题、检查点） |
 | [`docs/diagrams/README.md`](./docs/diagrams/README.md) | **对内图册**（架构 / 流程 / 链路 Mermaid 真相源） |
 | [`docs/agentscope-landing-review.md`](./docs/agentscope-landing-review.md) | AgentScope 落地评估（框架用法 vs 工程契约；含指南↔现码漂移表） |
 | [`docs/engineering-module-review.md`](./docs/engineering-module-review.md) | 工程 / 模块评估（边界、软退役、测试债；access 防腐分阶段） |
-| [`doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`](./doc/AgentScope%20Java%202.0.4%20产品级架构与工程落地指南%20(2).md) | 架构与工程设计长文（**含历史草案**；冲突时听现码 / 本 README / `docs/*-落地.md`） |
-| [`doc/企业级多 Agent 平台前端工程开发方案 (1).md`](./doc/企业级多%20Agent%20平台前端工程开发方案%20(1).md) | 前端方案 |
+| [`docs/reference/agentscope-architecture-guide.md`](./docs/reference/agentscope-architecture-guide.md) | 架构与工程设计长文（**含历史草案**；冲突时听现码 / 本 README / `docs/*-落地.md`） |
+| [`docs/reference/frontend-engineering-plan.md`](./docs/reference/frontend-engineering-plan.md) | 前端方案 |
 | [`docs/tutorial/series-plan.md`](./docs/tutorial/series-plan.md) | 系列教程《AgentScope 落地实战》：选题池、进度与双平台发布约定 |
 
 以上偏设计、学习索引与历史口径；**行为以当前代码与各模块 README 为准**。读长文时注意：Agent 状态在 MySQL `DistributedStore`（勿把文中早期 Redis Store 示例当现网）；**不引入 RocketMQ**，`mode=mq` 启动失败（勿按「接口先行、实现后补」去半套接入）。

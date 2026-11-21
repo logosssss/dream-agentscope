@@ -7,8 +7,8 @@
 | 项 | 约定 |
 | --- | --- |
 | 进程 | **单用户进程**：仍只跑 `agent-bootstrap`；管理进程不依赖本聚合 |
-| classpath | bootstrap 依赖需要的 `agent-product-*`；Spring 扫 `com.zhu` 挂 Binding |
-| 挂载 | Gateway / 工厂经 `ResidentAgentBinding` 注册表按 `agentId` 挂长驻 Agent；**echo 仍平台**（E1） |
+| classpath | bootstrap 依赖需要的 `agent-product-*`；Spring 扫 `com.zhu` 挂 `ProductModule` |
+| 挂载 | Gateway 经 `ProductModuleRegistry` 按 `agentId` 挂长驻 Agent（契约在 `agent-product-api`）；**echo 仍平台**（E1） |
 | semantic | 只留契约 / `api` / 共享权限·提示词·目录（S1）；产品实现不回灌 |
 | 分包 | 根包只放 `package-info`；域包如 `persona` / `semantic` / `tool` / `binding` |
 
@@ -20,7 +20,7 @@
 
 ## 边界（ArchUnit，见 `ArchitectureTest`）
 
-- `runtime` ↛ `com.zhu.product..`（产品经 Binding 注册表挂入）
+- `runtime` 只能看 `com.zhu.product.api..`（经 `ProductModule` 契约挂入，看不到具体产品实现）
 - `com.zhu.product..` ↛ `access`
 - `semantic` ↛ `com.zhu.product..`（勿与 `contract.product` 包名混淆）
 

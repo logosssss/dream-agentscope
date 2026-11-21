@@ -2,7 +2,7 @@
 
 日期：2026-11-16。  
 用途：判断是否需要调整**框架用法**与**工程结构**。非传播文。  
-不改 [`doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`](../doc/AgentScope%20Java%202.0.4%20产品级架构与工程落地指南%20(2).md) 原文；漂移进对照表。  
+不改 [`docs/reference/agentscope-architecture-guide.md`](../docs/reference/agentscope-architecture-guide.md) 原文；漂移进对照表。  
 代码基线：初评时为 2.0.4；**升版冒烟块后** `pom.xml` → `agentscope.version=2.0.5`（见第六节收口）。
 
 ## 评估约定（grill 已锁）
