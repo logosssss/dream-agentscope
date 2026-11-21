@@ -20,16 +20,15 @@
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
+            <artifactId>agent-readmodel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
             <artifactId>agent-semantic</artifactId>
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
             <artifactId>agent-runtime</artifactId>
-        </dependency>
-        <!-- Channel / Gateway 在接入层直接使用；版本由父 BOM 管理。 -->
-        <dependency>
-            <groupId>io.agentscope</groupId>
-            <artifactId>agentscope-harness</artifactId>
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
@@ -60,5 +59,42 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
         </dependency>
+        <!-- 闸门顺序等纯单元测试；不 mock Redis，替身用 lambda。 -->
+        <!-- 复用测试替身：StubProductModule 等，只在测试类路径上。 -->
     </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              接入层只能通过 runtime 的 api 端口使用 Agent 能力；
+              直接声明 AgentScope 构件会让层边界在编译期就可绕过（ArchUnit 只在测试期拦）。
+              searchTransitive=false：只约束本模块的直接声明，传递依赖由 ArchUnit 管包级引用。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-access-boundaries</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>false</searchTransitive>
+                                    <excludes>
+                                        <exclude>io.agentscope:*</exclude>
+                                        <exclude>com.zhu:agent-cache-redis</exclude>
+                                    </excludes>
+                                    <message>agent-access 不得直接依赖 AgentScope 实现或 Redis 缓存实现：前者会绕开 runtime 端口，后者会绕开 CacheFacade。</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

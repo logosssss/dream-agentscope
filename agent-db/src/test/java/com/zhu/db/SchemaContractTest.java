@@ -20,31 +20,16 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * schema 契约测：Flyway 为唯一 DDL 源；双端 Mapper 引用列必须 ⊆ 当前表结构。
+ * schema 契约测：Flyway 为唯一 DDL 源；共享表 Mapper 唯一 owner 为 agent-readmodel，其引用列必须 ⊆ 当前表结构。
  * 不连数据库；用仓库相对路径读脚本与 XML。
  */
 class SchemaContractTest {
 
-    /** 拆分后两端（或三端）各自持有 Mapper 的同库表。 */
-    private static final Map<String, Set<String>> DUAL_OWNED = Map.ofEntries(
-            Map.entry("tenant", Set.of("agent-access", "agent-admin")),
-            Map.entry("tenant_user", Set.of("agent-access", "agent-admin")),
-            Map.entry("tenant_quota", Set.of("agent-access", "agent-admin")),
-            Map.entry("quota_usage_log", Set.of("agent-access", "agent-admin")),
-            Map.entry("login_credential", Set.of("agent-access", "agent-admin")),
-            Map.entry("token_usage", Set.of("agent-access", "agent-admin", "agent-runtime")),
-            Map.entry("agent_event_audit", Set.of("agent-admin", "agent-runtime")),
-            Map.entry("safety_intervention", Set.of("agent-admin", "agent-runtime")),
-            Map.entry("model_config", Set.of("agent-admin", "agent-runtime")),
-            Map.entry("model_price", Set.of("agent-admin", "agent-runtime")),
-            Map.entry("attachment", Set.of("agent-access", "agent-admin")),
-            Map.entry("attachment_ref", Set.of("agent-access", "agent-admin")),
-            Map.entry("data_deletion_request", Set.of("agent-access", "agent-admin")),
-            Map.entry("user_todo", Set.of("agent-access", "agent-admin")),
-            Map.entry("user_feedback", Set.of("agent-access", "agent-admin")));
-
-    /** 表名 → 约定 Mapper 文件名（仅 BaseMapper 插入、XML 可为空）。 */
-    private static final Map<String, String> MAPPER_FILE = Map.ofEntries(
+    /**
+     * 多进程共用的表：Mapper 已收进 agent-readmodel，其它模块不得再持有同名 XML。
+     * 表名 → 约定 Mapper 文件名（仅 BaseMapper 插入、XML 可为空）。
+     */
+    private static final Map<String, String> READMODEL_OWNED = Map.ofEntries(
             Map.entry("tenant", "TenantMapper.xml"),
             Map.entry("tenant_user", "TenantUserMapper.xml"),
             Map.entry("tenant_quota", "TenantQuotaMapper.xml"),
@@ -84,28 +69,28 @@ class SchemaContractTest {
     private static final Set<String> NON_COLUMN_LINE = Set.of(
             "primary", "unique", "key", "index", "constraint", "foreign", "fulltext", "spatial");
 
-    /** 双端 Mapper 必须存在；文件内 column= 须落在该文件触及的表列并集里。 */
+    /** 共享表的 Mapper 只允许在 agent-readmodel 存在；其 column= 须落在该表列集合里。 */
     @Test
-    void dualOwnedMapperColumnsMatchFlyway() throws IOException {
+    void readModelMapperColumnsMatchFlyway() throws IOException {
         Path root = repoRoot();
-        Map<String, Set<String>> schema = loadSchema(root.resolve("agent-db/src/main/resources/db/migration"));
-        assertThat(schema.keySet()).as("dual-owned tables must exist in Flyway").containsAll(DUAL_OWNED.keySet());
+        Path migrationDir = root.resolve("agent-db/src/main/resources/db/migration");
+        Map<String, Set<String>> schema = loadSchema(migrationDir);
+        assertThat(schema.keySet()).as("shared tables must exist in Flyway").containsAll(READMODEL_OWNED.keySet());
+
+        Path mapperDir = root.resolve("agent-readmodel/src/main/resources/mapper");
+        assertThat(Files.isDirectory(mapperDir)).as("agent-readmodel mapper dir").isTrue();
 
         List<String> violations = new ArrayList<>();
         Set<Path> checkedMappers = new LinkedHashSet<>();
-        for (Map.Entry<String, Set<String>> entry : DUAL_OWNED.entrySet()) {
+        for (Map.Entry<String, String> entry : READMODEL_OWNED.entrySet()) {
             String table = entry.getKey();
             assertThat(schema.get(table)).as("columns for " + table).isNotEmpty();
-            for (String module : entry.getValue()) {
-                Path mapperDir = root.resolve(module).resolve("src/main/resources/mapper");
-                assertThat(Files.isDirectory(mapperDir)).as(module + " mapper dir").isTrue();
-                Path dedicated = mapperDir.resolve(MAPPER_FILE.get(table));
-                if (!Files.isRegularFile(dedicated)) {
-                    violations.add(module + " missing " + MAPPER_FILE.get(table) + " for " + table);
-                    continue;
-                }
-                checkedMappers.add(dedicated);
+            Path dedicated = mapperDir.resolve(entry.getValue());
+            if (!Files.isRegularFile(dedicated)) {
+                violations.add("agent-readmodel missing " + entry.getValue() + " for " + table);
+                continue;
             }
+            checkedMappers.add(dedicated);
         }
         for (Path mapper : checkedMappers) {
             String body = stripXmlComments(Files.readString(mapper, StandardCharsets.UTF_8));
@@ -127,6 +112,25 @@ class SchemaContractTest {
             }
         }
         assertThat(violations).as("schema drift").isEmpty();
+    }
+
+    /** 共享表只能有一个 owner：业务模块不得再留同名 Mapper XML，否则又会分叉。 */
+    @Test
+    void sharedTableMappersAreNotDuplicatedInBusinessModules() {
+        Path root = repoRoot();
+        List<String> duplicates = new ArrayList<>();
+        for (String module : List.of("agent-access", "agent-admin", "agent-runtime")) {
+            Path mapperDir = root.resolve(module).resolve("src/main/resources/mapper");
+            if (!Files.isDirectory(mapperDir)) {
+                continue;
+            }
+            for (String file : READMODEL_OWNED.values()) {
+                if (Files.isRegularFile(mapperDir.resolve(file))) {
+                    duplicates.add(module + "/src/main/resources/mapper/" + file);
+                }
+            }
+        }
+        assertThat(duplicates).as("shared table mappers must live only in agent-readmodel").isEmpty();
     }
 
     /** 仓库根：agent-db 模块目录的上一级。 */

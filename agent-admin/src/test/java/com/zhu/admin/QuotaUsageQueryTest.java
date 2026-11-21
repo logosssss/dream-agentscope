@@ -1,8 +1,8 @@
 package com.zhu.admin;
 
 import com.zhu.admin.application.quota.MysqlQuotaUsageQuery;
-import com.zhu.admin.infrastructure.persistence.quota.QuotaUsageLogMapper;
-import com.zhu.admin.infrastructure.persistence.entity.quota.QuotaUsageLog;
+import com.zhu.readmodel.persistence.quota.QuotaUsageLogMapper;
+import com.zhu.readmodel.entity.quota.QuotaUsageLog;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.LocalDateTime;

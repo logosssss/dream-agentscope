@@ -1,7 +1,8 @@
 package com.zhu.runtime.infrastructure.persistence.event;
 
 import com.zhu.runtime.api.event.AuditRecorder;
-import com.zhu.runtime.infrastructure.persistence.entity.event.AgentEventAudit;
+import com.zhu.readmodel.entity.event.AgentEventAudit;
+import com.zhu.readmodel.persistence.event.AgentEventAuditMapper;
 import com.zhu.common.util.Ids;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;

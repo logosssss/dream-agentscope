@@ -2,8 +2,8 @@ package com.zhu.bootstrap;
 
 import com.zhu.access.application.deletion.MysqlDeletionRequestCatalog;
 import com.zhu.access.api.deletion.DeletionRequestCatalog;
-import com.zhu.access.infrastructure.persistence.deletion.DataDeletionRequestMapper;
-import com.zhu.access.infrastructure.persistence.entity.deletion.DataDeletionRequest;
+import com.zhu.readmodel.persistence.deletion.DataDeletionRequestMapper;
+import com.zhu.readmodel.entity.deletion.DataDeletionRequest;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.LocalDateTime;

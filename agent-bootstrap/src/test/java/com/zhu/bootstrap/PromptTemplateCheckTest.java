@@ -2,10 +2,12 @@ package com.zhu.bootstrap;
 
 import com.zhu.semantic.api.prompt.PlatformPrompt;
 import com.zhu.semantic.infrastructure.prompt.PromptTemplateCheck;
-import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -63,9 +65,17 @@ class PromptTemplateCheckTest {
 
     /** 已经放进 classpath 的模板必须通过。目录还没有时跳过，不连 Nacos。 */
     @Test
-    void classpathPromptsPass() throws URISyntaxException {
+    void classpathPromptsPass() throws Exception {
         URL root = PlatformPrompt.class.getResource("/prompts");
         if (root == null) {
+            return;
+        }
+        // mvn test 时上游模块是 target/classes（file:），mvn verify 时是已打好的 jar（jar:），
+        // 两种都要能读到；直接 Path.of(jar:...) 会抛 FileSystemNotFoundException。
+        if ("jar".equals(root.getProtocol())) {
+            try (FileSystem fs = FileSystems.newFileSystem(root.toURI(), Map.of())) {
+                PromptTemplateCheck.checkDirectory(fs.getPath("/prompts"));
+            }
             return;
         }
         PromptTemplateCheck.checkDirectory(Path.of(root.toURI()));

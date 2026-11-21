@@ -1,6 +1,6 @@
 package com.zhu.admin.domain;
 
-import com.zhu.admin.infrastructure.persistence.entity.billing.ModelPrice;
+import com.zhu.readmodel.entity.billing.ModelPrice;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 

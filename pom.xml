@@ -19,17 +19,20 @@
 
     <modules>
         <module>agent-common</module>
+        <module>agent-readmodel</module>
         <module>agent-db</module>
         <module>agent-vector</module>
         <module>agent-object-store</module>
         <module>agent-cache</module>
         <module>agent-state</module>
         <module>agent-semantic</module>
+        <module>agent-product-api</module>
         <module>agent-runtime</module>
         <module>agent-products</module>
         <module>agent-access</module>
         <module>agent-admin</module>
         <module>agent-bootstrap</module>
+        <module>agent-test-support</module>
     </modules>
 
     <properties>
@@ -57,6 +60,11 @@
             <dependency>
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-readmodel</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

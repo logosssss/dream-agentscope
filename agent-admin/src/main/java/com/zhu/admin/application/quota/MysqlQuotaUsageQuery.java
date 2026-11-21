@@ -4,8 +4,8 @@ import com.zhu.admin.application.support.AuditQueryLimits;
 
 import com.zhu.admin.api.quota.QuotaUsageQuery;
 import com.zhu.admin.api.quota.QuotaUsageRow;
-import com.zhu.admin.infrastructure.persistence.quota.QuotaUsageLogMapper;
-import com.zhu.admin.infrastructure.persistence.entity.quota.QuotaUsageLog;
+import com.zhu.readmodel.persistence.quota.QuotaUsageLogMapper;
+import com.zhu.readmodel.entity.quota.QuotaUsageLog;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.util.List;

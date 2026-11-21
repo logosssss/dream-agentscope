@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.zhu.runtime.infrastructure.persistence.entity.event.AgentEventAudit;
-import com.zhu.runtime.infrastructure.persistence.event.AgentEventAuditMapper;
+import com.zhu.readmodel.entity.event.AgentEventAudit;
+import com.zhu.readmodel.persistence.event.AgentEventAuditMapper;
 import com.zhu.runtime.api.event.AuditRecorder;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
