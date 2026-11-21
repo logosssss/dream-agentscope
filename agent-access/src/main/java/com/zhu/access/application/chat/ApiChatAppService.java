@@ -12,6 +12,7 @@ import com.zhu.access.application.chat.session.SessionOwnerGate;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.ops.tenant.TenantGate;
 import com.zhu.ops.tenant.TenantUserGate;
+import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
@@ -101,14 +102,16 @@ public class ApiChatAppService {
         AgentRequest agentRequest = toRequest(apiRequest);
         ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat");
         long started = System.nanoTime();
+        // API 通道同样按请求号对齐运行记录；流式回调读不到线程上下文，先在入口抄走。
+        String requestId = RequestIdContext.get();
         try {
             remember(apiRequest, agentRequest);
             AgentResponse response = gateway.executeApi(agentRequest);
-            finish(apiRequest, agentRequest, RunLog.SUCCEEDED, response.runId(), response.text(), null, started,
+            finish(apiRequest, agentRequest, RunLog.SUCCEEDED, response.runId(), response.text(), null, requestId, started,
                     reasoning(RunLog.SUCCEEDED));
             return response;
         } catch (RuntimeException error) {
-            finish(apiRequest, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), started,
+            finish(apiRequest, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started,
                     reasoning(RunLog.FAILED));
             throw error;
         } finally {
@@ -124,6 +127,7 @@ public class ApiChatAppService {
         AgentRequest agentRequest = toRequest(apiRequest);
         ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat-stream");
         long started = System.nanoTime();
+        String requestId = RequestIdContext.get();
         try {
             remember(apiRequest, agentRequest);
             String runId = Ids.newId();
@@ -138,7 +142,7 @@ public class ApiChatAppService {
                         try {
                             String status = streamStatus(signal);
                             String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
-                            finish(apiRequest, agentRequest, status, runId, output.get(), code, started,
+                            finish(apiRequest, agentRequest, status, runId, output.get(), code, requestId, started,
                                     stepsFrom(seen, status));
                         } finally {
                             concurrent.close(held);
@@ -147,7 +151,7 @@ public class ApiChatAppService {
         } catch (RuntimeException error) {
             try {
                 finish(apiRequest, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(),
-                        started, reasoning(RunLog.FAILED));
+                        requestId, started, reasoning(RunLog.FAILED));
             } finally {
                 concurrent.close(slot);
             }
@@ -186,6 +190,7 @@ public class ApiChatAppService {
             String runId,
             String output,
             String errorCode,
+            String requestId,
             long startedNanos,
             List<RunStep> steps) {
         String id = runId == null || runId.isBlank() ? Ids.newId() : runId;
@@ -197,6 +202,7 @@ public class ApiChatAppService {
                     "API",
                     status,
                     id,
+                    requestId,
                     SessionListService.title(request.text()),
                     SessionListService.title(output),
                     errorCode,

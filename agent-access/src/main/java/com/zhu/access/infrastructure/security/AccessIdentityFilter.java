@@ -75,6 +75,8 @@ public class AccessIdentityFilter extends OncePerRequestFilter {
         }
         if (requestId != null) {
             RequestIdContext.set(requestId);
+            // 回显给调用方：报障时可以直接引用这个号查运行记录。
+            response.setHeader(REQUEST_ID_HEADER, requestId);
         }
         try {
             chain.doFilter(request, response);

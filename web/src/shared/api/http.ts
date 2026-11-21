@@ -15,9 +15,25 @@ export function isGatewayMode(): boolean {
   return import.meta.env.VITE_GATEWAY === 'true'
 }
 
+/**
+ * 生成一个请求号。优先用 crypto.randomUUID（现网与本地都可用）；
+ * 老浏览器没有它时退回时间戳加随机串，长度仍然够用。
+ */
+export function newRequestId(): string {
+  const cryptoApi = globalThis.crypto
+  if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
+    return cryptoApi.randomUUID()
+  }
+  return `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 /** 组装鉴权头。网关模式不带令牌；本地模式缺 Caller Token 直接抛错。登录和出码可以不带旧会话。 */
 export function authHeaders(extra?: HeadersInit, bearer = true): Headers {
   const headers = new Headers(extra)
+  // 每条请求带一个请求号：后端写进运行记录并原样回显，报障时按它查。
+  if (!headers.has('X-Request-Id')) {
+    headers.set('X-Request-Id', newRequestId())
+  }
   if (!isGatewayMode()) {
     const caller = import.meta.env.VITE_CALLER_TOKEN
     if (!caller || caller.trim() === '') {

@@ -23,6 +23,7 @@ public class AbsentRunLog implements RunLog {
             String trigger,
             String status,
             String runId,
+            String requestId,
             String inputSummary,
             String outputSummary,
             String errorCode,

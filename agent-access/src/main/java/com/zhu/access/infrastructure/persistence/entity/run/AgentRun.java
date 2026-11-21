@@ -27,6 +27,9 @@ public class AgentRun {
     /** 会话。 */
     private String sessionId;
 
+    /** 调用方请求号。跟着 X-Request-Id 走，空表示调用方没带。 */
+    private String requestId;
+
     /** USER 或 API。 */
     private String triggerType;
 
@@ -102,6 +105,16 @@ public class AgentRun {
     /** 写入会话。 */
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
+    }
+
+    /** 请求号。 */
+    public String getRequestId() {
+        return requestId;
+    }
+
+    /** 写入请求号。 */
+    public void setRequestId(String requestId) {
+        this.requestId = requestId;
     }
 
     /** 触发方式。 */

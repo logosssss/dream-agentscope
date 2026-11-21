@@ -89,6 +89,7 @@ public class MysqlRunQuery implements RunQuery {
                 tenant,
                 row.getUserId(),
                 row.getSessionId(),
+                row.getRequestId() == null ? "" : row.getRequestId(),
                 row.getTriggerType(),
                 row.getStatus(),
                 row.getModel(),

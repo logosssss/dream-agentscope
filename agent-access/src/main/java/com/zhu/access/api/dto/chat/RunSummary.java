@@ -7,6 +7,7 @@ package com.zhu.access.api.dto.chat;
  * @param tenantId      租户，没有时是空串
  * @param userId        用户
  * @param sessionId     会话
+ * @param requestId     调用方请求号，可能为空串
  * @param triggerType   USER 或 API
  * @param status        SUCCEEDED / FAILED / CANCELLED
  * @param model         模型坐标，可以空
@@ -20,6 +21,7 @@ public record RunSummary(
         String tenantId,
         String userId,
         String sessionId,
+        String requestId,
         String triggerType,
         String status,
         String model,

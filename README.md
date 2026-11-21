@@ -249,9 +249,16 @@ curl -s http://127.0.0.1:8100/health/ready
 | 接口响应 | Cache-Control: no-store（仅 /api） | 有令牌回执与个人数据，不允许缓存 |
 | 页面响应 | 上述四个 + 页面 CSP + HSTS | 由 Nginx 示例给；页面 CSP 放行 Google Fonts 与行内样式（Tailwind / :style 需要） |
 
-页面 CSP 只在 deploy/nginx/dream-saas.com.conf.example 里，改完记得 
-ginx -t && systemctl reload nginx。
+页面 CSP 只在 deploy/nginx/dream-saas.com.conf.example 里，改完记得 `nginx -t && systemctl reload nginx`。
 细节与「明确不做」见 [P12 记录](./docs/engineering-p12-security-headers-落地.md)。小程序确认 `POST /api/public/auth/wx/confirm` 不带 Caller Token（仍校验票）。
+
+### 请求号
+
+前端每条请求带 `X-Request-Id`（调用方自己传了就不覆盖），后端把它写进 `agent_run.request_id`，并把同一个号放回响应头。用户报「刚才那轮答错了」时，拿这个号就能定位到那一轮运行（`GET /api/runs/{runId}` 的 `requestId` 字段也是它）。
+
+- 没带请求号的调用（脚本、渠道网关）不会凭空生成，`request_id` 留空。
+- 长度超过 64 截断；管理进程不参与。
+- 细节与「明确不做」见 [P13 记录](./docs/engineering-p13-request-id-落地.md)。
 
 ### 常用业务旋钮（示例）
 

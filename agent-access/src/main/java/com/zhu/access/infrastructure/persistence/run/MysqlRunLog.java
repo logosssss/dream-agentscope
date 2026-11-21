@@ -28,6 +28,8 @@ public class MysqlRunLog implements RunLog {
 
     private static final int TOOL_LIMIT = 128;
 
+    private static final int REQUEST_ID_LIMIT = 64;
+
     private final AgentRunMapper runs;
 
     private final AgentRunStepMapper steps;
@@ -61,6 +63,7 @@ public class MysqlRunLog implements RunLog {
             String trigger,
             String status,
             String runId,
+            String requestId,
             String inputSummary,
             String outputSummary,
             String errorCode,
@@ -76,6 +79,7 @@ public class MysqlRunLog implements RunLog {
         row.setTenantId(tenantId == null ? "" : tenantId);
         row.setUserId(userId);
         row.setSessionId(sessionId);
+        row.setRequestId(limit(requestId, REQUEST_ID_LIMIT));
         row.setTriggerType(trigger == null || trigger.isBlank() ? "USER" : trigger);
         row.setStatus(status == null || status.isBlank() ? FAILED : status);
         row.setModel(limit(modelName(tenantId), MODEL_LIMIT));

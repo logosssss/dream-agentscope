@@ -36,4 +36,16 @@ describe('authHeaders', () => {
 
     expect(() => authHeaders()).toThrow(/VITE_GATEWAY=true/)
   })
+
+  it('每条请求都带请求号，且不覆盖调用方自己传的号', () => {
+    vi.stubEnv('VITE_GATEWAY', 'true')
+
+    const first = authHeaders().get('X-Request-Id')
+    const second = authHeaders().get('X-Request-Id')
+    expect(first).toBeTruthy()
+    expect(first).not.toBe(second)
+
+    const kept = authHeaders({ 'X-Request-Id': 'mine' }).get('X-Request-Id')
+    expect(kept).toBe('mine')
+  })
 })

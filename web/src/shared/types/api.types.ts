@@ -63,6 +63,8 @@ export interface RunSummary {
   tenantId: string
   userId: string
   sessionId: string
+  /** 调用方请求号，空串表示没带。报障时按它查这一轮。 */
+  requestId: string
   triggerType: string
   status: string
   model: string | null

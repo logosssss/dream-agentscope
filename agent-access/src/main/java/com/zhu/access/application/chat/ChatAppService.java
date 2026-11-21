@@ -12,6 +12,7 @@ import com.zhu.access.api.dto.chat.ChatRequest;
 import com.zhu.ops.tenant.TenantGate;
 import com.zhu.ops.tenant.TenantUserGate;
 import com.zhu.access.domain.channel.AccessChannel;
+import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
@@ -103,13 +104,15 @@ public class ChatAppService {
         AgentRequest agentRequest = toRequest(request);
         ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat");
         long started = System.nanoTime();
+        // 请求号在入口就抄走：过滤器清完线程上下文后，catch 分支还在同一个线程上，但流式回调不在。
+        String requestId = RequestIdContext.get();
         try {
             remember(request, agentRequest);
             AgentResponse response = executor.execute(agentRequest);
-            finish(request, agentRequest, RunLog.SUCCEEDED, response.runId(), response.text(), null, started, reasoning(RunLog.SUCCEEDED));
+            finish(request, agentRequest, RunLog.SUCCEEDED, response.runId(), response.text(), null, requestId, started, reasoning(RunLog.SUCCEEDED));
             return response;
         } catch (RuntimeException error) {
-            finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), started, reasoning(RunLog.FAILED));
+            finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started, reasoning(RunLog.FAILED));
             throw error;
         } finally {
             concurrent.close(slot);
@@ -126,6 +129,8 @@ public class ChatAppService {
         AgentRequest agentRequest = toRequest(request);
         ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat-stream");
         long started = System.nanoTime();
+        // 流式回调跑在响应式线程上，读不到过滤器的线程上下文，所以在这里先抄走。
+        String requestId = RequestIdContext.get();
         try {
             remember(request, agentRequest);
             String runId = Ids.newId();
@@ -141,14 +146,14 @@ public class ChatAppService {
                             String status = streamStatus(signal);
                             String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
                             // 先落库再放租户并发占位，避免同租户下一轮抢名额。
-                            finish(request, agentRequest, status, runId, output.get(), code, started, stepsFrom(seen, status));
+                            finish(request, agentRequest, status, runId, output.get(), code, requestId, started, stepsFrom(seen, status));
                         } finally {
                             concurrent.close(held);
                         }
                     });
         } catch (RuntimeException error) {
             try {
-                finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), started, reasoning(RunLog.FAILED));
+                finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started, reasoning(RunLog.FAILED));
             } finally {
                 concurrent.close(slot);
             }
@@ -181,6 +186,7 @@ public class ChatAppService {
             String runId,
             String output,
             String errorCode,
+            String requestId,
             long startedNanos,
             List<RunStep> steps) {
         String id = runId == null || runId.isBlank() ? Ids.newId() : runId;
@@ -192,6 +198,7 @@ public class ChatAppService {
                     trigger(request),
                     status,
                     id,
+                    requestId,
                     SessionListService.title(request.text()),
                     SessionListService.title(output),
                     errorCode,

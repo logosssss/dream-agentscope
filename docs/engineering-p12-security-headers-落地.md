@@ -73,5 +73,5 @@
 
 ## 下一步
 
-- 可观测性：`request_id` 串起 `agent_run` 与 `agent_event_audit`，让「刚才那轮出错」可查。
+- 可观测性：`request_id` 串起 `agent_run` 与 `agent_event_audit`，让「刚才那轮出错」可查（`agent_run` 侧已由 [P13](./engineering-p13-request-id-落地.md) 落地）。
 - 上线时把 `docs/release-gate.md` 的 R2 签字补完（冒烟仍待跑）。

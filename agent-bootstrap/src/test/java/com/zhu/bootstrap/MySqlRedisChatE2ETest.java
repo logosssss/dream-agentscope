@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -65,6 +66,8 @@ class MySqlRedisChatE2ETest {
     private static final String REPLY = "我先记下这句话：\"你好\"。";
 
     private static final String SECOND_REPLY = "第二句我也记下了。";
+
+    private static final String FAILED_REQUEST_ID = "req-e2e-chat-failed";
 
     @Container
     private static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4")
@@ -288,9 +291,11 @@ class MySqlRedisChatE2ETest {
         mvc.perform(post("/api/chat")
                         .header(CallerTokens.HEADER, CALLER)
                         .header("Authorization", "Bearer " + token)
+                        .header("X-Request-Id", FAILED_REQUEST_ID)
                         .contentType("application/json")
                         .content("{\"sessionId\":\"s-chat-3\",\"text\":\"这一轮会失败\"}"))
-                .andExpect(status().is5xxServerError());
+                .andExpect(status().is5xxServerError())
+                .andExpect(header().string("X-Request-Id", FAILED_REQUEST_ID));
 
         // 运行记为 FAILED，错误码只有异常类型，不带异常原文。
         assertThat(jdbc.queryForObject(
@@ -299,6 +304,11 @@ class MySqlRedisChatE2ETest {
         assertThat(jdbc.queryForObject(
                 "SELECT error_code FROM agent_run WHERE session_id = ? AND user_id = ?",
                 String.class, "s-chat-3", userId)).isEqualTo("IllegalStateException");
+
+        // 请求号落进运行记录：调用方拿着回显的号就能查到这一轮。
+        assertThat(jdbc.queryForObject(
+                "SELECT request_id FROM agent_run WHERE session_id = ? AND user_id = ?",
+                String.class, "s-chat-3", userId)).isEqualTo(FAILED_REQUEST_ID);
 
         // 失败一轮一条气泡都不写：用户不会看到自己没发过的消息，也不会看到半截回复。
         assertThat(jdbc.queryForObject(

@@ -10,6 +10,7 @@ import com.zhu.access.application.chat.run.RunStep;
 import com.zhu.access.application.chat.session.SessionIndex;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.domain.channel.AccessChannel;
+import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.runtime.api.agent.AgentExecutor;
@@ -38,6 +39,22 @@ class ChatRunTest {
     void clearIdentity() {
         TenantContext.clear();
         UserContext.clear();
+        RequestIdContext.clear();
+    }
+
+    /** 请求号在入口抄进运行记录：报障时能按号查到这一轮。 */
+    @Test
+    void requestIdIsCopiedIntoRunRecord() {
+        Captured captured = new Captured();
+        AtomicReference<String> attached = new AtomicReference<>();
+        AgentExecutor executor = mock(AgentExecutor.class);
+        when(executor.execute(any())).thenReturn(new AgentResponse("run-9", "ok"));
+        ChatAppService chats = chats(executor, captured, attached);
+
+        RequestIdContext.set("req-9");
+        chats.chat(request("hi", AccessChannel.WEB));
+
+        assertThat(captured.requestId).isEqualTo("req-9");
     }
 
     /** 成功时记下回复标识，输出超过 40 个字符被截断。WEB 主路径 trigger=USER。 */
@@ -93,7 +110,7 @@ class ChatRunTest {
     void recordFailureDoesNotHideReply() {
         AgentExecutor executor = mock(AgentExecutor.class);
         when(executor.execute(any())).thenReturn(new AgentResponse("run-2", "ok"));
-        RunLog runs = (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
+        RunLog runs = (tenant, user, session, trigger, status, runId, requestId, input, output, error, steps, started) -> {
             throw new IllegalStateException("db down");
         };
         ChatAppService chats = service(executor, runs, (tenant, user, session, channel, text) -> {
@@ -193,6 +210,8 @@ class ChatRunTest {
 
         private String runId;
 
+        private String requestId;
+
         private String trigger;
 
         private String input;
@@ -212,6 +231,7 @@ class ChatRunTest {
                 String trigger,
                 String status,
                 String runId,
+                String requestId,
                 String inputSummary,
                 String outputSummary,
                 String errorCode,
@@ -220,6 +240,7 @@ class ChatRunTest {
             this.trigger = trigger;
             this.status = status;
             this.runId = runId;
+            this.requestId = requestId;
             this.input = inputSummary;
             this.output = outputSummary;
             this.errorCode = errorCode;
