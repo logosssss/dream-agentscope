@@ -20,7 +20,7 @@ P0–P4 修的是「结构」：模块边界、单一 owner、闸门顺序、配
 | 位置 | `agent-bootstrap/src/test/java/com/zhu/bootstrap/MySqlRedisE2ETest.java`（端到端要整个进程，放装配模块） |
 | 开关 | `@Testcontainers(disabledWithoutDocker = true)`：本机无 Docker 时**跳过**而不是失败 |
 | 覆盖 | Flyway 迁移（`flyway_schema_history` ≥ 41 条 success）→ 注册 → `/api/me` → 重新登录 → 附件上传/下载 → `tenant_user` / `login_credential` / `attachment` 落库断言 → 额度接口 |
-| 不覆盖 | 模型调用（`DASHSCOPE_API_KEY` 不在 CI），因此没有「一轮 chat 落 `agent_run` / `chat_message`」 |
+| 不覆盖 | 模型调用（`DASHSCOPE_API_KEY` 不在 CI）——对话链路已由 [P8](./engineering-p8-chat-e2e-落地.md) 用执行缝替身补上 |
 | 依赖 | `agent-bootstrap` 加 `org.testcontainers:junit-jupiter`、`org.testcontainers:mysql`（版本由 Spring Boot BOM 管） |
 | 数据隔离 | 每个容器一份全新库；租户行由测试自己 `INSERT`（迁移不种数据，靠管理端登记） |
 | 与 `BootstrapContextTest` 的关系 | 互补：那个证明「什么都不连也能起」，这个证明「都连上能干活」 |
@@ -28,7 +28,7 @@ P0–P4 修的是「结构」：模块边界、单一 owner、闸门顺序、配
 ## 明确不做
 
 - **X1 不用 H2 代替 MySQL**：H2 对 `utf8mb4_bin`、FULLTEXT、`DATETIME(3)`、`JSON` 的兼容性不足，跑通没有意义。
-- **X2 不引入模型桩来假装对话**：要么用真模型（要密钥、要花钱、不稳定），要么不测。留空比假绿好。
+- **X2 不引入模型桩来假装对话**：要么用真模型（要密钥、要花钱、不稳定），要么不测。留空比假绿好。（P8 换了一条路：替身执行缝而不是模型，见该文档。）
 - **X3 不把 E2E 塞进 `boundary` 快速段**：容器起停 20–40 秒，边界护栏必须保持秒级。
 - **X4 不做容器复用（`withReuse`）**：CI 每次都是干净 runner，复用只会在本地留下脏状态。
 - **X5 不扩成人人必跑**：本地开发不需要 Docker 也能跑全量单测。
@@ -52,7 +52,7 @@ P0–P4 修的是「结构」：模块边界、单一 owner、闸门顺序、配
 
 ## 残留
 
-1. **对话链路仍未端到端**：需要模型桩或真密钥。若要做，建议加一个 `ModelConfigLookup` 的测试实现（进程内假模型），而不是打外网。
+1. ~~对话链路仍未端到端~~：已由 [P8](./engineering-p8-chat-e2e-落地.md) 用 `@MockitoSpyBean ChannelGateway` 补上，`agent_run` / `chat_message` / `agent_session_meta` 都真落库。
 2. **本机永远跳过**：本机装 Docker Desktop 后即可真跑，届时这条测试可能暴露迁移与 MySQL 版本相关的真实问题。
 3. **CI 首次运行未知**：容器镜像拉取、`mysql:8.4` 初始化时间都可能需要调；若超时优先加 `--start-period` 而非降级成跳过。
 
