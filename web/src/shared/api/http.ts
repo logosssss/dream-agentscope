@@ -69,6 +69,16 @@ export class ApiBusinessError extends Error {
   }
 }
 
+/**
+ * 把响应头里的请求号拼到错误文案末尾。
+ * 用户看到的报错里带号，报障时直接复制这一串给运维，就能查到那一轮运行记录。
+ * 调用方没带请求号、或中间层没回显时原样返回。
+ */
+export function withRequestId(message: string, response: Response): string {
+  const id = (response.headers.get('X-Request-Id') || '').trim()
+  return id ? `${message}（请求号 ${id}）` : message
+}
+
 /** JSON API 调用。HTTP 401 清会话；503 与 ok=false 都转成 Error。业务失败带 code。 */
 export async function apiJson<T>(
   path: string,
@@ -91,27 +101,30 @@ export async function apiJson<T>(
     try {
       body = JSON.parse(raw) as ApiResult<T>
     } catch {
-      throw new Error(`响应不是 JSON（HTTP ${response.status}）`)
+      throw new Error(withRequestId(`响应不是 JSON（HTTP ${response.status}）`, response))
     }
   }
 
   if (response.status === 503) {
-    throw new Error(body?.message || '服务暂不可用（503）')
+    throw new Error(withRequestId(body?.message || '服务暂不可用（503）', response))
   }
 
   if (!response.ok) {
-    throw new Error(body?.message || `请求失败（HTTP ${response.status}）`)
+    throw new Error(withRequestId(body?.message || `请求失败（HTTP ${response.status}）`, response))
   }
 
   if (!body) {
-    throw new Error('响应体为空')
+    throw new Error(withRequestId('响应体为空', response))
   }
 
   if (!body.ok) {
     if (body.code === 'UNAUTHORIZED') {
       clearSession()
     }
-    throw new ApiBusinessError(body.code || 'ERROR', body.message || body.code || '业务失败')
+    throw new ApiBusinessError(
+      body.code || 'ERROR',
+      withRequestId(body.message || body.code || '业务失败', response),
+    )
   }
 
   return body.data

@@ -1,4 +1,4 @@
-import { authHeaders } from '@/shared/api/http'
+import { authHeaders, withRequestId } from '@/shared/api/http'
 import { clearSession } from '@/shared/auth/session'
 import type { AgentStreamEvent, ChatStreamRequest } from '@/shared/types/api.types'
 
@@ -52,17 +52,17 @@ export function useStreaming() {
     }
 
     if (response.status === 503) {
-      throw new Error('服务暂不可用（503）')
+      throw new Error(withRequestId('服务暂不可用（503）', response))
     }
 
     // 额度用尽等业务失败仍是 HTTP 200 加 JSON，不能当成空的事件流。
     if (!response.ok || (response.headers.get('Content-Type') || '').includes('application/json')) {
       const raw = await response.text()
-      throw new Error(parseErrorMessage(raw, response.status))
+      throw new Error(withRequestId(parseErrorMessage(raw, response.status), response))
     }
 
     if (!response.body) {
-      throw new Error('响应没有可读流')
+      throw new Error(withRequestId('响应没有可读流', response))
     }
 
     const reader = response.body.getReader()
