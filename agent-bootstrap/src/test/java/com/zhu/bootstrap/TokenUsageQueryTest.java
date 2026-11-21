@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.usage.MysqlTokenUsageQuery;
-import com.zhu.access.api.usage.TokenUsageQuery;
+import com.zhu.ops.usage.MysqlTokenUsageQuery;
+import com.zhu.ops.usage.TokenUsageQuery;
 import com.zhu.readmodel.persistence.usage.TokenUsageMapper;
 import com.zhu.readmodel.entity.usage.TokenUsage;
 import com.zhu.common.exception.BusinessException;

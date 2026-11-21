@@ -2,9 +2,9 @@ package com.zhu.access.api.controller.account;
 
 import com.zhu.access.api.dto.account.FeedbackRequest;
 import com.zhu.access.application.auth.gate.AccessAccountGate;
-import com.zhu.access.api.feedback.FeedbackDetail;
-import com.zhu.access.api.feedback.FeedbackRecorder;
-import com.zhu.access.api.feedback.FeedbackSummary;
+import com.zhu.ops.feedback.FeedbackDetail;
+import com.zhu.ops.feedback.FeedbackRecorder;
+import com.zhu.ops.feedback.FeedbackSummary;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;

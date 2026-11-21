@@ -20,6 +20,7 @@
     <modules>
         <module>agent-common</module>
         <module>agent-readmodel</module>
+        <module>agent-ops</module>
         <module>agent-db</module>
         <module>agent-vector</module>
         <module>agent-object-store</module>
@@ -65,6 +66,11 @@
             <dependency>
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-readmodel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-ops</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

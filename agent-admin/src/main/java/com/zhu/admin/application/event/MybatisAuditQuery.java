@@ -2,7 +2,7 @@ package com.zhu.admin.application.event;
 
 import com.zhu.admin.api.event.AuditEventRow;
 import com.zhu.admin.api.event.AuditQuery;
-import com.zhu.admin.application.support.AuditQueryLimits;
+import com.zhu.ops.support.QueryLimits;
 import com.zhu.readmodel.entity.event.AgentEventAudit;
 import com.zhu.readmodel.persistence.event.AgentEventAuditMapper;
 import java.util.ArrayList;
@@ -26,7 +26,7 @@ public class MybatisAuditQuery implements AuditQuery {
     /** 条数先收口，再按 XML 里的最近事件查询。 */
     @Override
     public List<AuditEventRow> recentEvents(int limit) {
-        List<AgentEventAudit> rows = events.recent(AuditQueryLimits.normalize(limit));
+        List<AgentEventAudit> rows = events.recent(QueryLimits.normalize(limit));
         List<AuditEventRow> result = new ArrayList<>(rows.size());
         for (AgentEventAudit row : rows) {
             result.add(new AuditEventRow(

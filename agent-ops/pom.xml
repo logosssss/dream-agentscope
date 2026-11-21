@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zhu</groupId>
+        <artifactId>dream-agentscope</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>agent-ops</artifactId>
+    <name>agent-ops</name>
+    <description>两个进程共用的账号 / 租户 / 附件 / 待办 / 用量 / 删除请求服务</description>
+
+    <dependencies>
+        <!-- 数据形状与 Mapper 都在 readmodel，这里只写行为。 -->
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-readmodel</artifactId>
+        </dependency>
+        <!-- 读穿缓存走 cache-api；具体 Redis 实现在进程侧装配，本模块不依赖 cache-redis。 -->
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-cache-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-common</artifactId>
+        </dependency>
+    </dependencies>
+</project>

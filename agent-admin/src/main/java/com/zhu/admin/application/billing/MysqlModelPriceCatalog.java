@@ -1,6 +1,6 @@
 package com.zhu.admin.application.billing;
 
-import com.zhu.admin.application.support.AuditQueryLimits;
+import com.zhu.ops.support.QueryLimits;
 
 import com.zhu.admin.api.billing.ModelPriceCatalog;
 import com.zhu.admin.api.billing.ModelPriceEntry;
@@ -37,7 +37,7 @@ public class MysqlModelPriceCatalog implements ModelPriceCatalog {
     /** 条数和审计查询用同一套上限。 */
     @Override
     public List<ModelPriceEntry> recent(int limit) {
-        List<ModelPrice> rows = prices.recent(AuditQueryLimits.normalize(limit));
+        List<ModelPrice> rows = prices.recent(QueryLimits.normalize(limit));
         if (rows == null || rows.isEmpty()) {
             return List.of();
         }

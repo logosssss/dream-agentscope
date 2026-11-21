@@ -1,10 +1,10 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.quota.MysqlQuotaUsageWriter;
+import com.zhu.ops.quota.MysqlQuotaUsageWriter;
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
-import com.zhu.access.api.quota.QuotaUsageWriter;
-import com.zhu.access.api.quota.QuotaUsageWriter;
+import com.zhu.ops.quota.QuotaUsageWriter;
+import com.zhu.ops.quota.QuotaUsageWriter;
 import com.zhu.readmodel.persistence.quota.QuotaUsageLogMapper;
 import com.zhu.readmodel.entity.quota.QuotaUsageLog;
 import com.zhu.common.exception.BusinessException;

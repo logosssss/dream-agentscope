@@ -1,10 +1,10 @@
 # 文档索引
 
-仓库里文档分四层：**工程调整记录**（按 P0–P6 顺序做过的结构性改动）、**能力落地记录**（每个功能块一份，含「明确不做」）、**手册 / 图册 / 教程**（面向人读）、**参考长文**（含历史草案，冲突时听现码）。
+仓库里文档分四层：**工程调整记录**（按 P0–P7 顺序做过的结构性改动）、**能力落地记录**（每个功能块一份，含「明确不做」）、**手册 / 图册 / 教程**（面向人读）、**参考长文**（含历史草案，冲突时听现码）。
 
 约定：每份 `*-落地.md` 都在标题下写 `状态：**已完成**`；相对链接由 `agent-bootstrap` 的 `DocsLinkTest` 在 CI 里守着，改名或搬家时不会悄悄烂掉。
 
-## 工程调整（P0 → P6）
+## 工程调整（P0 → P7）
 
 | 文档 | 一句话 |
 | --- | --- |
@@ -15,6 +15,7 @@
 | [P4 配置语义校验与文档导航](./engineering-p4-config-docs-落地.md) | `AgentRuntimeProperties.validate()` 拒收语义非法推送；本索引与链接检查 |
 | [P5 端到端测试](./engineering-p5-e2e-落地.md) | Testcontainers 起真 MySQL + Redis：Flyway → 注册 → 登录 → 附件落库 |
 | [P6 数据生命周期](./engineering-p6-data-lifecycle-落地.md) | 删除请求批准后真删（含字节与向量）、审计脱敏、保留策略真清理 |
+| [P7 `agent-ops` 抽取](./engineering-p7-ops-落地.md) | access/admin 的 45 个同名运营类收成一份，两进程只留一个定义 |
 | [工程 / 模块评估](./engineering-module-review.md) | P0 之前的模块与测试现状评估（决策用，已被 P0–P4 部分推翻） |
 | [AgentScope 落地评估](./agentscope-landing-review.md) | 与参考长文的漂移对照 |
 

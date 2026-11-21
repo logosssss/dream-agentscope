@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.tenant.MysqlTenantDirectory;
+import com.zhu.ops.tenant.MysqlTenantDirectory;
 import com.zhu.readmodel.persistence.tenant.TenantMapper;
 import com.zhu.readmodel.entity.tenant.TenantRecord;
 import com.zhu.common.exception.BusinessException;

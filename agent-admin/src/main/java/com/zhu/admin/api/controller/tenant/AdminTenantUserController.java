@@ -1,8 +1,8 @@
 package com.zhu.admin.api.controller.tenant;
 
 import com.zhu.admin.api.dto.tenant.TenantUserRequest;
-import com.zhu.admin.api.tenant.TenantUserCatalog;
-import com.zhu.admin.api.tenant.TenantUserSummary;
+import com.zhu.ops.tenant.TenantUserCatalog;
+import com.zhu.ops.tenant.TenantUserSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

@@ -1,8 +1,8 @@
 package com.zhu.admin.api.controller.quota;
 
 import com.zhu.admin.api.dto.quota.TenantQuotaRequest;
-import com.zhu.admin.api.quota.TenantQuotaCatalog;
-import com.zhu.admin.api.quota.TenantQuotaSummary;
+import com.zhu.ops.quota.TenantQuotaCatalog;
+import com.zhu.ops.quota.TenantQuotaSummary;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

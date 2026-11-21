@@ -1,8 +1,8 @@
 package com.zhu.access.api.controller.account;
 
 import com.zhu.access.application.auth.gate.AccessAccountGate;
-import com.zhu.access.api.approval.ApprovalNotice;
-import com.zhu.access.api.approval.ApprovalNoticeDetail;
+import com.zhu.ops.approval.ApprovalNotice;
+import com.zhu.ops.approval.ApprovalNoticeDetail;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;

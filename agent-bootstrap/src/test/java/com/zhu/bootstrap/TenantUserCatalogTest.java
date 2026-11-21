@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.tenant.MysqlTenantUserCatalog;
-import com.zhu.access.api.tenant.TenantUserCatalog;
+import com.zhu.ops.tenant.MysqlTenantUserCatalog;
+import com.zhu.ops.tenant.TenantUserCatalog;
 import com.zhu.readmodel.persistence.tenant.TenantMapper;
 import com.zhu.readmodel.persistence.tenant.TenantUserMapper;
 import com.zhu.readmodel.entity.tenant.TenantRecord;

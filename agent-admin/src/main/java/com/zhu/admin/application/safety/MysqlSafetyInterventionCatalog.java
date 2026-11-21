@@ -1,6 +1,6 @@
 package com.zhu.admin.application.safety;
 
-import com.zhu.admin.application.support.AuditQueryLimits;
+import com.zhu.ops.support.QueryLimits;
 
 import com.zhu.admin.api.safety.SafetyInterventionCatalog;
 import com.zhu.admin.api.safety.SafetyInterventionSummary;
@@ -28,7 +28,7 @@ public class MysqlSafetyInterventionCatalog implements SafetyInterventionCatalog
     /** 条数和审计查询用同一套上限。空结果返回空列表。 */
     @Override
     public List<SafetyInterventionSummary> recent(int limit) {
-        List<SafetyIntervention> rows = interventions.recent(AuditQueryLimits.normalize(limit));
+        List<SafetyIntervention> rows = interventions.recent(QueryLimits.normalize(limit));
         if (rows == null || rows.isEmpty()) {
             return List.of();
         }

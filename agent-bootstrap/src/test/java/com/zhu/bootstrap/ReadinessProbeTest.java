@@ -1,7 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.application.health.RedisReadiness;
-import com.zhu.access.application.health.MysqlReadiness;
+import com.zhu.ops.health.MysqlReadiness;
 import com.zhu.common.health.MilvusProbe;
 import com.zhu.common.health.ReadinessSnapshot;
 import java.sql.Connection;

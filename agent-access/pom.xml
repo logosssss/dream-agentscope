@@ -20,7 +20,12 @@
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
-            <artifactId>agent-readmodel</artifactId>
+            <artifactId>agent-ops</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.zhu</groupId>
+      <artifactId>agent-readmodel</artifactId>
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>

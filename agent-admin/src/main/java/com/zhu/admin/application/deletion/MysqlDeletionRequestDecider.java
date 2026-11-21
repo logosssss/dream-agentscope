@@ -1,8 +1,8 @@
 package com.zhu.admin.application.deletion;
 
-import com.zhu.admin.api.approval.ApprovalDecision;
+import com.zhu.ops.approval.ApprovalDecision;
 import com.zhu.admin.api.deletion.DeletionRequestDecider;
-import com.zhu.admin.api.deletion.DeletionRequestSummary;
+import com.zhu.ops.deletion.DeletionRequestSummary;
 import com.zhu.readmodel.persistence.deletion.DataDeletionRequestMapper;
 import com.zhu.readmodel.entity.deletion.DataDeletionRequest;
 import com.zhu.common.exception.BusinessException;

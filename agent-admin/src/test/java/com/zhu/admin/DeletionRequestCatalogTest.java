@@ -1,6 +1,6 @@
 package com.zhu.admin;
 
-import com.zhu.admin.application.deletion.MysqlDeletionRequestCatalog;
+import com.zhu.ops.deletion.MysqlDeletionRequestCatalog;
 import com.zhu.readmodel.persistence.deletion.DataDeletionRequestMapper;
 import com.zhu.readmodel.entity.deletion.DataDeletionRequest;
 import java.time.LocalDateTime;

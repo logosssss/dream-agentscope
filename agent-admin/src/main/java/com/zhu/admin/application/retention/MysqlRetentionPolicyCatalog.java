@@ -1,6 +1,6 @@
 package com.zhu.admin.application.retention;
 
-import com.zhu.admin.application.support.AuditQueryLimits;
+import com.zhu.ops.support.QueryLimits;
 
 import com.zhu.admin.api.retention.RetentionPolicyCatalog;
 import com.zhu.admin.api.retention.RetentionPolicySummary;
@@ -108,7 +108,7 @@ public class MysqlRetentionPolicyCatalog implements RetentionPolicyCatalog {
      */
     @Override
     public List<RetentionPolicySummary> recent(int limit) {
-        List<DataRetentionPolicy> rows = policies.recent(AuditQueryLimits.normalize(limit));
+        List<DataRetentionPolicy> rows = policies.recent(QueryLimits.normalize(limit));
         if (rows == null || rows.isEmpty()) {
             return List.of();
         }

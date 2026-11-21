@@ -1,6 +1,7 @@
 package com.zhu.admin.api.deletion;
 
-import com.zhu.admin.api.approval.ApprovalDecision;
+import com.zhu.ops.deletion.DeletionRequestSummary;
+import com.zhu.ops.approval.ApprovalDecision;
 
 /**
  * 删除请求的决定口。只改仍为 PENDING 的请求，不执行删除。

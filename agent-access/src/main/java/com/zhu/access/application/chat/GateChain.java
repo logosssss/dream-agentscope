@@ -1,7 +1,7 @@
 package com.zhu.access.application.chat;
 
-import com.zhu.access.api.tenant.TenantGate;
-import com.zhu.access.api.tenant.TenantUserGate;
+import com.zhu.ops.tenant.TenantGate;
+import com.zhu.ops.tenant.TenantUserGate;
 import com.zhu.access.application.chat.session.SessionOwnerGate;
 import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.exception.BusinessException;

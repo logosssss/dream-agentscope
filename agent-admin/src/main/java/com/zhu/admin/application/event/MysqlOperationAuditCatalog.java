@@ -1,6 +1,6 @@
 package com.zhu.admin.application.event;
 
-import com.zhu.admin.application.support.AuditQueryLimits;
+import com.zhu.ops.support.QueryLimits;
 
 import com.zhu.admin.api.event.OperationAuditCatalog;
 import com.zhu.admin.api.event.OperationAuditSummary;
@@ -70,7 +70,7 @@ public class MysqlOperationAuditCatalog implements OperationAuditCatalog {
     /** 条数和审计查询用同一套上限。空结果返回空列表。 */
     @Override
     public List<OperationAuditSummary> recent(int limit) {
-        List<OperationAudit> rows = audits.recent(AuditQueryLimits.normalize(limit));
+        List<OperationAudit> rows = audits.recent(QueryLimits.normalize(limit));
         if (rows == null || rows.isEmpty()) {
             return List.of();
         }

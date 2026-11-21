@@ -1,6 +1,6 @@
 package com.zhu.admin;
 
-import com.zhu.admin.api.approval.ApprovalDecision;
+import com.zhu.ops.approval.ApprovalDecision;
 import com.zhu.admin.application.deletion.MysqlDeletionRequestDecider;
 import com.zhu.readmodel.persistence.deletion.DataDeletionRequestMapper;
 import com.zhu.readmodel.entity.deletion.DataDeletionRequest;

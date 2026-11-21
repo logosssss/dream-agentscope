@@ -1,7 +1,7 @@
 package com.zhu.access.application.auth.gate;
 
-import com.zhu.access.api.tenant.TenantGate;
-import com.zhu.access.api.tenant.TenantUserGate;
+import com.zhu.ops.tenant.TenantGate;
+import com.zhu.ops.tenant.TenantUserGate;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;

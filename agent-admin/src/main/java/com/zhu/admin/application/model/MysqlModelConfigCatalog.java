@@ -1,6 +1,6 @@
 package com.zhu.admin.application.model;
 
-import com.zhu.admin.application.support.AuditQueryLimits;
+import com.zhu.ops.support.QueryLimits;
 
 import com.zhu.admin.api.model.ModelConfigCatalog;
 import com.zhu.admin.api.model.ModelConfigLookup;
@@ -121,7 +121,7 @@ public class MysqlModelConfigCatalog implements ModelConfigCatalog, ModelConfigL
      */
     @Override
     public List<ModelConfigSummary> recent(int limit) {
-        List<ModelConfig> rows = configs.recent(AuditQueryLimits.normalize(limit));
+        List<ModelConfig> rows = configs.recent(QueryLimits.normalize(limit));
         if (rows == null || rows.isEmpty()) {
             return List.of();
         }

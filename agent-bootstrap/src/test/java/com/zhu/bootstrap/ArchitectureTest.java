@@ -161,6 +161,28 @@ class ArchitectureTest {
                             "com.zhu.cache..",
                             "io.agentscope..");
 
+    /**
+     * ops 是 access 与 admin 共用的运营行为（目录、记录、闸门、额度）。
+     * 它只能看见 readmodel 的数据形状、cache-api 的抽象与 common 的纯类型，
+     * 不得反向依赖任何一个进程模块，也不得碰 agentscope 或 Redis 实现。
+     */
+    private static final ArchRule OPS_MUST_NOT_DEPEND_ON_BUSINESS =
+            noClasses()
+                    .that()
+                    .resideInAPackage("com.zhu.ops..")
+                    .should()
+                    .dependOnClassesThat()
+                    .resideInAnyPackage(
+                            "..access..",
+                            "..admin..",
+                            "..runtime..",
+                            "com.zhu.product..",
+                            "..state..",
+                            "..vector..",
+                            "..objectstore..",
+                            "com.zhu.cache.redis..",
+                            "io.agentscope..");
+
     /** 确认规则作用在真实类上，并且边界都成立。 */
     @Test
     void moduleBoundariesHold() {
@@ -175,6 +197,9 @@ class ArchitectureTest {
                         "com.zhu.runtime.infrastructure.gateway.ChannelGateway",
                         "com.zhu.runtime.api.approval.PendingAskFacade",
                         "com.zhu.runtime.api.wakeup.WakeupPort",
+                        "com.zhu.ops.tenant.MysqlTenantUserCatalog",
+                        "com.zhu.ops.deletion.DeletionRequestCatalog",
+                        "com.zhu.ops.support.QueryLimits",
                         "com.zhu.product.api.ProductModule",
                     "com.zhu.runtime.infrastructure.agent.ProductModuleRegistry",
                         "com.zhu.product.companion.binding.CompanionResidentAgentBinding",
@@ -204,6 +229,7 @@ class ArchitectureTest {
         ACCESS_MUST_NOT_TOUCH_RUNTIME_INFRASTRUCTURE.check(classes);
         CONTROLLERS_MUST_NOT_ACCESS_REPOSITORIES.check(classes);
         READMODEL_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
+        OPS_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
 
     }
 

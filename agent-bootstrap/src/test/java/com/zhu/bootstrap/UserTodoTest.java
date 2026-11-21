@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.approval.MysqlUserTodoCatalog;
+import com.zhu.ops.approval.MysqlUserTodoCatalog;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,7 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.zhu.access.api.approval.UserTodoCatalog;
+import com.zhu.ops.approval.UserTodoCatalog;
 import com.zhu.readmodel.persistence.approval.UserTodoMapper;
 import com.zhu.readmodel.entity.approval.UserTodo;
 import com.zhu.common.exception.BusinessException;

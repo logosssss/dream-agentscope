@@ -1,6 +1,6 @@
 package com.zhu.admin.application.quota;
 
-import com.zhu.admin.application.support.AuditQueryLimits;
+import com.zhu.ops.support.QueryLimits;
 
 import com.zhu.admin.api.quota.QuotaUsageQuery;
 import com.zhu.admin.api.quota.QuotaUsageRow;
@@ -34,7 +34,7 @@ public class MysqlQuotaUsageQuery implements QuotaUsageQuery {
         if (tenantId == null || tenantId.isBlank() || tenantId.length() > 64) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "tenantId is required");
         }
-        return logs.recent(tenantId, AuditQueryLimits.normalize(limit)).stream()
+        return logs.recent(tenantId, QueryLimits.normalize(limit)).stream()
                 .map(MysqlQuotaUsageQuery::row)
                 .toList();
     }

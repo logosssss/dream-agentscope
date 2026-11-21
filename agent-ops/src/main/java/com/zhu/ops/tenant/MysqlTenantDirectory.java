@@ -1,0 +1,193 @@
+package com.zhu.ops.tenant;
+
+import com.zhu.ops.support.QueryLimits;
+import com.zhu.ops.support.ReadThroughCache;
+import com.zhu.readmodel.persistence.tenant.TenantMapper;
+import com.zhu.readmodel.entity.tenant.TenantRecord;
+import com.zhu.cache.api.CacheFacade;
+import com.zhu.cache.api.CacheKeys;
+import com.zhu.common.exception.BusinessException;
+import com.zhu.common.exception.ErrorCode;
+import java.time.Duration;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+
+/**
+ * 审计层：MySQL 租户目录。只在存储开关打开时创建。不建用户，也不改用户状态。
+ * {@link #requireActive} 短 TTL 读穿 Redis；写路径尽力删键。
+ */
+@Service
+@ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
+public class MysqlTenantDirectory implements TenantGate, TenantCatalog {
+
+    private static final String ACTIVE = "ACTIVE";
+
+    private static final String SUSPENDED = "SUSPENDED";
+
+    private static final String CLOSED = "CLOSED";
+
+    private static final String PLAN = "standard";
+
+    /** ACTIVE 门命中标记。 */
+    private static final String ACTIVE_MARK = "1";
+
+    private static final Duration GATE_TTL = Duration.ofSeconds(30);
+
+    private final TenantMapper tenants;
+
+    private final ReadThroughCache readCache;
+
+    /**
+     * Spring：可选注入 CacheFacade；测试可只传 Mapper（无读缓存）。
+     */
+    @Autowired
+    public MysqlTenantDirectory(TenantMapper tenants, @Autowired(required = false) CacheFacade cache) {
+        this.tenants = tenants;
+        this.readCache = ReadThroughCache.of(cache);
+    }
+
+    /** 测试无缓存。 */
+    public MysqlTenantDirectory(TenantMapper tenants) {
+        this(tenants, null);
+    }
+
+    /**
+     * 空标识、查不到，或状态不是 ACTIVE，都不能继续这次请求。
+     * 命中共享键则跳过查库；权威仍是 MySQL。
+     */
+    @Override
+    public void requireActive(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenantId is required");
+        }
+        String key = activeKey(tenantId);
+        if (ACTIVE_MARK.equals(readCache.get(key))) {
+            return;
+        }
+        TenantRecord row = tenants.findByTenantId(tenantId);
+        if (row == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant not found");
+        }
+        if (!ACTIVE.equals(row.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant is not active");
+        }
+        readCache.put(key, ACTIVE_MARK, GATE_TTL);
+    }
+
+    /**
+     * 标识或名称为空、超长时拒绝。套餐不由调用方指定。
+     * 同一标识再插入一次按冲突处理。
+     */
+    @Override
+    public TenantSummary register(String tenantId, String name) {
+        if (tenantId == null || tenantId.isBlank() || tenantId.length() > 64
+                || name == null || name.isBlank() || name.length() > 128) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenant is invalid");
+        }
+        TenantRecord row = new TenantRecord();
+        row.setTenantId(tenantId);
+        row.setName(name);
+        row.setPlan(PLAN);
+        row.setStatus(ACTIVE);
+        try {
+            tenants.insert(row);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant already exists");
+        }
+        readCache.delete(activeKey(tenantId));
+        return new TenantSummary(tenantId, name, PLAN, ACTIVE);
+    }
+
+    /**
+     * 先读再按 ACTIVE 更新，避免覆盖已经停用或关闭的行。
+     * 不改名称和套餐，也不删会话。
+     */
+    @Override
+    public TenantSummary suspend(String tenantId) {
+        if (tenantId == null || tenantId.isBlank() || tenantId.length() > 64) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenant is invalid");
+        }
+        TenantRecord existing = tenants.findByTenantId(tenantId);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant not found");
+        }
+        if (!ACTIVE.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant is not active");
+        }
+        int updated = tenants.suspendActive(tenantId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant is not active");
+        }
+        readCache.delete(activeKey(tenantId));
+        return new TenantSummary(existing.getTenantId(), existing.getName(), existing.getPlan(), SUSPENDED);
+    }
+
+    /**
+     * 先读再按未关闭更新，避免覆盖已经关闭的行。
+     * 可用和停用都能关。不改名称和套餐，也不删会话。
+     */
+    @Override
+    public TenantSummary close(String tenantId) {
+        if (tenantId == null || tenantId.isBlank() || tenantId.length() > 64) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenant is invalid");
+        }
+        TenantRecord existing = tenants.findByTenantId(tenantId);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant not found");
+        }
+        if (CLOSED.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant is already closed");
+        }
+        int updated = tenants.closeNotClosed(tenantId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant is already closed");
+        }
+        readCache.delete(activeKey(tenantId));
+        return new TenantSummary(existing.getTenantId(), existing.getName(), existing.getPlan(), CLOSED);
+    }
+
+    /**
+     * 先读再按非 ACTIVE 更新，避免覆盖已经可用的行。
+     * 停用和关闭都能恢复。不改名称、套餐和用户。
+     */
+    @Override
+    public TenantSummary restore(String tenantId) {
+        if (tenantId == null || tenantId.isBlank() || tenantId.length() > 64) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "tenant is invalid");
+        }
+        TenantRecord existing = tenants.findByTenantId(tenantId);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "tenant not found");
+        }
+        if (ACTIVE.equals(existing.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant is already active");
+        }
+        int updated = tenants.restoreInactive(tenantId);
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.CONFLICT, "tenant is already active");
+        }
+        readCache.delete(activeKey(tenantId));
+        return new TenantSummary(existing.getTenantId(), existing.getName(), existing.getPlan(), ACTIVE);
+    }
+
+    /**
+     * 空结果返回空列表。不按状态再滤一层，停用和关闭也要能看见才能恢复。
+     */
+    @Override
+    public List<TenantSummary> recent(int limit) {
+        List<TenantRecord> rows = tenants.recent(QueryLimits.normalize(limit));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream()
+                .map(row -> new TenantSummary(row.getTenantId(), row.getName(), row.getPlan(), row.getStatus()))
+                .toList();
+    }
+
+    private static String activeKey(String tenantId) {
+        return CacheKeys.of("gate", tenantId, "tenant-active");
+    }
+}

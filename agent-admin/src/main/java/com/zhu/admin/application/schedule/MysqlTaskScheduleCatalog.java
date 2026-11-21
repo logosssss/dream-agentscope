@@ -1,6 +1,6 @@
 package com.zhu.admin.application.schedule;
 
-import com.zhu.admin.application.support.AuditQueryLimits;
+import com.zhu.ops.support.QueryLimits;
 
 import com.zhu.admin.api.schedule.TaskScheduleCatalog;
 import com.zhu.admin.api.schedule.TaskScheduleSummary;
@@ -107,7 +107,7 @@ public class MysqlTaskScheduleCatalog implements TaskScheduleCatalog {
      */
     @Override
     public List<TaskScheduleSummary> recent(int limit) {
-        List<AgentTaskSchedule> rows = schedules.recent(AuditQueryLimits.normalize(limit));
+        List<AgentTaskSchedule> rows = schedules.recent(QueryLimits.normalize(limit));
         if (rows == null || rows.isEmpty()) {
             return List.of();
         }

@@ -25,7 +25,12 @@
         <dependency>
             <!-- 管理侧审计/租户/额度等已迁入本模块；读穿只依赖 cache-api。 -->
             <groupId>com.zhu</groupId>
-            <artifactId>agent-cache-api</artifactId>
+            <artifactId>agent-ops</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.zhu</groupId>
+      <artifactId>agent-cache-api</artifactId>
         </dependency>
         <dependency>
             <!-- 工具目录在产品语义模块；管理进程只引登记接口，不引运行层。 -->

@@ -1,6 +1,6 @@
 package com.zhu.admin;
 
-import com.zhu.admin.application.health.MysqlReadiness;
+import com.zhu.ops.health.MysqlReadiness;
 import com.zhu.common.health.MilvusProbe;
 import com.zhu.common.health.ReadinessSnapshot;
 import java.util.logging.Logger;

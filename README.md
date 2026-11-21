@@ -103,6 +103,7 @@ Dream-SaaS 开源仓库：基于 [AgentScope Java](https://github.com/agentscope
 | [`agent-cache`](./agent-cache/README.md) | 缓存层聚合：`api`（门面/键/限流·布隆形状）+ `redis`（Lettuce + Redisson） |
 | [`agent-common`](./agent-common/README.md) | 异常、DTO、上下文、令牌比较等 |
 | [`agent-readmodel`](./agent-readmodel/README.md) | 多进程共用表的唯一 owner：entity + Mapper + XML（只放数据形状，不含业务规则） |
+| [`agent-ops`](./agent-ops/README.md) | 两个进程共用的运营行为：租户/用户目录、额度、待办、附件、删除请求、用量读侧（只碰 readmodel 与 cache-api） |
 | [`agent-test-support`](./agent-test-support/README.md) | 测试替身与夹具（`test-jar`，不进部署包） |
 | [`web`](./web/README.md) | 用户端（介绍页、搭子、附件、知识库等） |
 | [`web-admin`](./web-admin/README.md) | 管理端 |

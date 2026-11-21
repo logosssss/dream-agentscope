@@ -1,8 +1,8 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.application.attachment.MysqlAttachmentCatalog;
-import com.zhu.access.api.attachment.StoredAttachment;
-import com.zhu.access.api.attachment.AttachmentCatalog;
+import com.zhu.ops.attachment.MysqlAttachmentCatalog;
+import com.zhu.ops.attachment.StoredAttachment;
+import com.zhu.ops.attachment.AttachmentCatalog;
 import com.zhu.readmodel.persistence.attachment.AttachmentMapper;
 import com.zhu.readmodel.persistence.attachment.AttachmentRefMapper;
 import com.zhu.readmodel.entity.attachment.Attachment;

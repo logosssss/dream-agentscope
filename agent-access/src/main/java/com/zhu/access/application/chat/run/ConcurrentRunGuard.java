@@ -2,7 +2,7 @@ package com.zhu.access.application.chat.run;
 
 import com.zhu.access.application.chat.ConcurrentGate;
 import com.zhu.cache.api.CacheFacade;
-import com.zhu.access.api.quota.TenantQuotaLookup;
+import com.zhu.ops.quota.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.runtime.config.AgentRuntimeProperties;

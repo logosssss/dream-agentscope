@@ -9,7 +9,7 @@ import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.cache.api.CacheFacade;
 import com.zhu.cache.redis.counter.StringRedisCounterCache;
-import com.zhu.access.api.quota.TenantQuotaLookup;
+import com.zhu.ops.quota.TenantQuotaLookup;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;

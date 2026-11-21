@@ -1,6 +1,6 @@
 package com.zhu.admin.application.eval;
 
-import com.zhu.admin.application.support.AuditQueryLimits;
+import com.zhu.ops.support.QueryLimits;
 
 import com.zhu.admin.api.eval.EvalDatasetCatalog;
 import com.zhu.admin.api.eval.EvalDatasetSummary;
@@ -99,7 +99,7 @@ public class MysqlEvalDatasetCatalog implements EvalDatasetCatalog {
      */
     @Override
     public List<EvalDatasetSummary> recent(int limit) {
-        List<EvalDataset> rows = datasets.recent(AuditQueryLimits.normalize(limit));
+        List<EvalDataset> rows = datasets.recent(QueryLimits.normalize(limit));
         if (rows == null || rows.isEmpty()) {
             return List.of();
         }
