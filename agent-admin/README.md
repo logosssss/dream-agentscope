@@ -18,7 +18,7 @@
 | `api.controller.deletion` / `api.dto.deletion` | 删除请求决定 |
 | `api.controller.eval` / `api.dto.eval` | 评测集、用例与跑次 |
 | `api.controller.retention` / `api.dto.retention` | 数据保留策略 |
-| `api.controller.schedule` / `api.dto.schedule` | 任务调度登记 |
+| `api.controller.schedule` / `api.dto.schedule` | 任务调度登记（算下次触发；触发在用户进程） |
 | `api.controller.safety` | 安全干预目录 |
 | `api.controller.tool` / `api.dto.tool` | 工具目录与权限登记 |
 | `api.controller.health` / `api.dto.health` | 存活、就绪与 info |
@@ -95,10 +95,10 @@ mvn -pl agent-admin -am spring-boot:run
 | `POST /api/admin/retention-policies` | 登记一条数据保留策略。不执行清理。MySQL 关闭时返回不可用 |
 | `POST /api/admin/retention-policies/{dataType}/disable` | 停用仍启用的策略。空白范围按 `*`。不执行清理。MySQL 关闭时返回不可用 |
 | `POST /api/admin/retention-policies/{dataType}/restore` | 恢复已停用的策略。空白范围按 `*`。不执行清理。MySQL 关闭时返回不可用 |
-| `GET /api/admin/task-schedules` | 最近登记的任务调度，默认 50 条，最多 100 条。含停用。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
-| `POST /api/admin/task-schedules` | 登记一条任务调度。cron 和延迟二选一。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
-| `POST /api/admin/task-schedules/{scheduleId}/disable` | 停用仍启用的调度。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
-| `POST /api/admin/task-schedules/{scheduleId}/restore` | 恢复已停用的调度。不计算下次触发，也不消费。MySQL 关闭时返回不可用 |
+| `GET /api/admin/task-schedules` | 最近登记的任务调度，默认 50 条，最多 100 条。含停用，带下次/上次触发与最近状态。登记时算下次触发；触发在用户进程。MySQL 关闭时返回不可用 |
+| `POST /api/admin/task-schedules` | 登记一条任务调度。cron 和延迟二选一，归属用户必填。登记时算好下次触发；触发在用户进程（`agentscope.schedule.enabled`）。MySQL 关闭时返回不可用 |
+| `POST /api/admin/task-schedules/{scheduleId}/disable` | 停用仍启用的调度。下次触发时间不动。MySQL 关闭时返回不可用 |
+| `POST /api/admin/task-schedules/{scheduleId}/restore` | 恢复已停用的调度，按现在重算下次触发（不补触发）。没有归属用户的调度不能恢复。MySQL 关闭时返回不可用 |
 | `GET /api/admin/operation-audits` | 最近的后台操作，默认 50 条，最多 100 条。MySQL 关闭时返回不可用 |
 | `GET /api/admin/safety-interventions` | 最近的安全干预，默认 50 条，最多 100 条。不含用户原文。MySQL 关闭时返回不可用 |
 | `POST /api/admin/operation-audits` | 登记一条后台操作。不写前后快照，也不改业务结果。其它成功写入也会自动记一行。MySQL 关闭时返回不可用 |
@@ -119,4 +119,4 @@ mvn -pl agent-admin -am spring-boot:run
 
 ## 还没有
 
-用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不按保留策略清理数据，也不按已登记的调度去触发任务，也不在批准删除后真正删数据。仓库不放模型单价，也不放调用方令牌。管理端业务旋钮白名单仍为空，扩键改 `classpath:nacos-allowlist.yml`；连接与密钥见 `agent-admin-infra.yaml`。Gate ASK 活单在用户进程，见 `docs/approval-hard-delete-落地.md`。
+用户账号登录。本进程不提供聊天接口，也不在批准后执行工具，也不按保留策略清理数据，也不按已登记的调度去触发任务（触发面在用户进程），也不在批准删除后真正删数据。仓库不放模型单价，也不放调用方令牌。管理端业务旋钮白名单仍为空，扩键改 `classpath:nacos-allowlist.yml`；连接与密钥见 `agent-admin-infra.yaml`。Gate ASK 活单在用户进程，见 `docs/approval-hard-delete-落地.md`。

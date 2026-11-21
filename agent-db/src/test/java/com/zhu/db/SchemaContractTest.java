@@ -44,7 +44,8 @@ class SchemaContractTest {
             Map.entry("attachment_ref", "AttachmentRefMapper.xml"),
             Map.entry("data_deletion_request", "DataDeletionRequestMapper.xml"),
             Map.entry("user_todo", "UserTodoMapper.xml"),
-            Map.entry("user_feedback", "UserFeedbackMapper.xml"));
+            Map.entry("user_feedback", "UserFeedbackMapper.xml"),
+            Map.entry("agent_task_schedule", "AgentTaskScheduleMapper.xml"));
 
     private static final Pattern CREATE_TABLE = Pattern.compile(
             "(?is)CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?`?([a-z0-9_]+)`?\\s*\\((.*?)\\)\\s*ENGINE");

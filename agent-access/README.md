@@ -100,7 +100,7 @@
 
 同一次运行再写 `agent_run_step`。同步路径只有一步推理。流式路径按看到的顺序记下工具开始和待确认，工具名不含参数，最后补一步推理。取消的推理记成跳过。单步耗时和 token 先空着。
 
-同步任务在执行前写入 `agent_task`，状态是 `RUNNING`，结束后改成 `SUCCEEDED` 或 `FAILED`。不存任务参数。开始记录失败时任务不执行。结束记录失败不改变已经跑完的结果。`GET /api/tasks` 列出当前用户在这个租户下的任务，默认 50 条，最多 100 条。不读 payload，也不是 `/api/todos`。`GET /api/tasks/{taskId}` 先确认这次任务属于当前用户和租户，再带开始结束时间。别人的标识按找不到处理。进行中的结束时间为空。MySQL 关闭时返回不可用。调度目录可以登记，还不计算下次触发，也不消费。
+同步任务在执行前写入 `agent_task`，状态是 `RUNNING`，结束后改成 `SUCCEEDED` 或 `FAILED`。不存任务参数。开始记录失败时任务不执行。结束记录失败不改变已经跑完的结果。`GET /api/tasks` 列出当前用户在这个租户下的任务，默认 50 条，最多 100 条。不读 payload，也不是 `/api/todos`。`GET /api/tasks/{taskId}` 先确认这次任务属于当前用户和租户，再带开始结束时间。别人的标识按找不到处理。进行中的结束时间为空。MySQL 关闭时返回不可用。调度目录在管理端登记，运行配置 `agentscope.schedule.enabled` 打开后本进程按 `agentscope.schedule.interval-millis` 扫到期的行：先按乐观锁推进下次触发，再发布一条任务，结果写回 `last_fire_at` / `last_status` / `fire_count`。默认关。
 
 跨会话记忆权威是用户工作区 `MEMORY.md`（Harness Memory）。情景/画像表与 `api.memory` **已硬删**（见 `docs/memory-hard-delete-落地.md`）；本模块不写记忆表。管理端无情景/画像 API。权威专题见 `docs/memory-longterm-落地.md`。
 
@@ -115,6 +115,8 @@
 - 流式 ASK → `PendingAskFacade`；`GET/POST /api/approvals*` 续跑；旧审批表/通知/`APPROVAL` 待办 **已硬删**（[`approval-hard-delete-落地.md`](../docs/approval-hard-delete-落地.md)、[`permission-gate-落地.md`](../docs/permission-gate-落地.md)）
 - 会话/消息/运行/步骤/任务/用量/额度/待办/反馈/附件/删除请求/知识库 HTTP 面（细则见上文各段）
 - 通知 API 固定空列表（硬删后口径）；Wakeup 内部 HTTP（默认关；[`wakeup-落地.md`](../docs/wakeup-落地.md)）
+- 调度触发面：`TaskScheduleFirer` 按 `agentscope.schedule.enabled` 扫到期行，乐观锁推进下次触发后发布任务（[`engineering-p9-schedule-落地.md`](../docs/engineering-p9-schedule-落地.md)）
+- 数据生命周期：`DeletionExecutionWorker` 真删、`RetentionSweeper` 真清理（默认关 + dry-run；[`engineering-p6-data-lifecycle-落地.md`](../docs/engineering-p6-data-lifecycle-落地.md)）
 - 图册流程：[`docs/diagrams/flows.md`](../docs/diagrams/flows.md)
 
 ## 已知限制（刻意不做）
@@ -122,7 +124,7 @@
 - 不做服务账号 / API Key；不做独立额度桶 `api-chat*`
 - 不上 **产品** Remote Subagent / `mode=mq`（Remote 学习面见 [`remote-subagent-落地.md`](../docs/remote-subagent-落地.md)）
 - 同步 chat 遇 ASK **不登记**活单；通知路由保留但恒空/找不到
-- 知识库不解析 PDF/Office；删除请求只登记不真删；调度可登记但不计算下次触发、不消费
+- 知识库不解析 PDF/Office；删除请求只登记不真删（P6 起批准后真删）
 - 待办不核运行/任务是否存在；反馈不核运行、不收文件
 - SSE 只转发运行层事件，接入层不调 `streamEvents`；通道枚举留在接入层
 - 就绪检查只探测 Milvus 地址；集合由用户进程创建
@@ -131,5 +133,5 @@
 
 - JWT
 - IM **消息**通道适配（扫码登录保持原状）
-- 调度真正消费、按保留策略清理、批准删除后真删数据
+- 调度任务的真实 handler（`BACKFILL` / `REPORT` / `BATCH` 触发后只走管线记审计）
 

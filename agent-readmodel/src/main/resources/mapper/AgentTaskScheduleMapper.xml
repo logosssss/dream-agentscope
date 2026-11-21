@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhu.readmodel.persistence.schedule.AgentTaskScheduleMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhu.readmodel.entity.schedule.AgentTaskSchedule">
+        <id column="id" property="id"/>
+        <result column="schedule_id" property="scheduleId"/>
+        <result column="task_type" property="taskType"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="user_id" property="userId"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="cron_expr" property="cronExpr"/>
+        <result column="delay_seconds" property="delaySeconds"/>
+        <result column="enabled" property="enabled"/>
+        <result column="next_fire_at" property="nextFireAt"/>
+        <result column="last_fire_at" property="lastFireAt"/>
+        <result column="last_status" property="lastStatus"/>
+        <result column="fire_count" property="fireCount"/>
+    </resultMap>
+
+    <sql id="Columns">
+        id, schedule_id, task_type, tenant_id, user_id, agent_id, cron_expr, delay_seconds,
+        enabled, next_fire_at, last_fire_at, last_status, fire_count
+    </sql>
+
+    <!-- 管理列表看全部启用状态。不读任务参数。 -->
+    <select id="recent" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/>
+        FROM agent_task_schedule
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findByScheduleId" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/>
+        FROM agent_task_schedule
+        WHERE schedule_id = #{scheduleId}
+        LIMIT 1
+    </select>
+
+    <update id="disableEnabled">
+        UPDATE agent_task_schedule
+        SET enabled = 0
+        WHERE schedule_id = #{scheduleId}
+          AND enabled = 1
+    </update>
+
+    <!-- 恢复时把下次触发重新算过，避免一恢复就立刻补触发。 -->
+    <update id="restoreDisabledWithNext">
+        UPDATE agent_task_schedule
+        SET enabled = 1,
+            next_fire_at = #{nextFireAt}
+        WHERE schedule_id = #{scheduleId}
+          AND enabled = 0
+    </update>
+
+    <!-- 到期扫描。user_id 为空的历史行不发布任务，所以不取。 -->
+    <select id="due" resultMap="BaseResultMap">
+        SELECT <include refid="Columns"/>
+        FROM agent_task_schedule
+        WHERE enabled = 1
+          AND user_id IS NOT NULL
+          AND next_fire_at IS NOT NULL
+          AND next_fire_at &lt;= #{now}
+        ORDER BY next_fire_at, id
+        LIMIT #{limit}
+    </select>
+
+    <!-- 乐观锁：旧到期时间没变才算抢到。 -->
+    <update id="advance">
+        UPDATE agent_task_schedule
+        SET next_fire_at = #{nextFireAt}
+        WHERE id = #{id}
+          AND next_fire_at = #{expectedNextFireAt}
+    </update>
+
+    <update id="markFired">
+        UPDATE agent_task_schedule
+        SET last_fire_at = #{firedAt},
+            last_status = #{status},
+            fire_count = fire_count + 1
+        WHERE id = #{id}
+    </update>
+</mapper>

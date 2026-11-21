@@ -23,6 +23,11 @@ business:
     - agentscope.lifecycle.interval-millis
     - agentscope.lifecycle.retention-enabled
     - agentscope.lifecycle.retention-batch-rows
+    # 任务调度触发：默认关。见 docs/engineering-p9-schedule-落地.md。
+    - agentscope.schedule.enabled
+    - agentscope.schedule.interval-millis
+    - agentscope.schedule.initial-delay-millis
+    - agentscope.schedule.batch-size
   prefixes:
     - agentscope.permission.rules
     # MCP 服务器清单（map）；密钥用 ${ENV} 占位，不进明文。见 docs/mcp-落地.md。

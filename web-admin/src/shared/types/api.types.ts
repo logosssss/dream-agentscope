@@ -93,9 +93,18 @@ export interface RetentionPolicySummary {
 export interface TaskScheduleSummary {
   scheduleId: string
   taskType: string
+  tenantId: string
+  userId: string
+  agentId: string
   cronExpr: string | null
   delaySeconds: number | null
   enabled: boolean
+  /** 下次触发时间，ISO 本地时间；空串表示还没算出来。 */
+  nextFireAt: string
+  /** 上次触发时间；空串表示从未触发。 */
+  lastFireAt: string
+  /** 上次触发结果：SUCCEEDED / FAILED；空串表示从未触发。 */
+  lastStatus: string
 }
 
 /** GET /api/admin/eval-datasets 一行。不含用例。 */

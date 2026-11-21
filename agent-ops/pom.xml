@@ -29,5 +29,11 @@
             <groupId>com.zhu</groupId>
             <artifactId>agent-common</artifactId>
         </dependency>
+        <!-- 纯函数与时间计算的单元测试。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

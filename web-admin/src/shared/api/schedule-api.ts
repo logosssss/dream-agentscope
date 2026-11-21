@@ -2,7 +2,8 @@ import { apiJson } from '@/shared/api/http'
 import type { TaskScheduleSummary } from '@/shared/types/api.types'
 
 /**
- * 任务调度目录。只登记、停用、恢复与列表，不计算下次触发，也不消费。
+ * 任务调度目录。登记、停用、恢复与列表；登记时服务端算好下次触发，
+ * 真正触发在用户进程（见 docs/engineering-p9-schedule-落地.md）。
  */
 
 /** 最近任务调度，含停用。 */
@@ -18,6 +19,9 @@ export function listTaskSchedules(limit = 50): Promise<TaskScheduleSummary[]> {
 export function registerTaskSchedule(body: {
   scheduleId: string
   taskType: string
+  tenantId: string
+  userId: string
+  agentId: string
   cronExpr: string
   delaySeconds: number | null
 }): Promise<TaskScheduleSummary> {
@@ -27,6 +31,9 @@ export function registerTaskSchedule(body: {
     body: JSON.stringify({
       scheduleId: body.scheduleId,
       taskType: body.taskType,
+      tenantId: body.tenantId.trim() || null,
+      userId: body.userId.trim(),
+      agentId: body.agentId.trim() || null,
       cronExpr: cron || null,
       delaySeconds: body.delaySeconds,
     }),

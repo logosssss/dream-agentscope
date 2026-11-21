@@ -45,6 +45,14 @@ agentscope:
     retention-enabled: false
     retention-interval-millis: 300000
     retention-batch-rows: 1000
+  schedule:
+    # 任务调度触发面的开关。默认关：不会自己按 agent_task_schedule 发布任务。
+    # 打开后用户进程每 interval-millis 扫一轮到期的调度，走 agent_task 同一条管线。
+    # 见 docs/engineering-p9-schedule-落地.md。
+    enabled: false
+    interval-millis: 30000
+    initial-delay-millis: 20000
+    batch-size: 20
   wx:
     mini:
       login-page: pages/login-confirm/index
