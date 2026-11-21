@@ -2,6 +2,7 @@ package com.zhu.access.application.account;
 
 import com.zhu.access.api.dto.account.QuotaMeter;
 import com.zhu.access.api.dto.account.QuotaSnapshot;
+import com.zhu.access.application.chat.QuotaGate;
 import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.cache.api.CacheFacade;
 import com.zhu.access.api.quota.QuotaUsageWriter;
@@ -22,7 +23,7 @@ import org.springframework.stereotype.Service;
  * 请求次数在入口累加；token / 费用在出口记账后累加，入口只读已用量。
  */
 @Service
-public class QuotaGuard {
+public class QuotaGuard implements QuotaGate {
 
     private static final Logger log = Logger.getLogger(QuotaGuard.class.getName());
 
@@ -94,6 +95,7 @@ public class QuotaGuard {
      * 当日计数通过后才记流水。流水写失败不改变这次请求。超限的那一次不记。
      * 超限抛 QUOTA_EXCEEDED，重复标识抛 CONFLICT。
      */
+    @Override
     public void check(String tenantId, String userId, String endpoint, String requestId) {
         if (requestId != null && !requestId.isBlank()) {
             if (!cache.tokenLocks().claim("idem:" + segment(requestId), IDEM_TTL)) {

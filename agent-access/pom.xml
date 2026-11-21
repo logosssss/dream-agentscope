@@ -60,7 +60,18 @@
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
         </dependency>
         <!-- 闸门顺序等纯单元测试；不 mock Redis，替身用 lambda。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- 复用测试替身：StubProductModule 等，只在测试类路径上。 -->
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-test-support</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

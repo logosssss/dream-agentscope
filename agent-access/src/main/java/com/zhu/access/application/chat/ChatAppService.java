@@ -12,7 +12,6 @@ import com.zhu.access.api.dto.chat.ChatRequest;
 import com.zhu.access.api.tenant.TenantGate;
 import com.zhu.access.api.tenant.TenantUserGate;
 import com.zhu.access.domain.channel.AccessChannel;
-import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
@@ -102,12 +101,7 @@ public class ChatAppService {
     public AgentResponse chat(ChatRequest request) {
         rejectExplicitApiChannel(request);
         AgentRequest agentRequest = toRequest(request);
-        requireUser(agentRequest.userId());
-        tenants.requireActive(agentRequest.tenantId());
-        tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
-        owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
-        quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
-        ConcurrentRunGuard.Slot slot = concurrent.open(agentRequest.tenantId());
+        ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat");
         long started = System.nanoTime();
         try {
             remember(request, agentRequest);
@@ -130,12 +124,7 @@ public class ChatAppService {
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
         rejectExplicitApiChannel(request);
         AgentRequest agentRequest = toRequest(request);
-        requireUser(agentRequest.userId());
-        tenants.requireActive(agentRequest.tenantId());
-        tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
-        owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
-        quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
-        ConcurrentRunGuard.Slot slot = concurrent.open(agentRequest.tenantId());
+        ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat-stream");
         long started = System.nanoTime();
         try {
             remember(request, agentRequest);
@@ -143,7 +132,7 @@ public class ChatAppService {
             AtomicReference<String> output = new AtomicReference<>("");
             AtomicReference<String> errorCode = new AtomicReference<>();
             ConcurrentLinkedQueue<AgentStreamEvent> seen = new ConcurrentLinkedQueue<>();
-            ConcurrentRunGuard.Slot held = slot;
+            ConcurrentGate.Slot held = slot;
             return executor.stream(agentRequest)
                     .doOnNext(event -> keep(seen, output, event))
                     .doOnError(error -> errorCode.set(error.getClass().getSimpleName()))
@@ -304,24 +293,21 @@ public class ChatAppService {
         return "USER";
     }
 
-    /** 通道只在接入层归一化，不传给运行层。 */
+    /**
+     * 通道只在接入层归一化，不传给运行层。
+     * WEB 通道恒为 main：agentId 只对 API 通道生效（见 {@link ChatRequest#agentId}），
+     * 否则页面能靠一个字段把会话切到别的产品。
+     */
     private AgentRequest toRequest(ChatRequest request) {
         request.channelOrDefault();
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         return new AgentRequest(
-                request.agentId(),
+                null,
                 tenantId,
                 UserContext.get(),
                 request.sessionId(),
                 systemPrompt(request),
                 request.text());
-    }
-
-    /** 没有登录会话时按未登录拒绝。请求体里的用户不算。 */
-    private static void requireUser(String userId) {
-        if (userId == null || userId.isBlank()) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "login is required");
-        }
     }
 
     /**

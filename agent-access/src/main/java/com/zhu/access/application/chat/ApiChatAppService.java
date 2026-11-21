@@ -12,7 +12,6 @@ import com.zhu.access.application.chat.session.SessionOwnerGate;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.access.api.tenant.TenantGate;
 import com.zhu.access.api.tenant.TenantUserGate;
-import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
@@ -100,12 +99,7 @@ public class ApiChatAppService {
     public AgentResponse chat(ChatRequest request) {
         ChatRequest apiRequest = forceApi(request);
         AgentRequest agentRequest = toRequest(apiRequest);
-        requireUser(agentRequest.userId());
-        tenants.requireActive(agentRequest.tenantId());
-        tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
-        owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
-        quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
-        ConcurrentRunGuard.Slot slot = concurrent.open(agentRequest.tenantId());
+        ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat");
         long started = System.nanoTime();
         try {
             remember(apiRequest, agentRequest);
@@ -128,12 +122,7 @@ public class ApiChatAppService {
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
         ChatRequest apiRequest = forceApi(request);
         AgentRequest agentRequest = toRequest(apiRequest);
-        requireUser(agentRequest.userId());
-        tenants.requireActive(agentRequest.tenantId());
-        tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
-        owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
-        quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
-        ConcurrentRunGuard.Slot slot = concurrent.open(agentRequest.tenantId());
+        ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat-stream");
         long started = System.nanoTime();
         try {
             remember(apiRequest, agentRequest);
@@ -141,7 +130,7 @@ public class ApiChatAppService {
             AtomicReference<String> output = new AtomicReference<>("");
             AtomicReference<String> errorCode = new AtomicReference<>();
             ConcurrentLinkedQueue<AgentStreamEvent> seen = new ConcurrentLinkedQueue<>();
-            ConcurrentRunGuard.Slot held = slot;
+            ConcurrentGate.Slot held = slot;
             return gateway.streamApi(agentRequest)
                     .doOnNext(event -> keep(seen, output, event))
                     .doOnError(error -> errorCode.set(error.getClass().getSimpleName()))
@@ -303,11 +292,5 @@ public class ApiChatAppService {
                 request.sessionId(),
                 prompts.get(PlatformPrompt.SYSTEM_KEY, Map.of(), semantics.promptFallback(PlatformPrompt.SYSTEM_KEY)),
                 request.text());
-    }
-
-    private static void requireUser(String userId) {
-        if (userId == null || userId.isBlank()) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "login is required");
-        }
     }
 }

@@ -75,6 +75,12 @@
             <scope>test</scope>
         </dependency>
         <!-- 复用测试替身：StubProductModule 等，只在测试类路径上。 -->
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-test-support</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
