@@ -170,6 +170,15 @@ class MySqlRedisChatE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("SUCCEEDED"));
 
+        // 审计行跟着这一轮：执行内核写入的 agent.call 系列都带同一个 run_id 与会话。
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM agent_event_audit WHERE run_id = ? AND session_id = ?",
+                Integer.class, runId, "s-chat-1")).isGreaterThan(0);
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM agent_event_audit"
+                        + " WHERE run_id = ? AND event_type = 'agent.call.error'",
+                Integer.class, runId)).isZero();
+
         // 气泡：一轮写两条，seq 递增，正文不串。
         assertThat(jdbc.queryForList(
                 "SELECT role, seq, content FROM chat_message WHERE session_id = ? ORDER BY seq",

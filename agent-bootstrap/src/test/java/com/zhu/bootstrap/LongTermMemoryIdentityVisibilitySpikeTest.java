@@ -54,6 +54,7 @@ class LongTermMemoryIdentityVisibilitySpikeTest {
                 .sessionId("session-a")
                 .put("tenantId", "tenant-a")
                 .put("agentId", "companion-v1")
+                .put("runId", "run-a")
                 .build();
         try {
             agent.call("hi", runtime).block(Duration.ofSeconds(10));
@@ -67,7 +68,7 @@ class LongTermMemoryIdentityVisibilitySpikeTest {
             assertThat(retrieve.reactorTenantId).isEqualTo("tenant-a");
             assertThat(retrieve.reactorAgentId).isEqualTo("companion-v1");
             assertThat(CallIdentity.from(retrieve.runtimeContext))
-                    .isEqualTo(new CallIdentity("tenant-a", "user-a", "session-a"));
+                    .isEqualTo(new CallIdentity("tenant-a", "user-a", "session-a", "run-a"));
         } finally {
             agent.close();
         }
@@ -85,6 +86,7 @@ class LongTermMemoryIdentityVisibilitySpikeTest {
                 .sessionId("session-r")
                 .put("tenantId", "tenant-r")
                 .put("agentId", "companion-v1")
+                .put("runId", "run-r")
                 .build();
         Msg user = userMsg("remember me", Map.of());
 
@@ -100,7 +102,7 @@ class LongTermMemoryIdentityVisibilitySpikeTest {
         assertThat(record.reactorTenantId).isEqualTo("tenant-r");
         assertThat(record.reactorAgentId).isEqualTo("companion-v1");
         assertThat(CallIdentity.from(record.runtimeContext))
-                .isEqualTo(new CallIdentity("tenant-r", "user-r", "session-r"));
+                .isEqualTo(new CallIdentity("tenant-r", "user-r", "session-r", "run-r"));
     }
 
     /**

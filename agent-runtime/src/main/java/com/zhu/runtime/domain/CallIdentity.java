@@ -8,10 +8,11 @@ import io.agentscope.core.agent.RuntimeContext;
  * @param tenantId  租户，可空
  * @param userId    用户，可空
  * @param sessionId 会话，可空
+ * @param runId     这一轮的运行标识，可空
  */
-public record CallIdentity(String tenantId, String userId, String sessionId) {
+public record CallIdentity(String tenantId, String userId, String sessionId, String runId) {
 
-    private static final CallIdentity NONE = new CallIdentity(null, null, null);
+    private static final CallIdentity NONE = new CallIdentity(null, null, null, null);
 
     /** 这次调用没有上下文时的空值。 */
     public static CallIdentity none() {
@@ -20,14 +21,18 @@ public record CallIdentity(String tenantId, String userId, String sessionId) {
 
     /**
      * 从 RuntimeContext 取身份。上下文为空时返回空身份，不打断这次执行。
-     * tenantId 放在扩展字段里，框架的 userId、sessionId 是一等字段。
+     * tenantId、agentId、runId 放在扩展字段里，框架的 userId、sessionId 是一等字段。
      */
     public static CallIdentity from(RuntimeContext context) {
         if (context == null) {
             return NONE;
         }
         Object tenant = context.get("tenantId");
-        String tenantId = tenant == null ? null : tenant.toString();
-        return new CallIdentity(tenantId, context.getUserId(), context.getSessionId());
+        Object run = context.get("runId");
+        return new CallIdentity(
+                tenant == null ? null : tenant.toString(),
+                context.getUserId(),
+                context.getSessionId(),
+                run == null ? null : run.toString());
     }
 }

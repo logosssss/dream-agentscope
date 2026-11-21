@@ -58,7 +58,7 @@
 ## 残留
 
 1. 请求号只在调用方带了才有；前端已默认带，但脚本/渠道网关调用仍可能为空。
-2. `agent_event_audit` 与运行记录仍然只能靠时间 + 用户猜，`run_id` 列没写（见 X2）。
+2. `agent_event_audit` 的 `run_id` / `session_id` 列此前没写——已由 [P14](./engineering-p14-audit-run-id-落地.md) 补上；管理端仍没有审计查询接口。
 3. 页面还不显示请求号作为独立列：`/api/runs/{id}` 已经返回，运行详情页可以加；目前只在**报错文案**里带（见下）。
 4. `agent_run.request_id` 没有按请求号回查的接口（只有索引）；运维查库可以，接口没做。
 
@@ -73,4 +73,4 @@
 ## 下一步
 
 - 运行详情页单独展示请求号（现在只在失败文案里）。
-- 把 `run_id` / `session_id` 写进 `agent_event_audit`（需要运行层中间件拿到运行标识）。
+- 把 `run_id` / `session_id` 写进 `agent_event_audit`（需要运行层中间件拿到运行标识）——已由 [P14](./engineering-p14-audit-run-id-落地.md) 完成。

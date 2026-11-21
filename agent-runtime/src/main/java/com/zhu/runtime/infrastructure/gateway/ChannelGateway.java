@@ -121,14 +121,16 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
         turns.require(request);
         drain.beginTurn();
         try {
+            // 运行标识在调用前就定下来：审计中间件要靠它把审计行挂到这一轮，
+            // 等执行完再拿框架消息 id，中间件已经写完了。
+            String runId = Ids.newId();
             // 本地上下文给 finish/用量；Gateway 侧由 resolver + MsgContext 合并。
-            RuntimeContext context = turns.context(request);
+            RuntimeContext context = turns.context(request, runId);
             long started = System.nanoTime();
             Msg reply = channel()
                     .send(options(request), request.userText())
                     .block(Duration.ofSeconds(turns.timeoutSeconds()));
             String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
-            String runId = AgentTurnSupport.runIdOf(reply);
             turns.recordUsage(request, runId, reply, started);
             return new AgentResponse(runId, text);
         } finally {
@@ -144,7 +146,8 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
         turns.require(request);
         drain.beginTurn();
         try {
-            RuntimeContext context = turns.context(request);
+            String runId = Ids.newId();
+            RuntimeContext context = turns.context(request, runId);
             long started = System.nanoTime();
             String agentId = requireRegisteredAgent(turns.agentId(request));
             Msg reply = apiChannel()
@@ -156,7 +159,6 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
                             AgentChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
                     .block(Duration.ofSeconds(turns.timeoutSeconds()));
             String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
-            String runId = AgentTurnSupport.runIdOf(reply);
             turns.recordUsage(request, runId, reply, started);
             return new AgentResponse(runId, text);
         } finally {
@@ -174,9 +176,9 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
         drain.beginTurn();
         // context / 懒启动若同步抛错须 endTurn；成功路径靠 doFinally。
         try {
-            RuntimeContext context = turns.context(request);
+            String runId = Ids.newId();
+            RuntimeContext context = turns.context(request, runId);
             long started = System.nanoTime();
-            AtomicReference<String> runId = new AtomicReference<>(Ids.newId());
             return channel()
                     .sendStream(options(request), request.userText())
                     .doOnNext(event -> onStreamEvent(request, runId, started, event))
@@ -198,9 +200,9 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
         drain.beginTurn();
         // 与 stream 相同：同步准备失败须放行排水闸。
         try {
-            RuntimeContext context = turns.context(request);
+            String runId = Ids.newId();
+            RuntimeContext context = turns.context(request, runId);
             long started = System.nanoTime();
-            AtomicReference<String> runId = new AtomicReference<>(Ids.newId());
             String agentId = requireRegisteredAgent(turns.agentId(request));
             return apiChannel()
                     .sendStream(
@@ -220,11 +222,11 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     }
 
     /**
-     * 流式事件：待确认入仓；结果记用量。
+     * 流式事件：待确认入仓；结果记用量。运行标识在入口就定了，这里不再改写。
      */
     private void onStreamEvent(
             AgentRequest request,
-            AtomicReference<String> runId,
+            String runId,
             long started,
             io.agentscope.core.event.AgentEvent event) {
         if (event instanceof RequireUserConfirmEvent confirm) {
@@ -236,9 +238,7 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
                     confirm.getToolCalls());
         }
         if (event instanceof AgentResultEvent result) {
-            Msg message = result.getResult();
-            runId.set(AgentTurnSupport.runIdOf(message));
-            turns.recordUsage(request, runId.get(), message, started);
+            turns.recordUsage(request, runId, result.getResult(), started);
         }
     }
 

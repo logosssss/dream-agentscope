@@ -26,10 +26,26 @@ public class MybatisAuditRecorder implements AuditRecorder {
      */
     @Override
     public void record(String action, String actorId, String detail) {
+        write(action, actorId, null, null, detail);
+    }
+
+    /**
+     * 带会话与运行标识的写法。表里本来就有这两列，写入后审计行才能和 agent_run 对上。
+     */
+    @Override
+    public void record(
+            String action, String actorId, String sessionId, String runId, String detail) {
+        write(action, actorId, blankToNull(sessionId), blankToNull(runId), detail);
+    }
+
+    private void write(
+            String action, String actorId, String sessionId, String runId, String detail) {
         AgentEventAudit row = new AgentEventAudit();
         row.setEventId(Ids.newId());
         row.setEventType(action);
         row.setUserId(blankToNull(actorId));
+        row.setSessionId(sessionId);
+        row.setRunId(runId);
         row.setSource("EXECUTOR");
         row.setPayload(payload(detail));
         events.insert(row);

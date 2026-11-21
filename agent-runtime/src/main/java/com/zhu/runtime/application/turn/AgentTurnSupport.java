@@ -5,7 +5,6 @@ import com.zhu.runtime.application.stream.CrisisReplyOutlet;
 import com.zhu.runtime.application.usage.ModelCallUsage;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.common.util.Ids;
 import com.zhu.runtime.api.agent.AgentRequest;
 import com.zhu.runtime.api.agent.AgentStreamEvent;
 import com.zhu.runtime.api.usage.UsageMeter;
@@ -66,13 +65,17 @@ public class AgentTurnSupport {
         ModelTextGuard.beforeCall(request.systemPrompt(), request.userText(), properties.getMaxUserChars());
     }
 
-    /** 身份放进框架上下文。tenantId 和 agentId 不是框架字段，放在扩展项里。 */
-    public RuntimeContext context(AgentRequest request) {
+    /**
+     * 身份放进框架上下文。tenantId、agentId、runId 不是框架字段，放在扩展项里。
+     * runId 在调用前就固定：中间件要靠它把审计行挂到这一轮上，等执行完再取框架消息 id 就晚了。
+     */
+    public RuntimeContext context(AgentRequest request, String runId) {
         return RuntimeContext.builder()
                 .userId(request.userId())
                 .sessionId(request.sessionId())
                 .put("tenantId", request.tenantId())
                 .put("agentId", agentId(request))
+                .put("runId", runId)
                 .build();
     }
 
@@ -124,14 +127,6 @@ public class AgentTurnSupport {
             return text;
         }
         return PersonaConsistencyGuard.finalize(text, personaCheck(context), PersonaConsistencyGuard.baseline(persona));
-    }
-
-    /** 从结果消息取运行标识；没有则新生成。 */
-    public static String runIdOf(Msg reply) {
-        if (reply == null || reply.getId() == null || reply.getId().isBlank()) {
-            return Ids.newId();
-        }
-        return reply.getId();
     }
 
     /** 调用超时秒数。 */

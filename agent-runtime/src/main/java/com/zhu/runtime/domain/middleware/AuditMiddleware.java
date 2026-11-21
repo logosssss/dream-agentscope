@@ -26,6 +26,7 @@ public class AuditMiddleware implements MiddlewareBase {
 
     /**
      * 调用开始时记一条，正常结束和失败再各记一条。异常信息可能带用户输入，失败只记异常类型。
+     * 三条都带上会话与运行标识，审计行才能回到具体那一轮。
      */
     @Override
     public Flux<AgentEvent> onAgent(
@@ -36,14 +37,24 @@ public class AuditMiddleware implements MiddlewareBase {
         CallIdentity identity = CallIdentity.from(context);
         String actor = identity.userId() == null ? "" : identity.userId();
         String detail = "session=" + identity.sessionId();
-        audits.record("agent.call", actor, detail);
+        audits.record("agent.call", actor, identity.sessionId(), identity.runId(), detail);
         try {
             return next.apply(input)
-                    .doOnComplete(() -> audits.record("agent.call.finish", actor, detail))
+                    .doOnComplete(() -> audits.record(
+                            "agent.call.finish", actor, identity.sessionId(), identity.runId(), detail))
                     .doOnError(error -> audits.record(
-                            "agent.call.error", actor, error.getClass().getSimpleName()));
+                            "agent.call.error",
+                            actor,
+                            identity.sessionId(),
+                            identity.runId(),
+                            error.getClass().getSimpleName()));
         } catch (RuntimeException error) {
-            audits.record("agent.call.error", actor, error.getClass().getSimpleName());
+            audits.record(
+                    "agent.call.error",
+                    actor,
+                    identity.sessionId(),
+                    identity.runId(),
+                    error.getClass().getSimpleName());
             throw error;
         }
     }

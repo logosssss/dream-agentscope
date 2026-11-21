@@ -53,7 +53,12 @@ public class AuditUsageMeter implements UsageMeter {
             int outputTokens,
             long latencyMillis) {
         try {
-            audits.record("model.usage", userId == null ? "" : userId, detail(model, inputTokens, outputTokens, latencyMillis));
+            audits.record(
+                    "model.usage",
+                    userId == null ? "" : userId,
+                    sessionId,
+                    runId,
+                    detail(model, inputTokens, outputTokens, latencyMillis));
         } catch (RuntimeException ex) {
             log.warning("usage audit failed: " + ex.getMessage());
         }

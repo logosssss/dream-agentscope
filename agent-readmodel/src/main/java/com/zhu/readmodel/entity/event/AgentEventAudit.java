@@ -24,10 +24,10 @@ public class AgentEventAudit {
     /** 操作者。空则不写入，列保持 NULL。 */
     private String userId;
 
-    /** 会话。当前审计接口没有会话字段，插入时留空。 */
+    /** 会话。执行内核写入时带上，任务类动作留空。 */
     private String sessionId;
 
-    /** 一次运行的标识。当前调用方还没有传入。 */
+    /** 一次运行的标识。执行内核写入时带上，任务类动作留空。 */
     private String runId;
 
     /** 来源。执行内核写入时固定为 EXECUTOR。 */

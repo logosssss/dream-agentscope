@@ -92,7 +92,12 @@ public class FileWriteLimitMiddleware implements MiddlewareBase {
         List<ToolUseBlock> kept = new ArrayList<>(calls.size());
         for (ToolUseBlock use : calls) {
             if (oversized(use)) {
-                audits.record("file.write.rejected", actor, "tool=" + use.getName());
+                audits.record(
+                        "file.write.rejected",
+                        actor,
+                        identity.sessionId(),
+                        identity.runId(),
+                        "tool=" + use.getName());
                 continue;
             }
             kept.add(use);
