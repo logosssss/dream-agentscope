@@ -238,7 +238,20 @@ curl -s http://127.0.0.1:8100/health/ready
 | 文档占位串 | `change-me*` 等视为不安全：启动失败 + 请求拒收 |
 | 用户登录 | 另需 `Authorization: Bearer <session>`；与 Caller Token 不是一回事 |
 
-存活 `/health/live`、就绪 `/health/ready` 不校验 Caller Token。小程序确认 `POST /api/public/auth/wx/confirm` 不带 Caller Token（仍校验票）。
+存活 `/health/live`、就绪 `/health/ready` 不校验 Caller Token。
+
+### 响应头
+
+| 位置 | 头 | 说明 |
+|------|----|------|
+| 接口响应 | X-Content-Type-Options: nosniff、X-Frame-Options: DENY、Referrer-Policy: strict-origin-when-cross-origin | 由用户进程的 HttpSecurityHeadersFilter 兜底，401 也带 |
+| 接口响应 | Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none' | 接口只回 JSON，不需要任何子资源 |
+| 接口响应 | Cache-Control: no-store（仅 /api） | 有令牌回执与个人数据，不允许缓存 |
+| 页面响应 | 上述四个 + 页面 CSP + HSTS | 由 Nginx 示例给；页面 CSP 放行 Google Fonts 与行内样式（Tailwind / :style 需要） |
+
+页面 CSP 只在 deploy/nginx/dream-saas.com.conf.example 里，改完记得 
+ginx -t && systemctl reload nginx。
+细节与「明确不做」见 [P12 记录](./docs/engineering-p12-security-headers-落地.md)。小程序确认 `POST /api/public/auth/wx/confirm` 不带 Caller Token（仍校验票）。
 
 ### 常用业务旋钮（示例）
 

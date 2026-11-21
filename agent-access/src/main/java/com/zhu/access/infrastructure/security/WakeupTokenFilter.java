@@ -17,7 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * 其它路径直接放行（Caller 令牌仍由 {@link CallerTokenFilter} 负责）。
  */
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 1)
+@Order(Ordered.HIGHEST_PRECEDENCE + 2)
 public class WakeupTokenFilter extends OncePerRequestFilter {
 
     private final String expected;

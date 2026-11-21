@@ -26,6 +26,11 @@ server {
     # 浏览器包内不放 Caller Token；由网关代填。
     set $caller_token "REPLACE_WITH_AGENTSCOPE_CALLER_TOKEN";
 
+    # 只放 HSTS：它对整个域生效，静态和接口都要有。
+    # nosniff / X-Frame-Options / Referrer-Policy / CSP 由用户进程在接口响应上兜底，
+    # 这里不重复加，否则同一个响应上会出现两行同名头（浏览器按最严的一条执行，读起来很乱）。
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
     location /api/ {
         proxy_pass http://agentscope_user;
         proxy_http_version 1.1;
@@ -46,6 +51,21 @@ server {
 
     location / {
         try_files $uri $uri/ /index.html;
+
+        # 注意：nginx 的 add_header 只要出现在 location 里，就不再继承 server 级的那些，
+        # 所以 HSTS 必须在这里重复一次。
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # 页面自己的 CSP：接口走另一条更严的策略（default-src 'none'），两条互不影响。
+        # - style-src 必须留 'unsafe-inline'：Tailwind 与 Vue 的 :style 绑定都会写行内样式；
+        # - script-src 只有 'self'：构建产物是外链脚本，页面里没有内联脚本；
+        # - font-src / style-src 放行 fonts.googleapis.com：index.html 引了 Sora 字体；
+        # - img-src 留 data: 与 blob:：装饰用的内联 SVG 与附件预览走这两种协议；
+        # - frame-ancestors 'none' 与 X-Frame-Options 双保险，防点击劫持。
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'" always;
     }
 }
 

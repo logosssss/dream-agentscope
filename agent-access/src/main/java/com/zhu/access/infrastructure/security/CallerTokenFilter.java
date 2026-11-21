@@ -17,7 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * 用户进程的调用方令牌。只拦业务路径，不校验租户和用户是谁。
  */
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class CallerTokenFilter extends OncePerRequestFilter {
 
     private final String expected;
@@ -53,20 +53,11 @@ public class CallerTokenFilter extends OncePerRequestFilter {
     }
 
     /**
-     * MockMvc 和正式容器的 servletPath 不一致，用请求 URI 去掉 context path。
+     * MockMvc 和正式容器的 servletPath 不一致，统一走 {@link RequestPaths}。
      */
     private static String path(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        if (uri == null) {
-            return "";
-        }
-        String context = request.getContextPath();
-        if (context != null && !context.isEmpty() && uri.startsWith(context)) {
-            return uri.substring(context.length());
-        }
-        return uri;
+        return RequestPaths.of(request);
     }
-
     /** 响应体和业务失败同一结构。不把提交的令牌写进日志或正文。 */
     private static void reject(HttpServletResponse response) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

@@ -60,6 +60,7 @@ cd ../web-admin && pnpm install --frozen-lockfile && pnpm lint && pnpm test && p
 - [x] 根目录 `LICENSE`（Apache-2.0）、面向陌生人的 README 启动说明
 - [x] G2：`HarnessAgent` 默认 `disableWebTools` + `disableShellTool`；Caller/Admin 令牌空白或 `change-me*` 启动失败且请求拒收
 - [x] G2：Nacos infra 样例令牌留空；业务样例对 `web_fetch`/`web_search` DENY；注册/登录走 `per-minute` 限流
+- [x] G2：接口响应带 `nosniff` / `X-Frame-Options` / `Referrer-Policy` / 严格 CSP / `no-store`；页面 CSP 与 HSTS 在 Nginx 示例里（见 `docs/engineering-p12-security-headers-落地.md`）
 
 ---
 
