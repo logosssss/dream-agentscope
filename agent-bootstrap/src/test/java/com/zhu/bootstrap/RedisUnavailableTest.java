@@ -65,7 +65,7 @@ class RedisUnavailableTest {
                 },
                 (tenantId, userId, sessionId) -> {
                 },
-                new AbsentChatMessageStore());
+                new AbsentChatMessageStore(), ChatAppServiceFixtures.emptyAttachmentSupport(), ChatAppServiceFixtures.emptyCatalogs());
 
         TenantContext.set("t");
         UserContext.set("u");

@@ -1,4 +1,4 @@
-# dream-agentscope 现网一键部署（关卡制，失败即停，零自动重试）
+﻿# dream-agentscope 现网一键部署（关卡制，失败即停，零自动重试）
 # 用法（仓库根目录）:
 #   .\deploy\scripts\agent-deploy.ps1 -Target frontend
 #   .\deploy\scripts\agent-deploy.ps1 -Target user
@@ -28,9 +28,9 @@ if (-not (Test-Path $SshKey)) {
 }
 
 # ServerAlive*: 大 JAR / dist 长时间 scp 时避免中间设备空闲掐断
+# 本机 OpenSSH 无 -O（legacy SCP）；新版才有该开关，加上会直接失败。
 $scpArgs = @(
     "-i", $SshKey,
-    "-O",
     "-o", "StrictHostKeyChecking=no",
     "-o", "ConnectTimeout=20",
     "-o", "Compression=yes",
@@ -99,7 +99,8 @@ function Scp-File([string]$local, [string]$remote) {
         try {
             & scp @scpArgs $tgz "${Server}:${remoteTgz}"
             if ($LASTEXITCODE -ne 0) { throw "scp failed: $tgz -> $remoteTgz" }
-            $remoteSizeTxt = & ssh @sshArgs @"
+            # Windows 此处字符串默认 CRLF；原样进 bash 会把 set -e / 路径弄坏。
+            $finalize = @"
 set -e
 mkdir -p '$remoteDir'
 extractDir=`$(mktemp -d /tmp/agentscope-upload-XXXXXX)
@@ -110,6 +111,8 @@ mv -f "`$extractDir/$leaf" '$remote'
 rm -rf "`$extractDir"
 stat -c %s '$remote'
 "@
+            $finalize = ($finalize -replace "`r`n", "`n") -replace "`r", "`n"
+            $remoteSizeTxt = & ssh @sshArgs $finalize
             if ($LASTEXITCODE -ne 0) { throw "ssh finalize failed: $remote" }
         } finally {
             Remove-Item -Force $tgz -ErrorAction SilentlyContinue

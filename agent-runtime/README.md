@@ -96,7 +96,9 @@ AgentStreamEvent   接入层再写成 SSE
 
 系统提示词来自接入层填好的 `AgentRequest.systemPrompt`。接入层丢掉请求体人设，按 `prompt.companion.system` 取值。工厂在空值时用产品兜底，避免空提示词进入模型。
 
-业务工具实现 `ProductTool`。`toolId` 必须和 `@Tool` 的 name、目录里的标识一致。MySQL 打开时目录来自 `tool_registry` 的启用行。工厂在 `build` 之后把目录点名且有实现的工具注册到这次 Agent 自己的 Toolkit。目录为空，或实现不在目录里时，不注册。产品域有 `echo_text`（全局 `ASK`）；运行层有 `knowledge_search`（全局 `ALLOW`，种子见 `V35__knowledge_search_tool.sql`）。
+业务工具实现 `ProductTool`。`toolId` 必须和 `@Tool` 的 name、目录里的标识一致。MySQL 打开时目录来自 `tool_registry` 的启用行。工厂在 `build` 之后把目录点名且有实现的工具注册到这次 Agent 自己的 Toolkit。目录为空，或实现不在目录里时，不注册。产品域有 `echo_text`（全局 `ASK`）；运行层有 `knowledge_search`（全局 `ALLOW`，种子见 `V35__knowledge_search_tool.sql`）、`attachment_read`（全局 `ALLOW`，种子见 `V43__attachment_read_tool.sql`；经 `UserAttachmentTextPort` 读 PDF/docx/纯文本）。
+
+`AgentRequest` 可带本轮 `images`（Base64）；`ChannelGateway` 组 `ImageBlock`，失败降级纯文本并提示「未能看图」，不自动换模。
 
 `userId`、`sessionId`、`userText` 缺任何一个，抛 `BusinessException(BAD_REQUEST)`。
 
@@ -121,6 +123,7 @@ AgentStreamEvent   接入层再写成 SSE
 - Permission Gate 运行入口 A + `PendingAsk*`；旧审批链路硬删（[`permission-gate-落地.md`](../docs/permission-gate-落地.md)、[`approval-hard-delete-落地.md`](../docs/approval-hard-delete-落地.md)）
 - MCP / Sandbox / Wakeup 接线已收口（默认关或空清单不连；见对应落地文）
 - 知识：`knowledge_search` Hybrid + Rerank；索引 sync 发布 + 入口 `@Async`；删库/附件 multipart 在接入层
+- 聊天附件：本轮多模态入模 + `attachment_read` 按需读文档
 - 图册：[`docs/diagrams/`](../docs/diagrams/README.md)
 
 ## 已知限制（刻意不做）

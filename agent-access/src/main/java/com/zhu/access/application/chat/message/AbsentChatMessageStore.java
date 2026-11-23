@@ -16,13 +16,14 @@ import org.springframework.stereotype.Service;
 public class AbsentChatMessageStore implements ChatMessageStore {
 
     @Override
-    public void appendTurn(
+    public long appendTurn(
             String tenantId,
             String userId,
             String sessionId,
             String runId,
             String userText,
             String assistantText) {
+        return 0L;
     }
 
     @Override

@@ -5,12 +5,20 @@ import { ref } from 'vue'
  * 多 Agent 可扩展的消息存储。复合键 agentId:sessionId 隔离会话。
  */
 
+/** 气泡上挂的附件摘要；历史接口回填。 */
+export interface ChatMessageAttachment {
+  attachmentId: string
+  fileName: string
+  mimeType: string
+}
+
 /** 一条展示用消息。streaming 表示助手气泡仍在追加。 */
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   streaming?: boolean
+  attachments?: ChatMessageAttachment[]
 }
 
 export const useChatStore = defineStore('chat', () => {

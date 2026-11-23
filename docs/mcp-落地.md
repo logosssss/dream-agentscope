@@ -64,3 +64,19 @@
 ## 状态
 
 grill 已结束；落地 ①②③ 已完成。本专题收口。若再改规范，先改本文再动代码。
+
+## GitHub MCP 只读档案（2026-11-20 锁定）
+
+目标：companion 可经 MCP 读**任意公共** GitHub 仓库；不靠产品侧网页抓取。
+
+| 项 | 约定 |
+| --- | --- |
+| 实现 | 官方 [`github/github-mcp-server`](https://github.com/github/github-mcp-server) **钉版本 release 二进制**（现网示例 v2.2.0） |
+| 传输 | **stdio** |
+| 现网路径 | `/opt/dream-agentscope/mcp/github-mcp-server`；同目录 `VERSION` 记 tag |
+| 启动参数 | `stdio --read-only --toolsets repos`（写工具不注册） |
+| Token | 平台级 fine-grained PAT，**Contents: Read**，仅公共仓；`run.env` 键名 `GITHUB_TOKEN`；MCP env 映射 `GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_TOKEN}`；**不进 Nacos 明文** |
+| 多租户 | 第一期共用平台身份；**不做**按租户 Token；私有仓本阶段不支持 |
+| 失败 | `required: false` 软失败 |
+| 部署 | **不进** `agent-deploy.ps1`；二进制旁路安装；清单在 Nacos 业务配置显式配置后才装配 |
+| 样例 | `deploy/nacos/agent-bootstrap.yaml` → `agentscope.runtime.mcp.servers.github` |

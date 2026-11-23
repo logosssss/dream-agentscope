@@ -9,10 +9,10 @@ import java.util.List;
 public interface ChatMessageStore {
 
     /**
-     * 追加一轮 user + assistant。身份或会话为空时跳过。
-     * 失败由实现吞掉或抛给调用方按软失败处理。
+     * 追加一轮 user + assistant。身份或会话为空时跳过并返回 0。
+     * 成功时返回本轮 user 气泡的 seq，供 MESSAGE 引用挂接。
      */
-    void appendTurn(
+    long appendTurn(
             String tenantId,
             String userId,
             String sessionId,
@@ -22,7 +22,7 @@ public interface ChatMessageStore {
 
     /**
      * 按 seq 升序列出气泡。limit 小于 1 按 100，大于 200 按 200。
-     * 调用方须先确认会话归属。
+     * 调用方须先确认会话归属。user 气泡可带附件摘要。
      */
     List<ChatMessageItem> list(String tenantId, String userId, String sessionId, int limit);
 }

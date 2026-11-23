@@ -80,21 +80,6 @@ class ChatCompanionTest {
 
     /** 额度不限制。会话归属由测试传入。 */
     private static ChatAppService service(AgentExecutor executor, com.zhu.access.application.chat.session.SessionOwnerGate owners) {
-        return new ChatAppService(
-                executor,
-                (key, variables, fallback) -> fallback,
-                new TestSemanticProvider(),
-                new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC()),
-                new ConcurrentRunGuard(new FakeCacheFacade(), 120),
-                (tenant, user, session, channel, text) -> {
-                },
-                (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
-                },
-                tenantId -> {
-                },
-                (tenantId, userId) -> {
-                },
-                owners,
-                new AbsentChatMessageStore());
+        return ChatAppServiceFixtures.chats(executor, owners);
     }
 }

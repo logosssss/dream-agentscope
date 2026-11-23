@@ -1,21 +1,14 @@
 package com.zhu.bootstrap;
 
 import com.zhu.access.api.dto.chat.ChatRequest;
-import com.zhu.access.application.chat.message.AbsentChatMessageStore;
-import com.zhu.access.application.chat.ChatAppService;
-import com.zhu.access.application.chat.run.ConcurrentRunGuard;
-import com.zhu.access.application.account.QuotaGuard;
-import com.zhu.access.config.AccessLimitProperties;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.access.infrastructure.security.AccessIdentityFilter;
 import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
-import com.zhu.semantic.api.prompt.PromptService;
 import com.zhu.runtime.api.agent.AgentExecutor;
 import com.zhu.runtime.api.agent.AgentRequest;
 import com.zhu.runtime.api.agent.AgentResponse;
-import java.time.Clock;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -50,14 +43,7 @@ class AccessIdentityTest {
         UserContext.set("header-user");
         ChatRequest request = new ChatRequest(null, "body-tenant", null, "session-1", "客户端人设", "hi", null);
 
-        PromptService prompts = (key, variables, fallback) -> fallback;
-        QuotaGuard quota = new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC());
-        new ChatAppService(executor, prompts, new TestSemanticProvider(), quota, new ConcurrentRunGuard(new FakeCacheFacade(), 120), (tenant, user, session, channel, text) -> {
-        }, (tenant, user, session, trigger, status, runId, input, output, error, steps, started) -> {
-        }, tenantId -> {
-        }, (tenantId, userId) -> {
-        }, (tenantId, userId, sessionId) -> {
-        }, new AbsentChatMessageStore()).chat(request);
+        ChatAppServiceFixtures.chats(executor).chat(request);
 
         ArgumentCaptor<AgentRequest> sent = ArgumentCaptor.forClass(AgentRequest.class);
         verify(executor).execute(sent.capture());
