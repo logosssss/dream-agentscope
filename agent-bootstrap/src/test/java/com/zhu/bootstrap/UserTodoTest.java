@@ -13,8 +13,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zhu.access.api.approval.UserTodoCatalog;
-import com.zhu.access.infrastructure.persistence.approval.UserTodoMapper;
-import com.zhu.access.infrastructure.persistence.entity.approval.UserTodo;
+import com.zhu.readmodel.persistence.approval.UserTodoMapper;
+import com.zhu.readmodel.entity.approval.UserTodo;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.LocalDateTime;

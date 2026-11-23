@@ -1,5 +1,6 @@
 package com.zhu.access.application.chat.run;
 
+import com.zhu.access.application.chat.ConcurrentGate;
 import com.zhu.cache.api.CacheFacade;
 import com.zhu.access.api.quota.TenantQuotaLookup;
 import com.zhu.common.exception.BusinessException;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Service;
  * TTL 跟运行超时配置走，热更后新占位用新值。
  */
 @Service
-public class ConcurrentRunGuard {
+public class ConcurrentRunGuard implements ConcurrentGate {
 
     /** 比单次调用超时多留的时间，避免对话还没结束键就过期。 */
     private static final Duration EXTRA = Duration.ofSeconds(30);
@@ -68,6 +69,7 @@ public class ConcurrentRunGuard {
     /**
      * 占一个名额。超限抛 QUOTA_EXCEEDED。Redis 不可用时抛 UNAVAILABLE，不放行。
      */
+    @Override
     public Slot open(String tenantId) {
         if (quotas == null) {
             return Slot.idle();
@@ -90,7 +92,8 @@ public class ConcurrentRunGuard {
      * 归还名额。空槽或重复释放没有副作用。
      * Redis 不可用时吞掉：键会过期，不能把已经完成的回复盖成失败。
      */
-    public void close(Slot slot) {
+    @Override
+    public void close(ConcurrentGate.Slot slot) {
         if (slot == null || slot.key() == null || slot.key().isBlank()) {
             return;
         }
@@ -126,7 +129,7 @@ public class ConcurrentRunGuard {
      *
      * @param key Redis 计数键，没有限额时是 null
      */
-    public record Slot(String key) {
+    public record Slot(String key) implements ConcurrentGate.Slot {
 
         /** 不占 Redis 的空槽。 */
         public static Slot idle() {

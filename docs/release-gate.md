@@ -19,7 +19,7 @@
 - [x] 根目录 `.env` 至少含 Nacos 四件套（及未迁 infra 时的连接/密钥兜底）；`AGENTSCOPE_CALLER_TOKEN` 与 `AGENTSCOPE_ADMIN_TOKEN` 必须不同（可在对应 infra yaml）；若打开 `wakeup.enabled` 另配 `AGENTSCOPE_WAKEUP_TOKEN`（勿与 Caller/Admin 相同）
 - [x] 模型可用（如百炼）；本地联调注意月额度与租户每人额度
 - [x] MySQL 已迁移；已执行 `deploy/mysql/seed-demo-tenant-user.sql`（或等价演示租户）
-- [x] 用户进程 `8080`、管理进程 `8100` 能起来；`web`（5173）、`web-admin`（5174）能起来
+- [x] 用户进程能起来（本地 `8080` / 现网 `8093`）、管理进程 `8100` 能起来；`web`（5173）、`web-admin`（5174）能起来
 - [x] 本地前端：`web/.env.local` 的 `VITE_CALLER_TOKEN` = 用户进程 Caller；`web-admin/.env.local` 的 `VITE_ADMIN_TOKEN` = **Admin** Token（勿与 CALLER 混用）
 
 说明：线上公网站点 **Caller Token 由 Nginx 代填**，浏览器包内不放 `VITE_CALLER_TOKEN`。本地开发可用 Vite 代理或 `.env.local`，与线上注入方式分开验收。
@@ -28,31 +28,26 @@
 
 ## 1. 自动化（必须全绿）
 
-在仓库根目录、**JDK 21**：
+在仓库根目录、**JDK 21**，用仓库自带的 Maven wrapper（版本与参数钉在 `.mvn/`，避免"我机器上能跑"）：
 
 ```bash
-mvn test
+./mvnw -Pstrict verify          # Windows: mvnw.cmd -Pstrict verify
+./mvnw -Pstrict -Dtest=ArchitectureTest,SchemaContractTest,MigrationCatalogTest -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
-- [x] `mvn test` 通过（含 ArchUnit 等，不连真实中间件）
+- [x] `./mvnw -Pstrict verify` 通过（含 ArchUnit 边界规则、Flyway 与 Mapper 契约比对）
+- [x] 边界护栏可单独跑，约 10 秒内给出结论（CI 的 `boundary` job 就只跑这一段）
+- [x] Testcontainers 端到端（真 MySQL + Redis）：有 Docker 的机器/CI 上真跑；本机无 Docker 时该用例**跳过而非失败**
 
-前端：
+前端（每个前端只有一份 `pnpm-lock.yaml`）：
 
 ```bash
-cd web && pnpm exec vue-tsc -b
-cd ../web-admin && pnpm exec vue-tsc -b
+cd web && pnpm install --frozen-lockfile && pnpm lint && pnpm test && pnpm build
+cd ../web-admin && pnpm install --frozen-lockfile && pnpm lint && pnpm test && pnpm build
 ```
 
-可选加强：
-
-```bash
-cd web && pnpm build
-cd ../web-admin && pnpm build
-```
-
-- [x] `web` 类型检查通过
-- [x] `web-admin` 类型检查通过
-- [ ] （可选）两端 `pnpm build` 通过
+- [x] `web` / `web-admin` 的 `pnpm lint` 与 `vue-tsc -b` 通过
+- [ ] 两端 `pnpm test` / `pnpm build`：本机沙箱下 vite 打包配置会 `spawn EPERM`，由 CI 的 `frontend` job 验证
 
 ---
 
@@ -79,7 +74,7 @@ cd ../web-admin && pnpm build
 
 ---
 
-## 4. 手测冒烟 — 用户端（`web` / 8080）
+## 4. 手测冒烟 — 用户端（`web` / 本地 8080、现网 8093）
 
 ### 4.1 注册与登录
 
@@ -160,3 +155,14 @@ cd ../web-admin && pnpm build
 | 冒烟 | **本轮跳过**（S2：本机中间件/8080/8100 未起；用户确认跳过；**不**沿用旧「通过」冒充本轮实跑） |
 | 敏感面 | **通过**（工作区未跟踪 `.env`；根与前端 `.env.example`、`LICENSE` Apache-2.0 在；临时 `.tmp`/`io` 未纳入门禁提交） |
 | 备注（缺陷与是否已修） | R1 专题见 `docs/release-gate-r1-落地.md`。§4.2「停止生成」、可选 `pnpm build` 仍空/不挡。合并 `main` / 现网属 R2+，本轮不做。 |
+
+## 签字（R2 待签字）
+
+| 项 | 记录 |
+| --- | --- |
+| 日期 | 2026-11-21 |
+| 分支 / 提交 | `feat/agentscope-platform-base` @ 工程护栏 P0–P5（P0 `f76927c`、P1 `78bedc3`、P2 `1afcd7d`、P3 `74e5191`、P4 `5885b55`、P5 待提交） |
+| 自动化 | **代码侧通过**：`./mvnw -Pstrict verify` 全绿（521 例；本机向 `target/test-classes` 注入 `mock-maker-subclass` 绕过沙箱 JIT attach 限制）；`web`/`web-admin` 的 `pnpm lint` 与 `vue-tsc -b` 通过；**`pnpm test`/`pnpm build` 本机无法验证**（沙箱 `spawn EPERM`），交由 CI `frontend` job；Testcontainers E2E 本机跳过（无 Docker），交由 CI `verify` job |
+| 冒烟 | **未跑**（本机无中间件、无 Docker，用户选择先推 CI）；需在有环境的机器上按 §3–§5 复跑 |
+| 敏感面 | **待复核**：工作区无 `.env`/真实 Token；`web`/`web-admin` 已改为「网关模式不把 Caller Token 打进包」，构建命令显式 `VITE_GATEWAY=true`；`.gitignore` 已忽略 `.pnpm-store/`、`.npm-cache/`、`.m2-repo/` |
+| 备注 | R2 相对 R1 的变化：门禁命令改为 `./mvnw -Pstrict verify`；前端新增 lint/test；新增 E2E；端口口径统一为本地 8080 / 现网 8093。签字需 CI 全绿 + 冒烟实跑后再落。 |

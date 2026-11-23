@@ -32,3 +32,19 @@ pnpm dev
 ```
 
 浏览器打开 `http://127.0.0.1:5174`。缺 Token 时顶栏红字提示，业务操作禁用。
+
+现网静态发布用 `VITE_ADMIN_BASE=/ops/`（与 Nginx location 对齐），并由网关代填
+`X-Caller-Token`：构建时设 `VITE_ADMIN_GATEWAY=true`，浏览器包内**不放** Admin Token。
+注意 [`AGENT-DEPLOY-USAGE.md`](../deploy/AGENT-DEPLOY-USAGE.md) 目前只部署用户端静态资源，
+管理端静态资源需自行发布。
+
+## 检查
+
+```bash
+pnpm lint          # 与 web 同口径的 ESLint flat config
+pnpm test          # Vitest + jsdom（鉴权头与操作人记忆的回归用例）
+pnpm build         # vue-tsc -b && vite build
+```
+
+`pnpm-workspace.yaml` 与 `web/` 一致：`nodeLinker: hoisted` + `overrides: estree-walker 2.0.2`；
+仓库里不保留 `package-lock.json`，`pnpm-lock.yaml` 是唯一锁文件。

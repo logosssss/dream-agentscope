@@ -8,7 +8,7 @@
 
 依赖 `agent-common`、`agent-db`（Flyway 脚本）、`agent-vector`、`agent-object-store`、`agent-state`、`agent-semantic`、`agent-runtime`、`agent-access`、`agent-cache-redis`、`agent-product-companion`（及日后其它 `agent-product-*`）。测试依赖 `spring-boot-starter-test` 和 ArchUnit。管理进程不依赖 `agent-db` / `agent-vector` / 产品模块；同样引入 `agent-cache-redis` 做建连。
 
-本模块是唯一用户 App（A1）：只做扫描 / 装配 / Nacos / Flyway，不含产品业务类。产品实现落在 `agent-products/*`，经 `ResidentAgentBinding` 挂入。
+本模块是唯一用户 App（A1）：只做扫描 / 装配 / Nacos / Flyway，不含产品业务类。产品实现落在 `agent-products/*`，经 `ProductModule` 挂入。
 
 `@SpringBootApplication(scanBasePackages = "com.zhu")` 会扫到兄弟包（含 `com.zhu.product..`）。如果只扫 `com.zhu.bootstrap`，接入层控制器、状态配置和产品 Binding 都不会生效。
 

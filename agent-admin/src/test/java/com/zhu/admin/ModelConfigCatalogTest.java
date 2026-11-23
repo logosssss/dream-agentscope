@@ -1,8 +1,8 @@
 package com.zhu.admin;
 
 import com.zhu.admin.application.model.MysqlModelConfigCatalog;
-import com.zhu.admin.infrastructure.persistence.model.ModelConfigMapper;
-import com.zhu.admin.infrastructure.persistence.entity.model.ModelConfig;
+import com.zhu.readmodel.persistence.model.ModelConfigMapper;
+import com.zhu.readmodel.entity.model.ModelConfig;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.util.List;

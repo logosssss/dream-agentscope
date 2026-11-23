@@ -1,8 +1,8 @@
 package com.zhu.admin.application.quota;
 
 import com.zhu.admin.api.quota.QuotaUsageWriter;
-import com.zhu.admin.infrastructure.persistence.quota.QuotaUsageLogMapper;
-import com.zhu.admin.infrastructure.persistence.entity.quota.QuotaUsageLog;
+import com.zhu.readmodel.persistence.quota.QuotaUsageLogMapper;
+import com.zhu.readmodel.entity.quota.QuotaUsageLog;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 

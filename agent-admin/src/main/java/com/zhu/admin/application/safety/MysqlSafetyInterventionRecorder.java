@@ -1,8 +1,8 @@
 package com.zhu.admin.application.safety;
 
 import com.zhu.admin.api.safety.SafetyInterventionRecorder;
-import com.zhu.admin.infrastructure.persistence.safety.SafetyInterventionMapper;
-import com.zhu.admin.infrastructure.persistence.entity.safety.SafetyIntervention;
+import com.zhu.readmodel.persistence.safety.SafetyInterventionMapper;
+import com.zhu.readmodel.entity.safety.SafetyIntervention;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.util.Set;

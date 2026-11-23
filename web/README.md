@@ -14,7 +14,7 @@ Vue 3 + Vite + Pinia + Vue Router + Tailwind v4。同仓页面联调用户进程
 
 1. 用户进程已在 `8080` 起来（Redis / MySQL / Milvus 按底座要求；需已迁移含 `chat_message` 的 V37）。
 2. 本机执行 `deploy/mysql/seed-demo-tenant-user.sql`。
-3. 复制 `.env.example` 为 `.env.local`，填写与 `AGENTSCOPE_CALLER_TOKEN` 一致的 `VITE_CALLER_TOKEN`。
+3. 复制 `.env.example` 为 `.env.local`：本地直连填 `VITE_CALLER_TOKEN`（与 `AGENTSCOPE_CALLER_TOKEN` 一致）；现网静态构建改设 `VITE_GATEWAY=true`，令牌由 Nginx 注入，**不要把令牌打进前端包**。
 
 ## 启动
 
@@ -25,3 +25,16 @@ pnpm dev
 ```
 
 浏览器打开提示的地址（默认 `http://127.0.0.1:5173`）：`/` 为公开介绍页，点「开始使用」进入 `/companion`（未登录会跳转登录/注册）。
+
+## 检查
+
+```bash
+pnpm lint          # ESLint（flat config，vue/essential + typescript-eslint recommended）
+pnpm test          # Vitest + jsdom，收 src 下 *.test.ts
+pnpm build         # vue-tsc -b && vite build
+```
+
+`pnpm-workspace.yaml` 里固定了两条与本机/CI 一致的设置：`nodeLinker: hoisted`（Windows 上 Node
+解析 junction 布局不稳定，隔离布局会让 eslint/vue-tsc 找不到包）与 `overrides: estree-walker 2.0.2`
+（vitest 5 拉 ESM-only 3.x，与 vue-tsc 的 CJS 2.x 冲突）。所以 `pnpm-lock.yaml` 是**唯一**锁文件，
+仓库里不再保留 `package-lock.json`。

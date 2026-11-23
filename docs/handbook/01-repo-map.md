@@ -24,7 +24,7 @@
    - [`agent-cache`](../../agent-cache/README.md)  
    - [`agent-admin`](../../agent-admin/README.md)  
 6. 前端入口：[web/README](../../web/README.md)、[web-admin/README](../../web-admin/README.md)  
-7. （可选加深）[`doc/AgentScope Java 2.0.4 产品级架构与工程落地指南 (2).md`](../../doc/AgentScope%20Java%202.0.4%20产品级架构与工程落地指南%20(2).md) — 按需翻，不作从 0 唯一入口；含历史草案  
+7. （可选加深）[`docs/reference/agentscope-architecture-guide.md`](../../docs/reference/agentscope-architecture-guide.md) — 按需翻，不作从 0 唯一入口；含历史草案  
 8. （可选）[`docs/agentscope-landing-review.md`](../agentscope-landing-review.md) — 指南↔现码漂移与「要不要调框架/工程」  
 9. （可选）[`docs/packaging-落地.md`](../packaging-落地.md) — 分包边界；正式问题放在 ④ 首节  
 

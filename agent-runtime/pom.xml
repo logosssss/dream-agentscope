@@ -20,7 +20,16 @@
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
+            <artifactId>agent-readmodel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
             <artifactId>agent-semantic</artifactId>
+        </dependency>
+        <dependency>
+            <!-- 产品契约。runtime 只认 ProductModule，不认识具体产品实现。 -->
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-product-api</artifactId>
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
@@ -65,5 +74,41 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- 复用测试替身：StubProductModule 等，只在测试类路径上。 -->
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-test-support</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <!-- 业务层只认 CacheFacade（agent-cache-api），实现留在 agent-cache-redis，避免把 Redisson 细节带进 runtime。 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-cache-api-only</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>false</searchTransitive>
+                                    <excludes>
+                                        <exclude>com.zhu:agent-cache-redis</exclude>
+                                    </excludes>
+                                    <message>agent-runtime 只能用 agent-cache-api，不得直接依赖 Redis 缓存实现。</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

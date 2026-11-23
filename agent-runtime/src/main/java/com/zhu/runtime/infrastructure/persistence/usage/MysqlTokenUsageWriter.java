@@ -3,9 +3,10 @@ package com.zhu.runtime.infrastructure.persistence.usage;
 import com.zhu.runtime.api.usage.DailyCostAccumulator;
 import com.zhu.runtime.api.usage.TokenUsageWriter;
 import com.zhu.runtime.domain.ModelCosting;
-import com.zhu.runtime.infrastructure.persistence.billing.ModelPriceMapper;
-import com.zhu.runtime.infrastructure.persistence.entity.billing.ModelPrice;
-import com.zhu.runtime.infrastructure.persistence.entity.usage.TokenUsage;
+import com.zhu.readmodel.persistence.billing.ModelPriceMapper;
+import com.zhu.readmodel.entity.billing.ModelPrice;
+import com.zhu.readmodel.entity.usage.TokenUsage;
+import com.zhu.readmodel.persistence.usage.TokenUsageMapper;
 import com.zhu.common.util.Ids;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -28,7 +29,7 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
 
     private static final int MODEL_LIMIT = 128;
 
-    private final RuntimeTokenUsageMapper usages;
+    private final TokenUsageMapper usages;
 
     private final ModelPriceMapper prices;
 
@@ -37,7 +38,7 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
     /** 累加器可缺省。价格缺失时不拒绝写入。 */
     @Autowired
     public MysqlTokenUsageWriter(
-            RuntimeTokenUsageMapper usages,
+            TokenUsageMapper usages,
             ModelPriceMapper prices,
             @Nullable DailyCostAccumulator costs) {
         this.usages = usages;

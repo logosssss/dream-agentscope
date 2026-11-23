@@ -4,8 +4,10 @@ import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,13 +29,13 @@ class ArchitectureTest {
                     .resideInAnyPackage("..semantic.application..", "..semantic.infrastructure..");
 
     /**
-     * 运行层不得依赖产品实现包（{@code com.zhu.product..}，勿与 {@code semantic.contract.product} 混淆）。
-     * 产品经 {@code ResidentAgentBinding} 注册表挂入，由 bootstrap 扫进 classpath。
+     * 运行层只能碰产品契约（{@code com.zhu.product.api}），不得依赖任何具体产品实现。
+     * 契约是 runtime 与产品的唯一接缝；具体产品（{@code com.zhu.product.companion..} 等）由 bootstrap 扫进 classpath。
      */
-    private static final ArchRule RUNTIME_MUST_NOT_DEPEND_ON_PRODUCT =
+    private static final ArchRule RUNTIME_MAY_ONLY_SEE_PRODUCT_API =
             noClasses().that().resideInAPackage("..runtime..")
-                    .should().dependOnClassesThat()
-                    .resideInAPackage("com.zhu.product..");
+                    .should().dependOnClassesThat(JavaClass.Predicates.resideInAPackage("com.zhu.product..")
+                            .and(JavaClass.Predicates.resideOutsideOfPackage("com.zhu.product.api..")));
 
     /**
      * 产品模块不得依赖接入层。HTTP / 身份 / 额度留在 access；产品只提供 Binding / 语义实现 / 业务工具。
@@ -48,6 +50,18 @@ class ArchitectureTest {
             noClasses().that().resideInAPackage("..semantic..")
                     .should().dependOnClassesThat()
                     .resideInAPackage("com.zhu.product..");
+
+    /**
+     * 一个产品 = 一个 ProductModule（它同时是实现唯一的 ProductSemanticProvider）。
+     * 若产品里再冒出一个 ProductSemanticProvider 实现，容器注入会歧义，两个视图也会各写一份 agentId。
+     *
+     * <p>测试替身（{@code com.zhu.testsupport..}）不算产品实现：它只在测试类路径上，进程里拿不到。
+     */
+    private static final ArchRule PRODUCT_SEMANTIC_IMPLEMENTED_ONLY_IN_PRODUCTS =
+            classes().that().implement("com.zhu.semantic.contract.product.ProductSemanticProvider")
+                    .and().resideOutsideOfPackage("com.zhu.bootstrap..")
+                    .and().resideOutsideOfPackage("com.zhu.testsupport..")
+                    .should().resideInAPackage("com.zhu.product..");
 
     /** 状态层不认识产品语义、执行、接入和缓存。 */
     private static final ArchRule STATE_MUST_NOT_DEPEND_ON_BUSINESS =
@@ -126,18 +140,43 @@ class ArchitectureTest {
                     .should().dependOnClassesThat()
                     .resideInAnyPackage("..infrastructure.persistence..");
 
+    /**
+     * readmodel 是共享数据形状，不得反向依赖任何业务模块、组件实现或中间件客户端。
+     * 它只允许 mybatis-plus 与 agent-common 的纯类型。
+     */
+    private static final ArchRule READMODEL_MUST_NOT_DEPEND_ON_BUSINESS =
+            noClasses()
+                    .that()
+                    .resideInAPackage("com.zhu.readmodel..")
+                    .should()
+                    .dependOnClassesThat()
+                    .resideInAnyPackage(
+                            "..access..",
+                            "..admin..",
+                            "..runtime..",
+                            "com.zhu.product..",
+                            "..state..",
+                            "..vector..",
+                            "..objectstore..",
+                            "com.zhu.cache..",
+                            "io.agentscope..");
+
     /** 确认规则作用在真实类上，并且边界都成立。 */
     @Test
     void moduleBoundariesHold() {
         JavaClasses classes = new ClassFileImporter().importPackages("com.zhu");
         assertThat(classes.stream().map(JavaClass::getName))
                 .contains(
+                        "com.zhu.readmodel.config.ReadModelMapperConfig",
+                        "com.zhu.readmodel.persistence.usage.TokenUsageMapper",
+                        "com.zhu.readmodel.entity.tenant.TenantRecord",
                         "com.zhu.semantic.contract.product.ProductSemanticProvider",
                         "com.zhu.runtime.api.agent.AgentExecutor",
                         "com.zhu.runtime.infrastructure.gateway.ChannelGateway",
                         "com.zhu.runtime.api.approval.PendingAskFacade",
                         "com.zhu.runtime.api.wakeup.WakeupPort",
-                        "com.zhu.runtime.infrastructure.agent.ResidentAgentBinding",
+                        "com.zhu.product.api.ProductModule",
+                    "com.zhu.runtime.infrastructure.agent.ProductModuleRegistry",
                         "com.zhu.product.companion.binding.CompanionResidentAgentBinding",
                         "com.zhu.state.config.DistributedStoreConfig",
                         "com.zhu.state.config.StateMapperConfig",
@@ -152,9 +191,10 @@ class ArchitectureTest {
 
         SEMANTIC_MUST_NOT_DEPEND_ON_RUNTIME_OR_ACCESS.check(classes);
         RUNTIME_ONLY_DEPENDS_ON_SEMANTIC_CONTRACT.check(classes);
-        RUNTIME_MUST_NOT_DEPEND_ON_PRODUCT.check(classes);
+        RUNTIME_MAY_ONLY_SEE_PRODUCT_API.check(classes);
         PRODUCT_MUST_NOT_DEPEND_ON_ACCESS.check(classes);
         SEMANTIC_MUST_NOT_DEPEND_ON_PRODUCT.check(classes);
+        PRODUCT_SEMANTIC_IMPLEMENTED_ONLY_IN_PRODUCTS.check(classes);
         SEMANTIC_MUST_NOT_DEPEND_ON_CACHE.check(classes);
         BUSINESS_MUST_NOT_DEPEND_ON_CACHE_REDIS.check(classes);
         STATE_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
@@ -163,5 +203,24 @@ class ArchitectureTest {
         ACCESS_MUST_NOT_TOUCH_AGENTSCOPE.check(classes);
         ACCESS_MUST_NOT_TOUCH_RUNTIME_INFRASTRUCTURE.check(classes);
         CONTROLLERS_MUST_NOT_ACCESS_REPOSITORIES.check(classes);
+        READMODEL_MUST_NOT_DEPEND_ON_BUSINESS.check(classes);
+
+    }
+
+    /**
+     * readmodel 只放数据形状与查询，不得出现业务服务、事务边界或领域规则。
+     * 共享表的写入（如额度上限、模型配置）允许留在 Mapper，但只能是一条语句，不含判断。
+     */
+    @Test
+    void readModelHoldsNoBusinessLogic() {
+        JavaClasses classes = new ClassFileImporter().importPackages("com.zhu.readmodel");
+        List<String> offenders = classes.stream()
+                .filter(c -> !c.getPackageName().equals("com.zhu.readmodel.config"))
+                .filter(c -> c.isAnnotatedWith("org.springframework.stereotype.Service")
+                        || c.isAnnotatedWith("org.springframework.stereotype.Component")
+                        || c.isAnnotatedWith("org.springframework.transaction.annotation.Transactional"))
+                .map(JavaClass::getName)
+                .toList();
+        assertThat(offenders).as("readmodel must not carry business services").isEmpty();
     }
 }

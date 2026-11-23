@@ -6,7 +6,9 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-semantic`、`agent-runtime`、`agent-state`、`agent-vector`、`agent-object-store`、`agent-cache-api`、`spring-boot-starter-web`、`spring-boot-starter-data-redis`（仅就绪等类型）、`mybatis-plus-spring-boot3-starter`。租户/额度/附件/反馈/待办等用户热路径在本模块本地实现。缓存业务走 `CacheFacade`；Redis 建连由启动模块引入 `agent-cache-redis`。MySQL 关闭时不扫描 Mapper。
+依赖 `agent-common`、`agent-readmodel`、`agent-semantic`、`agent-runtime`、`agent-state`、`agent-vector`、`agent-object-store`、`agent-cache-api`、`spring-boot-starter-web`、`spring-boot-starter-data-redis`（仅就绪等类型）、`mybatis-plus-spring-boot3-starter`。租户/额度/附件/反馈/待办等用户热路径在本模块本地实现。缓存业务走 `CacheFacade`；Redis 建连由启动模块引入 `agent-cache-redis`。MySQL 关闭时不扫描 Mapper。
+
+租户、成员、登录凭据、额度、用量、附件、待办、反馈、删除请求这些**多进程共用表**的 entity 与 Mapper 在 `agent-readmodel`，本模块只写 application 层逻辑；同表不再各写一份（见 [`agent-readmodel/README.md`](../agent-readmodel/README.md)）。
 
 架构测试（`ArchitectureTest`）：
 
@@ -107,6 +109,8 @@
 ## 已交付（摘要）
 
 - 登录会话 Bearer（非 JWT）；Caller 令牌；租户/用户 ACTIVE 门；额度与占锁（Redis 失败 503）
+- 四个对话入口共用 `GateChain`：用户 → 租户 → 租户用户 → 会话归属 → 额度 → 并发名额，顺序只写一处；端口是 `TenantGate` / `TenantUserGate` / `SessionOwnerGate` / `QuotaGate` / `ConcurrentGate`，`QuotaGuard` 与 `ConcurrentRunGuard` 各实现一个
+- `GateChainTest` 是本模块第一个纯单元测试：不 mock Redis，闸门用 lambda 替身，覆盖顺序、短路、未登录拦截、action 透传
 - WEB `/api/chat*` 与 API Channel `/api/agent/chat*` + `/api-console`（[`api-channel-落地.md`](../docs/api-channel-落地.md)）
 - 流式 ASK → `PendingAskFacade`；`GET/POST /api/approvals*` 续跑；旧审批表/通知/`APPROVAL` 待办 **已硬删**（[`approval-hard-delete-落地.md`](../docs/approval-hard-delete-落地.md)、[`permission-gate-落地.md`](../docs/permission-gate-落地.md)）
 - 会话/消息/运行/步骤/任务/用量/额度/待办/反馈/附件/删除请求/知识库 HTTP 面（细则见上文各段）

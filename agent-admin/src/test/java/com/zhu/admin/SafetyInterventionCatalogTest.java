@@ -1,8 +1,8 @@
 package com.zhu.admin;
 
 import com.zhu.admin.application.safety.MysqlSafetyInterventionCatalog;
-import com.zhu.admin.infrastructure.persistence.safety.SafetyInterventionMapper;
-import com.zhu.admin.infrastructure.persistence.entity.safety.SafetyIntervention;
+import com.zhu.readmodel.persistence.safety.SafetyInterventionMapper;
+import com.zhu.readmodel.entity.safety.SafetyIntervention;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

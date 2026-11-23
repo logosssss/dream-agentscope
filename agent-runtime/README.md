@@ -6,7 +6,7 @@
 
 ## 依赖
 
-依赖 `agent-common`、`agent-semantic`、`agent-state`、`agent-vector`、`agent-cache-api`、MyBatis-Plus、`agentscope-harness`、`agentscope-extensions-model-dashscope`。事件审计写入、token 用量、安全干预、模型查找在本模块本地实现。测试依赖 `spring-boot-starter-test`（模块内纯单元测试点；见 `docs/bootstrap-test-sink-落地.md`）。
+依赖 `agent-common`、`agent-readmodel`、`agent-semantic`、`agent-product-api`（产品契约）、`agent-state`、`agent-vector`、`agent-cache-api`、MyBatis-Plus、`agentscope-harness`、`agentscope-extensions-model-dashscope`。事件审计写入、token 用量、安全干预、模型查找在本模块本地实现，行映射与 Mapper 走 `agent-readmodel`。测试依赖 `spring-boot-starter-test`（模块内纯单元测试点；见 `docs/bootstrap-test-sink-落地.md`）。
 
 对 `agent-semantic` 的 Java 引用只能落在 `com.zhu.semantic.contract` 及其子包（`product` / `tool` / `permission` / `safety`）。不要 import `semantic.application` 或 `semantic.infrastructure`。
 
@@ -61,7 +61,7 @@ AgentStreamEvent   接入层再写成 SSE
 | `application.turn` | `AgentTurnSupport`、`ResolvedChatModel`、`AbsentSessionTurnCount` | 校验 / RuntimeContext / 流式护栏收口与用量记账入口；模型坐标解析；MySQL 关闭时轮次按 0 |
 | `application.stream` | `AgentStreamEvents`、`CrisisReplyOutlet` | 框架事件收成 `AgentStreamEvent`；危机档流式先扣增量、整段再过规则 |
 | `application.usage` | `AuditUsageMeter`、`ModelCallUsage` | 模型用量写入审计与 `token_usage`；单次调用记账辅助 |
-| `infrastructure.agent` | `HarnessAgentFactory`、`ResidentAgentBinding` / `ResidentAgentBindingRegistry`、`CompanionMiddlewareChain`、`McpToolsConfigFactory`、`CompanionSandboxFilesystem`、`DockerCliProbe`、`PermissionContextFactory`、`CatalogToolRegistrar`、`WorkspaceFilesystem`、`HarnessAgentRegistry`、`AgentShutdown` | 给 GatewayBootstrap 提供 `configureCommon` / `customizeEcho`；**产品 Agent 经 Binding 注册表挂载**（companion 实现在 `agent-product-companion`）；公共项关 web/shell、**打开 Harness Memory**、若干 disable*、BYPASS 权限；MCP/Sandbox 零件供 Binding 使用；echo 仍平台挂。见各 `docs/*-落地.md` |
+| `infrastructure.agent` | `HarnessAgentFactory`、`ProductModuleRegistry`（产品缝）、`CompanionMiddlewareChain`、`McpToolsConfigFactory`、`CompanionSandboxFilesystem`、`DockerCliProbe`、`PermissionContextFactory`、`CatalogToolRegistrar`、`WorkspaceFilesystem`、`HarnessAgentRegistry`、`AgentShutdown` | 给 GatewayBootstrap 提供 `configureCommon` / `customizeEcho`；**产品 Agent 经 `ProductModuleRegistry` 挂载**（companion 实现在 `agent-product-companion`）；公共项关 web/shell、**打开 Harness Memory**、若干 disable*、BYPASS 权限；MCP/Sandbox 零件供产品装配使用；echo 仍平台挂。见各 `docs/*-落地.md` |
 | `infrastructure.gateway` | `ChannelGateway`、`ApiChannel`、`RoomNormalizedSessionTurnGate`、`AgentChannelRuntimeContextResolver`、`ResidentAgentDrain` | 长驻 companion+echo；白名单 `{chatui,api}`；room 归一化闸；实现 `AgentExecutor`/`ResidentAgentReloader`。见 `docs/channel-gateway-落地.md`、`docs/api-channel-落地.md` |
 | `infrastructure.wakeup` | `InMemoryMessageBus`、`WakeupCoordinator` | 进程内 Bus + Dispatcher；实现 `WakeupPort`；Target 懒解析 `ChannelGateway`。见 `docs/wakeup-落地.md` |
 | `infrastructure.embed` | `DashScopeTextEmbedder` | 密钥读 `DASHSCOPE_API_KEY`。空密钥或失败返回空向量，不让进程退出 |

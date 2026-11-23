@@ -11,7 +11,7 @@
 3. [根 README — 前端联调（web / web-admin）](../../README.md#前端联调web--web-admin)  
 4. [`web/README.md`](../../web/README.md)  
 5. [`web-admin/README.md`](../../web-admin/README.md)  
-6. （可选前端方案）[`doc/企业级多 Agent 平台前端工程开发方案 (1).md`](../../doc/企业级多%20Agent%20平台前端工程开发方案%20(1).md)  
+6. （可选前端方案）[`docs/reference/frontend-engineering-plan.md`](../../docs/reference/frontend-engineering-plan.md)  
 7. 部署：[`deploy/AGENT-DEPLOY.md`](../../deploy/AGENT-DEPLOY.md)、[`deploy/AGENT-DEPLOY-USAGE.md`](../../deploy/AGENT-DEPLOY-USAGE.md)  
 8. [`deploy/nginx/README.md`](../../deploy/nginx/README.md)  
 9. （现网技能，只读了解）[`.cursor/skills/dream-agentscope-deploy/SKILL.md`](../../.cursor/skills/dream-agentscope-deploy/SKILL.md)  

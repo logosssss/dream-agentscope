@@ -13,7 +13,6 @@ import com.zhu.access.api.dto.chat.ChatRequest;
 import com.zhu.access.api.tenant.TenantGate;
 import com.zhu.access.api.tenant.TenantUserGate;
 import com.zhu.access.domain.channel.AccessChannel;
-import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
@@ -113,12 +112,7 @@ public class ChatAppService {
         rejectExplicitApiChannel(request);
         PreparedTurn prepared = prepare(request);
         AgentRequest agentRequest = prepared.agentRequest();
-        requireUser(agentRequest.userId());
-        tenants.requireActive(agentRequest.tenantId());
-        tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
-        owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
-        quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat", RequestIdContext.get());
-        ConcurrentRunGuard.Slot slot = concurrent.open(agentRequest.tenantId());
+        ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat");
         long started = System.nanoTime();
         try {
             remember(request, prepared);
@@ -142,12 +136,7 @@ public class ChatAppService {
         rejectExplicitApiChannel(request);
         PreparedTurn prepared = prepare(request);
         AgentRequest agentRequest = prepared.agentRequest();
-        requireUser(agentRequest.userId());
-        tenants.requireActive(agentRequest.tenantId());
-        tenantUsers.requireActive(agentRequest.tenantId(), agentRequest.userId());
-        owners.requireExclusive(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId());
-        quota.check(agentRequest.tenantId(), agentRequest.userId(), "chat-stream", RequestIdContext.get());
-        ConcurrentRunGuard.Slot slot = concurrent.open(agentRequest.tenantId());
+        ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat-stream");
         long started = System.nanoTime();
         try {
             remember(request, prepared);
@@ -155,7 +144,7 @@ public class ChatAppService {
             AtomicReference<String> output = new AtomicReference<>("");
             AtomicReference<String> errorCode = new AtomicReference<>();
             ConcurrentLinkedQueue<AgentStreamEvent> seen = new ConcurrentLinkedQueue<>();
-            ConcurrentRunGuard.Slot held = slot;
+            ConcurrentGate.Slot held = slot;
             return executor.stream(agentRequest)
                     .doOnNext(event -> keep(seen, output, event))
                     .doOnError(error -> errorCode.set(error.getClass().getSimpleName()))
@@ -340,7 +329,9 @@ public class ChatAppService {
 
     /**
      * 通道只在接入层归一化，不传给运行层。
-     * 校验附件、补默认句，并把本轮图片装进 AgentRequest。
+     * WEB 通道恒为 main：请求里的 agentId 不写进 AgentRequest，避免页面靠一个字段切产品。
+     * 附件仍按调用方给的 agentId 校验，非搭子标识不能带附件。
+     * 校验通过后补默认句，并把本轮图片装进 AgentRequest。
      */
     private PreparedTurn prepare(ChatRequest request) {
         request.channelOrDefault();
@@ -353,7 +344,7 @@ public class ChatAppService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "userId, sessionId and userText are required");
         }
         AgentRequest agentRequest = new AgentRequest(
-                request.agentId(),
+                null,
                 tenantId,
                 userId,
                 request.sessionId(),
@@ -370,13 +361,6 @@ public class ChatAppService {
         private PreparedTurn {
             attachmentIds = attachmentIds == null ? List.of() : List.copyOf(attachmentIds);
             displayText = displayText == null ? "" : displayText;
-        }
-    }
-
-    /** 没有登录会话时按未登录拒绝。请求体里的用户不算。 */
-    private static void requireUser(String userId) {
-        if (userId == null || userId.isBlank()) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "login is required");
         }
     }
 

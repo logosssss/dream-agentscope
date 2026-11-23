@@ -142,7 +142,7 @@
 | 用户 App | **A1**：仅 `agent-bootstrap`；依赖 `agent-product-*`；只做扫描 / 装配 / Nacos / Flyway |
 | 产品模块 | **M2**：立刻独立 `agent-product-*`；聚合父 `agent-products/`（reactor）；子模块 parent 仍指根（F1/D1） |
 | semantic | **S1**：契约 + `api` + 共享权限/提示词/目录；产品实现在 `com.zhu.product..` |
-| 装配缝 | **R1**：`ResidentAgentBinding` + 注册表；**E1** echo 仍平台；**C1** 中间件零件在 runtime、链由产品 Binding 组装 |
+| 装配缝 | **R1**：`ProductModule` 契约 + `ProductModuleRegistry`；**E1** echo 仍平台；**C1** 中间件零件在 runtime、链由产品 Binding 组装 |
 | ArchUnit | `runtime`/`semantic` ↛ `com.zhu.product..`；`com.zhu.product..` ↛ `access` |
 | 明确不做 | 第二产品模块；迁 `KnowledgeSearchTool`；拆 companion 独立进程；改架构指南正文 |
 

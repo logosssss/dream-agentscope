@@ -62,6 +62,25 @@ public class AgentRuntimeProperties {
      */
     private WebTools webTools = new WebTools();
 
+    /**
+     * 语义边界。Nacos 推送可以语法合法但语义非法（例如 max-iters=0），绑定后必须校验；
+     * 抛 {@link IllegalStateException} 让热更回滚到上一份配置。
+     */
+    public void validate() {
+        if (model == null || model.isBlank()) {
+            throw new IllegalStateException("agentscope.runtime.model must not be blank");
+        }
+        if (agentId == null || agentId.isBlank()) {
+            throw new IllegalStateException("agentscope.runtime.agent-id must not be blank");
+        }
+        if (maxIters < 1) {
+            throw new IllegalStateException("agentscope.runtime.max-iters must be >= 1");
+        }
+        if (timeoutSeconds < 1) {
+            throw new IllegalStateException("agentscope.runtime.timeout-seconds must be >= 1");
+        }
+    }
+
     /** 模型坐标。 */
     public String getModel() {
         return model;

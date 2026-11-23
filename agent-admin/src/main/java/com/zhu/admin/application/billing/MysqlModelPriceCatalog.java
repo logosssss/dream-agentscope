@@ -4,8 +4,8 @@ import com.zhu.admin.application.support.AuditQueryLimits;
 
 import com.zhu.admin.api.billing.ModelPriceCatalog;
 import com.zhu.admin.api.billing.ModelPriceEntry;
-import com.zhu.admin.infrastructure.persistence.billing.ModelPriceMapper;
-import com.zhu.admin.infrastructure.persistence.entity.billing.ModelPrice;
+import com.zhu.readmodel.persistence.billing.ModelPriceMapper;
+import com.zhu.readmodel.entity.billing.ModelPrice;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.math.BigDecimal;

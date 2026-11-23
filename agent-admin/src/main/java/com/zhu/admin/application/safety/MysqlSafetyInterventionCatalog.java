@@ -4,8 +4,8 @@ import com.zhu.admin.application.support.AuditQueryLimits;
 
 import com.zhu.admin.api.safety.SafetyInterventionCatalog;
 import com.zhu.admin.api.safety.SafetyInterventionSummary;
-import com.zhu.admin.infrastructure.persistence.safety.SafetyInterventionMapper;
-import com.zhu.admin.infrastructure.persistence.entity.safety.SafetyIntervention;
+import com.zhu.readmodel.persistence.safety.SafetyInterventionMapper;
+import com.zhu.readmodel.entity.safety.SafetyIntervention;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

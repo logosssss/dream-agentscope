@@ -1,0 +1,114 @@
+name: CI
+
+# 三道门：
+# 1) boundary：分层 / 迁移 / 双端 mapper 契约，分钟级，改边界立刻红；
+# 2) verify：全量构建与测试，只有第一道绿了才跑，省 CI 时间；
+# 3) frontend：两个前端各自 lint + 单测 + 构建（Windows 本机跑不起 vite 配置打包，
+#    只能靠这里的 Linux runner 给结论）。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  boundary:
+    name: 分层与契约护栏
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # surefire 在父 pom 里已固定 argLine=-Duser.home=${project.build.directory}/test-home，
+      # 所以 CI 上不需要额外准备 ~/.agentscope。
+      - name: 只跑 ArchUnit 与 Schema/Migration 契约
+        run: >
+          ./mvnw -B -ntp -Pstrict
+          -Dtest=ArchitectureTest,SchemaContractTest,MigrationCatalogTest
+          -Dsurefire.failIfNoSpecifiedTests=false
+          test
+
+      - name: 失败时上传 surefire 报告
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-boundary
+          path: "**/target/surefire-reports/**"
+          if-no-files-found: ignore
+
+  verify:
+    name: 全量构建与测试
+    needs: boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: mvnw verify
+        run: ./mvnw -B -ntp -Pstrict verify
+
+      - name: 失败时上传 surefire 报告
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-verify
+          path: "**/target/surefire-reports/**"
+          if-no-files-found: ignore
+
+  frontend:
+    name: 前端（${{ matrix.app }}）
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: web
+            dir: web
+          - app: web-admin
+            dir: web-admin
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+
+      - name: 安装 Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: ${{ matrix.dir }}/pnpm-lock.yaml
+
+      # --frozen-lockfile：锁文件与 package.json 不一致直接红，避免 CI 偷偷升级依赖。
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: 单测
+        run: pnpm test
+
+      - name: 构建
+        run: pnpm build

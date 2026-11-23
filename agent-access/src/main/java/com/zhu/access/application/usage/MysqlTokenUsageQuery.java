@@ -5,8 +5,8 @@ import com.zhu.access.application.support.AccessQueryLimits;
 import com.zhu.access.api.usage.TokenUsageDetail;
 import com.zhu.access.api.usage.TokenUsageQuery;
 import com.zhu.access.api.usage.TokenUsageRow;
-import com.zhu.access.infrastructure.persistence.usage.AccessTokenUsageMapper;
-import com.zhu.access.infrastructure.persistence.entity.usage.TokenUsage;
+import com.zhu.readmodel.persistence.usage.TokenUsageMapper;
+import com.zhu.readmodel.entity.usage.TokenUsage;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.format.DateTimeFormatter;
@@ -27,10 +27,10 @@ public class MysqlTokenUsageQuery implements TokenUsageQuery {
 
     private static final DateTimeFormatter TIME = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
-    private final AccessTokenUsageMapper usages;
+    private final TokenUsageMapper usages;
 
     /** 列表用 Mapper。空结果返回空列表，不抛找不到。 */
-    public MysqlTokenUsageQuery(AccessTokenUsageMapper usages) {
+    public MysqlTokenUsageQuery(TokenUsageMapper usages) {
         this.usages = usages;
     }
 

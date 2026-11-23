@@ -2,12 +2,12 @@ package com.zhu.admin.application.tenant;
 
 import com.zhu.admin.api.tenant.ClientLoginStore;
 import com.zhu.admin.api.tenant.RegisteredClient;
-import com.zhu.admin.infrastructure.persistence.tenant.LoginCredentialMapper;
-import com.zhu.admin.infrastructure.persistence.tenant.TenantMapper;
-import com.zhu.admin.infrastructure.persistence.tenant.TenantUserMapper;
-import com.zhu.admin.infrastructure.persistence.entity.tenant.LoginCredential;
-import com.zhu.admin.infrastructure.persistence.entity.tenant.TenantRecord;
-import com.zhu.admin.infrastructure.persistence.entity.tenant.TenantUser;
+import com.zhu.readmodel.persistence.tenant.LoginCredentialMapper;
+import com.zhu.readmodel.persistence.tenant.TenantMapper;
+import com.zhu.readmodel.persistence.tenant.TenantUserMapper;
+import com.zhu.readmodel.entity.tenant.LoginCredential;
+import com.zhu.readmodel.entity.tenant.TenantRecord;
+import com.zhu.readmodel.entity.tenant.TenantUser;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.security.Passwords;

@@ -19,17 +19,20 @@
 
     <modules>
         <module>agent-common</module>
+        <module>agent-readmodel</module>
         <module>agent-db</module>
         <module>agent-vector</module>
         <module>agent-object-store</module>
         <module>agent-cache</module>
         <module>agent-state</module>
         <module>agent-semantic</module>
+        <module>agent-product-api</module>
         <module>agent-runtime</module>
         <module>agent-products</module>
         <module>agent-access</module>
         <module>agent-admin</module>
         <module>agent-bootstrap</module>
+        <module>agent-test-support</module>
     </modules>
 
     <properties>
@@ -45,6 +48,11 @@
         <nacos.client.version>3.3.0</nacos.client.version>
         <!-- 与 Spring Boot 3.5.x / spring-data-redis 3.5 对齐的 Redisson 线。 -->
         <redisson.version>3.50.0</redisson.version>
+        <!-- 传递依赖收敛用；随 milvus/grpc 升级时同步复核（见 -Pstrict 的 dependencyConvergence）。 -->
+        <protobuf.version>3.25.5</protobuf.version>
+        <errorprone.annotations.version>2.38.0</errorprone.annotations.version>
+        <httpclient.version>4.5.14</httpclient.version>
+        <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -52,6 +60,11 @@
             <dependency>
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-readmodel</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -96,6 +109,11 @@
             </dependency>
             <dependency>
                 <groupId>com.zhu</groupId>
+                <artifactId>agent-product-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
                 <artifactId>agent-runtime</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -123,6 +141,13 @@
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-bootstrap</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-test-support</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>io.agentscope</groupId>
@@ -179,6 +204,26 @@
                 <artifactId>milvus-sdk-java</artifactId>
                 <version>${milvus.version}</version>
             </dependency>
+            <!--
+              Milvus SDK 会经 gRPC/gson 拉进多个版本的 protobuf 与 errorprone 注解；
+              在 BOM 里钉到全线最高版本，让 -Pstrict 的 dependencyConvergence 可用。
+            -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>${errorprone.annotations.version}</version>
+            </dependency>
+            <!-- AWS SDK 的 apache-client 仍指 4.5.13，与 Spring Boot BOM 的 4.5.14 冲突，取高版本。 -->
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient</artifactId>
+                <version>${httpclient.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.aliyun</groupId>
                 <artifactId>alibabacloud-oss-v2</artifactId>
@@ -200,6 +245,26 @@
     </dependencyManagement>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <!--
+                          AgentScope 的 JsonFileAgentStateStore 默认写到 ~/.agentscope；
+                          指到模块 target 下，避免污染开发者家目录，也保证 CI 上每次从干净目录开始。
+                        -->
+                        <argLine>-Duser.home=${project.build.directory}/test-home</argLine>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven-enforcer-plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -208,6 +273,75 @@
                     <skip>true</skip>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-build-environment</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[21,22)</version>
+                                    <message>本项目按 JDK 21 编译与测试；换 JDK 前先确认 AgentScope 2.0.5 的兼容区间。</message>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                </requireMavenVersion>
+                                <banDuplicatePomDependencyVersions/>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+          strict：依赖收敛等在"能跑就行"之外的校验放在这里。
+          默认构建不激活，因为 Nacos/AgentScope 的传递依赖未必立刻收敛；
+          CI 用 -Pstrict 跑 full verify，本地重构时可关掉。
+        -->
+        <profile>
+            <id>strict</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>enforce-dependency-convergence</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <dependencyConvergence>
+                                            <!--
+                                              AgentScope 2.0.5 的传递依赖自身不收敛（okhttp/okio/jsonschema-generator）；
+                                              这些是实现内部坐标，盲钉版本会改变运行时行为，先排除，
+                                              等能定位到具体 API 再在 BOM 里钉死并逐条删除。
+                                            -->
+                                            <excludes>
+                                                <exclude>com.squareup.okhttp3:*</exclude>
+                                                <exclude>com.squareup.okio:*</exclude>
+                                                <exclude>com.github.victools:jsonschema-generator</exclude>
+                                            </excludes>
+                                        </dependencyConvergence>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
