@@ -147,6 +147,24 @@ jobs:
               print(f"::error title=测试没有跑起来::agent-bootstrap 只有 {all_tests} 例报告，期望 400 以上，检查 mvnw verify 是否被跳过")
               problems.append("bootstrap totals")
 
+          # shell 里 docker 可用、JVM 里 Testcontainers 却说不可用——把 JVM 侧看到的原始报错也打出来。
+          probe_path = Path(
+              "agent-bootstrap/target/surefire-reports/TEST-com.zhu.bootstrap.DockerProbeTest.xml"
+          )
+          try:
+              probe_root = ET.parse(probe_path).getroot()
+              probe_lines = []
+              for out in probe_root.iter("system-out"):
+                  for line in (out.text or "").splitlines():
+                      probe = line.startswith("probe.")
+                      dockerish = ("docker" in line.lower() or "containers" in line.lower()) and not line.startswith("at ")
+                      if probe or dockerish:
+                          probe_lines.append(line.strip())
+              summary = " | ".join(probe_lines[:12]) or "探针没有输出"
+              print(f"::warning title=docker-java-probe::{summary[:6000]}")
+          except FileNotFoundError:
+              print("::warning title=docker-java-probe::没有 DockerProbeTest 报告")
+
           if problems:
               print("端到端或用例数断言失败：" + ", ".join(problems))
               sys.exit(1)
