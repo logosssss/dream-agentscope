@@ -81,6 +81,7 @@ jobs:
           python3 - <<'PY'
           import sys
           import xml.etree.ElementTree as ET
+          from pathlib import Path
 
           names = [
               "MySqlRedisE2ETest",
@@ -89,6 +90,7 @@ jobs:
               "TaskScheduleFiringE2ETest",
           ]
           problems = []
+          total = 0
           for name in names:
               path = f"agent-bootstrap/target/surefire-reports/TEST-com.zhu.bootstrap.{name}.xml"
               try:
@@ -99,6 +101,7 @@ jobs:
                   continue
               tests = int(root.get("tests"))
               skipped_count = int(root.get("skipped"))
+              total += tests
               detail = (
                   f"tests={tests} skipped={skipped_count} "
                   f"failures={root.get('failures')} errors={root.get('errors')}"
@@ -113,8 +116,20 @@ jobs:
                   suffix = ("；原因：" + " | ".join(reasons[:5])) if reasons else ""
                   print(f"::error title={name}::{detail}{suffix}")
                   problems.append(name)
+          # 整个 bootstrap 用例数也应该在 400 以上；明显偏小说明测试根本没跑（不是 Docker 的问题）。
+          all_tests = 0
+          for report in Path("agent-bootstrap/target/surefire-reports").glob("TEST-com.zhu.bootstrap.*.xml"):
+              try:
+                  all_tests += int(ET.parse(report).getroot().get("tests"))
+              except Exception:
+                  pass
+          print(f"agent-bootstrap 报告合计：{all_tests} 例（四条端到端占 {total} 例）")
+          if all_tests < 400:
+              print(f"::error title=测试没有跑起来::agent-bootstrap 只有 {all_tests} 例报告，期望 400 以上，检查 mvnw verify 是否被跳过")
+              problems.append("bootstrap totals")
+
           if problems:
-              print("这些端到端类没有真正执行（runner 缺 Docker？）：" + ", ".join(problems))
+              print("端到端或用例数断言失败：" + ", ".join(problems))
               sys.exit(1)
           PY
 
