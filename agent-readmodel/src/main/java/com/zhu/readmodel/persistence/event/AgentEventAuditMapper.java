@@ -16,4 +16,14 @@ public interface AgentEventAuditMapper extends BaseMapper<AgentEventAudit> {
      * 按主键从新到旧取有限条。条数由调用方收口后再传入。
      */
     List<AgentEventAudit> recent(@Param("limit") int limit);
+
+    /**
+     * 按运行号 / 会话 / 操作者过滤，从新到旧取有限条。三个过滤条件互相 AND，空串按「不过滤」处理。
+     * 运行号是 P14 之后才落库的，老数据这一列为空，按运行号查不到它们。
+     */
+    List<AgentEventAudit> search(
+            @Param("userId") String userId,
+            @Param("sessionId") String sessionId,
+            @Param("runId") String runId,
+            @Param("limit") int limit);
 }

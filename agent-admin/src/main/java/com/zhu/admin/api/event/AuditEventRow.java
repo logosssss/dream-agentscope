@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
  * @param eventType 动作名
  * @param userId    操作者，可能为空
  * @param sessionId 会话，可能为空
+ * @param runId     运行标识，可能为空（P14 之前落库的行没有这一列）
  * @param source    来源
  * @param payload   JSON 短说明
  * @param createdAt 入库时间，内存实现里为空
@@ -18,6 +19,7 @@ public record AuditEventRow(
         String eventType,
         String userId,
         String sessionId,
+        String runId,
         String source,
         String payload,
         LocalDateTime createdAt

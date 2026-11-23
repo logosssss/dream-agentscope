@@ -23,10 +23,17 @@ public class MybatisAuditQuery implements AuditQuery {
         this.events = events;
     }
 
-    /** 条数先收口，再按 XML 里的最近事件查询。 */
+    /** 不带过滤条件时就是「最近事件」。 */
     @Override
     public List<AuditEventRow> recentEvents(int limit) {
-        List<AgentEventAudit> rows = events.recent(QueryLimits.normalize(limit));
+        return events(null, null, null, limit);
+    }
+
+    /** 条数先收口，再按 XML 里的过滤查询取行。 */
+    @Override
+    public List<AuditEventRow> events(String userId, String sessionId, String runId, int limit) {
+        List<AgentEventAudit> rows = events.search(
+                blankToNull(userId), blankToNull(sessionId), blankToNull(runId), QueryLimits.normalize(limit));
         List<AuditEventRow> result = new ArrayList<>(rows.size());
         for (AgentEventAudit row : rows) {
             result.add(new AuditEventRow(
@@ -34,10 +41,20 @@ public class MybatisAuditQuery implements AuditQuery {
                     row.getEventType(),
                     row.getUserId(),
                     row.getSessionId(),
+                    row.getRunId(),
                     row.getSource(),
                     row.getPayload(),
                     row.getCreatedAt()));
         }
         return result;
+    }
+
+    /** 空串当「没有这个条件」，避免 XML 里把 '' 当成一个要匹配的值。 */
+    private static String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

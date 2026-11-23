@@ -49,7 +49,7 @@ mvn -pl agent-admin -am spring-boot:run
 | `GET /health/live` | 只表示管理进程还在，不查用户进程、数据库或模型 |
 | `GET /health/ready` | 探测 MySQL、Redis、Milvus。任一项失败 HTTP 503。测试里三项为 SKIPPED |
 | `GET /api/admin/info` | 角色为 `admin` |
-| `GET /api/admin/audits` | 最近审计，默认 50 条，最多 100 条 |
+| `GET /api/admin/audits` | 审计事件，可按 `runId` / `sessionId` / `userId` 过滤；默认 50 条，最多 100 条 |
 | `POST /api/admin/billing/drafts` | 按租户和区间生成一张草稿账单。MySQL 关闭时返回不可用 |
 | `POST /api/admin/billing/confirmations` | 把对应草稿改成已确认，不重算金额。没有账单时返回找不到 |
 | `POST /api/admin/billing/invoices` | 把已确认的账单改成已开票，不重算金额。草稿要先确认 |

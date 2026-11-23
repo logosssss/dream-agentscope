@@ -266,7 +266,7 @@ curl -s http://127.0.0.1:8100/health/ready
 执行内核在**调用前**就生成运行号（`Ids.newId()`，不再是执行完从框架消息 id 取），并放进运行时上下文。于是这一轮的审计行（`agent.call` / `agent.call.finish` / `agent.call.error` / `file.write.rejected` / `model.usage`）都带同一个 `run_id` 与会话，`agent_event_audit` 里那两列不再空着。
 
 - 任务类审计（`task.handle` / `task.backfill` / `task.report` / `task.batch`）没有「运行」概念，两列留空。
-- 管理端还没有审计查询接口，目前查库能看到归属；接口化见 [P14 记录](./docs/engineering-p14-audit-run-id-落地.md) 的残留。
+- 管理端 `GET /api/admin/audits` 可按 `runId` / `sessionId` / `userId` 过滤；`web-admin` 的「审计 → 执行事件」页签就是它。运维拿到请求号先查运行记录，再用运行号看这一轮的中间步骤，见 [P15 记录](./docs/engineering-p15-audit-query-落地.md)。
 
 ### 常用业务旋钮（示例）
 

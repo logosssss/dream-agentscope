@@ -1,10 +1,10 @@
 # 文档索引
 
-仓库里文档分四层：**工程调整记录**（按 P0–P14 顺序做过的结构性改动）、**能力落地记录**（每个功能块一份，含「明确不做」）、**手册 / 图册 / 教程**（面向人读）、**参考长文**（含历史草案，冲突时听现码）。
+仓库里文档分四层：**工程调整记录**（按 P0–P15 顺序做过的结构性改动）、**能力落地记录**（每个功能块一份，含「明确不做」）、**手册 / 图册 / 教程**（面向人读）、**参考长文**（含历史草案，冲突时听现码）。
 
 约定：每份 `*-落地.md` 都在标题下写 `状态：**已完成**`；相对链接由 `agent-bootstrap` 的 `DocsLinkTest` 在 CI 里守着，改名或搬家时不会悄悄烂掉。
 
-## 工程调整（P0 → P14）
+## 工程调整（P0 → P15）
 
 | 文档 | 一句话 |
 | --- | --- |
@@ -23,6 +23,7 @@
 | [P12 安全响应头与 CSP](./engineering-p12-security-headers-落地.md) | 接口四个安全头 + `no-store`；页面 CSP/HSTS 落 Nginx 示例 |
 | [P13 请求号串联](./engineering-p13-request-id-落地.md) | `X-Request-Id` 落进 `agent_run.request_id` 并回显，可按号回查一轮 |
 | [P14 审计归属](./engineering-p14-audit-run-id-落地.md) | 运行号在调用前固定，`agent_event_audit` 带上 `run_id` / `session_id` |
+| [P15 审计查询](./engineering-p15-audit-query-落地.md) | 按运行号 / 会话 / 操作者回查审计，管理端「执行事件」页签 |
 | [工程 / 模块评估](./engineering-module-review.md) | P0 之前的模块与测试现状评估（决策用，已被 P0–P4 部分推翻） |
 | [AgentScope 落地评估](./agentscope-landing-review.md) | 与参考长文的漂移对照 |
 

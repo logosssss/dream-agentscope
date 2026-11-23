@@ -80,6 +80,21 @@ export interface OperationAuditSummary {
   objectId: string
 }
 
+/**
+ * GET /api/admin/audits 一行：执行内核落的事件审计。
+ * runId 为空说明这行不是某一轮运行写的（任务类动作就没有）。
+ */
+export interface AuditEventRow {
+  eventId: string
+  eventType: string
+  userId: string
+  sessionId: string
+  runId: string
+  source: string
+  payload: string
+  createdAt: string
+}
+
 /** GET /api/admin/retention-policies 一行。不表示已执行清理。 */
 export interface RetentionPolicySummary {
   dataType: string

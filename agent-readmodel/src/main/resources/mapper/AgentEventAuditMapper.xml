@@ -24,4 +24,26 @@
         LIMIT #{limit}
     </select>
 
+    <!--
+      按运行号 / 会话 / 操作者过滤。三个条件互相 AND，空串表示该条件不参与。
+      运维最常见的用法是拿报障里的请求号先查 agent_run，再用 run_id 看这一轮的中间步骤。
+    -->
+    <select id="search" resultMap="BaseResultMap">
+        SELECT id, event_id, event_type, user_id, session_id, run_id, source, payload, created_at
+        FROM agent_event_audit
+        <where>
+            <if test="userId != null and userId != ''">
+                AND user_id = #{userId}
+            </if>
+            <if test="sessionId != null and sessionId != ''">
+                AND session_id = #{sessionId}
+            </if>
+            <if test="runId != null and runId != ''">
+                AND run_id = #{runId}
+            </if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{limit}
+    </select>
+
 </mapper>

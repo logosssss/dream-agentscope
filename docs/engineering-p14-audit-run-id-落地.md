@@ -54,12 +54,12 @@
 
 ## 残留
 
-1. **管理端没有审计查询接口**：行已经写进去了，但界面看不到——README 里的「审计只读」指的是库表，不是页面。
-2. `agent_event_audit.run_id` 没有索引：按运行号回查要扫表；当前量小能接受，有查询需求再补。
+1. **管理端当时没有带过滤的审计查询**：行已经写进去了，但只能取「最近 N 条」——已由 P15 补上（`GET /api/admin/audits?runId=…`）。
+2. `agent_event_audit.run_id` 当时没有索引：按运行号回查要扫表——P15 补了 `V47__agent_event_audit_run_index.sql`（`KEY idx_run (run_id, created_at)`）。
 3. 审计行只在中间件里写：模型执行前就失败（如额度、并发闸门拦下）不会留下 `agent.call` 行，这是有意的——那一轮根本没进入执行。
 4. `run_id` 由应用侧生成，与框架内部消息 id 不是同一个值；旧数据里两者无法互查。
 
 ## 下一步
 
-- 审计查询接口（按 `run_id` / 用户 / 时间过滤）与管理端详情页串联，把 P13 的请求号、P14 的运行号、`agent_run` 串成一条链。
-- 真有按运行号回查的需求时再加 `KEY idx_run (run_id, created_at)`。
+- 审计查询接口（按 `run_id` / 用户 / 时间过滤）与管理端详情页串联，把 P13 的请求号、P14 的运行号、`agent_run` 串成一条链。——查询接口见 [P15](./engineering-p15-audit-query-落地.md)；运行详情页仍待做。
+- 真有按运行号回查的需求时再加 `KEY idx_run (run_id, created_at)`。——P15 已加。

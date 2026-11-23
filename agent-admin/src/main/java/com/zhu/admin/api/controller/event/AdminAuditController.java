@@ -22,10 +22,20 @@ public class AdminAuditController {
     }
 
     /**
-     * 最近的审计事件。MySQL 关闭时为空列表。条数默认 50，上限 100。
+     * 审计事件。三个过滤参数都可选：运维报障时一般先按运行号查，其次按会话或用户。
+     * MySQL 关闭时为空列表。条数默认 50，上限 100。
+     *
+     * @param limit     条数
+     * @param userId    操作者
+     * @param sessionId 会话
+     * @param runId     运行标识
      */
     @GetMapping("/api/admin/audits")
-    public ApiResult<List<AuditEventRow>> audits(@RequestParam(defaultValue = "50") int limit) {
-        return ApiResult.ok(audits.recentEvents(limit));
+    public ApiResult<List<AuditEventRow>> audits(
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String sessionId,
+            @RequestParam(required = false) String runId) {
+        return ApiResult.ok(audits.events(userId, sessionId, runId, limit));
     }
 }

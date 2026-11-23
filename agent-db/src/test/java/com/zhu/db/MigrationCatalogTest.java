@@ -22,12 +22,12 @@ class MigrationCatalogTest {
 
     private static final Pattern VERSION = Pattern.compile("^V(\\d+)__.*\\.sql$");
 
-    /** V1～V46 须齐全、无缺口、无重复版本号。 */
+    /** V1～V47 须齐全、无缺口、无重复版本号。 */
     @Test
-    void versionsAreContiguousThrough46() throws Exception {
+    void versionsAreContiguousThrough47() throws Exception {
         List<Integer> versions = listVersions();
-        assertThat(versions).as("expected V1..V46").hasSize(46);
-        for (int i = 1; i <= 46; i++) {
+        assertThat(versions).as("expected V1..V47").hasSize(47);
+        for (int i = 1; i <= 47; i++) {
             assertThat(versions).as("missing V" + i).contains(i);
         }
     }
