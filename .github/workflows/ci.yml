@@ -50,6 +50,10 @@ jobs:
     name: 全量构建与测试
     needs: boundary
     runs-on: ubuntu-latest
+    # GitHub 托管 runner 的 Docker 走 unix socket。Testcontainers 在自己的
+    # 探测里会先看 DOCKER_HOST，显式给出来可以避开「拿不到 socket 就当没有 Docker」。
+    env:
+      DOCKER_HOST: unix:///var/run/docker.sock
     steps:
       - uses: actions/checkout@v4
 
@@ -60,14 +64,29 @@ jobs:
           java-version: "21"
           cache: maven
 
+      # 探针的结论要能匿名读：job 日志要鉴权，注解不用。
+      # 这一步只诊断、不阻断——阻断交给后面的「端到端用例必须真跑」。
       - name: 记录 Docker 可用性
         run: |
-          if docker info > /dev/null 2>&1; then
-            echo "docker: available"
-            docker version --format '{{.Server.Version}}'
-          else
-            echo "docker: unavailable"
-            echo "::error title=Docker 不可用::runner 上没有可用的 Docker，Testcontainers 端到端只能整类跳过。"
+          set +e
+          echo "--- 身份与 socket ---"
+          id
+          ls -l /var/run/docker.sock 2>&1
+          echo "DOCKER_HOST=${DOCKER_HOST:-<unset>}"
+          echo "--- docker version ---"
+          docker version 2>&1 | head -n 12
+          echo "--- docker info ---"
+          docker info 2>&1 | head -n 8
+          echo "--- docker run --rm hello-world ---"
+          timeout 180 docker run --rm hello-world > /tmp/hello.log 2>&1
+          rc=$?
+          echo "exit=$rc"
+          detail=$(tail -n 3 /tmp/hello.log 2>/dev/null | tr '\n' ' ')
+          sock=$(ls -l /var/run/docker.sock 2>&1 | tr '\n' ' ')
+          host="${DOCKER_HOST:-<unset>}"
+          echo "::warning title=docker-probe::hello-world exit=$rc host=$host socket=$sock detail=$detail"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error title=Docker 不可用::docker run hello-world 退出码 $rc；Testcontainers 端到端会被整类跳过。"
           fi
 
       - name: mvnw verify
