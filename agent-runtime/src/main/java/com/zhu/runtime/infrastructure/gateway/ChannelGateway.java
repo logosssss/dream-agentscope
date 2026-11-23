@@ -113,8 +113,8 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
 
     /**
      * WEB 同步一轮（ChatUi）。进 Gateway 的是业务暂存；护栏收口仍用本地完整上下文。
-     * WEB 通道恒走 main Agent：请求里的 agentId 不参与路由（见 {@code ChatRequest} 注释），
-     * 否则前端能靠一个字段把会话切到别的产品。
+     * 带图时先发多模态 Msg；失败则降级纯文本重试，不自动换模。
+     * 请求里的 agentId 为空或等于 main 时不改路由；WEB 入口在接入层就把 agentId 清空。
      */
     @Override
     public AgentResponse execute(AgentRequest request) {
@@ -127,9 +127,7 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
             // 本地上下文给 finish/用量；Gateway 侧由 resolver + MsgContext 合并。
             RuntimeContext context = turns.context(request, runId);
             long started = System.nanoTime();
-            Msg reply = channel()
-                    .send(options(request), request.userText())
-                    .block(Duration.ofSeconds(turns.timeoutSeconds()));
+            Msg reply = sendChatUi(request);
             String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
             turns.recordUsage(request, runId, reply, started);
             return new AgentResponse(runId, text);
@@ -169,6 +167,7 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     /**
      * WEB 流式一轮（ChatUi）。事件仍经运行层护栏映射成 SSE 片段。
      * 遇到 RequireUserConfirm 先写入 {@link PendingAskStore}，再映射给前端。
+     * 带图失败时降级纯文本并先推一条状态提示。
      */
     @Override
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
@@ -179,15 +178,53 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
             String runId = Ids.newId();
             RuntimeContext context = turns.context(request, runId);
             long started = System.nanoTime();
-            return channel()
-                    .sendStream(options(request), request.userText())
+            SendOptions opts = options(request);
+            Msg userMsg = AgentUserMessages.of(request);
+            Flux<AgentStreamEvent> primary = channel()
+                    .sendStream(opts, userMsg)
                     .doOnNext(event -> onStreamEvent(request, runId, started, event))
-                    .concatMapIterable(event -> turns.mapStreamEvent(event, context))
+                    .concatMapIterable(event -> turns.mapStreamEvent(event, context));
+            if (!request.hasImages()) {
+                return primary
+                        .timeout(Duration.ofSeconds(turns.timeoutSeconds()))
+                        .doFinally(signal -> drain.endTurn());
+            }
+            return primary
+                    .onErrorResume(error -> {
+                        log.warning(() -> "vision stream failed, degrade to text: " + error.getClass().getSimpleName());
+                        Msg plain = AgentUserMessages.textOnly(AgentUserMessages.degradedText(request));
+                        Flux<AgentStreamEvent> tip = Flux.just(
+                                new AgentStreamEvent("tool_call", "未能看图，已按纯文本继续"));
+                        Flux<AgentStreamEvent> retry = channel()
+                                .sendStream(opts, plain)
+                                .doOnNext(event -> onStreamEvent(request, runId, started, event))
+                                .concatMapIterable(event -> turns.mapStreamEvent(event, context));
+                        return tip.concatWith(retry);
+                    })
                     .timeout(Duration.ofSeconds(turns.timeoutSeconds()))
                     .doFinally(signal -> drain.endTurn());
         } catch (RuntimeException error) {
             drain.endTurn();
             throw error;
+        }
+    }
+
+    /**
+     * ChatUi 同步发送；有图失败则降级纯文本。
+     */
+    private Msg sendChatUi(AgentRequest request) {
+        SendOptions opts = options(request);
+        Msg userMsg = AgentUserMessages.of(request);
+        try {
+            return channel().send(opts, userMsg).block(Duration.ofSeconds(turns.timeoutSeconds()));
+        } catch (RuntimeException error) {
+            if (!request.hasImages()) {
+                throw error;
+            }
+            log.warning(() -> "vision send failed, degrade to text: " + error.getClass().getSimpleName());
+            return channel()
+                    .send(opts, AgentUserMessages.degradedText(request))
+                    .block(Duration.ofSeconds(turns.timeoutSeconds()));
         }
     }
 

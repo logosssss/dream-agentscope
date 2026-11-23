@@ -1,5 +1,6 @@
 package com.zhu.access.application.chat;
 
+import com.zhu.ops.attachment.AttachmentCatalog;
 import com.zhu.access.application.account.QuotaGuard;
 import com.zhu.access.application.chat.message.ChatMessageStore;
 import com.zhu.access.application.chat.run.ConcurrentRunGuard;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.SignalType;
@@ -65,6 +67,10 @@ public class ChatAppService {
 
     private final ChatMessageStore messages;
 
+    private final ChatAttachmentSupport attachments;
+
+    private final ObjectProvider<AttachmentCatalog> catalogs;
+
     /**
      * 租户、租户用户和会话归属在额度和租户并发占位之前。MySQL 关闭时门禁放行。
      * 同会话串行交给 Gateway，不再用 SessionTurnGuard 忙则拒。
@@ -80,7 +86,9 @@ public class ChatAppService {
             TenantGate tenants,
             TenantUserGate tenantUsers,
             SessionOwnerGate owners,
-            ChatMessageStore messages) {
+            ChatMessageStore messages,
+            ChatAttachmentSupport attachments,
+            ObjectProvider<AttachmentCatalog> catalogs) {
         this.executor = executor;
         this.prompts = prompts;
         this.semantics = semantics;
@@ -92,6 +100,8 @@ public class ChatAppService {
         this.tenantUsers = tenantUsers;
         this.owners = owners;
         this.messages = messages;
+        this.attachments = attachments;
+        this.catalogs = catalogs;
     }
 
     /**
@@ -101,18 +111,19 @@ public class ChatAppService {
      */
     public AgentResponse chat(ChatRequest request) {
         rejectExplicitApiChannel(request);
-        AgentRequest agentRequest = toRequest(request);
+        PreparedTurn prepared = prepare(request);
+        AgentRequest agentRequest = prepared.agentRequest();
         ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat");
         long started = System.nanoTime();
         // 请求号在入口就抄走：过滤器清完线程上下文后，catch 分支还在同一个线程上，但流式回调不在。
         String requestId = RequestIdContext.get();
         try {
-            remember(request, agentRequest);
+            remember(request, prepared);
             AgentResponse response = executor.execute(agentRequest);
-            finish(request, agentRequest, RunLog.SUCCEEDED, response.runId(), response.text(), null, requestId, started, reasoning(RunLog.SUCCEEDED));
+            finish(request, prepared, RunLog.SUCCEEDED, response.runId(), response.text(), null, requestId, started, reasoning(RunLog.SUCCEEDED));
             return response;
         } catch (RuntimeException error) {
-            finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started, reasoning(RunLog.FAILED));
+            finish(request, prepared, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started, reasoning(RunLog.FAILED));
             throw error;
         } finally {
             concurrent.close(slot);
@@ -126,13 +137,14 @@ public class ChatAppService {
      */
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
         rejectExplicitApiChannel(request);
-        AgentRequest agentRequest = toRequest(request);
+        PreparedTurn prepared = prepare(request);
+        AgentRequest agentRequest = prepared.agentRequest();
         ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat-stream");
         long started = System.nanoTime();
         // 流式回调跑在响应式线程上，读不到过滤器的线程上下文，所以在这里先抄走。
         String requestId = RequestIdContext.get();
         try {
-            remember(request, agentRequest);
+            remember(request, prepared);
             String runId = Ids.newId();
             AtomicReference<String> output = new AtomicReference<>("");
             AtomicReference<String> errorCode = new AtomicReference<>();
@@ -146,14 +158,14 @@ public class ChatAppService {
                             String status = streamStatus(signal);
                             String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
                             // 先落库再放租户并发占位，避免同租户下一轮抢名额。
-                            finish(request, agentRequest, status, runId, output.get(), code, requestId, started, stepsFrom(seen, status));
+                            finish(request, prepared, status, runId, output.get(), code, requestId, started, stepsFrom(seen, status));
                         } finally {
                             concurrent.close(held);
                         }
                     });
         } catch (RuntimeException error) {
             try {
-                finish(request, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started, reasoning(RunLog.FAILED));
+                finish(request, prepared, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started, reasoning(RunLog.FAILED));
             } finally {
                 concurrent.close(slot);
             }
@@ -163,25 +175,26 @@ public class ChatAppService {
 
     /**
      * 额度通过、占会话锁和并发名额之后才记会话。记失败会释放并让这次对话失败。
-     * 通道留在列表里，不放进 AgentRequest。
+     * 通道留在列表里，不放进 AgentRequest。标题用解析后的用户正文。
      */
-    private void remember(ChatRequest request, AgentRequest agentRequest) {
+    private void remember(ChatRequest request, PreparedTurn prepared) {
+        AgentRequest agentRequest = prepared.agentRequest();
         sessions.record(
                 agentRequest.tenantId(),
                 agentRequest.userId(),
                 agentRequest.sessionId(),
                 request.channelOrDefault().name(),
-                request.text());
+                prepared.displayText());
     }
 
     /**
      * 运行记录写失败只打固定日志，不改变回复，也不把异常原文打出来。
-     * 成功时再双写 chat_message；消息写失败同样不改变回复。
+     * 成功时再双写 chat_message，并把本轮附件挂到 MESSAGE 引用。
      * 摘要沿用列表标题的长度，换行压成空格。步骤只带类型和工具名。
      */
     private void finish(
             ChatRequest request,
-            AgentRequest agentRequest,
+            PreparedTurn prepared,
             String status,
             String runId,
             String output,
@@ -189,6 +202,7 @@ public class ChatAppService {
             String requestId,
             long startedNanos,
             List<RunStep> steps) {
+        AgentRequest agentRequest = prepared.agentRequest();
         String id = runId == null || runId.isBlank() ? Ids.newId() : runId;
         try {
             runs.complete(
@@ -199,7 +213,7 @@ public class ChatAppService {
                     status,
                     id,
                     requestId,
-                    SessionListService.title(request.text()),
+                    SessionListService.title(prepared.displayText()),
                     SessionListService.title(output),
                     errorCode,
                     steps,
@@ -212,15 +226,35 @@ public class ChatAppService {
             return;
         }
         try {
-            messages.appendTurn(
+            long userSeq = messages.appendTurn(
                     agentRequest.tenantId(),
                     agentRequest.userId(),
                     agentRequest.sessionId(),
                     id,
-                    request.text() == null ? "" : request.text(),
+                    prepared.displayText(),
                     output == null ? "" : output);
+            linkAttachments(agentRequest.userId(), agentRequest.sessionId(), userSeq, prepared.attachmentIds());
         } catch (RuntimeException error) {
             log.warning("chat message record failed");
+        }
+    }
+
+    /** 成功落库后把附件挂到 user 气泡；目录不可用或 seq 无效时跳过。 */
+    private void linkAttachments(String userId, String sessionId, long userSeq, List<String> attachmentIds) {
+        if (userSeq < 1 || attachmentIds == null || attachmentIds.isEmpty()) {
+            return;
+        }
+        AttachmentCatalog catalog = catalogs.getIfAvailable();
+        if (catalog == null) {
+            return;
+        }
+        String refId = ChatAttachmentSupport.messageRefId(sessionId, userSeq);
+        for (String attachmentId : attachmentIds) {
+            try {
+                catalog.link(userId, attachmentId, "MESSAGE", refId);
+            } catch (RuntimeException error) {
+                log.warning("attachment message link failed");
+            }
         }
     }
 
@@ -302,19 +336,39 @@ public class ChatAppService {
 
     /**
      * 通道只在接入层归一化，不传给运行层。
-     * WEB 通道恒为 main：agentId 只对 API 通道生效（见 {@link ChatRequest#agentId}），
-     * 否则页面能靠一个字段把会话切到别的产品。
+     * WEB 通道恒为 main：请求里的 agentId 不写进 AgentRequest，避免页面靠一个字段切产品。
+     * 附件仍按调用方给的 agentId 校验，非搭子标识不能带附件。
+     * 校验通过后补默认句，并把本轮图片装进 AgentRequest。
      */
-    private AgentRequest toRequest(ChatRequest request) {
+    private PreparedTurn prepare(ChatRequest request) {
         request.channelOrDefault();
         String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
-        return new AgentRequest(
+        String userId = UserContext.get();
+        ChatAttachmentSupport.Resolved resolved =
+                attachments.resolve(request.agentId(), userId, request.attachmentIdsOrEmpty());
+        String displayText = ChatAttachmentSupport.resolveUserText(request.text(), !resolved.isEmpty());
+        if (displayText.isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "userId, sessionId and userText are required");
+        }
+        AgentRequest agentRequest = new AgentRequest(
                 null,
                 tenantId,
-                UserContext.get(),
+                userId,
                 request.sessionId(),
                 systemPrompt(request),
-                request.text());
+                displayText,
+                resolved.images());
+        return new PreparedTurn(agentRequest, resolved.attachmentIds(), displayText);
+    }
+
+    /**
+     * 本轮解析结果：进 Gateway 的请求、待挂 MESSAGE 的附件 id、落库用正文。
+     */
+    private record PreparedTurn(AgentRequest agentRequest, List<String> attachmentIds, String displayText) {
+        private PreparedTurn {
+            attachmentIds = attachmentIds == null ? List.of() : List.copyOf(attachmentIds);
+            displayText = displayText == null ? "" : displayText;
+        }
     }
 
     /**

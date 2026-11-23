@@ -125,14 +125,17 @@
 - 不做服务账号 / API Key；不做独立额度桶 `api-chat*`
 - 不上 **产品** Remote Subagent / `mode=mq`（Remote 学习面见 [`remote-subagent-落地.md`](../docs/remote-subagent-落地.md)）
 - 同步 chat 遇 ASK **不登记**活单；通知路由保留但恒空/找不到
-- 知识库不解析 PDF/Office；删除请求只登记不真删（P6 起批准后真删）
+- 知识库上传仍不解析 PDF/Office（聊天 `attachment_read` 另支持 PDF/docx/纯文本）；删除请求批准后真删（P6）；调度按 cron/延迟真触发（P9）
 - 待办不核运行/任务是否存在；反馈不核运行、不收文件
 - SSE 只转发运行层事件，接入层不调 `streamEvents`；通道枚举留在接入层
 - 就绪检查只探测 Milvus 地址；集合由用户进程创建
+
+- WEB 搭子聊天：`ChatRequest.attachmentIds`（先上传再带 id）；空正文补默认句；图片装本轮多模态；成功后挂 `MESSAGE` 引用；历史消息回填附件摘要
 
 ## 还没有
 
 - JWT
 - IM **消息**通道适配（扫码登录保持原状）
 - `BACKFILL` 只扫「未成功」的文档，不看已归档的旧版本（要清旧版本得走删除）
+- API Channel 随消息附件
 

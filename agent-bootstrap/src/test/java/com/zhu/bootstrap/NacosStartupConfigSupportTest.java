@@ -22,7 +22,8 @@ class NacosStartupConfigSupportTest {
                 "agentscope.permission.rules",
                 "agentscope.runtime.mcp.servers",
                 "agentscope.runtime.sandbox",
-                "agentscope.runtime.wakeup");
+                "agentscope.runtime.wakeup",
+                "agentscope.runtime.web-tools");
         assertThat(NacosAllowlist.infraExact()).contains(
                 "spring.datasource.url",
                 "spring.servlet.multipart.max-file-size",
@@ -145,6 +146,19 @@ class NacosStartupConfigSupportTest {
                 """);
 
         assertThat(source.getProperty("agentscope.runtime.wakeup.enabled")).isEqualTo(true);
+    }
+
+    /** Web 工具旋钮按前缀收下；本块只验白名单，不装配工具。 */
+    @Test
+    void businessKeepsWebToolsPrefix() {
+        MapPropertySource source = NacosStartupConfigSupport.parseBusiness("""
+                agentscope:
+                  runtime:
+                    web-tools:
+                      enabled: true
+                """);
+
+        assertThat(source.getProperty("agentscope.runtime.web-tools.enabled")).isEqualTo(true);
     }
 
     /** infra 收连接与密钥，丢掉业务旋钮。 */

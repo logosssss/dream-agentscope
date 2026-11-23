@@ -28,6 +28,23 @@ agentscope:
     # Wakeup 默认关；仅 companion；令牌环境变量 AGENTSCOPE_WAKEUP_TOKEN。见 docs/wakeup-落地.md。
     wakeup:
       enabled: false
+    # 内置 Web 工具；true 时仅 companion 装配 web_search/web_fetch（Shell 仍关）。现网已放开。
+    web-tools:
+      enabled: true
+    # GitHub MCP 只读：钉版二进制 + 平台 GITHUB_TOKEN（run.env）；见 docs/mcp-落地.md。
+    mcp:
+      servers:
+        github:
+          transport: stdio
+          command: /opt/dream-agentscope/mcp/github-mcp-server
+          args:
+            - stdio
+            - --read-only
+            - --toolsets
+            - repos
+          env:
+            GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_TOKEN}
+          required: false
   auth:
     # 自助注册进入的租户。必须已登记且 ACTIVE。
     tenant-id: demo
@@ -60,17 +77,17 @@ agentscope:
       ticket-ttl-seconds: 300
   permission:
     # MySQL 打开时以 tool_permission 表为准；mysql 关闭时用这里。
-    # 内置 web 工具已在代码侧关闭；这里再 DENY 一道，防止以后误开。
+    # web-tools.enabled=true 时配合 ALLOW；关闭装配时本规则不生效。
     rules:
       - tool-id: web_fetch
         tenant-id: "*"
         role-id: "*"
-        decision: DENY
+        decision: ALLOW
         priority: 1
         enabled: true
       - tool-id: web_search
         tenant-id: "*"
         role-id: "*"
-        decision: DENY
+        decision: ALLOW
         priority: 1
         enabled: true

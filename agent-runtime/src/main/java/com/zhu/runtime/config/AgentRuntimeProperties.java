@@ -57,6 +57,12 @@ public class AgentRuntimeProperties {
     private Wakeup wakeup = new Wakeup();
 
     /**
+     * 内置 Web 工具旋钮。默认关；enabled=true 时仅 companion 不调用 disableWebTools。
+     * 白名单前缀 {@code agentscope.runtime.web-tools}；Shell 仍始终关闭。
+     */
+    private WebTools webTools = new WebTools();
+
+    /**
      * 语义边界。Nacos 推送可以语法合法但语义非法（例如 max-iters=0），绑定后必须校验；
      * 抛 {@link IllegalStateException} 让热更回滚到上一份配置。
      */
@@ -176,6 +182,35 @@ public class AgentRuntimeProperties {
     /** 写入 Wakeup 根节点；null 按默认关。 */
     public void setWakeup(Wakeup wakeup) {
         this.wakeup = wakeup == null ? new Wakeup() : wakeup;
+    }
+
+    /** Web 工具根节点。 */
+    public WebTools getWebTools() {
+        return webTools;
+    }
+
+    /** 写入 Web 工具根节点；null 按默认关。 */
+    public void setWebTools(WebTools webTools) {
+        this.webTools = webTools == null ? new WebTools() : webTools;
+    }
+
+    /**
+     * 运行层内置 Web 工具配置。enabled 为 false 时 companion 仍 disableWebTools。
+     */
+    public static class WebTools {
+
+        /** false：companion 关 web_search/web_fetch；true：仅 companion 装配内置 Web 工具。 */
+        private boolean enabled;
+
+        /** 是否打开 companion 内置 Web 工具。 */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** 写入开关。 */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
     }
 
     /**

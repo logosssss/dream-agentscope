@@ -7,9 +7,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+# 本机 OpenSSH 无 -O（legacy SCP）；加上会直接失败。
 $scpArgs = @(
     "-i", $SshKey,
-    "-O",
     "-o", "StrictHostKeyChecking=no",
     "-o", "ConnectTimeout=20",
     "-o", "ServerAliveInterval=15",

@@ -65,11 +65,11 @@ public class HarnessAgentFactory {
 
     /**
      * 给 Bootstrap {@code configureAllAgents} 用的公共项。
-     * 产品与 echo 共用：关 web/shell、打开 Harness Memory、若干 disable*、权限、追踪、停机闸与状态库。
+     * 产品与 echo 共用：关 shell、打开 Harness Memory、若干 disable*、权限、追踪、停机闸与状态库。
+     * Web 工具不在公共项关：echo 强制关；companion 由 {@code web-tools.enabled} 决定。
      * 文件系统不在此处挂：Remote 与 Docker 规格互斥，由各 Binding / echo 决定。
      */
     public void configureCommon(HarnessAgent.Builder builder) {
-        builder.disableWebTools();
         builder.disableShellTool();
         builder.memory(MemoryConfig.builder()
                 .flushTrigger(MemoryConfig.FlushTrigger.throttled(Duration.ofMinutes(10)))
@@ -89,10 +89,11 @@ public class HarnessAgentFactory {
     }
 
     /**
-     * echo 差异：固定标识与短提示，轮数封顶 8，不挂产品中间件 / 子代理 / MCP / Docker。
+     * echo 差异：固定标识与短提示，轮数封顶 8，不挂产品中间件 / 子代理 / MCP / Docker / Web 工具。
      * 有 Store 时挂 Remote USER；继承 common 的 disable*。
      */
     public void customizeEcho(HarnessAgent.Builder builder) {
+        builder.disableWebTools();
         builder.name("echo")
                 .agentId(ECHO_AGENT_ID)
                 .model(chatModel.resolve(null))

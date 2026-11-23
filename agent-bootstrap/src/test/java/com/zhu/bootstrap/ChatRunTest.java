@@ -193,7 +193,7 @@ class ChatRunTest {
                 },
                 (tenantId, userId, sessionId) -> {
                 },
-                new AbsentChatMessageStore());
+                new AbsentChatMessageStore(), ChatAppServiceFixtures.emptyAttachmentSupport(), ChatAppServiceFixtures.emptyCatalogs());
     }
 
     /** 最小请求。身份放进登录会话所在的线程，不靠请求体。 */

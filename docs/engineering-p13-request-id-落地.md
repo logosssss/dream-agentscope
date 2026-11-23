@@ -34,7 +34,7 @@
 
 ## 改动
 
-1. `agent-db/src/main/resources/db/migration/V44__agent_run_request_id.sql`：给 `agent_run` 加 `request_id` 与 `idx_request_id`。
+1. `agent-db/src/main/resources/db/migration/V46__agent_run_request_id.sql`：给 `agent_run` 加 `request_id` 与 `idx_request_id`。
 2. `agent-access/.../persistence/entity/run/AgentRun.java`：加 `requestId` 字段与读写方法。
 3. `agent-access/src/main/resources/mapper/AgentRunMapper.xml`：`insertFinished` 写入，`listOwned` / `findOwned` 读回。
 4. `RunLog.complete(...)` 增加 `String requestId` 参数；`MysqlRunLog` 截断后写入，`AbsentRunLog` 忽略。
@@ -42,7 +42,7 @@
 6. `RunSummary` 增加 `requestId`，`MysqlRunQuery.summary` 填（null → 空串）。
 7. `AccessIdentityFilter`：读到请求号时 `response.setHeader("X-Request-Id", ...)`，401 分支之前就设好。
 8. `web/src/shared/api/http.ts`：`newRequestId()`（`crypto.randomUUID()`，没有就时间戳 + 随机串）与 `authHeaders()` 注入；`web/src/shared/types/api.types.ts` 的 `RunSummary` 加 `requestId`。
-9. 测试：`ChatRunTest.requestIdIsCopiedIntoRunRecord`（线程上下文 → 运行记录）、`AccessIdentityFilterTest`（有号回显 / 无号静默）、`MySqlRedisChatE2ETest` 失败轮断言 `agent_run.request_id` 与响应头一致；`MigrationCatalogTest` 到 V44。
+9. 测试：`ChatRunTest.requestIdIsCopiedIntoRunRecord`（线程上下文 → 运行记录）、`AccessIdentityFilterTest`（有号回显 / 无号静默）、`MySqlRedisChatE2ETest` 失败轮断言 `agent_run.request_id` 与响应头一致；`MigrationCatalogTest` 到 V46。
 
 ## 验收（本机实测）
 

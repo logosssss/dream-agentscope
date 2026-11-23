@@ -1,0 +1,397 @@
+<section style="font-size:15px;line-height:1.8;color:#333;letter-spacing:0.4px;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC','Microsoft YaHei',sans-serif;">
+
+  <section style="background:#E6F1FB;border-radius:8px;padding:14px 16px;margin-bottom:24px;">
+    <p style="margin:0;font-size:13px;color:#185FA5;line-height:1.7;">AgentScope 落地实战 02｜概念地图</p>
+    <p style="margin:6px 0 0;font-size:13px;color:#5F5E5A;line-height:1.7;">五个对象、30 个装配点与一次懒启动 · 阅读约 14 分钟</p>
+  </section>
+
+  <p style="margin:0 0 18px;">仓库没有 demo 模块。能独立跑通的最小闭环在 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-bootstrap</code> 的测试目录：<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">AccessChannelBootstrapAgentTest</code>，97 行，其中不到 20 行是一个返回固定文本的 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">Model</code> 桩。没有 Spring 容器，没有数据库，从装配走到回复。</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:11.5px;line-height:1.9;color:#24292e;white-space:pre;">GatewayBootstrap.builder()
+  .configureAllAgents(builder -&gt; {
+    builder.model(model);
+    builder.disableWebTools();
+  })
+  .agent("companion-v1", builder -&gt;
+      builder.agentId("companion-v1")
+             .sysPrompt("companion"))
+  .mainAgent("companion-v1")
+  .channel(ChatUiChannel.create())
+  .build()
+  .start();</pre>
+  </section>
+
+  <p style="margin:0 0 18px;">这段代码里的每个类型，在正式链路里都对应一个位置。把边界记住比记 API 名字有用：出错时先判断问题落在哪个对象上，再去看那一层。</p>
+
+  <section style="background:#f7f8fa;border-radius:8px;padding:16px;margin:0 0 18px;">
+    <p style="margin:0 0 10px;font-size:14px;color:#1a1a1a;line-height:1.8;"><strong>这篇要回答三个问题</strong></p>
+    <p style="margin:0 0 6px;font-size:13.5px;color:#444;line-height:1.8;">1. 五个对象各自的边界，一条消息在它们之间怎么走。</p>
+    <p style="margin:0 0 6px;font-size:13.5px;color:#444;line-height:1.8;">2. 装配期、启动期、请求期分别发生什么，哪一步在请求路径上。</p>
+    <p style="margin:0;font-size:13.5px;color:#444;line-height:1.8;">3. 哪些约束违反之后不报错，只在并发或热更时表现成别的问题。</p>
+  </section>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">一、五个对象</h2>
+
+  <table style="width:100%;border-collapse:collapse;word-break:break-word;font-size:13px;margin:0 0 20px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:26%;">对象</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:36%;">职责</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:38%;">正式链路位置</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;font-family:Consolas,Menlo,monospace;font-size:12px;">GatewayBootstrap</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">装配入口，一次建好所有 Agent 与 Channel</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">startGatewayLocked</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;font-family:Consolas,Menlo,monospace;font-size:12px;">Builder</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">可变的装配器，每个 Agent 一个</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">HarnessAgentFactory</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;font-family:Consolas,Menlo,monospace;font-size:12px;">Channel</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">收发消息的通道，不是 HTTP 控制器</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">ChatUi / Api</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;font-family:Consolas,Menlo,monospace;font-size:12px;">Msg</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">一轮消息；回复与审批确认都靠它</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">execute / resumeConfirm</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;font-family:Consolas,Menlo,monospace;font-size:12px;">RuntimeContext</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">一次调用的上下文，跨中间件传递</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">AgentTurnSupport</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 18px;"><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">Channel</code> 容易被当成 Controller 用。它不处理 HTTP，也不做鉴权，只负责把一条用户消息交给 Gateway 并把事件流吐回来；鉴权与额度在 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent-access</code> 里已经做完，进到 Channel 的只有 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">userId</code>、<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">sessionId</code> 和文本。</p>
+
+  <p style="margin:0 0 18px;"><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">Msg</code> 的另一个用途是审批续跑。用户在页面上点"允许"之后，回到 Gateway 的不是一段新对话，而是一个带 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">METADATA_CONFIRM_RESULTS</code> 元数据的 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">Msg</code>，<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">resumeConfirm</code> 把它交给同一个 Agent 续跑。所以"点确认"和"发消息"在框架层是同一件事。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">二、一条消息在五个对象之间怎么走</h2>
+
+  <p style="margin:0 0 16px;">把五个对象连起来看，一次对话分三段：接入层、Gateway、Channel。接入层在 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">ChatAppService</code>，同步与流式用的是同一串门禁，顺序固定：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:8px;padding:16px 14px;margin:0 0 18px;">
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">① 拒绝显式 channel=API</p>
+    <p style="margin:0 0 12px;font-size:13.5px;color:#333;line-height:1.8;">WEB 入口只接默认通道，程序调用走 ApiAgentChatController。</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">② 转 AgentRequest</p>
+    <p style="margin:0 0 12px;font-size:13.5px;color:#333;line-height:1.8;">身份只取登录会话写进线程的值，请求体里的 userId 丢掉。</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">③ 四道门禁</p>
+    <p style="margin:0 0 12px;font-size:13.5px;color:#333;line-height:1.8;">requireUser → 租户 → 租户用户 → 会话归属。</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">④ 额度</p>
+    <p style="margin:0 0 12px;font-size:13.5px;color:#333;line-height:1.8;">quota.check 记请求次数，读已用的 token 与费用。</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">⑤ 并发名额</p>
+    <p style="margin:0 0 12px;font-size:13.5px;color:#333;line-height:1.8;">concurrent.open 占一个租户名额，流式到结束时才放。</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">⑥ 落会话，再执行</p>
+    <p style="margin:0;font-size:13.5px;color:#333;line-height:1.8;">remember 写会话索引，之后才 executor.execute。</p>
+  </section>
+
+  <p style="margin:0 0 18px;">顺序不是随手排的。租户与归属校验在额度之前，无效请求不会消耗额度计数；额度在并发占位之前，被额度拒绝的请求不占名额；会话落库在占位之后，记失败就释放名额并让这一轮失败，不会留下"有名额没记录"的状态。</p>
+
+  <p style="margin:0 0 18px;">进到 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">ChannelGateway</code> 之后只剩四件事：<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">turns.require</code> 校验请求、<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">drain.beginTurn</code> 记一次在途、<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">turns.context</code> 建本地上下文、<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">options()</code> 拼好 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">SendOptions</code> 交给 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">channel().send</code>。同步、流式、API 通道三条路是同构的，差别只在最后调 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">send</code> 还是 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">sendStream</code>。</p>
+
+  <section style="background:#fff8e6;border-left:3px solid #d9a441;border-radius:0 6px 6px 0;padding:14px 16px;margin:0 0 18px;">
+    <p style="margin:0;font-size:14px;color:#633806;line-height:1.8;"><strong>options() 里有一处容易看漏：</strong>会话用请求里的 sessionId，调用方只暂存 tenantId 与 agentId；agentId 为空或等于 mainAgentId 时不改路由，仍走 Bootstrap 的 main Agent。</p>
+  </section>
+
+  <p style="margin:0 0 18px;">通道名不进 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">AgentRequest</code>。<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">channel</code> 只在接入层用于会话列表展示与入口选择，运行层拿不到它，也不需要知道这条消息是从网页还是从程序调用进来的。</p>
+
+  <p style="margin:0 0 18px;">回程同理：Channel 吐 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">AgentEvent</code>，经 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">turns.mapStreamEvent</code> 变成 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">AgentStreamEvent</code>，最后由 Controller 包成 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">ServerSentEvent</code>。HTTP、SSE、鉴权都在最外两层，五个对象里没有一个知道它们存在。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">三、公共项对每个 Agent 各跑一次</h2>
+
+  <p style="margin:0 0 14px;"><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">configureAllAgents</code> 看起来像"全局配置，执行一次"，实际不是。测试里有三个计数器：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:11.5px;line-height:1.9;color:#24292e;white-space:pre;">assertThat(commonHits.get()).isEqualTo(2);
+assertThat(companionHits.get()).isEqualTo(1);
+assertThat(echoHits.get()).isEqualTo(1);</pre>
+  </section>
+
+  <p style="margin:0 0 18px;">两个 Agent，公共回调跑了两次。框架的顺序是：对每个 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">agent(id, consumer)</code>，先跑公共回调，再跑该 Agent 的 consumer，consumer 返回后立即 build。</p>
+
+  <p style="margin:0 0 14px;">整段装配分三个期间、六步，只有最后一步在请求路径上：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:8px;padding:16px 14px;margin:0 0 18px;">
+    <p style="margin:0 0 10px;font-size:13.5px;color:#333;line-height:1.8;"><strong>装配期 · 每个 Agent 三步</strong>　公共回调 → 该 Agent 的 consumer → build()</p>
+    <p style="margin:0 0 10px;font-size:13.5px;color:#333;line-height:1.8;"><strong>启动期 · 两步</strong>　start() 建 Channel；从 agents() 取实例挂工具</p>
+    <p style="margin:0;font-size:13.5px;color:#333;line-height:1.8;"><strong>请求期 · 一步</strong>　channel().send(...)</p>
+  </section>
+
+  <section style="background:#fff8e6;border-left:3px solid #d9a441;border-radius:0 6px 6px 0;padding:14px 16px;margin:0 0 18px;">
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;">公共回调里不能放"只执行一次"的动作：累加计数、注册全局监听、开连接池，都会按 Agent 数量重复。</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;">差异项拿到的 Builder 已经带着公共项，只能覆盖不能撤销。公共项关掉的 web、shell、动态 skill、动态子代理，在差异项里都没有对应的开启调用。</p>
+    <p style="margin:0;font-size:14px;color:#633806;line-height:1.8;">build 在 consumer 返回后立即发生，consumer 里不能把 Builder 存起来异步使用。</p>
+  </section>
+
+  <p style="margin:0 0 18px;"><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">HarnessAgentFactory</code> 的类注释把这条写成了一句硬约束：<strong>不要在线程之间共享同一个 Builder 再改提示词。</strong></p>
+
+  <p style="margin:0 0 18px;">两组装配合起来是 30 处 Builder 调用：公共项 12 处，搭子差异 18 处。公共项决定这个进程不允许做什么，差异项决定这个 Agent 是谁。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">四、工厂只持有"消费者"</h2>
+
+  <p style="margin:0 0 14px;">工厂是单例 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">@Component</code>，字段里没有任何 Builder：只有配置、模型解析器、中间件、工具列表。这些部件要么无状态，要么由 Spring 保证单例安全，所以工厂可以单例。</p>
+
+  <p style="margin:0 0 14px;">单例能成立的前提是"每轮状态都不在 Bean 里"。中间件是 Spring 单例，但 tracing、shutdown、audit 这些中间件不持有会话状态，判定结果写进 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">RuntimeContext</code>，随调用走。工厂负责的是"怎么装"，不是"装完放在哪"。</p>
+
+  <p style="margin:0 0 14px;">反例是把 Builder 放进字段：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 14px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:11.5px;line-height:1.9;color:#24292e;white-space:pre;">// 错误示范，不是仓库代码
+private final HarnessAgent.Builder builder;
+
+public void build(String prompt) {
+    builder.sysPrompt(prompt); // 并发覆盖
+    builder.build();
+}</pre>
+  </section>
+
+  <p style="margin:0 0 18px;">这个错误难查，不是编译期能发现，而是 setter 不报错、覆盖发生在并发窗口内，表现为"回复里出现另一个用户的设定"。正式链路里每个 Agent 只有一个 consumer，Builder 由框架在 build 前创建，用完即弃。</p>
+
+  <p style="margin:0 0 18px;">同一种错误模式也出现在懒启动入口：<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">channel()</code> 用双检锁，两个并发首请求只有一个会走 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">startGatewayLocked()</code>。去掉双检锁不会立刻报错，但冷启动时并发的两个请求会各自建一套 Agent，后写入的那套覆盖前一套，前一套没人 close，模型连接与工具资源留在进程里。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">五、长驻实例，懒启动</h2>
+
+  <p style="margin:0 0 16px;">一个常见误解是"每次对话 new 一个 Agent"。当前实现不是：<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">channel()</code> 用双检锁拿 Channel，<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">bootstrap == null</code> 时才建 Agent。构造器注释写得明确：<strong>只接线，不立刻建模型；缺 DASHSCOPE_API_KEY 时仍允许进程起来。</strong></p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:8px;padding:16px 14px;margin:0 0 18px;">
+    <p style="margin:0;font-size:14px;color:#1a1a1a;line-height:1.9;"><strong>① 未启动</strong>　bootstrap == null</p>
+    <p style="margin:2px 0 2px 10px;font-size:13px;color:#185FA5;line-height:1.7;">↓ 首次对话 channel()</p>
+    <p style="margin:0;font-size:14px;color:#1a1a1a;line-height:1.9;"><strong>② 运行中</strong>　companion + echo 长驻</p>
+    <p style="margin:2px 0 2px 10px;font-size:13px;color:#185FA5;line-height:1.7;">↓ 配置热更 rebuildAll()</p>
+    <p style="margin:0;font-size:14px;color:#1a1a1a;line-height:1.9;"><strong>③ 排空中</strong>　draining = true，新请求等待</p>
+    <p style="margin:2px 0 2px 10px;font-size:13px;color:#185FA5;line-height:1.7;">↓ 在途归零或超时</p>
+    <p style="margin:0;font-size:14px;color:#1a1a1a;line-height:1.9;"><strong>④ 运行中</strong>　旧实例 close 后重建</p>
+  </section>
+
+  <table style="width:100%;border-collapse:collapse;word-break:break-word;font-size:13px;margin:0 0 18px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:22%;">时点</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:44%;">发生什么</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:34%;">代价</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">进程启动</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">只装配 Bean，不建 Agent</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">故障推迟到首次对话</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">首次对话</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">建两个 Agent，挂中间件与工具</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">首请求先装配再出字</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">配置热更</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">排空在途 → 停旧 → 建新</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">期间新请求阻塞</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">进程退出</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">同一把排水闸</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">最长等 120 秒</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 18px;">排水闸是 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">ResidentAgentDrain</code>：<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">draining = true</code> 后，新请求在锁上循环等待；在途归零或超时后执行动作。超时不抛错，只记一条 warning 后继续重建，所以在途对话可能被新实例的 close 打断——这是"热更优先于长尾请求"的取舍。</p>
+
+  <p style="margin:0 0 18px;">重建还有一处连带影响：停旧时会清空待确认记录，热更窗口内没处理的审批不会跨实例保留，需要客户端重新发起。停机走的是同一把闸，但多一层框架侧配置——<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">GracefulShutdownConfig(timeout, PartialReasoningPolicy.SAVE)</code>，不再接新调用，已生成的推理内容保留；注册动作放在 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">ApplicationRunner</code> 里，避免停机顺序抢在 Web 容器前面。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">六、Toolkit 在 build 之后才存在</h2>
+
+  <p style="margin:0 0 14px;">配置 Agent 时挂不了业务工具，因为那时 Toolkit 还没创建。工具只能在 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">start()</code> 之后、取到实例再挂：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:11.5px;line-height:1.9;color:#24292e;white-space:pre;">HarnessAgent companion =
+    started.agents().get(mainAgentId);
+agents.attachCompanionTools(companion);</pre>
+  </section>
+
+  <p style="margin:0 0 18px;"><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">CatalogToolRegistrar</code> 做白名单过滤：目录里的 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">toolId</code> 集合决定哪些实现被注册，同一标识只注册第一次，目录为空直接返回、不改 Toolkit。所以"加一个工具"不是改代码就行，还要在工具目录里登记，否则实现类存在也不会出现在模型的工具列表里。</p>
+
+  <p style="margin:0 0 18px;">"只注册第一次"这条和装配顺序绑在一起：同一 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">toolId</code> 出现两个实现时，谁先注册谁生效，后一个被跳过，既不报错也不打日志。注册器注释还留了一句：传入的 Toolkit 应是这次 Agent 自己的，不要改共享实例。</p>
+
+  <p style="margin:0 0 18px;">工具集合的变更同样要靠重建生效，不能在运行中往 Toolkit 里加。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">七、RuntimeContext 写三次</h2>
+
+  <p style="margin:0 0 16px;">上下文不是构造一次传到底，而是三层依次合并：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:8px;padding:16px 14px;margin:0 0 18px;">
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">① 调用方暂存</p>
+    <p style="margin:0 0 14px;font-size:13.5px;color:#333;line-height:1.8;">只放 tenantId 与 agentId；身份字段走 SendOptions。</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">② resolver 补键</p>
+    <p style="margin:0 0 14px;font-size:13.5px;color:#333;line-height:1.8;">以 caller 为基座补 tenantId；agentId 可从 MsgContext.extra 兜底。</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">③ Gateway 覆盖身份</p>
+    <p style="margin:0;font-size:13.5px;color:#333;line-height:1.8;">进入 Agent 前写入 userId 与 sessionId，以登录态为准。</p>
+  </section>
+
+  <p style="margin:0 0 18px;">第三层的方向是单向的：调用方写不进去，只能被覆盖。所以"前端传一个 userId 冒充别人"在上下文这一层不成立，能改身份的只有登录态。</p>
+
+  <p style="margin:0 0 18px;">有一条约束写在 resolver 注释里：<strong>业务键不要塞进 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">MsgContext.extra()</code>，那会进会话闸键。</strong>会话闸按 key 做同会话串行，把租户之类的字段塞进去，会让同一会话的两个请求落进不同键。</p>
+
+  <p style="margin:0 0 18px;">读取侧有两种写法：<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">context.get("tenantId")</code> 取字符串，<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">context.get(RiskLevel.class)</code> 取类型化对象。后者是中间件之间传递判定结果的通道：安全门写入 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">RiskLevel.CRITICAL</code>，压缩与记忆中间件读它来决定是否跳过。</p>
+
+  <p style="margin:0 0 18px;">用类型当键的好处是不会和字符串键撞名，代价是同一类型只能承载一个值：两处中间件都写 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">RiskLevel</code> 时，留下的是后写的那个，顺序变成了语义的一部分。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">八、30 个装配点分两组</h2>
+
+  <p style="margin:0 0 14px;">30 处 Builder 调用里，公共项 12 处，按作用分五组：</p>
+
+  <table style="width:100%;border-collapse:collapse;word-break:break-word;font-size:13px;margin:0 0 20px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:22%;">分组</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:40%;">调用</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:38%;">作用</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">能力开关</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">disableWebTools / disableShellTool</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">未做出口白名单前关掉内置 web 与 shell</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">记忆</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">memory / disableMemoryHooks</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">开跨会话记忆，关框架自带 flush hook</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">上下文治理</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">disableCompaction / disableToolResultEviction / disableDynamicSkills / disableDynamicSubagents</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">四个动态能力显式关闭，改由产品中间件接管</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">权限与追踪</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">permissionContext / middleware(tracing)</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">无条件规则 + OTel 追踪中间件</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">停机与状态</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">middleware(shutdown) / distributedStore</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">优雅停机闸；有 Store 才挂</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 14px;">搭子差异 18 处，按作用分四组：</p>
+
+  <table style="width:100%;border-collapse:collapse;word-break:break-word;font-size:13px;margin:0 0 20px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:28%;">分组</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:72%;">调用</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">身份</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">name / agentId / model / sysPrompt / maxIters / workspace</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">子代理与 MCP</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">subagent / toolsConfig / mcpServerRegistrationListener</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">文件系统</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">filesystem（Sandbox 开则 Docker，否则 Remote）</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">中间件</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;font-size:12px;">audit / fileWriteLimit / approval / safetyGate / eviction / compaction / persona / memoryFlush</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 16px;">中间件的实际顺序由装配顺序决定，没有显式排序：公共项先跑，所以 tracing、shutdown 在链首；搭子再按调用顺序追加 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">audit → fileWriteLimit → approval → safetyGate → eviction → compaction → persona → memoryFlush</code>。</p>
+
+  <section style="background:#fff8e6;border-left:3px solid #d9a441;border-radius:0 6px 6px 0;padding:14px 16px;margin:0 0 18px;">
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;">这个顺序有语义，不能随手调。</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#633806;line-height:1.8;">safetyGate 之前不能截断内容，否则危机判定拿不到原文；eviction 必须在 compaction 之前，先截大工具结果再压历史；memoryFlush 放最后，靠本轮已确定的 RiskLevel 决定是否入队。</p>
+  </section>
+
+  <p style="margin:0 0 18px;"><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">maxIters</code> 也不取单一来源：先读运行配置，配成小于 1 时退回产品域的 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">completion.maxIterations()</code>，仍无效时按 20。测试里显式设成 1，是为了让桩模型一轮就结束。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">九、事件出口不暴露框架类型</h2>
+
+  <p style="margin:0 0 14px;">流式接口吐的是框架的 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">AgentEvent</code>，接入层拿到的是 <code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">AgentStreamEvent(type, text)</code>：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:6px;padding:14px;margin:0 0 18px;overflow-x:auto;">
+    <pre style="margin:0;font-family:Consolas,Menlo,Monaco,monospace;font-size:11.5px;line-height:1.9;color:#24292e;white-space:pre;">String type = event.getType()
+        .name().toLowerCase();
+return new AgentStreamEvent(
+        type, textOf(event));</pre>
+  </section>
+
+  <p style="margin:0 0 14px;"><code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">text</code> 按事件种类取短文本，四类分支：</p>
+
+  <section style="background:#f7f8fa;border:1px solid #e8e8ea;border-radius:8px;padding:16px 14px;margin:0 0 18px;">
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">增量事件</p>
+    <p style="margin:0 0 12px;font-size:13.5px;color:#333;line-height:1.8;">取 getDelta()，就是前端逐字显示的那段。</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">工具开始</p>
+    <p style="margin:0 0 12px;font-size:13.5px;color:#333;line-height:1.8;">取工具名，前端据此显示"正在调用"。</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">审批事件</p>
+    <p style="margin:0 0 12px;font-size:13.5px;color:#333;line-height:1.8;">取逗号拼接的工具名，不带参数。</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#185FA5;font-weight:600;line-height:1.7;">结束事件</p>
+    <p style="margin:0;font-size:13.5px;color:#333;line-height:1.8;">取全文，并过一遍出站检查 ModelTextGuard.outbound。</p>
+  </section>
+
+  <p style="margin:0 0 18px;">工具参数与完整提示词不放进 text。理由是这一层同时给前端和日志用，参数里可能带用户原文，一旦进 SSE 就等于把出站检查绕过去了。这层的价值是隔离：框架换事件类，只改映射，SSE 格式不动。</p>
+
+  <h2 style="font-size:18px;font-weight:600;color:#1a1a1a;margin:36px 0 16px;padding-left:10px;border-left:4px solid #185FA5;line-height:1.4;">十、五条约束汇总</h2>
+
+  <table style="width:100%;border-collapse:collapse;word-break:break-word;font-size:13px;margin:0 0 20px;table-layout:fixed;">
+    <thead>
+      <tr>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:46%;">约束</th>
+        <th style="background:#E6F1FB;color:#0C447C;font-weight:600;padding:9px 8px;border:1px solid #cfe1f5;text-align:left;width:54%;">违反后的现象</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">公共项按 Agent 数量重复执行</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">计数翻倍、监听重复注册</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">Builder 不可跨线程共享</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">提示词互相覆盖，回复串人设</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">Agent 长驻，热更靠重建</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">改配置不生效，或工具丢失</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">Toolkit 只能在 build 之后挂</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">工具注册为空，模型看不到工具</td>
+      </tr>
+      <tr>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#24292e;">业务键不进 MsgContext.extra</td>
+        <td style="padding:9px 8px;border:1px solid #e5e7eb;color:#444;">同会话串行失效</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin:0 0 18px;">五条里有四条不会在启动时报错，只会在并发、热更、或某次审批续跑时表现成"看起来像模型的问题"。判断顺序建议按对象来：先看请求进没进 Gateway，再看 Channel 有没有被懒启动起来，最后看 Agent 里挂的工具与中间件是不是这一版。</p>
+
+  <p style="margin:0 0 18px;">下一篇进入流式本身：<code style="background:#f2f3f5;padding:1px 5px;border-radius:3px;font-size:13px;color:#c7254e;font-family:Consolas,Menlo,monospace;">streamEvents</code> 的取消、超时与末帧语义，以及为什么流式下不能边推边审核。</p>
+
+  <section style="background:#f7f8fa;border-radius:8px;padding:16px;margin:24px 0;">
+    <p style="margin:0 0 8px;font-size:14px;color:#1a1a1a;line-height:1.8;"><strong>下一篇</strong>：流式不是加个 SSE 就完了。</p>
+    <p style="margin:0 0 10px;font-size:14px;color:#1a1a1a;line-height:1.8;"><strong>有问题评论区见，欢迎交流~</strong></p>
+    <p style="margin:0 0 4px;font-size:13px;color:#57606a;line-height:1.8;">项目：https://www.dream-saas.com/</p>
+    <p style="margin:0 0 4px;font-size:13px;color:#57606a;line-height:1.8;">源码：https://github.com/logosssss/dream-agentscope</p>
+    <p style="margin:0;font-size:13px;color:#57606a;line-height:1.8;">系列目录：https://github.com/logosssss/dream-agentscope/blob/main/docs/tutorial/series-plan.md</p>
+  </section>
+
+</section>

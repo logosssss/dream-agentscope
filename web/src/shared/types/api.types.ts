@@ -30,6 +30,8 @@ export interface ChatStreamRequest {
   agentId: string
   sessionId: string
   text: string
+  /** 先上传得到的附件 id；仅搭子 WEB 聊天使用。 */
+  attachmentIds?: string[]
 }
 
 /** GET /api/sessions 一行。不含正文。 */
@@ -93,6 +95,13 @@ export interface RunDetail {
   finishedAt: string
 }
 
+/** 历史气泡上的附件摘要。 */
+export interface ChatMessageAttachmentItem {
+  attachmentId: string
+  fileName: string
+  mimeType: string
+}
+
 /** GET /api/sessions/{id}/messages 一条气泡。按 seq 升序。 */
 export interface ChatMessageItem {
   seq: number
@@ -100,6 +109,7 @@ export interface ChatMessageItem {
   content: string
   runId: string | null
   createdAt: string
+  attachments?: ChatMessageAttachmentItem[]
 }
 
 /** GET /api/attachments 一行。不表示对象已落地。 */

@@ -265,6 +265,11 @@ async function loadHistory(targetSessionId: string) {
           id: `hist-${row.seq}`,
           role: row.role as 'user' | 'assistant',
           content: row.content ?? '',
+          attachments: (row.attachments ?? []).map((att) => ({
+            attachmentId: att.attachmentId,
+            fileName: att.fileName,
+            mimeType: att.mimeType ?? '',
+          })),
         })),
     )
   } catch (e) {
@@ -671,6 +676,7 @@ watch(sessionId, () => {
     :loading-history="loadingHistory"
     :empty-hint="emptyHint"
     :emptySubHint="emptySubHint"
+    :enable-attachments="true"
     @sent="onSent"
     @status="onStatus"
     @need-login="() => {}"

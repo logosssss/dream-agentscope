@@ -28,7 +28,7 @@ P0–P5 之后还有一个明显的说不过去的地方：**用户点「删除�
 | 保留策略 | 只执行 `action=DELETE`；`SESSION→agent_session_meta.last_active_at`、`MESSAGE→chat_message.created_at`、`EVENT→agent_event_audit.created_at`、`ATTACHMENT→attachment.created_at`；`scope='*'` 全租户、否则按租户；每表一次最多 `retention-batch-rows` 行 |
 | 安全阀 | `agentscope.lifecycle.enabled` 默认 **false**；`dry-run` 默认 **true**（只统计不删）；单表超过 `max-rows-per-table` 整表跳过交人工 |
 | 幂等 | `RUNNING` 是抢占状态；dry-run 也写 `executed_at`（只留预览），要再预览就清空该行 `executed_at` |
-| 迁移 | `V42__data_deletion_execution.sql`：`executed_at` / `executed_note` + `idx_status_requested` |
+| 迁移 | `V44__data_deletion_execution.sql`：`executed_at` / `executed_note` + `idx_status_requested` |
 | 用户端入口 | `web/src/platform/privacy/PrivacyView.vue`（路由 `/privacy`，左侧轨「数」）：提交 `SESSION`/`ATTACHMENT`/`ALL`，列表展示真实进度，点开看提出时间与执行结果；状态词由 `deletionStatus.ts` 纯函数翻译并有单测 |
 
 ## 明确不做
@@ -41,7 +41,7 @@ P0–P5 之后还有一个明显的说不过去的地方：**用户点「删除�
 
 ## 改动清单
 
-1. 迁移 `agent-db/src/main/resources/db/migration/V42__data_deletion_execution.sql`（2 列 + 1 索引）。
+1. 迁移 `agent-db/src/main/resources/db/migration/V44__data_deletion_execution.sql`（2 列 + 1 索引）。
 2. `agent-access/.../application/lifecycle/UserDataPurger.java`：硬删 + 脱敏 + 附件字节 + 知识向量，`dry-run` 与单表上限统一由内部 `step` 拦。
 3. `agent-access/.../application/lifecycle/DeletionExecutionWorker.java`：扫 `APPROVED`、抢 `RUNNING`、写 `DONE` / `FAILED`、`@Scheduled` 入口（开关关着空转）。
 4. `agent-access/.../application/lifecycle/RetentionSweeper.java` + `RetentionTargets.java`：策略 → 表/时间列映射（纯函数，单测）+ 按 `DELETE` 分批清理。
@@ -51,7 +51,7 @@ P0–P5 之后还有一个明显的说不过去的地方：**用户点「删除�
 9. `agent-bootstrap/src/test/java/com/zhu/bootstrap/DataLifecycleE2ETest.java`：真 MySQL + 真 Redis，种一批 PII 行 → 调 `worker.runOnce()` → 断言行消失、审计脱敏、请求 `DONE`。
 10. `agent-access/src/test/java/.../RetentionTargetsTest.java`：4 种类型映射 + 未知类型跳过。
 11. 用户端：`web/src/platform/privacy/{PrivacyView.vue,deletionStatus.ts,deletionStatus.test.ts}` + `shared/api/deletion-api.ts` + `shared/types/api.types.ts` 两个类型 + 路由与左侧轨入口；`main.css` 补 `--color-warning` / `--color-success` 两个 token。
-12. 配置与文档：`deploy/nacos/agent-bootstrap.yaml` 加 `agentscope.lifecycle` 段；`nacos-allowlist.yml` 加六个键；`README.md` 的「明确不做」与能力表改写；`MigrationCatalogTest` 从 V41 提到 V42；本文件 + `docs/INDEX.md`。
+12. 配置与文档：`deploy/nacos/agent-bootstrap.yaml` 加 `agentscope.lifecycle` 段；`nacos-allowlist.yml` 加六个键；`README.md` 的「明确不做」与能力表改写；`MigrationCatalogTest` 从 V43 提到 V44（后续 P9/P13 又顺延到 V46）；本文件 + `docs/INDEX.md`。
 
 ## 验收实测
 
@@ -60,7 +60,7 @@ P0–P5 之后还有一个明显的说不过去的地方：**用户点「删除�
 | `mvn -B -ntp -Pstrict test "-Dtest=RetentionTargetsTest,GateChainTest,AgentRuntimePropertiesTest" …` | `Tests run: 6`（access 4+2）全绿 |
 | `DataLifecycleE2ETest`（本机无 Docker） | 编译通过；运行时 `Skipped: 1`（`disabledWithoutDocker`），CI 的 Docker runner 会真跑 |
 | 全量回归 | 见本节末尾更新：`mvn -B -ntp -Pstrict test "-Dtest=!OssObjectStoreTest" …` |
-| 边界护栏 | `MigrationCatalogTest` 已随 V42 更新为「V1..V42 连续无重复」 |
+| 边界护栏 | `MigrationCatalogTest` 随本次迁移更新；现为「V1..V46 连续无重复」 |
 | 读侧单测 | `DeletionRequestCatalogTest` 5 例：登记无执行信息、状态过滤透传、limit 截到 100、空列表、详情执行列 |
 
 ## 残留

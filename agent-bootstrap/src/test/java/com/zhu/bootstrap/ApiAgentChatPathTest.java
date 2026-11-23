@@ -93,22 +93,7 @@ class ApiAgentChatPathTest {
     }
 
     private static ChatAppService webChats(AgentExecutor executor) {
-        return new ChatAppService(
-                executor,
-                (key, variables, fallback) -> fallback,
-                new TestSemanticProvider(),
-                new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC()),
-                new ConcurrentRunGuard(new FakeCacheFacade(), 120),
-                (tenant, user, session, channel, text) -> {
-                },
-                (tenant, user, session, trigger, status, runId, requestId, input, output, error, steps, started) -> {
-                },
-                tenantId -> {
-                },
-                (tenantId, userId) -> {
-                },
-                allowAllOwners(),
-                new AbsentChatMessageStore());
+        return ChatAppServiceFixtures.chats(executor, allowAllOwners());
     }
 
     private static SessionOwnerGate allowAllOwners() {

@@ -116,11 +116,15 @@ public class CompanionResidentAgentBinding implements ProductModule {
 
     /**
      * 搭子差异：标识、模型、提示词、轮数、产品中间件与工作区路径。
-     * 挂静态探针；MCP / Sandbox 仅 companion。
+     * 挂静态探针；MCP / Sandbox / Web 工具仅 companion。
+     * web-tools.enabled=false（默认）时关内置 web_search/web_fetch；Shell 仍由公共项关闭。
      */
     @Override
     public void customize(HarnessAgent.Builder builder) {
         String id = agentId();
+        if (!properties.getWebTools().isEnabled()) {
+            builder.disableWebTools();
+        }
         builder.name(properties.getName())
                 .agentId(id)
                 .model(chatModel.resolve(null))

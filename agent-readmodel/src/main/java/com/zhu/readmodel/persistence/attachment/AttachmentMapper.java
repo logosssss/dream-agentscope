@@ -2,6 +2,7 @@ package com.zhu.readmodel.persistence.attachment;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhu.readmodel.entity.attachment.Attachment;
+import com.zhu.readmodel.entity.attachment.AttachmentMessageLink;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
@@ -68,4 +69,12 @@ public interface AttachmentMapper extends BaseMapper<Attachment> {
             @Param("userId") String userId,
             @Param("tenantId") String tenantId,
             @Param("attachmentId") String attachmentId);
+
+    /**
+     * 本人本租户挂在若干 MESSAGE ref 上的附件摘要。refIds 为空时返回空。
+     */
+    List<AttachmentMessageLink> listOwnedByMessageRefs(
+            @Param("userId") String userId,
+            @Param("tenantId") String tenantId,
+            @Param("refIds") List<String> refIds);
 }

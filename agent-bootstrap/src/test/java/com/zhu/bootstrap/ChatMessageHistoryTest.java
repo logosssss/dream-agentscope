@@ -84,13 +84,14 @@ class ChatMessageHistoryTest {
                 .thenReturn(new SessionDetail("s1", "标题", "WEB", "ACTIVE", null, 1, "2026-01-01T00:00:00.000"));
         ChatMessageStore store = new ChatMessageStore() {
             @Override
-            public void appendTurn(
+            public long appendTurn(
                     String tenantId,
                     String userId,
                     String sessionId,
                     String runId,
                     String userText,
                     String assistantText) {
+                return 0L;
             }
 
             @Override
@@ -105,23 +106,7 @@ class ChatMessageHistoryTest {
     }
 
     private static ChatAppService chats(AgentExecutor executor, ChatMessageStore messages) {
-        return new ChatAppService(
-                executor,
-                (key, variables, fallback) -> fallback,
-                new TestSemanticProvider(),
-                new QuotaGuard(new FakeCacheFacade(), new AccessLimitProperties(), Clock.systemUTC()),
-                new ConcurrentRunGuard(new FakeCacheFacade(), 120),
-                (tenant, user, session, channel, text) -> {
-                },
-                (tenant, user, session, trigger, status, runId, requestId, input, output, error, steps, started) -> {
-                },
-                tenantId -> {
-                },
-                (tenantId, userId) -> {
-                },
-                (tenantId, userId, sessionId) -> {
-                },
-                messages);
+        return ChatAppServiceFixtures.chats(executor, messages);
     }
 
     private static final class RecordingMessages implements ChatMessageStore {
@@ -129,7 +114,7 @@ class ChatMessageHistoryTest {
         private final List<Turn> turns = new ArrayList<>();
 
         @Override
-        public void appendTurn(
+        public long appendTurn(
                 String tenantId,
                 String userId,
                 String sessionId,
@@ -137,6 +122,7 @@ class ChatMessageHistoryTest {
                 String userText,
                 String assistantText) {
             turns.add(new Turn(runId, userText, assistantText));
+            return 1L;
         }
 
         @Override

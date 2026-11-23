@@ -21,8 +21,8 @@
 | 存储归属 | `agent_task_schedule` 的 entity / mapper / XML 从 `agent-admin` 挪到 `agent-readmodel`（两个进程都碰同一张表） |
 | 下次触发算法 | 只有一份：`com.zhu.ops.schedule.ScheduleTimes`。管理进程登记时算一次，用户进程触发后再算一次 |
 | cron 写法 | 交给 Spring 的 `CronExpression`；另外接受五段写法（分 时 日 月 周，秒补 0），六段照旧 |
-| 归属字段 | V43 加 `tenant_id` / `user_id` / `agent_id`：没有用户就发不出任务，所以登记时用户必填 |
-| 触发结果 | V43 加 `last_status` / `fire_count`；每次触发都写 `last_fire_at` 与 `SUCCEEDED` / `FAILED` |
+| 归属字段 | V45 加 `tenant_id` / `user_id` / `agent_id`：没有用户就发不出任务，所以登记时用户必填 |
+| 触发结果 | V45 加 `last_status` / `fire_count`；每次触发都写 `last_fire_at` 与 `SUCCEEDED` / `FAILED` |
 | 抢占 | `UPDATE ... SET next_fire_at = ? WHERE id = ? AND next_fire_at = ?`：先推进再发布，抢不到就跳过，不会两个进程各发一次 |
 | 开关 | `agentscope.schedule.enabled` **默认 false**；关着时进程起来也不会扫表，`runOnce()` 仍可直接调（测试用） |
 | 失败处理 | 发布抛错只记 `FAILED`，不重试：下次触发已经推进，避免每轮重试到死 |
@@ -38,7 +38,7 @@
 
 ## 改动
 
-1. `agent-db/src/main/resources/db/migration/V43__task_schedule_firing.sql`：加 `tenant_id` / `user_id` / `agent_id` / `last_status` / `fire_count`。
+1. `agent-db/src/main/resources/db/migration/V45__task_schedule_firing.sql`：加 `tenant_id` / `user_id` / `agent_id` / `last_status` / `fire_count`。
 2. readmodel：新增 `entity/schedule/AgentTaskSchedule`、`persistence/schedule/AgentTaskScheduleMapper`（`recent` / `findByScheduleId` / `disableEnabled` / `restoreDisabledWithNext` / `due` / `advance` / `markFired`）与对应 XML；删除 admin 侧同名三件。
 3. `agent-db/src/test/java/com/zhu/db/SchemaContractTest.java`：`READMODEL_OWNED` 加 `agent_task_schedule`（现 16 张表）。
 4. `agent-ops` 新增 `schedule/ScheduleTimes`（`nextFireAt` / `nextCron` / `requireValidCron`，五段补秒），配 `ScheduleTimesTest`（5 例）。

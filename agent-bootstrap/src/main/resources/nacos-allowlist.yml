@@ -36,6 +36,8 @@ business:
     - agentscope.runtime.sandbox
     # Wakeup 旋钮（enabled 等）；AGENTSCOPE_WAKEUP_TOKEN 不进 Nacos。见 docs/wakeup-落地.md。
     - agentscope.runtime.wakeup
+    # 内置 Web 工具旋钮（enabled）；仅 companion；Shell 仍关。
+    - agentscope.runtime.web-tools
 
 infra:
   exact:

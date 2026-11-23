@@ -159,10 +159,16 @@ public class ApiChatAppService {
         }
     }
 
-    /** 无论请求体写什么 channel，本服务一律按 API 记账。 */
+    /**
+     * 无论请求体写什么 channel，本服务一律按 API 记账。
+     * API Channel 本期不做随消息附件。
+     */
     private static ChatRequest forceApi(ChatRequest request) {
         if (request == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "request is required");
+        }
+        if (!request.attachmentIdsOrEmpty().isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "attachments are not supported on API channel");
         }
         return new ChatRequest(
                 request.agentId(),
