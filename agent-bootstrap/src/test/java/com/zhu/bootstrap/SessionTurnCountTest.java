@@ -1,6 +1,6 @@
 package com.zhu.bootstrap;
 
-import com.zhu.access.infrastructure.persistence.run.AgentRunMapper;
+import com.zhu.readmodel.persistence.run.AgentRunMapper;
 import com.zhu.access.infrastructure.persistence.session.MysqlSessionTurnCount;
 import com.zhu.runtime.application.turn.AbsentSessionTurnCount;
 import org.junit.jupiter.api.Test;

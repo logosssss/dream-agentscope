@@ -1,7 +1,7 @@
-package com.zhu.access.infrastructure.persistence.run;
+package com.zhu.readmodel.persistence.run;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.zhu.access.infrastructure.persistence.entity.run.AgentRunStep;
+import com.zhu.readmodel.entity.run.AgentRunStep;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
 

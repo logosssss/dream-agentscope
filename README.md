@@ -268,6 +268,15 @@ curl -s http://127.0.0.1:8100/health/ready
 - 任务类审计（`task.handle` / `task.backfill` / `task.report` / `task.batch`）没有「运行」概念，两列留空。
 - 管理端 `GET /api/admin/audits` 可按 `runId` / `sessionId` / `userId` 过滤；`web-admin` 的「审计 → 执行事件」页签就是它。运维拿到请求号先查运行记录，再用运行号看这一轮的中间步骤，见 [P15 记录](./docs/engineering-p15-audit-query-落地.md)。
 
+### 管理端运行记录
+
+`agent_run` / `agent_run_step` 的形状现在归 `agent-readmodel`（两个进程都要读同一张表，不再各写一份），管理端因此能直接看运行：
+
+- `GET /api/admin/runs`：按 `userId` / `sessionId` / `status` 过滤，默认 50 条、最多 100 条；只读，没有重跑或取消。
+- `GET /api/admin/runs/{runId}`：一轮的详情，带步骤；找不到回 404。
+- `web-admin` 的「运行」页把步骤和同一 `runId` 的审计事件并排显示，报障链路是**请求号 → 运行 → 审计**，见 [P16 记录](./docs/engineering-p16-run-detail-落地.md)。
+- 顺带修掉一个真实缺陷：管理进程此前没有导入 readmodel 的 `@MapperScan`，**MySQL 打开时相关 Mapper Bean 全建不起来**；现在 `AdminApplication` 显式导入，并有 `AdminMySqlWiringTest` 守着。
+
 ### 常用业务旋钮（示例）
 
 完整默认见 [`deploy/nacos/agent-bootstrap.yaml`](./deploy/nacos/agent-bootstrap.yaml)：

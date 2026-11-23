@@ -61,6 +61,13 @@ function persistOperator() {
               审计
             </RouterLink>
             <RouterLink
+              to="/runs"
+              class="rounded-md px-2.5 py-1"
+              active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"
+            >
+              运行
+            </RouterLink>
+            <RouterLink
               to="/retention"
               class="rounded-md px-2.5 py-1"
               active-class="bg-blue-50 text-[var(--color-brand-primary)] font-medium"

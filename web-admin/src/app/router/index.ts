@@ -38,6 +38,11 @@ const router = createRouter({
           component: () => import('@/views/AuditsView.vue'),
         },
         {
+          path: 'runs',
+          name: 'runs',
+          component: () => import('@/views/RunsView.vue'),
+        },
+        {
           path: 'retention',
           name: 'retention',
           component: () => import('@/views/RetentionView.vue'),

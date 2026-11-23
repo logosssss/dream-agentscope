@@ -1,4 +1,4 @@
-package com.zhu.access.infrastructure.persistence.entity.run;
+package com.zhu.readmodel.entity.run;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;

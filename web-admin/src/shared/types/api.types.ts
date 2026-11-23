@@ -95,6 +95,40 @@ export interface AuditEventRow {
   createdAt: string
 }
 
+/**
+ * GET /api/admin/runs 一行：管理端看到的一次运行。
+ * requestId 为空说明调用方没带请求号。
+ */
+export interface RunRow {
+  runId: string
+  tenantId: string
+  userId: string
+  sessionId: string
+  requestId: string
+  triggerType: string
+  status: string
+  model: string
+  inputSummary: string
+  outputSummary: string
+  errorCode: string
+  durationMs: number | null
+  startedAt: string
+  finishedAt: string
+}
+
+/** GET /api/admin/runs/{runId} 里的一个步骤。 */
+export interface RunStepRow {
+  stepNo: number | null
+  stepType: string
+  toolId: string
+  status: string
+}
+
+/** 一轮运行的详情：摘要 + 步骤。 */
+export interface RunDetail extends RunRow {
+  steps: RunStepRow[]
+}
+
 /** GET /api/admin/retention-policies 一行。不表示已执行清理。 */
 export interface RetentionPolicySummary {
   dataType: string

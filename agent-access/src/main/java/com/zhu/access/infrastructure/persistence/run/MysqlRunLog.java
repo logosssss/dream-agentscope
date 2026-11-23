@@ -2,8 +2,10 @@ package com.zhu.access.infrastructure.persistence.run;
 
 import com.zhu.access.application.chat.run.RunLog;
 import com.zhu.access.application.chat.run.RunStep;
-import com.zhu.access.infrastructure.persistence.entity.run.AgentRun;
-import com.zhu.access.infrastructure.persistence.entity.run.AgentRunStep;
+import com.zhu.readmodel.entity.run.AgentRun;
+import com.zhu.readmodel.entity.run.AgentRunStep;
+import com.zhu.readmodel.persistence.run.AgentRunMapper;
+import com.zhu.readmodel.persistence.run.AgentRunStepMapper;
 import com.zhu.common.util.Ids;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.runtime.application.turn.ResolvedChatModel;

@@ -1,7 +1,7 @@
-package com.zhu.access.infrastructure.persistence.run;
+package com.zhu.readmodel.persistence.run;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.zhu.access.infrastructure.persistence.entity.run.AgentRun;
+import com.zhu.readmodel.entity.run.AgentRun;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
@@ -38,4 +38,18 @@ public interface AgentRunMapper extends BaseMapper<AgentRun> {
             @Param("userId") String userId,
             @Param("tenantId") String tenantId,
             @Param("runId") String runId);
+
+    /**
+     * 管理端按用户、会话、状态回查运行。三个条件都可空；不按租户限制，运维要看全部。
+     */
+    List<AgentRun> search(
+            @Param("userId") String userId,
+            @Param("sessionId") String sessionId,
+            @Param("status") String status,
+            @Param("limit") int limit);
+
+    /**
+     * 管理端按运行号取一行。不按用户过滤，找不到给 null。
+     */
+    AgentRun findByRunId(@Param("runId") String runId);
 }

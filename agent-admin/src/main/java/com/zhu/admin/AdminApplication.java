@@ -1,5 +1,6 @@
 package com.zhu.admin;
 
+import com.zhu.readmodel.config.ReadModelMapperConfig;
 import com.zhu.semantic.application.permission.MysqlToolPermissionCatalog;
 import com.zhu.semantic.application.tool.MysqlToolRegistryCatalog;
 import com.zhu.semantic.config.permission.PermissionMapperConfig;
@@ -11,12 +12,15 @@ import org.springframework.context.annotation.Import;
  * 管理进程入口。只扫 com.zhu.admin。
  * 审计/租户/额度等目录实现已迁入本模块，由组件扫描装配；不引入 AuditRecorder / SafetyInterventionRecorder。
  * 工具目录只引入登记实现与语义 Mapper，不引入 StoredToolCatalog。
+ * 共享表的 Mapper 在 com.zhu.readmodel.persistence，不在本进程的扫描范围里，必须显式导入
+ * {@link ReadModelMapperConfig}——否则 MySQL 打开时所有依赖 readmodel Mapper 的 Bean 都建不起来。
  */
 @SpringBootApplication(scanBasePackages = "com.zhu.admin")
 @Import({
         MysqlToolRegistryCatalog.class,
         MysqlToolPermissionCatalog.class,
-        PermissionMapperConfig.class
+        PermissionMapperConfig.class,
+        ReadModelMapperConfig.class
 })
 public class AdminApplication {
 
