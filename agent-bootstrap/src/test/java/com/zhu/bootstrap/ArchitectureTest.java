@@ -52,8 +52,8 @@ class ArchitectureTest {
                     .resideInAPackage("com.zhu.product..");
 
     /**
-     * 一个产品 = 一个 ProductModule（它同时是实现唯一的 ProductSemanticProvider）。
-     * 若产品里再冒出一个 ProductSemanticProvider 实现，容器注入会歧义，两个视图也会各写一份 agentId。
+     * 产品语义只能写在产品包里。多个 ProductModule 可以并存，但单点注入
+     * ProductSemanticProvider 必须落到 {@code @Primary} 的 main 产品，不能再另写一个不实现 ProductModule 的语义 Bean。
      *
      * <p>测试替身（{@code com.zhu.testsupport..}）不算产品实现：它只在测试类路径上，进程里拿不到。
      */

@@ -56,6 +56,42 @@ agentscope:
     username: ${NACOS_USERNAME:}
     password: ${NACOS_PASSWORD:}
 
+# 文档索引。不进 Nacos 白名单。线上用 DOCS_SOURCES_0_ROOT、DOCS_SOURCES_1_ROOT、DOCS_OWNER_USER_IDS 覆盖。
+docs:
+  owner-user-ids: []
+  sync-enabled: true
+  sync-cron: "0 0 3 * * *"
+  sync-zone: Asia/Shanghai
+  public-topics:
+    - architecture
+    - agent-engineering
+    - knowledge-retrieval
+    - data-storage
+    - frontend
+    - ops
+  private-topics:
+    - career
+  sources:
+    - repo: agentscope
+      root: E:/dream-agentscope
+      include:
+        - "docs/**/*.md"
+        - "README.md"
+        - "agent-*/README.md"
+      exclude:
+        - ".agents/**"
+        - "**/target/**"
+        - "**/node_modules/**"
+    - repo: dream-saas
+      root: E:/dream-saas
+      include:
+        - "docs/01-技术架构/**/*.md"
+        - "docs/03-面试准备/**/*.md"
+        - "docs/11-求职/**/*.md"
+      exclude:
+        - "docs/04-学习路线/**"
+        - "docs/06-文章内容/**"
+
 # 空字段不插入，让表默认值生效。
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

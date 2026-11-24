@@ -25,17 +25,20 @@ import io.agentscope.harness.agent.tools.ToolsConfig;
 import java.util.List;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 /**
  * 搭子产品模块：一个 Bean 同时提供语义（agentId / 工具 / 轮数 / 提示词兜底）、装配（customize）与工具挂载。
  *
  * <p>原先是 {@code CompanionResidentAgentBinding} 与 {@code PlatformSemanticProvider} 两个 Bean，
- * 同一份 agentId 两处维护；合并后本类是 {@code ProductModule} 的唯一实现，也是容器里唯一的
- * {@code ProductSemanticProvider}。
+ * 同一份 agentId 两处维护。本类是 main Agent，也是容器里 {@code @Primary} 的
+ * {@code ProductSemanticProvider}。文档产品 {@code docs-v1} 是另一个 {@code ProductModule}，
+ * {@code mainAgent()} 为 false；单点注入仍落到这里，避免第二个产品把对话入口切走。
  *
  * <p>中间件顺序经 runtime {@link CompanionMiddlewareChain}（C1）。
  */
+@Primary
 @Component
 public class CompanionResidentAgentBinding implements ProductModule {
 

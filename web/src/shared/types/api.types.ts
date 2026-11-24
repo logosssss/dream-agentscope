@@ -338,3 +338,76 @@ export interface DeletionRequestDetail {
   executedAt: string
   executedNote: string
 }
+
+/** GET /api/docs/tree 里的一篇，不含正文。 */
+export interface DocsTreeItem {
+  id: string
+  title: string
+  docType: string
+  visibility: string
+  source: string
+}
+
+/** 一个主题及其文档。主题键是固定的七个。 */
+export interface DocsTopicGroup {
+  topic: string
+  documents: DocsTreeItem[]
+}
+
+/** GET /api/docs/tree。七个主题都会在，空主题 documents 为空。 */
+export interface DocsTree {
+  topics: DocsTopicGroup[]
+}
+
+/** 详情目录的一节。anchor 已经是标题锚点。 */
+export interface DocsTocEntry {
+  heading: string
+  anchor: string
+}
+
+/**
+ * 同仓相对链接的替换结果。
+ * target 与 Markdown 原文一致，href 由服务端算好。
+ */
+export interface DocsResolvedLink {
+  target: string
+  href: string
+}
+
+/** GET /api/docs/doc/{id}。markdown 仍是原文，链接靠 links 替换。 */
+export interface DocsPage {
+  title: string
+  topic: string
+  markdown: string
+  toc: DocsTocEntry[]
+  updatedAt: string | null
+  links: DocsResolvedLink[]
+}
+
+/** POST /api/docs/search 的一条。score 为 0 表示关键词兜底，不是向量分。 */
+export interface DocsSearchHit {
+  docId: string
+  title: string
+  heading: string
+  anchor: string
+  snippet: string
+  score: number
+}
+
+/** POST /api/docs/search。 */
+export interface DocsSearchResult {
+  hits: DocsSearchHit[]
+}
+
+/** POST /api/docs/doc/{id}/ask 的一处引用。quote 是链接里的小节名。 */
+export interface DocsCitation {
+  docId: string
+  anchor: string
+  quote: string
+}
+
+/** POST /api/docs/doc/{id}/ask。citations 由答案里的小节链接解析而来。 */
+export interface DocsAskResult {
+  answer: string
+  citations: DocsCitation[]
+}

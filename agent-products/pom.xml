@@ -20,5 +20,6 @@
 
     <modules>
         <module>agent-product-companion</module>
+        <module>agent-product-docs</module>
     </modules>
 </project>

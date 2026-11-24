@@ -10,7 +10,8 @@ import io.agentscope.harness.agent.HarnessAgent;
  * 两者本来就是同一个产品的两份视图，分成两个接口只会让实现类漂移。
  *
  * <p>本接口继承 {@link ProductSemanticProvider}，所以注入方（access 的提示词兜底、runtime 的轮数）可以按窄视图注入，
- * 而 Gateway 按宽视图遍历。产品实现必须是一个 Spring Bean，且不得同时暴露第二个 {@code ProductSemanticProvider} Bean。
+ * 而 Gateway 按宽视图遍历。产品实现必须是一个 Spring Bean。
+ * 单点注入 {@code ProductSemanticProvider} 时认 {@code @Primary} 的 main 产品，不要再另写一个不实现本接口的语义 Bean。
  *
  * <p>人格（{@code PersonaContract}）不在本契约里：它是平台级语义，由 runtime 单独注入，避免一个产品出现两份身份定义。
  */

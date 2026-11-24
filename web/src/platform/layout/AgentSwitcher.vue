@@ -61,6 +61,17 @@ function iconLabel(icon: string, name: string): string {
     </RouterLink>
 
     <RouterLink
+      to="/docs"
+      class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
+      :class="currentSlug === 'docs'
+        ? 'text-white bg-[var(--color-brand-primary)]'
+        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'"
+      title="文档"
+    >
+      文
+    </RouterLink>
+
+    <RouterLink
       to="/kb"
       class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-colors"
       :class="currentSlug === 'kb'

@@ -18,6 +18,7 @@ import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.common.util.Ids;
+import com.zhu.docs.api.DocsAgent;
 import com.zhu.runtime.api.agent.AgentExecutor;
 import com.zhu.runtime.api.agent.AgentRequest;
 import com.zhu.runtime.api.agent.AgentResponse;
@@ -167,6 +168,8 @@ public class ApiChatAppService {
         if (request == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "request is required");
         }
+        // 文档助手只从 /api/docs/doc/{id}/ask 进入。这里放行的话，通用对话会带上工具和记忆。
+        DocsAgent.rejectPublicChat(request.agentId());
         if (!request.attachmentIdsOrEmpty().isEmpty()) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "attachments are not supported on API channel");
         }

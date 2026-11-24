@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zhu</groupId>
+        <artifactId>dream-agentscope</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>agent-product-docs</artifactId>
+    <name>agent-product-docs</name>
+
+    <!--
+      文档助手产品。不是 main Agent，不挂工具。
+      依赖 runtime 装配缝和文档库里的固定提示词；不依赖接入层。
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-semantic</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-product-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-docs</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
+            <artifactId>agent-runtime</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-cache-api-only</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>false</searchTransitive>
+                                    <excludes>
+                                        <exclude>com.zhu:agent-cache-redis</exclude>
+                                    </excludes>
+                                    <message>产品模块只能用 agent-cache-api，不得直接依赖 Redis 缓存实现。</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

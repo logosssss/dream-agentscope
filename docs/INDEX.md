@@ -55,6 +55,7 @@
 | [Bootstrap 测下沉](./bootstrap-test-sink-落地.md) | 测试从 bootstrap 往所属模块下沉的试点 |
 | [README 拆条 D1](./readme-debt-d1-落地.md) | 「还没有」清单拆条 |
 | [图册整理](./diagrams-落地.md) | 图册从散落到 `docs/diagrams/` |
+| [文档站](./docs-site-落地.md) | 用户进程 `/docs`：公开阅读、搜索，登录后单篇提问 |
 
 ## 门禁
 

@@ -45,6 +45,10 @@
         </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
+            <artifactId>agent-docs</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhu</groupId>
             <artifactId>agent-object-store</artifactId>
         </dependency>
         <dependency>

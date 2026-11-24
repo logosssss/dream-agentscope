@@ -86,6 +86,33 @@ const router = createRouter({
             themeColor: '#0369a1',
           },
         },
+        {
+          path: 'docs',
+          name: 'docs',
+          component: () => import('@/feature/docs/DocsListView.vue'),
+          meta: {
+            public: true,
+            themeColor: '#1d4ed8',
+          },
+        },
+        {
+          path: 'docs/doc/:id',
+          name: 'docs-doc',
+          component: () => import('@/feature/docs/DocsDetailView.vue'),
+          meta: {
+            public: true,
+            themeColor: '#1d4ed8',
+          },
+        },
+        {
+          path: 'docs/:topic',
+          name: 'docs-topic',
+          component: () => import('@/feature/docs/DocsListView.vue'),
+          meta: {
+            public: true,
+            themeColor: '#1d4ed8',
+          },
+        },
         ...agentList.map((agent) => ({
           path: agent.slug,
           name: agent.slug,

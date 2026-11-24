@@ -23,6 +23,7 @@
         <module>agent-ops</module>
         <module>agent-db</module>
         <module>agent-vector</module>
+        <module>agent-docs</module>
         <module>agent-object-store</module>
         <module>agent-cache</module>
         <module>agent-state</module>
@@ -91,6 +92,11 @@
             </dependency>
             <dependency>
                 <groupId>com.zhu</groupId>
+                <artifactId>agent-docs</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
                 <artifactId>agent-object-store</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -137,6 +143,11 @@
             <dependency>
                 <groupId>com.zhu</groupId>
                 <artifactId>agent-product-companion</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhu</groupId>
+                <artifactId>agent-product-docs</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

@@ -17,6 +17,11 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
+docs:
+  # 测试不跑凌晨同步，也不要求本机有那两个仓库。
+  sync-enabled: false
+  sources: []
+
 agentscope:
   startup:
     dependencies:
