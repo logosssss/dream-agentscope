@@ -1,11 +1,11 @@
-package com.zhu.access.docs;
+package com.zhu.product.docs.adapter;
 
 import com.zhu.docs.api.DocsEmbedder;
 import com.zhu.runtime.domain.TextEmbedder;
 import org.springframework.stereotype.Component;
 
 /**
- * 把文档嵌入转给运行层已有的嵌入器。不另写 HTTP 客户端。
+ * 文档产品把嵌入转给运行层已有的嵌入器。不另写 HTTP 客户端。
  */
 @Component
 public class RuntimeDocsEmbedder implements DocsEmbedder {

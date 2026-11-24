@@ -161,4 +161,19 @@ class McpToolsConfigFactoryTest {
 
         assertThat(McpToolsConfigFactory.toServers(mcp, key -> null)).containsOnlyKeys("ok");
     }
+
+    /** stdio 且 command 空白（本机用空环境变量盖现网路径）不进入清单。 */
+    @Test
+    void skipsStdioWithoutCommand() {
+        AgentRuntimeProperties.Server blank = new AgentRuntimeProperties.Server();
+        blank.setTransport("stdio");
+        blank.setCommand("  ");
+        AgentRuntimeProperties.Server ok = new AgentRuntimeProperties.Server();
+        ok.setTransport("stdio");
+        ok.setCommand("echo");
+        AgentRuntimeProperties.Mcp mcp = new AgentRuntimeProperties.Mcp();
+        mcp.setServers(Map.of("blank", blank, "ok", ok));
+
+        assertThat(McpToolsConfigFactory.toServers(mcp, key -> null)).containsOnlyKeys("ok");
+    }
 }

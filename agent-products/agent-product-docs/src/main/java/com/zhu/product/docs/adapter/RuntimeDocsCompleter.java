@@ -1,4 +1,4 @@
-package com.zhu.access.application.docs;
+package com.zhu.product.docs.adapter;
 
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
@@ -11,7 +11,7 @@ import com.zhu.runtime.api.agent.AgentResponse;
 import org.springframework.stereotype.Component;
 
 /**
- * 把单篇问答交给 docs-v1。每次新会话，不复用聊天记录。
+ * 文档产品把单篇问答交给 docs-v1。每次新会话，不复用聊天记录。
  * 系统提示同时放进请求，供文本护栏检查；真正约束模型的是 Agent 上的同一份原文。
  */
 @Component

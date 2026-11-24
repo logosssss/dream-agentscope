@@ -38,7 +38,7 @@ class ArchitectureTest {
                             .and(JavaClass.Predicates.resideOutsideOfPackage("com.zhu.product.api..")));
 
     /**
-     * 产品模块不得依赖接入层。HTTP / 身份 / 额度留在 access；产品只提供 Binding / 语义实现 / 业务工具。
+     * 产品模块不得依赖接入层包。文档 HTTP 入口可以随产品声明搬走，但仍不能引用 {@code com.zhu.access}。
      */
     private static final ArchRule PRODUCT_MUST_NOT_DEPEND_ON_ACCESS =
             noClasses().that().resideInAPackage("com.zhu.product..")

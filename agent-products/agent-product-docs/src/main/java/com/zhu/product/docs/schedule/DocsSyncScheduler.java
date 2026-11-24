@@ -1,4 +1,4 @@
-package com.zhu.access.docs;
+package com.zhu.product.docs.schedule;
 
 import com.zhu.docs.api.DocsIngest;
 import com.zhu.docs.application.DocsProperties;
@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 每天 03:00 兜底同步。MySQL 或 Milvus 没装配时什么都不做。
- * 和手动同步共用同一把单飞锁。
+ * 文档产品的兜底同步。每天 03:00。MySQL 或 Milvus 没装配时什么都不做。
+ * 和手动同步共用同一把单飞锁。调度开关在用户进程上，本类不自己打开。
  */
 @Component
 public class DocsSyncScheduler {

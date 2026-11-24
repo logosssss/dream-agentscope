@@ -1,8 +1,11 @@
 package com.zhu.bootstrap;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
+
 import com.zhu.access.application.auth.session.LoginSessionCodec;
 import com.zhu.cache.api.CacheFacade;
 import com.zhu.common.security.CallerTokens;
+import com.zhu.product.api.ProductModule;
 import com.zhu.runtime.api.agent.AgentExecutor;
 import com.zhu.semantic.infrastructure.nacos.AbsentPromptSource;
 import com.zhu.semantic.infrastructure.nacos.PromptSource;
@@ -14,6 +17,7 @@ import io.agentscope.harness.agent.DistributedStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import io.milvus.v2.client.MilvusClientV2;
 import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -229,5 +233,12 @@ class BootstrapContextTest {
                         .content("{\"accessToken\":\"unused\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true));
+    }
+
+    /** 产品声明的控制器在这个容器里都有 Bean，且类上的路径前缀不冲突。 */
+    @Test
+    void everyProductControllerIsReachable() {
+        List<ProductModule> modules = context.getBeansOfType(ProductModule.class).values().stream().toList();
+        assertThatCode(() -> ProductContributions.validate(modules, context)).doesNotThrowAnyException();
     }
 }

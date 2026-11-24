@@ -3,6 +3,7 @@ package com.zhu.product.docs;
 import com.zhu.docs.api.DocsAgent;
 import com.zhu.docs.api.DocsAskPrompt;
 import com.zhu.product.api.ProductModule;
+import com.zhu.product.docs.api.DocsController;
 import com.zhu.runtime.application.turn.ResolvedChatModel;
 import com.zhu.semantic.contract.product.CompletionCriteria;
 import com.zhu.semantic.contract.tool.ToolDescriptor;
@@ -76,5 +77,11 @@ public class DocsProductModule implements ProductModule {
                 .model(chatModel.resolve(null))
                 .sysPrompt(DocsAskPrompt.SYSTEM)
                 .maxIters(1);
+    }
+
+    /** 文档站六个 URL 都在这一个控制器上。调度和适配器不是 HTTP 入口。 */
+    @Override
+    public List<Class<?>> controllers() {
+        return List.of(DocsController.class);
     }
 }

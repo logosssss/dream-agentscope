@@ -1,5 +1,12 @@
 import { apiJson } from '@/shared/api/http'
-import type { DocsAskResult, DocsPage, DocsSearchResult, DocsTree } from '@/shared/types/api.types'
+import type {
+  DocsAskResult,
+  DocsPage,
+  DocsSearchResult,
+  DocsSyncAccepted,
+  DocsSyncStatus,
+  DocsTree,
+} from '@/shared/types/api.types'
 
 /**
  * 文档站接口。公开阅读不需要登录；就这篇提问必须登录。
@@ -40,5 +47,21 @@ export function searchDocs(query: {
   return apiJson<DocsSearchResult>('/api/docs/search', {
     method: 'POST',
     body: JSON.stringify(query),
+  })
+}
+
+/** 最近一次同步计数。谁都能读；还没跑过时 status 是 NONE。 */
+export function fetchDocsSyncStatus(): Promise<DocsSyncStatus> {
+  return apiJson<DocsSyncStatus>('/api/docs/sync/status')
+}
+
+/**
+ * 触发一次仓库文档同步。非维护者服务端返回 NOT_FOUND。
+ * 立刻返回 runId，真正进度看 status。
+ */
+export function startDocsSync(): Promise<DocsSyncAccepted> {
+  return apiJson<DocsSyncAccepted>('/api/docs/sync', {
+    method: 'POST',
+    body: '{}',
   })
 }

@@ -1,34 +1,36 @@
-package com.zhu.access.api.controller.docs;
+package com.zhu.product.docs.api;
 
 import com.zhu.common.context.UserContext;
 import com.zhu.common.dto.ApiResult;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.docs.api.DocsIngest;
-import com.zhu.docs.api.DocsPage;
-import com.zhu.docs.api.DocsQuery;
-import com.zhu.docs.api.DocsSyncAccepted;
-import com.zhu.docs.api.DocsSyncStatus;
-import com.zhu.docs.api.DocsTree;
 import com.zhu.docs.api.DocsAsk;
 import com.zhu.docs.api.DocsAskQuery;
 import com.zhu.docs.api.DocsAskResult;
+import com.zhu.docs.api.DocsIngest;
+import com.zhu.docs.api.DocsPage;
+import com.zhu.docs.api.DocsQuery;
 import com.zhu.docs.api.DocsSearch;
 import com.zhu.docs.api.DocsSearchQuery;
 import com.zhu.docs.api.DocsSearchResult;
+import com.zhu.docs.api.DocsSyncAccepted;
+import com.zhu.docs.api.DocsSyncStatus;
+import com.zhu.docs.api.DocsTree;
 import com.zhu.docs.application.DocsProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 文档站只读接口。同步只给 owner-user-ids 里的用户。
- * 索引没装配时返回 UNAVAILABLE，不改走内存。
+ * 文档产品的 HTTP 入口。路径前缀固定，方法上只写相对路径，六个对外 URL 不变。
+ * 同步只给 owner-user-ids 里的用户。索引没装配时返回 UNAVAILABLE，不改走内存。
  */
 @RestController
+@RequestMapping("/api/docs")
 public class DocsController {
 
     private final ObjectProvider<DocsQuery> queries;
@@ -56,7 +58,7 @@ public class DocsController {
     }
 
     /** 七个主题。匿名只能看到公开文档。 */
-    @GetMapping("/api/docs/tree")
+    @GetMapping("/tree")
     public ApiResult<DocsTree> tree() {
         return ApiResult.ok(query().tree(UserContext.get()));
     }
@@ -64,7 +66,7 @@ public class DocsController {
     /**
      * 一篇正文。私有文档对白名单外是 NOT_FOUND，HTTP 仍按全站业务失败返回。
      */
-    @GetMapping("/api/docs/doc/{id}")
+    @GetMapping("/doc/{id}")
     public ApiResult<DocsPage> page(@PathVariable String id) {
         return ApiResult.ok(query().page(UserContext.get(), id));
     }
@@ -72,7 +74,7 @@ public class DocsController {
     /**
      * 就这一篇提问。未登录由服务拒绝。索引没装配时不可用，不改走内存。
      */
-    @PostMapping("/api/docs/doc/{id}/ask")
+    @PostMapping("/doc/{id}/ask")
     public ApiResult<DocsAskResult> ask(
             @PathVariable String id,
             @RequestBody(required = false) DocsAskQuery query) {
@@ -82,7 +84,7 @@ public class DocsController {
     /**
      * 语义搜索。向量没有命中时服务里改走关键词。索引没装配时不可用。
      */
-    @PostMapping("/api/docs/search")
+    @PostMapping("/search")
     public ApiResult<DocsSearchResult> search(@RequestBody(required = false) DocsSearchQuery query) {
         return ApiResult.ok(searcher().search(UserContext.get(), query));
     }
@@ -90,7 +92,7 @@ public class DocsController {
     /**
      * 手动同步。不是所有者时按不存在处理，避免把入口暴露成 403。
      */
-    @PostMapping("/api/docs/sync")
+    @PostMapping("/sync")
     public ApiResult<DocsSyncAccepted> sync() {
         String userId = UserContext.get();
         if (userId == null || !properties.ownerUserIds().contains(userId)) {
@@ -100,7 +102,7 @@ public class DocsController {
     }
 
     /** 最近一轮。还没跑过时状态是 NONE。 */
-    @GetMapping("/api/docs/sync/status")
+    @GetMapping("/sync/status")
     public ApiResult<DocsSyncStatus> status() {
         return ApiResult.ok(ingest().status());
     }

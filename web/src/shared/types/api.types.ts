@@ -399,6 +399,27 @@ export interface DocsSearchResult {
   hits: DocsSearchHit[]
 }
 
+/**
+ * GET /api/docs/sync/status。
+ * status：NONE | RUNNING | SUCCESS | PARTIAL | FAILED。
+ */
+export interface DocsSyncStatus {
+  id: number
+  startedAt: string | null
+  finishedAt: string | null
+  scanned: number
+  added: number
+  updated: number
+  removed: number
+  status: string
+  note: string | null
+}
+
+/** POST /api/docs/sync。runId 是本轮或正在跑的那一轮。 */
+export interface DocsSyncAccepted {
+  runId: number
+}
+
 /** POST /api/docs/doc/{id}/ask 的一处引用。quote 是链接里的小节名。 */
 export interface DocsCitation {
   docId: string

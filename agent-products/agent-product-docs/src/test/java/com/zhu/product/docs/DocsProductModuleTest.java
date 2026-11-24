@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.zhu.docs.api.DocsAgent;
 import com.zhu.docs.api.DocsAskPrompt;
+import com.zhu.product.docs.api.DocsController;
 import com.zhu.runtime.application.turn.ResolvedChatModel;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -24,5 +25,6 @@ class DocsProductModuleTest {
         assertThat(module.completion().maxIterations()).isEqualTo(1);
         assertThat(module.promptFallback(null)).isEqualTo(DocsAskPrompt.SYSTEM);
         assertThat(module.promptFallback("other")).isEqualTo(DocsAskPrompt.SYSTEM);
+        assertThat(module.controllers()).containsExactly(DocsController.class);
     }
 }

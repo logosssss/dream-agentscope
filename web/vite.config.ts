@@ -16,13 +16,14 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // 用户进程默认 8093（8080 是现网 Nacos，不是本服务）
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8080',
+        target: 'http://127.0.0.1:8093',
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://127.0.0.1:8080',
+        target: 'http://127.0.0.1:8093',
         changeOrigin: true,
       },
     },

@@ -57,9 +57,29 @@ public final class McpToolsConfigFactory {
             if (name == null || name.isBlank() || src == null) {
                 continue;
             }
-            out.put(name.trim(), toServerConfig(src, lookup));
+            McpServerConfig cfg = toServerConfig(src, lookup);
+            // stdio 无 command 时不装配：本机可用空环境变量盖掉现网 Linux 路径，避免 CreateProcess 刷错。
+            if (isStdioWithoutCommand(cfg)) {
+                continue;
+            }
+            out.put(name.trim(), cfg);
         }
         return out;
+    }
+
+    /** stdio（含默认空传输）且 command 空白 → 视为未配置。 */
+    private static boolean isStdioWithoutCommand(McpServerConfig cfg) {
+        if (cfg == null) {
+            return true;
+        }
+        String transport = cfg.getTransport();
+        boolean stdio = transport == null || transport.isBlank()
+                || "stdio".equalsIgnoreCase(transport.trim());
+        if (!stdio) {
+            return false;
+        }
+        String command = cfg.getCommand();
+        return command == null || command.isBlank();
     }
 
     /** 单项映射；required 默认 false，交给框架做硬/软失败。 */

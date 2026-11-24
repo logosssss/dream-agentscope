@@ -1,0 +1,21 @@
+id,question,expect_doc,must_refuse,category
+Q01,审批表为什么要硬删，当时考虑了哪些替代方案？,approval-hard-delete,false,positive
+Q02,memory 画像为什么下线了？,memory-hard-delete,false,positive
+Q03,permission-gate 和 permission-engine 有什么区别，为什么要拆成两个？,permission-gate / permission-engine,false,positive
+Q04,compaction 的触发条件是什么？,compaction,false,positive
+Q05,compaction-hook 跟 compaction 是什么关系？,compaction-hook,false,positive
+Q06,skills 是怎么加载的？,skills,false,positive
+Q07,skills-curator 解决了什么问题？,skills-curator,false,positive
+Q08,工具结果被驱逐的规则是什么？,tool-result-eviction,false,positive
+Q09,远程 subagent 是怎么调度的？,remote-subagent,false,positive
+Q10,为什么这个项目要拆成两个进程、十个模块？,13-why-two-processes-ten-modules,false,positive
+Q11,release-gate 里有哪些必须通过的检查？,release-gate,false,positive
+Q12,文档站是怎么同步文档的？,docs-site,false,positive
+Q13,product-rag 的落地状态是什么，哪些没做？,product-rag-landing,false,positive
+Q14,用户主动路径（main path）是怎样的？,03-user-main-path,false,positive
+Q15,旧项目 Dream-SaaS 的技术架构分几层？,01-技术架构,false,positive
+Q16,iOS 推送证书怎么配？,—,true,negative
+Q17,K8s 蓝绿发布怎么做的？,—,true,negative
+Q18,Ansible 部署脚本在哪？,—,true,negative
+Q19,WebSocket 心跳怎么设？,—,true,negative
+Q20,Excel 导出用什么库？,—,true,negative

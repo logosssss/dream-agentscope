@@ -9,6 +9,7 @@ import type { DocsSearchHit, DocsTopicGroup } from '@/shared/types/api.types'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import DocsSearchBar from './DocsSearchBar.vue'
+import DocsSyncBar from './DocsSyncBar.vue'
 import { highlightParts } from './highlight'
 import { DOC_TOPICS, docTypeLabel, topicLabel } from './topics'
 
@@ -98,6 +99,17 @@ function docLink(hit: DocsSearchHit): string {
   return `/docs/doc/${hit.docId}#${encodeURIComponent(hit.anchor)}`
 }
 
+/** 来源小标签。未知 source 不显示，避免空徽章。 */
+function sourceLabel(source: string | null | undefined): string {
+  if (source === 'dream-saas') {
+    return '旧项目'
+  }
+  if (source === 'agentscope') {
+    return '本项目'
+  }
+  return ''
+}
+
 onMounted(() => {
   void refresh()
 })
@@ -127,6 +139,7 @@ watch(
           </RouterLink>
         </div>
         <DocsSearchBar v-model="keyword" @search="onSearch" />
+        <DocsSyncBar v-if="!topicParam" @synced="refresh" />
       </header>
 
       <p v-if="searching" class="text-sm text-[var(--color-text-muted)]">正在搜索…</p>
@@ -188,6 +201,12 @@ watch(
               >
                 <span class="flex-1 min-w-0 truncate text-sm">{{ item.title }}</span>
                 <span class="shrink-0 text-xs text-[var(--color-text-muted)]">{{ docTypeLabel(item.docType) }}</span>
+                <span
+                  v-if="sourceLabel(item.source)"
+                  class="shrink-0 text-xs text-[var(--color-text-muted)]"
+                >
+                  {{ sourceLabel(item.source) }}
+                </span>
                 <span
                   v-if="item.visibility === 'private'"
                   class="shrink-0 text-xs text-[var(--color-warning)]"

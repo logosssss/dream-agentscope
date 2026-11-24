@@ -2,6 +2,7 @@ package com.zhu.product.api;
 
 import com.zhu.semantic.contract.product.ProductSemanticProvider;
 import io.agentscope.harness.agent.HarnessAgent;
+import java.util.List;
 
 /**
  * 一个产品的全部可变部分：语义、装配、工具。一个进程可有多个实现，其中恰好一个 {@link #mainAgent()} 为 true。
@@ -36,5 +37,13 @@ public interface ProductModule extends ProductSemanticProvider {
      */
     default void attachTools(HarnessAgent agent) {
         // 多数产品没有目录工具。
+    }
+
+    /**
+     * 本产品贡献的 HTTP 入口。只做声明，实例仍由组件扫描创建。
+     * 默认没有。只装配 Agent 的产品不用实现。
+     */
+    default List<Class<?>> controllers() {
+        return List.of();
     }
 }
