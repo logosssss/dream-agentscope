@@ -39,6 +39,12 @@
 
     <properties>
         <java.version>21</java.version>
+        <!--
+          Boot 3.5.5 管的是 Testcontainers 1.21.3，docker-java 默认报 API 1.32。
+          GitHub runner 的 Docker 29 最低收 1.44：shell 的 hello-world 成功，JVM 仍判没有 Docker，端到端整类跳过。
+          1.21.4 默认改成 1.44，碰到更老的引擎再回退 1.32。
+        -->
+        <testcontainers.version>1.21.4</testcontainers.version>
         <agentscope.version>2.0.5</agentscope.version>
         <archunit.version>1.4.1</archunit.version>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
