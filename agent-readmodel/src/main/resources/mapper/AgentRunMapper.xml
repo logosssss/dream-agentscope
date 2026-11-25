@@ -51,6 +51,9 @@
                input_summary, output_summary, error_code, duration_ms, started_at, finished_at
         FROM agent_run
         <where>
+            <if test="requestId != null and requestId != ''">
+                AND request_id = #{requestId}
+            </if>
             <if test="userId != null and userId != ''">
                 AND user_id = #{userId}
             </if>

@@ -12,6 +12,12 @@ import org.apache.ibatis.annotations.Param;
 public interface TokenUsageMapper extends BaseMapper<TokenUsage> {
 
     /**
+     * 合计一轮运行的 token 和金额。同一 run_id 多行加在一起。
+     * 没有行时仍返回一行，行数为 0，合计为 0。
+     */
+    RunUsageTotal sumByRunId(@Param("runId") String runId);
+
+    /**
      * 合计这个租户在区间内的 token 和金额。起点含、终点不含。没有行时合计为 0。
      */
     UsagePeriodTotal sumForPeriod(

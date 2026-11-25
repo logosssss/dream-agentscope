@@ -8,11 +8,14 @@ import type { RunDetail, RunRow } from '@/shared/types/api.types'
  * 所以这里只提供列表与按运行号取详情，不提供任何写操作。
  */
 
-/** 近期运行。三个条件都可选，传了就 AND 在一起。 */
-export function listRuns(params: { userId?: string; sessionId?: string; status?: string; limit?: number } = {}): Promise<
-  RunRow[]
-> {
+/** 近期运行。请求号、用户、会话、状态都可选，传了就 AND 在一起。 */
+export function listRuns(
+  params: { requestId?: string; userId?: string; sessionId?: string; status?: string; limit?: number } = {},
+): Promise<RunRow[]> {
   const q = new URLSearchParams({ limit: String(params.limit ?? 50) })
+  if (params.requestId) {
+    q.set('requestId', params.requestId)
+  }
   if (params.userId) {
     q.set('userId', params.userId)
   }

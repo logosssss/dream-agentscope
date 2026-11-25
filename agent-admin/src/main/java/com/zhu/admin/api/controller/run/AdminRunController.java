@@ -29,15 +29,16 @@ public class AdminRunController {
     }
 
     /**
-     * 近期运行。三个条件都可选，按时间倒序。
+     * 近期运行。四个条件都可选，按时间倒序。请求号用来从报障单直接定位一轮。
      */
     @GetMapping("/api/admin/runs")
     public ApiResult<List<RunRow>> recent(
+            @RequestParam(name = "requestId", required = false) String requestId,
             @RequestParam(name = "userId", required = false) String userId,
             @RequestParam(name = "sessionId", required = false) String sessionId,
             @RequestParam(name = "status", required = false) String status,
             @RequestParam(name = "limit", defaultValue = "50") int limit) {
-        return ApiResult.ok(query().runs(userId, sessionId, status, limit));
+        return ApiResult.ok(query().runs(requestId, userId, sessionId, status, limit));
     }
 
     /**

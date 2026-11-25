@@ -3,6 +3,19 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.zhu.readmodel.persistence.usage.TokenUsageMapper">
 
+    <!-- 一轮运行可能有多次模型调用。没有行时 SUM 是 NULL，收成 0，行数用来区分「没记」和「记了 0」。 -->
+    <select id="sumByRunId" resultType="com.zhu.readmodel.persistence.usage.RunUsageTotal">
+        SELECT COALESCE(SUM(input_tokens), 0) AS inputTokens,
+               COALESCE(SUM(output_tokens), 0) AS outputTokens,
+               COALESCE(SUM(total_tokens), 0) AS totalTokens,
+               COALESCE(SUM(cost_amount), 0) AS costAmount,
+               COUNT(DISTINCT currency) AS currencyCount,
+               MIN(currency) AS currency,
+               COUNT(*) AS rowCount
+        FROM token_usage
+        WHERE run_id = #{runId}
+    </select>
+
     <!-- 没有行时 SUM 得到 NULL，这里收成 0。币种个数用来拒绝混加。 -->
     <select id="sumForPeriod" resultType="com.zhu.readmodel.persistence.usage.UsagePeriodTotal">
         SELECT COALESCE(SUM(total_tokens), 0) AS tokenTotal,

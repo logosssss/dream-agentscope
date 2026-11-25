@@ -40,9 +40,11 @@ public interface AgentRunMapper extends BaseMapper<AgentRun> {
             @Param("runId") String runId);
 
     /**
-     * 管理端按用户、会话、状态回查运行。三个条件都可空；不按租户限制，运维要看全部。
+     * 管理端按请求号、用户、会话、状态回查运行。四个条件都可空；不按租户限制，运维要看全部。
+     * 请求号是等值，走 idx_request_id，报障时用 X-Request-Id 定位一轮。
      */
     List<AgentRun> search(
+            @Param("requestId") String requestId,
             @Param("userId") String userId,
             @Param("sessionId") String sessionId,
             @Param("status") String status,

@@ -20,6 +20,7 @@ import java.util.List;
  * @param startedAt     开始时间，ISO 字符串
  * @param finishedAt    结束时间，ISO 字符串
  * @param steps         这一轮的工具/推理步骤
+ * @param usage         这一轮的 token 与金额。没有用量行时 recorded 为 false
  */
 public record RunDetail(
         String runId,
@@ -36,5 +37,6 @@ public record RunDetail(
         Long durationMs,
         String startedAt,
         String finishedAt,
-        List<RunStepRow> steps) {
+        List<RunStepRow> steps,
+        RunUsage usage) {
 }

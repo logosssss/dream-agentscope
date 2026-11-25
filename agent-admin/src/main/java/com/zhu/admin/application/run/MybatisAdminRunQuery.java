@@ -4,11 +4,15 @@ import com.zhu.admin.api.run.AdminRunQuery;
 import com.zhu.admin.api.run.RunDetail;
 import com.zhu.admin.api.run.RunRow;
 import com.zhu.admin.api.run.RunStepRow;
+import com.zhu.admin.api.run.RunUsage;
 import com.zhu.ops.support.QueryLimits;
 import com.zhu.readmodel.entity.run.AgentRun;
 import com.zhu.readmodel.entity.run.AgentRunStep;
 import com.zhu.readmodel.persistence.run.AgentRunMapper;
 import com.zhu.readmodel.persistence.run.AgentRunStepMapper;
+import com.zhu.readmodel.persistence.usage.RunUsageTotal;
+import com.zhu.readmodel.persistence.usage.TokenUsageMapper;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -29,17 +33,24 @@ public class MybatisAdminRunQuery implements AdminRunQuery {
 
     private final AgentRunMapper runs;
     private final AgentRunStepMapper steps;
+    private final TokenUsageMapper usages;
 
-    public MybatisAdminRunQuery(AgentRunMapper runs, AgentRunStepMapper steps) {
+    /** 用量和运行分表。详情才按 run_id 加总，列表不查 token。 */
+    public MybatisAdminRunQuery(AgentRunMapper runs, AgentRunStepMapper steps, TokenUsageMapper usages) {
         this.runs = runs;
         this.steps = steps;
+        this.usages = usages;
     }
 
-    /** 条数先收口，再交给 XML 里带条件的查询。 */
+    /** 条数先收口，再交给 XML 里带条件的查询。空白请求号不当成要匹配的空串。 */
     @Override
-    public List<RunRow> runs(String userId, String sessionId, String status, int limit) {
+    public List<RunRow> runs(String requestId, String userId, String sessionId, String status, int limit) {
         List<AgentRun> rows = runs.search(
-                blankToNull(userId), blankToNull(sessionId), blankToNull(status), QueryLimits.normalize(limit));
+                blankToNull(requestId),
+                blankToNull(userId),
+                blankToNull(sessionId),
+                blankToNull(status),
+                QueryLimits.normalize(limit));
         List<RunRow> result = new ArrayList<>(rows.size());
         for (AgentRun row : rows) {
             result.add(RunRow.of(row, time(row.getStartedAt()), time(row.getFinishedAt())));
@@ -76,7 +87,36 @@ public class MybatisAdminRunQuery implements AdminRunQuery {
                 row.getDurationMs(),
                 time(row.getStartedAt()),
                 time(row.getFinishedAt()),
-                stepRows);
+                stepRows,
+                usageOf(row.getRunId()));
+    }
+
+    /**
+     * 同一轮多次调用加总。没有行给未记录，避免把「没记用量」显示成花了 0 token。
+     * 多种币种时币种留空，金额仍给出，不把不同币种说成一种。
+     */
+    private RunUsage usageOf(String runId) {
+        RunUsageTotal total = usages.sumByRunId(runId);
+        if (total == null || total.getRowCount() == null || total.getRowCount() == 0) {
+            return RunUsage.none();
+        }
+        String currency = "";
+        if (total.getCurrencyCount() != null && total.getCurrencyCount() == 1 && total.getCurrency() != null) {
+            currency = total.getCurrency();
+        }
+        BigDecimal amount = total.getCostAmount() == null ? BigDecimal.ZERO : total.getCostAmount();
+        return new RunUsage(
+                longOrZero(total.getInputTokens()),
+                longOrZero(total.getOutputTokens()),
+                longOrZero(total.getTotalTokens()),
+                amount,
+                currency,
+                true);
+    }
+
+    /** 合计列为空时按 0，不把 null 传给前端。 */
+    private static long longOrZero(Long value) {
+        return value == null ? 0L : value;
     }
 
     /** 空串当「没有这个条件」，避免 XML 里把 '' 当成要匹配的值。 */

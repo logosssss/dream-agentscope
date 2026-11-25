@@ -124,9 +124,21 @@ export interface RunStepRow {
   status: string
 }
 
-/** 一轮运行的详情：摘要 + 步骤。 */
+/** 一轮运行的详情：摘要、步骤，以及按运行号加总的用量。 */
+export interface RunUsage {
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  costAmount: number | string
+  currency: string
+  /** false 表示这一轮没有用量行，不是花了 0 token。 */
+  recorded: boolean
+}
+
+/** 一轮运行的详情：摘要 + 步骤 + 用量。 */
 export interface RunDetail extends RunRow {
   steps: RunStepRow[]
+  usage: RunUsage
 }
 
 /** GET /api/admin/retention-policies 一行。不表示已执行清理。 */

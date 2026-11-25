@@ -10,6 +10,7 @@ import { listAuditEvents } from '@/shared/api/audit-api'
 import type { AuditEventRow, RunDetail, RunRow } from '@/shared/types/api.types'
 import { onMounted, ref } from 'vue'
 
+const requestId = ref('')
 const userId = ref('')
 const sessionId = ref('')
 const status = ref('')
@@ -60,6 +61,7 @@ async function refresh() {
   error.value = ''
   try {
     runs.value = await listRuns({
+      requestId: requestId.value,
       userId: userId.value,
       sessionId: sessionId.value,
       status: status.value,
@@ -106,6 +108,7 @@ function closeDetail() {
 
 /** 清空筛选并按当前输入重查。 */
 async function clearFilters() {
+  requestId.value = ''
   userId.value = ''
   sessionId.value = ''
   status.value = ''
@@ -125,6 +128,14 @@ onMounted(refresh)
         </p>
       </div>
       <form class="flex flex-wrap items-end gap-2 text-sm" @submit.prevent="refresh">
+        <label class="flex flex-col gap-1">
+          <span class="text-[var(--color-text-muted)]">请求号</span>
+          <input
+            v-model="requestId"
+            class="w-48 rounded-md border border-slate-300 px-2 py-1 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            placeholder="X-Request-Id，可空"
+          />
+        </label>
         <label class="flex flex-col gap-1">
           <span class="text-[var(--color-text-muted)]">用户</span>
           <input
@@ -263,6 +274,18 @@ onMounted(refresh)
           <dd class="whitespace-pre-wrap break-words">{{ selected.outputSummary || '—' }}</dd>
         </div>
       </dl>
+
+      <div>
+        <h4 class="text-sm font-medium text-[var(--color-text-main)]">用量</h4>
+        <p v-if="!selected.usage?.recorded" class="mt-1 text-sm text-[var(--color-text-muted)]">
+          这一轮没有用量记录。
+        </p>
+        <p v-else class="mt-1 text-sm">
+          输入 {{ selected.usage.inputTokens }} · 输出 {{ selected.usage.outputTokens }} · 合计
+          {{ selected.usage.totalTokens }}
+          <span class="ml-3">金额 {{ selected.usage.costAmount }} {{ selected.usage.currency }}</span>
+        </p>
+      </div>
 
       <div>
         <h4 class="text-sm font-medium text-[var(--color-text-main)]">步骤</h4>

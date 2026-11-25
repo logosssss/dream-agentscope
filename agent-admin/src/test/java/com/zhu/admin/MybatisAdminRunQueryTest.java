@@ -14,6 +14,9 @@ import com.zhu.readmodel.entity.run.AgentRun;
 import com.zhu.readmodel.entity.run.AgentRunStep;
 import com.zhu.readmodel.persistence.run.AgentRunMapper;
 import com.zhu.readmodel.persistence.run.AgentRunStepMapper;
+import com.zhu.readmodel.persistence.usage.RunUsageTotal;
+import com.zhu.readmodel.persistence.usage.TokenUsageMapper;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -27,14 +30,16 @@ class MybatisAdminRunQueryTest {
 
     private final AgentRunStepMapper steps = mock(AgentRunStepMapper.class);
 
-    private final MybatisAdminRunQuery query = new MybatisAdminRunQuery(runs, steps);
+    private final TokenUsageMapper usages = mock(TokenUsageMapper.class);
+
+    private final MybatisAdminRunQuery query = new MybatisAdminRunQuery(runs, steps, usages);
 
     @Test
     void runsPassesFiltersClampsLimitAndMapsRows() {
         AgentRun row = run("run-1", null);
-        when(runs.search("u-1", "s-1", "FAILED", 100)).thenReturn(List.of(row));
+        when(runs.search("req-1", "u-1", "s-1", "FAILED", 100)).thenReturn(List.of(row));
 
-        List<RunRow> result = query.runs("u-1", "s-1", "FAILED", 500);
+        List<RunRow> result = query.runs("req-1", "u-1", "s-1", "FAILED", 500);
 
         assertThat(result).hasSize(1);
         RunRow mapped = result.get(0);
@@ -47,11 +52,11 @@ class MybatisAdminRunQueryTest {
 
     @Test
     void blankFiltersBecomeNullSoTheSqlDoesNotMatchEmptyStrings() {
-        when(runs.search(isNull(), isNull(), isNull(), eq(50))).thenReturn(List.of());
+        when(runs.search(isNull(), isNull(), isNull(), isNull(), eq(50))).thenReturn(List.of());
 
-        query.runs("  ", "", null, 0);
+        query.runs("  ", "  ", "", null, 0);
 
-        verify(runs).search(isNull(), isNull(), isNull(), eq(50));
+        verify(runs).search(isNull(), isNull(), isNull(), isNull(), eq(50));
     }
 
     @Test
@@ -71,6 +76,21 @@ class MybatisAdminRunQueryTest {
         assertThat(detail.requestId()).isEqualTo("req-2");
         assertThat(detail.steps()).hasSize(1);
         assertThat(detail.steps().get(0).toolId()).isEqualTo("knowledge_search");
+        assertThat(detail.usage().recorded()).isFalse();
+
+        RunUsageTotal total = new RunUsageTotal();
+        total.setInputTokens(11L);
+        total.setOutputTokens(7L);
+        total.setTotalTokens(18L);
+        total.setCostAmount(new BigDecimal("0.120000"));
+        total.setCurrencyCount(1);
+        total.setCurrency("CNY");
+        total.setRowCount(2L);
+        when(usages.sumByRunId("run-2")).thenReturn(total);
+        assertThat(query.run("run-2").usage().recorded()).isTrue();
+        assertThat(query.run("run-2").usage().totalTokens()).isEqualTo(18L);
+        assertThat(query.run("run-2").usage().costAmount()).isEqualByComparingTo("0.120000");
+        assertThat(query.run("run-2").usage().currency()).isEqualTo("CNY");
 
         when(runs.findByRunId("missing")).thenReturn(null);
         assertThat(query.run("missing")).isNull();
