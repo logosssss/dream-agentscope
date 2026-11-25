@@ -6,19 +6,16 @@ import com.zhu.access.application.chat.message.ChatMessageStore;
 import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.chat.run.RunLog;
 import com.zhu.access.application.chat.run.RunStep;
-import com.zhu.access.application.chat.run.StreamRunSteps;
 import com.zhu.access.application.chat.run.TurnRecorder;
 import com.zhu.access.application.chat.session.SessionIndex;
 import com.zhu.access.application.chat.session.SessionOwnerGate;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.ops.tenant.TenantGate;
 import com.zhu.ops.tenant.TenantUserGate;
-import com.zhu.common.context.RequestIdContext;
 import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.common.util.Ids;
 import com.zhu.docs.api.DocsAgent;
 import com.zhu.runtime.api.agent.AgentExecutor;
 import com.zhu.runtime.api.agent.AgentRequest;
@@ -29,8 +26,6 @@ import com.zhu.semantic.api.prompt.PromptService;
 import com.zhu.semantic.contract.product.ProductSemanticProvider;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -101,22 +96,13 @@ public class ApiChatAppService {
         ChatRequest apiRequest = forceApi(request);
         AgentRequest agentRequest = toRequest(apiRequest);
         ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat");
-        long started = System.nanoTime();
-        // API 通道同样按请求号对齐运行记录；流式回调读不到线程上下文，先在入口抄走。
-        String requestId = RequestIdContext.get();
-        try {
-            remember(apiRequest, agentRequest);
-            AgentResponse response = gateway.executeApi(agentRequest);
-            finish(apiRequest, agentRequest, RunLog.SUCCEEDED, response.runId(), response.text(), null, requestId, started,
-                    StreamRunSteps.reasoningOnly(RunLog.SUCCEEDED));
-            return response;
-        } catch (RuntimeException error) {
-            finish(apiRequest, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started,
-                    StreamRunSteps.reasoningOnly(RunLog.FAILED));
-            throw error;
-        } finally {
-            concurrent.close(slot);
-        }
+        return ChatTurn.sync(
+                concurrent,
+                slot,
+                () -> remember(apiRequest, agentRequest),
+                () -> gateway.executeApi(agentRequest),
+                (status, runId, output, errorCode, requestId, started, steps) -> finish(
+                        apiRequest, agentRequest, status, runId, output, errorCode, requestId, started, steps));
     }
 
     /**
@@ -126,37 +112,13 @@ public class ApiChatAppService {
         ChatRequest apiRequest = forceApi(request);
         AgentRequest agentRequest = toRequest(apiRequest);
         ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat-stream");
-        long started = System.nanoTime();
-        String requestId = RequestIdContext.get();
-        try {
-            remember(apiRequest, agentRequest);
-            String runId = Ids.newId();
-            AtomicReference<String> output = new AtomicReference<>("");
-            AtomicReference<String> errorCode = new AtomicReference<>();
-            ConcurrentLinkedQueue<AgentStreamEvent> seen = new ConcurrentLinkedQueue<>();
-            ConcurrentGate.Slot held = slot;
-            return gateway.streamApi(agentRequest)
-                    .doOnNext(event -> StreamRunSteps.observe(seen, output, event))
-                    .doOnError(error -> errorCode.set(error.getClass().getSimpleName()))
-                    .doFinally(signal -> {
-                        try {
-                            String status = StreamRunSteps.statusOf(signal);
-                            String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
-                            finish(apiRequest, agentRequest, status, runId, output.get(), code, requestId, started,
-                                    StreamRunSteps.from(seen, status));
-                        } finally {
-                            concurrent.close(held);
-                        }
-                    });
-        } catch (RuntimeException error) {
-            try {
-                finish(apiRequest, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(),
-                        requestId, started, StreamRunSteps.reasoningOnly(RunLog.FAILED));
-            } finally {
-                concurrent.close(slot);
-            }
-            throw error;
-        }
+        return ChatTurn.stream(
+                concurrent,
+                slot,
+                () -> remember(apiRequest, agentRequest),
+                () -> gateway.streamApi(agentRequest),
+                (status, runId, output, errorCode, requestId, started, steps) -> finish(
+                        apiRequest, agentRequest, status, runId, output, errorCode, requestId, started, steps));
     }
 
     /**
