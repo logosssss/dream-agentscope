@@ -2,7 +2,6 @@ package com.zhu.runtime.infrastructure.gateway;
 
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.common.util.Ids;
 import com.zhu.product.api.ProductModule;
 import com.zhu.runtime.api.agent.AgentExecutor;
 import com.zhu.runtime.api.agent.AgentRequest;
@@ -15,7 +14,6 @@ import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentRegistry;
 import com.zhu.runtime.infrastructure.agent.ProductModuleRegistry;
 import com.zhu.runtime.infrastructure.approval.PendingAskStore;
-import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.event.ConfirmResult;
 import io.agentscope.core.event.RequireUserConfirmEvent;
@@ -118,22 +116,7 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      */
     @Override
     public AgentResponse execute(AgentRequest request) {
-        turns.require(request);
-        drain.beginTurn();
-        try {
-            // 运行标识在调用前就定下来：审计中间件要靠它把审计行挂到这一轮，
-            // 等执行完再拿框架消息 id，中间件已经写完了。
-            String runId = Ids.newId();
-            // 本地上下文给 finish/用量；Gateway 侧由 resolver + MsgContext 合并。
-            RuntimeContext context = turns.context(request, runId);
-            long started = System.nanoTime();
-            Msg reply = sendChatUi(request);
-            String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
-            turns.recordUsage(request, runId, reply, started);
-            return new AgentResponse(runId, text);
-        } finally {
-            drain.endTurn();
-        }
+        return SyncAgentTurn.run(turns, drain, request, () -> sendChatUi(request));
     }
 
     /**
@@ -141,14 +124,9 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      */
     @Override
     public AgentResponse executeApi(AgentRequest request) {
-        turns.require(request);
-        drain.beginTurn();
-        try {
-            String runId = Ids.newId();
-            RuntimeContext context = turns.context(request, runId);
-            long started = System.nanoTime();
+        return SyncAgentTurn.run(turns, drain, request, () -> {
             String agentId = requireRegisteredAgent(turns.agentId(request));
-            Msg reply = apiChannel()
+            return apiChannel()
                     .send(
                             request.userId(),
                             request.sessionId(),
@@ -156,12 +134,7 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
                             request.userText(),
                             AgentChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
                     .block(Duration.ofSeconds(turns.timeoutSeconds()));
-            String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
-            turns.recordUsage(request, runId, reply, started);
-            return new AgentResponse(runId, text);
-        } finally {
-            drain.endTurn();
-        }
+        });
     }
 
     /**
@@ -171,26 +144,18 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      */
     @Override
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
-        turns.require(request);
-        drain.beginTurn();
-        // context / 懒启动若同步抛错须 endTurn；成功路径靠 doFinally。
-        try {
-            String runId = Ids.newId();
-            RuntimeContext context = turns.context(request, runId);
-            long started = System.nanoTime();
-            SendOptions opts = options(request);
-            Msg userMsg = AgentUserMessages.of(request);
-            Flux<AgentStreamEvent> primary = channel()
-                    .sendStream(opts, userMsg)
-                    .doOnNext(event -> onStreamEvent(request, runId, started, event))
-                    .concatMapIterable(event -> turns.mapStreamEvent(event, context));
-            if (!request.hasImages()) {
-                return primary
-                        .timeout(Duration.ofSeconds(turns.timeoutSeconds()))
-                        .doFinally(signal -> drain.endTurn());
-            }
-            return primary
-                    .onErrorResume(error -> {
+        return StreamAgentTurn.run(turns, drain, request, Duration.ofSeconds(turns.timeoutSeconds()),
+                (runId, context, started) -> {
+                    SendOptions opts = options(request);
+                    Msg userMsg = AgentUserMessages.of(request);
+                    Flux<AgentStreamEvent> primary = channel()
+                            .sendStream(opts, userMsg)
+                            .doOnNext(event -> onStreamEvent(request, runId, started, event))
+                            .concatMapIterable(event -> turns.mapStreamEvent(event, context));
+                    if (!request.hasImages()) {
+                        return primary;
+                    }
+                    return primary.onErrorResume(error -> {
                         log.warning(() -> "vision stream failed, degrade to text: " + error.getClass().getSimpleName());
                         Msg plain = AgentUserMessages.textOnly(AgentUserMessages.degradedText(request));
                         Flux<AgentStreamEvent> tip = Flux.just(
@@ -200,13 +165,8 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
                                 .doOnNext(event -> onStreamEvent(request, runId, started, event))
                                 .concatMapIterable(event -> turns.mapStreamEvent(event, context));
                         return tip.concatWith(retry);
-                    })
-                    .timeout(Duration.ofSeconds(turns.timeoutSeconds()))
-                    .doFinally(signal -> drain.endTurn());
-        } catch (RuntimeException error) {
-            drain.endTurn();
-            throw error;
-        }
+                    });
+                });
     }
 
     /**
@@ -233,29 +193,19 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      */
     @Override
     public Flux<AgentStreamEvent> streamApi(AgentRequest request) {
-        turns.require(request);
-        drain.beginTurn();
-        // 与 stream 相同：同步准备失败须放行排水闸。
-        try {
-            String runId = Ids.newId();
-            RuntimeContext context = turns.context(request, runId);
-            long started = System.nanoTime();
-            String agentId = requireRegisteredAgent(turns.agentId(request));
-            return apiChannel()
-                    .sendStream(
-                            request.userId(),
-                            request.sessionId(),
-                            blankToNull(agentId),
-                            request.userText(),
-                            AgentChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
-                    .doOnNext(event -> onStreamEvent(request, runId, started, event))
-                    .concatMapIterable(event -> turns.mapStreamEvent(event, context))
-                    .timeout(Duration.ofSeconds(turns.timeoutSeconds()))
-                    .doFinally(signal -> drain.endTurn());
-        } catch (RuntimeException error) {
-            drain.endTurn();
-            throw error;
-        }
+        return StreamAgentTurn.run(turns, drain, request, Duration.ofSeconds(turns.timeoutSeconds()),
+                (runId, context, started) -> {
+                    String agentId = requireRegisteredAgent(turns.agentId(request));
+                    return apiChannel()
+                            .sendStream(
+                                    request.userId(),
+                                    request.sessionId(),
+                                    blankToNull(agentId),
+                                    request.userText(),
+                                    AgentChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
+                            .doOnNext(event -> onStreamEvent(request, runId, started, event))
+                            .concatMapIterable(event -> turns.mapStreamEvent(event, context));
+                });
     }
 
     /**
