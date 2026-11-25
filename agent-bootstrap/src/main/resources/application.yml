@@ -57,6 +57,7 @@ agentscope:
     password: ${NACOS_PASSWORD:}
 
 # 文档索引。不进 Nacos 白名单。线上用 DOCS_SOURCES_0_ROOT、DOCS_SOURCES_1_ROOT、DOCS_OWNER_USER_IDS 覆盖。
+# 只覆盖 root 时，仓库名和 include/exclude 仍用这里的值。
 docs:
   owner-user-ids: []
   sync-enabled: true
