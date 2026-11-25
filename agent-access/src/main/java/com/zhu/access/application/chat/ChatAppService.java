@@ -6,18 +6,15 @@ import com.zhu.access.application.chat.message.ChatMessageStore;
 import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.chat.run.RunLog;
 import com.zhu.access.application.chat.run.RunStep;
-import com.zhu.access.application.chat.run.TurnRecorder;
 import com.zhu.access.application.chat.session.SessionIndex;
 import com.zhu.access.application.chat.session.SessionOwnerGate;
 import com.zhu.access.api.dto.chat.ChatRequest;
 import com.zhu.ops.tenant.TenantGate;
 import com.zhu.ops.tenant.TenantUserGate;
 import com.zhu.access.domain.channel.AccessChannel;
-import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
-import com.zhu.semantic.api.prompt.PlatformPrompt;
 import com.zhu.semantic.api.prompt.PromptService;
 import com.zhu.semantic.contract.product.ProductSemanticProvider;
 import com.zhu.runtime.api.agent.AgentExecutor;
@@ -25,7 +22,6 @@ import com.zhu.runtime.api.agent.AgentRequest;
 import com.zhu.runtime.api.agent.AgentResponse;
 import com.zhu.runtime.api.agent.AgentStreamEvent;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
@@ -107,10 +103,13 @@ public class ChatAppService {
         rejectExplicitApiChannel(request);
         PreparedTurn prepared = prepare(request);
         AgentRequest agentRequest = prepared.agentRequest();
-        ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat");
-        return ChatTurn.sync(
+        return GatedChat.sync(
+                tenants,
+                tenantUsers,
+                owners,
+                quota,
                 concurrent,
-                slot,
+                agentRequest,
                 () -> remember(request, prepared),
                 () -> executor.execute(agentRequest),
                 (status, runId, output, errorCode, requestId, started, steps) -> finish(
@@ -126,10 +125,13 @@ public class ChatAppService {
         rejectExplicitApiChannel(request);
         PreparedTurn prepared = prepare(request);
         AgentRequest agentRequest = prepared.agentRequest();
-        ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat-stream");
-        return ChatTurn.stream(
+        return GatedChat.stream(
+                tenants,
+                tenantUsers,
+                owners,
+                quota,
                 concurrent,
-                slot,
+                agentRequest,
                 () -> remember(request, prepared),
                 () -> executor.stream(agentRequest),
                 (status, runId, output, errorCode, requestId, started, steps) -> finish(
@@ -141,11 +143,9 @@ public class ChatAppService {
      * 通道留在列表里，不放进 AgentRequest。标题用解析后的用户正文。
      */
     private void remember(ChatRequest request, PreparedTurn prepared) {
-        AgentRequest agentRequest = prepared.agentRequest();
-        sessions.record(
-                agentRequest.tenantId(),
-                agentRequest.userId(),
-                agentRequest.sessionId(),
+        SessionTurn.remember(
+                sessions,
+                prepared.agentRequest(),
                 request.channelOrDefault().name(),
                 prepared.displayText());
     }
@@ -166,14 +166,12 @@ public class ChatAppService {
             long startedNanos,
             List<RunStep> steps) {
         AgentRequest agentRequest = prepared.agentRequest();
-        TurnRecorder.complete(
+        SessionTurn.finish(
                 log,
                 runs,
                 sessions,
                 messages,
-                agentRequest.tenantId(),
-                agentRequest.userId(),
-                agentRequest.sessionId(),
+                agentRequest,
                 trigger(request),
                 status,
                 runId,
@@ -222,7 +220,7 @@ public class ChatAppService {
      */
     private PreparedTurn prepare(ChatRequest request) {
         request.channelOrDefault();
-        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
+        String tenantId = AccessCaller.tenantId();
         String userId = UserContext.get();
         ChatAttachmentSupport.Resolved resolved =
                 attachments.resolve(request.agentId(), userId, request.attachmentIdsOrEmpty());
@@ -235,7 +233,7 @@ public class ChatAppService {
                 tenantId,
                 userId,
                 request.sessionId(),
-                systemPrompt(request),
+                AccessCaller.systemPrompt(prompts, semantics),
                 displayText,
                 resolved.images());
         return new PreparedTurn(agentRequest, resolved.attachmentIds(), displayText);
@@ -261,10 +259,4 @@ public class ChatAppService {
         }
     }
 
-    /**
-     * 人设只来自产品提示词。请求体里的 systemPrompt 丢掉，避免人格被客户端改掉。
-     */
-    private String systemPrompt(ChatRequest request) {
-        return prompts.get(PlatformPrompt.SYSTEM_KEY, Map.of(), semantics.promptFallback(PlatformPrompt.SYSTEM_KEY));
-    }
 }

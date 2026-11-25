@@ -6,13 +6,11 @@ import com.zhu.access.application.chat.message.ChatMessageStore;
 import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.chat.run.RunLog;
 import com.zhu.access.application.chat.run.RunStep;
-import com.zhu.access.application.chat.run.TurnRecorder;
 import com.zhu.access.application.chat.session.SessionIndex;
 import com.zhu.access.application.chat.session.SessionOwnerGate;
 import com.zhu.access.domain.channel.AccessChannel;
 import com.zhu.ops.tenant.TenantGate;
 import com.zhu.ops.tenant.TenantUserGate;
-import com.zhu.common.context.TenantContext;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
@@ -21,11 +19,9 @@ import com.zhu.runtime.api.agent.AgentExecutor;
 import com.zhu.runtime.api.agent.AgentRequest;
 import com.zhu.runtime.api.agent.AgentResponse;
 import com.zhu.runtime.api.agent.AgentStreamEvent;
-import com.zhu.semantic.api.prompt.PlatformPrompt;
 import com.zhu.semantic.api.prompt.PromptService;
 import com.zhu.semantic.contract.product.ProductSemanticProvider;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -95,10 +91,13 @@ public class ApiChatAppService {
     public AgentResponse chat(ChatRequest request) {
         ChatRequest apiRequest = forceApi(request);
         AgentRequest agentRequest = toRequest(apiRequest);
-        ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat");
-        return ChatTurn.sync(
+        return GatedChat.sync(
+                tenants,
+                tenantUsers,
+                owners,
+                quota,
                 concurrent,
-                slot,
+                agentRequest,
                 () -> remember(apiRequest, agentRequest),
                 () -> gateway.executeApi(agentRequest),
                 (status, runId, output, errorCode, requestId, started, steps) -> finish(
@@ -111,10 +110,13 @@ public class ApiChatAppService {
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
         ChatRequest apiRequest = forceApi(request);
         AgentRequest agentRequest = toRequest(apiRequest);
-        ConcurrentGate.Slot slot = GateChain.enter(tenants, tenantUsers, owners, quota, concurrent, agentRequest, "chat-stream");
-        return ChatTurn.stream(
+        return GatedChat.stream(
+                tenants,
+                tenantUsers,
+                owners,
+                quota,
                 concurrent,
-                slot,
+                agentRequest,
                 () -> remember(apiRequest, agentRequest),
                 () -> gateway.streamApi(agentRequest),
                 (status, runId, output, errorCode, requestId, started, steps) -> finish(
@@ -144,15 +146,16 @@ public class ApiChatAppService {
                 AccessChannel.API);
     }
 
+    /**
+     * 额度通过后记会话。通道固定 API，标题用请求正文。
+     */
     private void remember(ChatRequest request, AgentRequest agentRequest) {
-        sessions.record(
-                agentRequest.tenantId(),
-                agentRequest.userId(),
-                agentRequest.sessionId(),
-                AccessChannel.API.name(),
-                request.text());
+        SessionTurn.remember(sessions, agentRequest, AccessChannel.API.name(), request.text());
     }
 
+    /**
+     * 结束落库。触发来源固定 API，不挂附件。标题用请求正文。
+     */
     private void finish(
             ChatRequest request,
             AgentRequest agentRequest,
@@ -163,14 +166,12 @@ public class ApiChatAppService {
             String requestId,
             long startedNanos,
             List<RunStep> steps) {
-        TurnRecorder.complete(
+        SessionTurn.finish(
                 log,
                 runs,
                 sessions,
                 messages,
-                agentRequest.tenantId(),
-                agentRequest.userId(),
-                agentRequest.sessionId(),
+                agentRequest,
                 "API",
                 status,
                 runId,
@@ -184,13 +185,12 @@ public class ApiChatAppService {
     }
 
     private AgentRequest toRequest(ChatRequest request) {
-        String tenantId = TenantContext.get() == null ? "" : TenantContext.get();
         return new AgentRequest(
                 request.agentId(),
-                tenantId,
+                AccessCaller.tenantId(),
                 UserContext.get(),
                 request.sessionId(),
-                prompts.get(PlatformPrompt.SYSTEM_KEY, Map.of(), semantics.promptFallback(PlatformPrompt.SYSTEM_KEY)),
+                AccessCaller.systemPrompt(prompts, semantics),
                 request.text());
     }
 }

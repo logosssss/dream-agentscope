@@ -73,6 +73,13 @@ public final class ApiChannel implements Channel {
     }
 
     /**
+     * 同步一轮。参数来自 {@link ApiOutbound.Target}，避免调用方再拆一遍字段。
+     */
+    public Mono<Msg> send(ApiOutbound.Target target) {
+        return send(target.userId(), target.sessionId(), target.agentId(), target.text(), target.context());
+    }
+
+    /**
      * 流式一轮。
      */
     public Flux<AgentEvent> sendStream(String userId, String sessionId, String text) {
@@ -87,6 +94,13 @@ public final class ApiChannel implements Channel {
         List<Msg> messages = List.of(userMessage(text));
         return resolveGateway()
                 .runStream(buildContext(userId, sessionId, agentId), messages, outbound(sessionId), runtimeContext);
+    }
+
+    /**
+     * 流式一轮。字段顺序与 {@link #send(ApiOutbound.Target)} 相同。
+     */
+    public Flux<AgentEvent> sendStream(ApiOutbound.Target target) {
+        return sendStream(target.userId(), target.sessionId(), target.agentId(), target.text(), target.context());
     }
 
     /**

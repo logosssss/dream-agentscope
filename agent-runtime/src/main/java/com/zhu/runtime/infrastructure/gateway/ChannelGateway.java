@@ -1,7 +1,5 @@
 package com.zhu.runtime.infrastructure.gateway;
 
-import com.zhu.common.exception.BusinessException;
-import com.zhu.common.exception.ErrorCode;
 import com.zhu.product.api.ProductModule;
 import com.zhu.runtime.api.agent.AgentExecutor;
 import com.zhu.runtime.api.agent.AgentRequest;
@@ -14,6 +12,8 @@ import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentRegistry;
 import com.zhu.runtime.infrastructure.agent.ProductModuleRegistry;
 import com.zhu.runtime.infrastructure.approval.PendingAskStore;
+import io.agentscope.core.agent.RuntimeContext;
+import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.event.ConfirmResult;
 import io.agentscope.core.event.RequireUserConfirmEvent;
@@ -26,7 +26,6 @@ import io.agentscope.harness.agent.gateway.ChannelManager;
 import io.agentscope.harness.agent.gateway.GatewayBootstrap;
 import io.agentscope.harness.agent.gateway.HarnessGateway;
 import io.agentscope.harness.agent.gateway.LocalSessionTurnGate;
-import io.agentscope.harness.agent.gateway.channel.Channel;
 import io.agentscope.harness.agent.gateway.channel.chatui.ChatUiChannel;
 import io.agentscope.harness.agent.gateway.channel.chatui.SendOptions;
 import jakarta.annotation.PreDestroy;
@@ -125,15 +124,7 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     @Override
     public AgentResponse executeApi(AgentRequest request) {
         return SyncAgentTurn.run(turns, drain, request, () -> {
-            String agentId = requireRegisteredAgent(turns.agentId(request));
-            return apiChannel()
-                    .send(
-                            request.userId(),
-                            request.sessionId(),
-                            blankToNull(agentId),
-                            request.userText(),
-                            AgentChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
-                    .block(Duration.ofSeconds(turns.timeoutSeconds()));
+            return apiChannel().send(apiTarget(request)).block(Duration.ofSeconds(turns.timeoutSeconds()));
         });
     }
 
@@ -146,26 +137,12 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
         return StreamAgentTurn.run(turns, drain, request, Duration.ofSeconds(turns.timeoutSeconds()),
                 (runId, context, started) -> {
-                    SendOptions opts = options(request);
-                    Msg userMsg = AgentUserMessages.of(request);
-                    Flux<AgentStreamEvent> primary = channel()
-                            .sendStream(opts, userMsg)
-                            .doOnNext(event -> onStreamEvent(request, runId, started, event))
-                            .concatMapIterable(event -> turns.mapStreamEvent(event, context));
-                    if (!request.hasImages()) {
-                        return primary;
-                    }
-                    return primary.onErrorResume(error -> {
-                        log.warning(() -> "vision stream failed, degrade to text: " + error.getClass().getSimpleName());
-                        Msg plain = AgentUserMessages.textOnly(AgentUserMessages.degradedText(request));
-                        Flux<AgentStreamEvent> tip = Flux.just(
-                                new AgentStreamEvent("tool_call", "未能看图，已按纯文本继续"));
-                        Flux<AgentStreamEvent> retry = channel()
-                                .sendStream(opts, plain)
-                                .doOnNext(event -> onStreamEvent(request, runId, started, event))
-                                .concatMapIterable(event -> turns.mapStreamEvent(event, context));
-                        return tip.concatWith(retry);
-                    });
+                    ChatUiAttempt attempt = ChatUiAttempt.open(options(request), request);
+                    return attempt.stream(
+                            (opts, msg) -> watch(
+                                    channel().sendStream(opts, msg), request, runId, started, context),
+                            error -> log.warning(() -> "vision stream failed, degrade to text: "
+                                    + error.getClass().getSimpleName()));
                 });
     }
 
@@ -173,19 +150,11 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      * ChatUi 同步发送；有图失败则降级纯文本。
      */
     private Msg sendChatUi(AgentRequest request) {
-        SendOptions opts = options(request);
-        Msg userMsg = AgentUserMessages.of(request);
-        try {
-            return channel().send(opts, userMsg).block(Duration.ofSeconds(turns.timeoutSeconds()));
-        } catch (RuntimeException error) {
-            if (!request.hasImages()) {
-                throw error;
-            }
-            log.warning(() -> "vision send failed, degrade to text: " + error.getClass().getSimpleName());
-            return channel()
-                    .send(opts, AgentUserMessages.degradedText(request))
-                    .block(Duration.ofSeconds(turns.timeoutSeconds()));
-        }
+        ChatUiAttempt attempt = ChatUiAttempt.open(options(request), request);
+        return attempt.send(
+                (opts, msg) -> channel().send(opts, msg).block(Duration.ofSeconds(turns.timeoutSeconds())),
+                error -> log.warning(() -> "vision send failed, degrade to text: "
+                        + error.getClass().getSimpleName()));
     }
 
     /**
@@ -195,17 +164,28 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     public Flux<AgentStreamEvent> streamApi(AgentRequest request) {
         return StreamAgentTurn.run(turns, drain, request, Duration.ofSeconds(turns.timeoutSeconds()),
                 (runId, context, started) -> {
-                    String agentId = requireRegisteredAgent(turns.agentId(request));
-                    return apiChannel()
-                            .sendStream(
-                                    request.userId(),
-                                    request.sessionId(),
-                                    blankToNull(agentId),
-                                    request.userText(),
-                                    AgentChannelRuntimeContextResolver.staging(request.tenantId(), agentId))
-                            .doOnNext(event -> onStreamEvent(request, runId, started, event))
-                            .concatMapIterable(event -> turns.mapStreamEvent(event, context));
+                    return watch(
+                            apiChannel().sendStream(apiTarget(request)),
+                            request,
+                            runId,
+                            started,
+                            context);
                 });
+    }
+
+    /**
+     * 先记账再映射。待确认和用量看框架原事件，调用方看护栏之后的片段。
+     */
+    private Flux<AgentStreamEvent> watch(
+            Flux<? extends AgentEvent> raw,
+            AgentRequest request,
+            String runId,
+            long started,
+            RuntimeContext context) {
+        return WatchedStream.of(
+                raw,
+                event -> onStreamEvent(request, runId, started, event),
+                event -> turns.mapStreamEvent(event, context));
     }
 
     /**
@@ -215,7 +195,7 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
             AgentRequest request,
             String runId,
             long started,
-            io.agentscope.core.event.AgentEvent event) {
+            AgentEvent event) {
         if (event instanceof RequireUserConfirmEvent confirm) {
             pendingAsks.remember(
                     request.tenantId(),
@@ -229,25 +209,11 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
         }
     }
 
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
-    }
-
     /**
-     * API 通道允许按 agentId 选产品，但只认已注册的模块；未知标识直接拒，不让它落进框架的按名建 Agent 路径。
-     *
-     * @param agentId 调用方给的标识，可为空（空表示 main）
-     * @return 规范化后的标识；空仍返回 null
+     * 标识先按运行配置补上默认值，再要求这个产品已经注册。
      */
-    private String requireRegisteredAgent(String agentId) {
-        String id = blankToNull(agentId);
-        if (id == null) {
-            return null;
-        }
-        if (products.find(id) == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "unknown agentId: " + id);
-        }
-        return id;
+    private ApiOutbound.Target apiTarget(AgentRequest request) {
+        return ApiOutbound.open(request, turns.agentId(request), id -> products.find(id) != null);
     }
 
     /**
@@ -276,14 +242,9 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
                     .textContent(text)
                     .metadata(Map.of(Msg.METADATA_CONFIRM_RESULTS, List.of(confirmed)))
                     .build();
-            // 先确保 Gateway 已起，再比 mainAgentId，避免续跑时尚未懒启动。
+            // 先懒启动再比 main，避免续跑时 mainAgentId 还是 null。
             ChatUiChannel open = channel();
-            SendOptions options = SendOptions.of(userId, sessionId)
-                    .withRuntimeContext(AgentChannelRuntimeContextResolver.staging(tenantId, agentId));
-            if (agentId != null && !agentId.isBlank()
-                    && (mainAgentId == null || !agentId.equals(mainAgentId))) {
-                options = options.withAgentId(agentId);
-            }
+            SendOptions options = ChatUiRoute.options(userId, sessionId, tenantId, agentId, mainAgentId);
             open.send(options, confirm).block(Duration.ofSeconds(turns.timeoutSeconds()));
         } finally {
             drain.endTurn();
@@ -412,19 +373,13 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      * 缺 chatui、多出其它 id、或类型不对直接失败，避免静默再 new 一份 ChatUi。
      */
     public static ChatUiChannel requireChatUi(ChannelManager manager) {
-        if (manager == null) {
-            throw new IllegalStateException("channel manager is missing");
-        }
-        List<String> ids = manager.channelIds();
+        ChannelManager present = BoundChannel.present(manager);
+        List<String> ids = present.channelIds();
         if (!allowedChannelIds(ids)) {
             throw new IllegalStateException("expected chatui or chatui+api channels, got " + ids);
         }
-        Channel bound = manager.getChannel(ChatUiChannel.CHANNEL_ID)
-                .orElseThrow(() -> new IllegalStateException("chatui channel missing"));
-        if (!(bound instanceof ChatUiChannel chatUi)) {
-            throw new IllegalStateException("chatui channel type mismatch: " + bound.getClass().getName());
-        }
-        return chatUi;
+        return BoundChannel.read(
+                present.getChannel(ChatUiChannel.CHANNEL_ID).orElse(null), ChatUiChannel.class, "chatui");
     }
 
     /**
@@ -448,38 +403,20 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      * 从 ChannelManager 只读取 API Channel；须已在白名单内且类型正确。
      */
     public static ApiChannel requireApiChannel(ChannelManager manager) {
-        if (manager == null) {
-            throw new IllegalStateException("channel manager is missing");
+        ChannelManager present = BoundChannel.present(manager);
+        List<String> ids = present.channelIds();
+        if (!allowedChannelIds(ids) || !ids.contains(API_CHANNEL_ID)) {
+            throw new IllegalStateException("expected api channel among " + ids);
         }
-        if (!allowedChannelIds(manager.channelIds()) || !manager.channelIds().contains(API_CHANNEL_ID)) {
-            throw new IllegalStateException("expected api channel among " + manager.channelIds());
-        }
-        Channel bound = manager.getChannel(API_CHANNEL_ID)
-                .orElseThrow(() -> new IllegalStateException("api channel missing"));
-        if (!(bound instanceof ApiChannel api)) {
-            throw new IllegalStateException("api channel type mismatch: " + bound.getClass().getName());
-        }
-        return api;
+        return BoundChannel.read(present.getChannel(API_CHANNEL_ID).orElse(null), ApiChannel.class, "api");
     }
 
     /**
      * 供 API HTTP 取已启动的 ApiChannel；尚未懒启动时启动 Gateway。
      */
     public ApiChannel apiChannel() {
-        ApiChannel open = apiChannel;
-        if (open != null) {
-            return open;
-        }
-        synchronized (lock) {
-            if (apiChannel == null) {
-                startGatewayLocked();
-            }
-            open = apiChannel;
-        }
-        if (open == null) {
-            throw new IllegalStateException("api channel gateway is not started");
-        }
-        return open;
+        return StartedChannel.open(
+                lock, () -> apiChannel, this::startGatewayLocked, "api channel gateway is not started");
     }
 
     /** 停掉当前 Gateway 并关闭 Agent。调用方须已持有 lock。待确认随 Agent 失效一并清掉。 */
@@ -513,34 +450,21 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
 
     /** 首次对话时再组装 Gateway；已启动则直接返回 Channel。 */
     private ChatUiChannel channel() {
-        ChatUiChannel open = channel;
-        if (open != null) {
-            return open;
-        }
-        synchronized (lock) {
-            if (channel == null) {
-                startGatewayLocked();
-            }
-            open = channel;
-        }
-        if (open == null) {
-            throw new IllegalStateException("channel gateway is not started");
-        }
-        return open;
+        return StartedChannel.open(lock, () -> channel, this::startGatewayLocked, "channel gateway is not started");
     }
 
     /**
      * 会话用请求里的 sessionId；caller 只带 tenantId/agentId 暂存。
-     * agentId 空或等于 main 时不改路由，仍走 Bootstrap 的 mainAgent。
+     * 先懒启动，再比 main。agentId 空或等于 main 时不改路由。
      */
     private SendOptions options(AgentRequest request) {
-        String agentId = turns.agentId(request);
-        SendOptions options = SendOptions.of(request.userId(), request.sessionId())
-                .withRuntimeContext(AgentChannelRuntimeContextResolver.staging(request.tenantId(), agentId));
-        if (agentId != null && !agentId.isBlank() && !agentId.equals(mainAgentId)) {
-            options = options.withAgentId(agentId);
-        }
-        return options;
+        channel();
+        return ChatUiRoute.options(
+                request.userId(),
+                request.sessionId(),
+                request.tenantId(),
+                turns.agentId(request),
+                mainAgentId);
     }
 
     private static void closeQuietly(HarnessAgent agent) {
