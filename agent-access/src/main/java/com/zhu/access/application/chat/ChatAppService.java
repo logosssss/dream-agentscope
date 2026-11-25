@@ -7,8 +7,8 @@ import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.chat.run.RunLog;
 import com.zhu.access.application.chat.run.RunStep;
 import com.zhu.access.application.chat.run.StreamRunSteps;
+import com.zhu.access.application.chat.run.TurnRecorder;
 import com.zhu.access.application.chat.session.SessionIndex;
-import com.zhu.access.application.chat.session.SessionListService;
 import com.zhu.access.application.chat.session.SessionOwnerGate;
 import com.zhu.access.api.dto.chat.ChatRequest;
 import com.zhu.ops.tenant.TenantGate;
@@ -203,40 +203,25 @@ public class ChatAppService {
             long startedNanos,
             List<RunStep> steps) {
         AgentRequest agentRequest = prepared.agentRequest();
-        String id = runId == null || runId.isBlank() ? Ids.newId() : runId;
-        try {
-            runs.complete(
-                    agentRequest.tenantId(),
-                    agentRequest.userId(),
-                    agentRequest.sessionId(),
-                    trigger(request),
-                    status,
-                    id,
-                    requestId,
-                    SessionListService.title(prepared.displayText()),
-                    SessionListService.title(output),
-                    errorCode,
-                    steps,
-                    startedNanos);
-            sessions.attachRun(agentRequest.tenantId(), agentRequest.userId(), agentRequest.sessionId(), id);
-        } catch (RuntimeException error) {
-            log.warning("run record failed");
-        }
-        if (!RunLog.SUCCEEDED.equals(status)) {
-            return;
-        }
-        try {
-            long userSeq = messages.appendTurn(
-                    agentRequest.tenantId(),
-                    agentRequest.userId(),
-                    agentRequest.sessionId(),
-                    id,
-                    prepared.displayText(),
-                    output == null ? "" : output);
-            linkAttachments(agentRequest.userId(), agentRequest.sessionId(), userSeq, prepared.attachmentIds());
-        } catch (RuntimeException error) {
-            log.warning("chat message record failed");
-        }
+        TurnRecorder.complete(
+                log,
+                runs,
+                sessions,
+                messages,
+                agentRequest.tenantId(),
+                agentRequest.userId(),
+                agentRequest.sessionId(),
+                trigger(request),
+                status,
+                runId,
+                requestId,
+                prepared.displayText(),
+                output,
+                errorCode,
+                steps,
+                startedNanos,
+                userSeq -> linkAttachments(
+                        agentRequest.userId(), agentRequest.sessionId(), userSeq, prepared.attachmentIds()));
     }
 
     /** 成功落库后把附件挂到 user 气泡；目录不可用或 seq 无效时跳过。 */
