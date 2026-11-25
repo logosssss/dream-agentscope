@@ -32,8 +32,15 @@ function Ssh-Run([string]$remoteCmd) {
 }
 
 $dist = Join-Path $RepoRoot "web\dist"
-if (-not (Test-Path (Join-Path $dist "index.html"))) {
+$indexPath = Join-Path $dist "index.html"
+$addonPath = Join-Path $dist "dsh-companion-addon.js"
+if (-not (Test-Path $indexPath)) {
     throw "missing web/dist — run: cd web && pnpm install --frozen-lockfile && VITE_GATEWAY=true pnpm run build"
+}
+# 整目录替换会清掉服务器上临时加的脚本。dist 里没有入口就不能传。
+$indexHtml = Get-Content -Raw -LiteralPath $indexPath
+if (-not (Test-Path $addonPath) -or $indexHtml -notmatch 'dsh-companion-addon\.js') {
+    throw "web/dist 缺少 DeepSeek Harness 入口（dsh-companion-addon.js）。先确认 web/public 与 index.html 里的 script 还在，再重新构建。"
 }
 
 $applySh = Join-Path $PSScriptRoot "remote-apply-web-dist.sh"

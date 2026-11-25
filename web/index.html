@@ -12,5 +12,7 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+    <!-- Vite 不打进业务包，但会把 public 文件和这行 script 原样放进 dist。整目录替换 web-dist 时两者都要在。 -->
+    <script src="/dsh-companion-addon.js" defer></script>
   </body>
 </html>
