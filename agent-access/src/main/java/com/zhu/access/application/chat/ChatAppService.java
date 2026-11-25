@@ -6,6 +6,7 @@ import com.zhu.access.application.chat.message.ChatMessageStore;
 import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.chat.run.RunLog;
 import com.zhu.access.application.chat.run.RunStep;
+import com.zhu.access.application.chat.run.StreamRunSteps;
 import com.zhu.access.application.chat.session.SessionIndex;
 import com.zhu.access.application.chat.session.SessionListService;
 import com.zhu.access.application.chat.session.SessionOwnerGate;
@@ -26,7 +27,6 @@ import com.zhu.runtime.api.agent.AgentExecutor;
 import com.zhu.runtime.api.agent.AgentRequest;
 import com.zhu.runtime.api.agent.AgentResponse;
 import com.zhu.runtime.api.agent.AgentStreamEvent;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -35,7 +35,6 @@ import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.SignalType;
 
 /**
  * 把接入层请求译成 AgentRequest，再交给 Channel Gateway（同 session 由框架排队）。
@@ -120,10 +119,10 @@ public class ChatAppService {
         try {
             remember(request, prepared);
             AgentResponse response = executor.execute(agentRequest);
-            finish(request, prepared, RunLog.SUCCEEDED, response.runId(), response.text(), null, requestId, started, reasoning(RunLog.SUCCEEDED));
+            finish(request, prepared, RunLog.SUCCEEDED, response.runId(), response.text(), null, requestId, started, StreamRunSteps.reasoningOnly(RunLog.SUCCEEDED));
             return response;
         } catch (RuntimeException error) {
-            finish(request, prepared, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started, reasoning(RunLog.FAILED));
+            finish(request, prepared, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started, StreamRunSteps.reasoningOnly(RunLog.FAILED));
             throw error;
         } finally {
             concurrent.close(slot);
@@ -151,21 +150,22 @@ public class ChatAppService {
             ConcurrentLinkedQueue<AgentStreamEvent> seen = new ConcurrentLinkedQueue<>();
             ConcurrentGate.Slot held = slot;
             return executor.stream(agentRequest)
-                    .doOnNext(event -> keep(seen, output, event))
+                    .doOnNext(event -> StreamRunSteps.observe(seen, output, event))
                     .doOnError(error -> errorCode.set(error.getClass().getSimpleName()))
                     .doFinally(signal -> {
                         try {
-                            String status = streamStatus(signal);
+                            String status = StreamRunSteps.statusOf(signal);
                             String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
                             // 先落库再放租户并发占位，避免同租户下一轮抢名额。
-                            finish(request, prepared, status, runId, output.get(), code, requestId, started, stepsFrom(seen, status));
+                            finish(request, prepared, status, runId, output.get(), code, requestId, started,
+                                    StreamRunSteps.from(seen, status));
                         } finally {
                             concurrent.close(held);
                         }
                     });
         } catch (RuntimeException error) {
             try {
-                finish(request, prepared, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started, reasoning(RunLog.FAILED));
+                finish(request, prepared, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started, StreamRunSteps.reasoningOnly(RunLog.FAILED));
             } finally {
                 concurrent.close(slot);
             }
@@ -256,74 +256,6 @@ public class ChatAppService {
                 log.warning("attachment message link failed");
             }
         }
-    }
-
-    /** 增量文本不留下。工具开始和待确认才进入步骤。结果文本只留给运行摘要。 */
-    private static void keep(ConcurrentLinkedQueue<AgentStreamEvent> seen, AtomicReference<String> output, AgentStreamEvent event) {
-        if (event == null || event.type() == null) {
-            return;
-        }
-        if ("agent_result".equals(event.type())) {
-            output.set(event.text());
-            return;
-        }
-        if ("tool_call_start".equals(event.type()) || "require_user_confirm".equals(event.type())) {
-            seen.add(event);
-        }
-    }
-
-    /**
-     * 工具和待确认按看到的顺序编号。最后补一步推理。
-     * 工具步骤只表示调用已经开始，不表示工具成功。
-     */
-    private static List<RunStep> stepsFrom(ConcurrentLinkedQueue<AgentStreamEvent> seen, String runStatus) {
-        List<RunStep> steps = new ArrayList<>();
-        for (AgentStreamEvent event : seen) {
-            if ("tool_call_start".equals(event.type())) {
-                addNamed(steps, RunStep.TOOL, event.text());
-            } else if ("require_user_confirm".equals(event.type())) {
-                addNamed(steps, RunStep.APPROVAL, event.text());
-            }
-        }
-        steps.add(reasoning(runStatus).get(0));
-        return List.copyOf(steps);
-    }
-
-    /** 逗号分开的多个工具名各记一步。空白名字跳过。 */
-    private static void addNamed(List<RunStep> steps, String type, String names) {
-        if (names == null || names.isBlank()) {
-            return;
-        }
-        for (String name : names.split(",")) {
-            String toolId = name.trim();
-            if (toolId.isEmpty()) {
-                continue;
-            }
-            if (toolId.length() > 128) {
-                toolId = toolId.substring(0, 128);
-            }
-            steps.add(new RunStep(type, toolId, RunLog.SUCCEEDED));
-        }
-    }
-
-    /** 取消没有推理结果，记成跳过。失败和成功沿用运行状态。 */
-    private static List<RunStep> reasoning(String runStatus) {
-        String status = RunLog.CANCELLED.equals(runStatus) ? RunStep.SKIPPED : runStatus;
-        if (!RunLog.FAILED.equals(status) && !RunStep.SKIPPED.equals(status)) {
-            status = RunLog.SUCCEEDED;
-        }
-        return List.of(new RunStep(RunStep.REASONING, null, status));
-    }
-
-    /** 取消单独记。其它非正常结束都算失败。 */
-    private static String streamStatus(SignalType signal) {
-        if (signal == SignalType.ON_COMPLETE) {
-            return RunLog.SUCCEEDED;
-        }
-        if (signal == SignalType.CANCEL) {
-            return RunLog.CANCELLED;
-        }
-        return RunLog.FAILED;
     }
 
     /** 程序调用记成 API。页面和即时通讯仍是用户触发。 */

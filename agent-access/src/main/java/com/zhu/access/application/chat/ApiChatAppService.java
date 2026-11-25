@@ -6,6 +6,7 @@ import com.zhu.access.application.chat.message.ChatMessageStore;
 import com.zhu.access.application.chat.run.ConcurrentRunGuard;
 import com.zhu.access.application.chat.run.RunLog;
 import com.zhu.access.application.chat.run.RunStep;
+import com.zhu.access.application.chat.run.StreamRunSteps;
 import com.zhu.access.application.chat.session.SessionIndex;
 import com.zhu.access.application.chat.session.SessionListService;
 import com.zhu.access.application.chat.session.SessionOwnerGate;
@@ -26,7 +27,6 @@ import com.zhu.runtime.api.agent.AgentStreamEvent;
 import com.zhu.semantic.api.prompt.PlatformPrompt;
 import com.zhu.semantic.api.prompt.PromptService;
 import com.zhu.semantic.contract.product.ProductSemanticProvider;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -34,7 +34,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.SignalType;
 
 /**
  * API Channel 对话应用服务。护栏与额度同 {@link ChatAppService}，执行走 {@link AgentExecutor#executeApi}。
@@ -109,11 +108,11 @@ public class ApiChatAppService {
             remember(apiRequest, agentRequest);
             AgentResponse response = gateway.executeApi(agentRequest);
             finish(apiRequest, agentRequest, RunLog.SUCCEEDED, response.runId(), response.text(), null, requestId, started,
-                    reasoning(RunLog.SUCCEEDED));
+                    StreamRunSteps.reasoningOnly(RunLog.SUCCEEDED));
             return response;
         } catch (RuntimeException error) {
             finish(apiRequest, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(), requestId, started,
-                    reasoning(RunLog.FAILED));
+                    StreamRunSteps.reasoningOnly(RunLog.FAILED));
             throw error;
         } finally {
             concurrent.close(slot);
@@ -137,14 +136,14 @@ public class ApiChatAppService {
             ConcurrentLinkedQueue<AgentStreamEvent> seen = new ConcurrentLinkedQueue<>();
             ConcurrentGate.Slot held = slot;
             return gateway.streamApi(agentRequest)
-                    .doOnNext(event -> keep(seen, output, event))
+                    .doOnNext(event -> StreamRunSteps.observe(seen, output, event))
                     .doOnError(error -> errorCode.set(error.getClass().getSimpleName()))
                     .doFinally(signal -> {
                         try {
-                            String status = streamStatus(signal);
+                            String status = StreamRunSteps.statusOf(signal);
                             String code = RunLog.FAILED.equals(status) ? errorCode.get() : null;
                             finish(apiRequest, agentRequest, status, runId, output.get(), code, requestId, started,
-                                    stepsFrom(seen, status));
+                                    StreamRunSteps.from(seen, status));
                         } finally {
                             concurrent.close(held);
                         }
@@ -152,7 +151,7 @@ public class ApiChatAppService {
         } catch (RuntimeException error) {
             try {
                 finish(apiRequest, agentRequest, RunLog.FAILED, Ids.newId(), "", error.getClass().getSimpleName(),
-                        requestId, started, reasoning(RunLog.FAILED));
+                        requestId, started, StreamRunSteps.reasoningOnly(RunLog.FAILED));
             } finally {
                 concurrent.close(slot);
             }
@@ -235,67 +234,6 @@ public class ApiChatAppService {
         } catch (RuntimeException error) {
             log.warning("chat message record failed");
         }
-    }
-
-    private static void keep(
-            ConcurrentLinkedQueue<AgentStreamEvent> seen, AtomicReference<String> output, AgentStreamEvent event) {
-        if (event == null || event.type() == null) {
-            return;
-        }
-        if ("agent_result".equals(event.type())) {
-            output.set(event.text());
-            return;
-        }
-        if ("tool_call_start".equals(event.type()) || "require_user_confirm".equals(event.type())) {
-            seen.add(event);
-        }
-    }
-
-    private static List<RunStep> stepsFrom(ConcurrentLinkedQueue<AgentStreamEvent> seen, String runStatus) {
-        List<RunStep> steps = new ArrayList<>();
-        for (AgentStreamEvent event : seen) {
-            if ("tool_call_start".equals(event.type())) {
-                addNamed(steps, RunStep.TOOL, event.text());
-            } else if ("require_user_confirm".equals(event.type())) {
-                addNamed(steps, RunStep.APPROVAL, event.text());
-            }
-        }
-        steps.add(reasoning(runStatus).get(0));
-        return List.copyOf(steps);
-    }
-
-    private static void addNamed(List<RunStep> steps, String type, String names) {
-        if (names == null || names.isBlank()) {
-            return;
-        }
-        for (String name : names.split(",")) {
-            String toolId = name.trim();
-            if (toolId.isEmpty()) {
-                continue;
-            }
-            if (toolId.length() > 128) {
-                toolId = toolId.substring(0, 128);
-            }
-            steps.add(new RunStep(type, toolId, RunLog.SUCCEEDED));
-        }
-    }
-
-    private static List<RunStep> reasoning(String runStatus) {
-        String status = RunLog.CANCELLED.equals(runStatus) ? RunStep.SKIPPED : runStatus;
-        if (!RunLog.FAILED.equals(status) && !RunStep.SKIPPED.equals(status)) {
-            status = RunLog.SUCCEEDED;
-        }
-        return List.of(new RunStep(RunStep.REASONING, null, status));
-    }
-
-    private static String streamStatus(SignalType signal) {
-        if (signal == SignalType.ON_COMPLETE) {
-            return RunLog.SUCCEEDED;
-        }
-        if (signal == SignalType.CANCEL) {
-            return RunLog.CANCELLED;
-        }
-        return RunLog.FAILED;
     }
 
     private AgentRequest toRequest(ChatRequest request) {
