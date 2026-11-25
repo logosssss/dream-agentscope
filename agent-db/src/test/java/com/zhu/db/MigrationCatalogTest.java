@@ -22,12 +22,15 @@ class MigrationCatalogTest {
 
     private static final Pattern VERSION = Pattern.compile("^V(\\d+)__.*\\.sql$");
 
-    /** V1～V47 须齐全、无缺口、无重复版本号。 */
+    /** 从 V1 到当前最高版本必须连续、不重复。上限写死的话，每加一条脚本边界 CI 都会红。 */
     @Test
-    void versionsAreContiguousThrough47() throws Exception {
+    void versionsAreContiguousFromV1() throws Exception {
         List<Integer> versions = listVersions();
-        assertThat(versions).as("expected V1..V47").hasSize(47);
-        for (int i = 1; i <= 47; i++) {
+        assertThat(versions).doesNotHaveDuplicates();
+        int latest = versions.stream().mapToInt(Integer::intValue).max().orElse(0);
+        assertThat(latest).as("at least V1").isPositive();
+        assertThat(versions).as("expected V1..V" + latest).hasSize(latest);
+        for (int i = 1; i <= latest; i++) {
             assertThat(versions).as("missing V" + i).contains(i);
         }
     }
