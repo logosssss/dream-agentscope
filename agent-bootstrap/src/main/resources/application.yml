@@ -7,6 +7,17 @@
 server:
   shutdown: graceful
 
+# 指标与只读运维端点：只绑回环、独立端口，由本机 Prometheus 抓取。
+# 刻意不经过 Nginx、也不要 Caller Token；不要改成 0.0.0.0，那等于把运行数据公开。
+management:
+  server:
+    address: 127.0.0.1
+    port: 8094
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
 spring:
   # servlet.multipart / lifecycle / datasource.* → agent-bootstrap-infra.yaml
   autoconfigure:

@@ -5,6 +5,17 @@ server:
   port: 8100
   shutdown: graceful
 
+# 指标与只读运维端点：只绑回环、独立端口。管理进程的价值一半在能被抓取，
+# 但绝不对外——不要改成 0.0.0.0，那等于把运行数据公开。
+management:
+  server:
+    address: 127.0.0.1
+    port: 8101
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
 spring:
   # lifecycle / datasource.* → agent-admin-infra.yaml
   autoconfigure:

@@ -60,6 +60,11 @@
             <groupId>io.agentscope</groupId>
             <artifactId>agentscope-extensions-model-dashscope</artifactId>
         </dependency>
+        <!-- 指标只用 API（MeterRegistry），Prometheus 注册表由两个进程引入。 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk-extension-autoconfigure</artifactId>

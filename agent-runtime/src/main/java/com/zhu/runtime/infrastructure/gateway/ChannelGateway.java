@@ -7,6 +7,7 @@ import com.zhu.runtime.api.agent.AgentResponse;
 import com.zhu.runtime.api.agent.AgentStreamEvent;
 import com.zhu.runtime.api.agent.RebuildResult;
 import com.zhu.runtime.api.agent.ResidentAgentReloader;
+import com.zhu.runtime.application.metrics.TurnMetrics;
 import com.zhu.runtime.application.turn.AgentTurnSupport;
 import com.zhu.runtime.domain.TurnSignals;
 import com.zhu.runtime.infrastructure.agent.HarnessAgentFactory;
@@ -36,12 +37,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.SignalType;
 
 /**
  * 运行层 Agent 网关：长驻 companion + echo，经 ChatUiChannel / ApiChannel 进出。
@@ -79,6 +82,8 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
 
     private final PendingAskStore pendingAsks;
 
+    private final TurnMetrics metrics;
+
     private final Object lock = new Object();
 
     private final ResidentAgentDrain drain = new ResidentAgentDrain();
@@ -101,12 +106,14 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
             ProductModuleRegistry products,
             AgentTurnSupport turns,
             ObjectProvider<DistributedStore> stores,
-            PendingAskStore pendingAsks) {
+            PendingAskStore pendingAsks,
+            TurnMetrics metrics) {
         this.agents = agents;
         this.products = products;
         this.turns = turns;
         this.stores = stores;
         this.pendingAsks = pendingAsks;
+        this.metrics = metrics;
     }
 
     /**
@@ -116,7 +123,8 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      */
     @Override
     public AgentResponse execute(AgentRequest request) {
-        return SyncAgentTurn.run(turns, drain, request, (runId, signals) -> sendChatUi(request, runId, signals));
+        return measured(TurnMetrics.CHANNEL_CHATUI,
+                () -> SyncAgentTurn.run(turns, drain, request, (runId, signals) -> sendChatUi(request, runId, signals)));
     }
 
     /**
@@ -124,11 +132,26 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      */
     @Override
     public AgentResponse executeApi(AgentRequest request) {
-        return SyncAgentTurn.run(turns, drain, request, (runId, signals) -> {
+        return measured(TurnMetrics.CHANNEL_API, () -> SyncAgentTurn.run(turns, drain, request, (runId, signals) -> {
             return apiChannel()
                     .send(apiTarget(request, runId, signals))
                     .block(Duration.ofSeconds(turns.timeoutSeconds()));
-        });
+        }));
+    }
+
+    /**
+     * 同步一轮的指标：成功记 ok，抛错记 error。指标失败不改变结果（{@link TurnMetrics} 自己吞）。
+     */
+    private AgentResponse measured(String channel, Supplier<AgentResponse> call) {
+        long started = System.nanoTime();
+        try {
+            AgentResponse response = call.get();
+            metrics.turn(channel, TurnMetrics.TURN_OK, System.nanoTime() - started);
+            return response;
+        } catch (RuntimeException error) {
+            metrics.turn(channel, TurnMetrics.TURN_ERROR, System.nanoTime() - started);
+            throw error;
+        }
     }
 
     /**
@@ -138,15 +161,17 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      */
     @Override
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
+        long started = System.nanoTime();
         return StreamAgentTurn.run(turns, drain, request, Duration.ofSeconds(turns.timeoutSeconds()),
-                (runId, signals, context, started) -> {
-                    ChatUiAttempt attempt = ChatUiAttempt.open(options(request, runId, signals), request);
-                    return attempt.stream(
-                            (opts, msg) -> watch(
-                                    channel().sendStream(opts, msg), request, runId, started, context),
-                            error -> log.warning(() -> "vision stream failed, degrade to text: "
-                                    + error.getClass().getSimpleName()));
-                });
+                        (runId, signals, context, startedNanos) -> {
+                            ChatUiAttempt attempt = ChatUiAttempt.open(options(request, runId, signals), request);
+                            return attempt.stream(
+                                    (opts, msg) -> watch(
+                                            channel().sendStream(opts, msg), request, runId, startedNanos, context),
+                                    error -> log.warning(() -> "vision stream failed, degrade to text: "
+                                            + error.getClass().getSimpleName()));
+                        })
+                .doFinally(signal -> metrics.turn(TurnMetrics.CHANNEL_CHATUI, outcomeOf(signal), System.nanoTime() - started));
     }
 
     /**
@@ -165,15 +190,28 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      */
     @Override
     public Flux<AgentStreamEvent> streamApi(AgentRequest request) {
+        long started = System.nanoTime();
         return StreamAgentTurn.run(turns, drain, request, Duration.ofSeconds(turns.timeoutSeconds()),
-                (runId, signals, context, started) -> {
-                    return watch(
-                            apiChannel().sendStream(apiTarget(request, runId, signals)),
-                            request,
-                            runId,
-                            started,
-                            context);
-                });
+                        (runId, signals, context, startedNanos) -> {
+                            return watch(
+                                    apiChannel().sendStream(apiTarget(request, runId, signals)),
+                                    request,
+                                    runId,
+                                    startedNanos,
+                                    context);
+                        })
+                .doFinally(signal -> metrics.turn(TurnMetrics.CHANNEL_API, outcomeOf(signal), System.nanoTime() - started));
+    }
+
+    /** 流的终态换成指标里的结局。正常完成才算 ok。 */
+    private static String outcomeOf(SignalType signal) {
+        if (signal == SignalType.ON_ERROR) {
+            return TurnMetrics.TURN_ERROR;
+        }
+        if (signal == SignalType.CANCEL) {
+            return TurnMetrics.TURN_CANCELLED;
+        }
+        return TurnMetrics.TURN_OK;
     }
 
     /**

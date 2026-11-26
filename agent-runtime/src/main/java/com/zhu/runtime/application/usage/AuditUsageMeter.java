@@ -4,6 +4,7 @@ import com.zhu.runtime.api.event.AuditRecorder;
 import com.zhu.runtime.api.usage.DailyTokenAccumulator;
 import com.zhu.runtime.api.usage.TokenUsageWriter;
 import com.zhu.runtime.api.usage.UsageMeter;
+import com.zhu.runtime.application.metrics.TurnMetrics;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
@@ -25,18 +26,28 @@ public class AuditUsageMeter implements UsageMeter {
 
     private final DailyTokenAccumulator dailyTokens;
 
+    private final TurnMetrics metrics;
+
     /**
-     * 累加器可缺省。各路失败互不影响，也不影响回复。
-     * 唯一公开构造，避免 Spring 在多构造之间退回无参。
+     * 累加器与指标都可缺省。各路失败互不影响，也不影响回复。
+     * 唯一公开构造由 Spring 用，避免它在多构造之间退回无参。
      */
     @Autowired
     public AuditUsageMeter(
             AuditRecorder audits,
             TokenUsageWriter tokens,
-            @Nullable DailyTokenAccumulator dailyTokens) {
+            @Nullable DailyTokenAccumulator dailyTokens,
+            @Nullable TurnMetrics metrics) {
         this.audits = audits;
         this.tokens = tokens;
         this.dailyTokens = dailyTokens;
+        this.metrics = metrics;
+    }
+
+    /** 不带指标的构造：单测与没有 actuator 的装配用。 */
+    public AuditUsageMeter(
+            AuditRecorder audits, TokenUsageWriter tokens, @Nullable DailyTokenAccumulator dailyTokens) {
+        this(audits, tokens, dailyTokens, null);
     }
 
     /**
@@ -73,6 +84,10 @@ public class AuditUsageMeter implements UsageMeter {
             } catch (RuntimeException ex) {
                 log.warning("daily token accumulate failed: " + ex.getMessage());
             }
+        }
+        if (metrics != null) {
+            // 指标放在最后：库写失败也已经发生过，指标照样要能看出「这一轮烧了多少」。
+            metrics.modelCall(model, latencyMillis, inputTokens, outputTokens);
         }
     }
 
