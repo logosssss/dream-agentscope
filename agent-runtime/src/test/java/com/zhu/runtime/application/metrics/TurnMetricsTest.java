@@ -95,7 +95,35 @@ class TurnMetricsTest {
         assertThatCode(() -> {
             metrics.turn(TurnMetrics.CHANNEL_CHATUI, TurnMetrics.TURN_OK, 1);
             metrics.modelCall("dashscope:qwen-plus", 1, 1, 1);
+            metrics.modelCost("dashscope:qwen-plus", 1);
         }).doesNotThrowAnyException();
+    }
+
+    /** 金额按微单位累加，与落库金额、Redis 日费用键同一口径。 */
+    @Test
+    void modelCostAccumulatesMicros() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        TurnMetrics metrics = new TurnMetrics(provider(registry));
+
+        metrics.modelCost("dashscope:qwen-plus", 1_500_000L);
+        metrics.modelCost("dashscope:qwen-plus", 500_000L);
+
+        assertThat(registry.get("agentscope.model.cost")
+                        .tag("model", "dashscope:qwen-plus")
+                        .counter()
+                        .count())
+                .isEqualTo(2_000_000.0);
+    }
+
+    /** 0 元不记：避免把「没配价目」混进「真花了 0 元」。 */
+    @Test
+    void zeroCostIsNotRecorded() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        TurnMetrics metrics = new TurnMetrics(provider(registry));
+
+        metrics.modelCost("dashscope:qwen-plus", 0);
+
+        assertThat(registry.find("agentscope.model.cost").counter()).isNull();
     }
 
     /** 只实现取用得到的两个方法，其余走 ObjectProvider 的默认实现。 */

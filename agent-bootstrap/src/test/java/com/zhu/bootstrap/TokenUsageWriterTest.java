@@ -26,6 +26,44 @@ import static org.mockito.Mockito.when;
  */
 class TokenUsageWriterTest {
 
+    /**
+     * 有价目行时，金额指标跟着落库金额走（同一口径的微单位）。
+     * 这条盯的是「指标真的接在写入处」，不是只测 {@code TurnMetrics} 自己的方法。
+     */
+    @Test
+    void recordsCostMetricAlongWithTheRow() {
+        io.micrometer.core.instrument.simple.SimpleMeterRegistry registry =
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        com.zhu.runtime.application.metrics.TurnMetrics metrics =
+                new com.zhu.runtime.application.metrics.TurnMetrics(new org.springframework.beans.factory.ObjectProvider<>() {
+
+                    @Override
+                    public io.micrometer.core.instrument.MeterRegistry getObject() {
+                        return registry;
+                    }
+
+                    @Override
+                    public io.micrometer.core.instrument.MeterRegistry getIfAvailable() {
+                        return registry;
+                    }
+                });
+
+        TokenUsageMapper usages = mock(TokenUsageMapper.class);
+        ModelPriceMapper prices = mock(ModelPriceMapper.class);
+        ModelPrice price = new ModelPrice();
+        price.setCurrency("CNY");
+        price.setInputPer1m(new BigDecimal("2.000000"));
+        price.setOutputPer1m(new BigDecimal("8.000000"));
+        when(prices.selectCurrent(eq("m"), any(LocalDateTime.class))).thenReturn(price);
+
+        new MysqlTokenUsageWriter(usages, prices, null, metrics)
+                .record("t", "u", "s", "run-1", "m", 1_000_000, 500_000);
+
+        // 1M 输入 × 2 元 + 0.5M 输出 × 8 元 = 6 元 = 6,000,000 微单位
+        assertThat(registry.get("agentscope.model.cost").tag("model", "m").counter().count())
+                .isEqualTo(6_000_000.0);
+    }
+
     /** 负数 token 记成 0。没有价格时金额是 0。 */
     @Test
     void clampsTokensAndLeavesCostAtZero() {

@@ -3,6 +3,7 @@ package com.zhu.runtime.infrastructure.persistence.usage;
 import com.zhu.common.util.UtcTimes;
 import com.zhu.runtime.api.usage.DailyCostAccumulator;
 import com.zhu.runtime.api.usage.TokenUsageWriter;
+import com.zhu.runtime.application.metrics.TurnMetrics;
 import com.zhu.runtime.domain.ModelCosting;
 import com.zhu.readmodel.persistence.billing.ModelPriceMapper;
 import com.zhu.readmodel.entity.billing.ModelPrice;
@@ -36,15 +37,25 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
 
     private final DailyCostAccumulator costs;
 
-    /** 累加器可缺省。价格缺失时不拒绝写入。 */
+    private final TurnMetrics metrics;
+
+    /** 累加器与指标都可缺省。价格缺失时不拒绝写入。 */
     @Autowired
     public MysqlTokenUsageWriter(
             TokenUsageMapper usages,
             ModelPriceMapper prices,
-            @Nullable DailyCostAccumulator costs) {
+            @Nullable DailyCostAccumulator costs,
+            @Nullable TurnMetrics metrics) {
         this.usages = usages;
         this.prices = prices;
         this.costs = costs;
+        this.metrics = metrics;
+    }
+
+    /** 不带指标的构造：单测用。 */
+    public MysqlTokenUsageWriter(
+            TokenUsageMapper usages, ModelPriceMapper prices, @Nullable DailyCostAccumulator costs) {
+        this(usages, prices, costs, null);
     }
 
     /**
@@ -83,6 +94,8 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
         row.setCurrency(currency(price));
         usages.insert(row);
         accumulate(tenantId, userId, input, output, price);
+        // 金额指标放在最后：库写失败也已经发生过，指标要能看出这一轮花了多少。
+        recordCost(name, input, output, price);
     }
 
     /**
@@ -106,6 +119,18 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
             costs.add(tenantId, userId, micros);
         } catch (RuntimeException ex) {
             log.warning("daily cost accumulate failed");
+        }
+    }
+
+    /** 金额指标：微单位，与落库金额同一口径。没价目行时不算（不记 0，免得和「真花 0」混）。 */
+    private void recordCost(String model, long input, long output, ModelPrice price) {
+        if (metrics == null || price == null) {
+            return;
+        }
+        try {
+            metrics.modelCost(model, ModelCosting.micros(input, output, price));
+        } catch (RuntimeException ex) {
+            log.warning("cost metric failed");
         }
     }
 

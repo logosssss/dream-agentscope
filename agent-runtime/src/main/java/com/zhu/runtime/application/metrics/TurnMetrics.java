@@ -93,4 +93,24 @@ public class TurnMetrics {
     private static String text(String value) {
         return value == null || value.isBlank() ? "unknown" : value;
     }
+
+    /**
+     * 记一次模型调用的金额。单位是**微单位**（1 CNY = 1,000,000），与
+     * {@code token_usage.cost_amount}、Redis 日费用键同一口径；换算成元由面板自己做。
+     *
+     * <p>没有价目行时不算 0：这里只在真算出金额时调用，避免把「没配价」混进「花了 0 元」。
+     *
+     * @param model 模型坐标
+     * @param micros 金额（微单位）
+     */
+    public void modelCost(String model, long micros) {
+        if (meters == null || micros <= 0) {
+            return;
+        }
+        try {
+            meters.counter("agentscope.model.cost", "model", text(model)).increment(micros);
+        } catch (RuntimeException ignored) {
+            // 指标失败不影响记账。
+        }
+    }
 }

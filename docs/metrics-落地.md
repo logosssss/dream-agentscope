@@ -9,8 +9,9 @@
 | 问题 | 之前只能 | 现在 |
 | --- | --- | --- |
 | 模型慢不慢？P99 多少？ | 翻 `token_usage.latency_ms` 算 | `agentscope.model.latency{model}` 直方图 |
-| 失败率多少？是闸拒的还是执行炸的？ | 翻 `agent_run.status` | `agentscope.turn{channel,outcome}` + `http.server.requests` |
-| token 烧得多快？ | 翻 `token_usage` 汇总 | `agentscope.model.tokens{model,direction}` |
+| 失败率多少？是闸拒的还是执行炸的？ | 翻 `agent_run.status` | `agentscope.turn{channel,outcome}` + `agentscope.request.rejected{reason}` |
+| token 烧得多快？花了多少钱？ | 翻 `token_usage` 汇总再自己乘 | `agentscope.model.tokens{model,direction}`、`agentscope.model.cost{model}` |
+| 拒绝是额度、并发还是会话占用？ | 只有「非 2xx」总量 | `agentscope.request.rejected{reason,code}`，reason 分十类 |
 | 进程本身健康吗（线程、堆、GC、连接池）？ | 只能看 `/health/ready` 的 UP/DOWN | `jvm.*`、`hikari.*` 等 actuator 自带指标 |
 
 「管理端运维面」补的是**数据面**（谁、什么时候、做了什么），这块补的是**运行面**（现在多热、多快、多失败）。
@@ -23,10 +24,10 @@
 | 端点位置 | **独立管理端口 + 只绑回环**：用户进程 `127.0.0.1:8094`，管理进程 `127.0.0.1:8101`。不经 Nginx、不要 Caller Token |
 | 暴露内容 | `health`、`info`、`prometheus` 三个，其余不暴露 |
 | 低基数 | 标签只有 `model` / `channel` / `outcome` / `direction`；**不放 tenantId / userId**，否则时序库被撑爆 |
-| 指标名 | `agentscope.turn`（计数）、`agentscope.turn.duration`（计时）、`agentscope.model.latency`（计时）、`agentscope.model.tokens`（按 `direction` 分开计） |
-| 失败处理 | 指标写失败一律吞掉：记账与对话不允许因为指标出问题 |
-| 埋点位置 | 模型侧在 `AuditUsageMeter`（用量唯一咽喉，库写失败也会记指标）；对话结局在 `ChannelGateway` 四个入口（同步 catch，流式 `doFinally`） |
-| 缺注册表时 | `TurnMetrics` 空转；单测与没引 actuator 的装配照常跑 |
+| 指标名 | `agentscope.turn`（计数）、`agentscope.turn.duration`（计时）、`agentscope.model.latency`（计时）、`agentscope.model.tokens`（按 `direction` 分开计）、`agentscope.model.cost`（微单位计数）、`agentscope.request.rejected`（按 `reason`/`code`） |
+| 失败处理 | 指标写失败一律吞掉：记账、对话、异常响应都不允许因为指标出问题 |
+| 埋点位置 | 模型耗时/token 在 `AuditUsageMeter`；金额在 `MysqlTokenUsageWriter`（跟落库金额同一处算，没价目行不记 0）；对话结局在 `ChannelGateway` 四个入口；拒绝在 `AccessExceptionHandler`（所有闸门共用的异常出口，避免给十几个构造函数加依赖） |
+| 缺注册表时 | `TurnMetrics` / `RequestMetrics` 空转；单测与没引 actuator 的装配照常跑 |
 
 ## 改动
 
@@ -54,6 +55,24 @@ scrape_configs:
 curl -s http://127.0.0.1:8094/actuator/prometheus | grep '^agentscope_'
 ```
 
+## 拒绝原因（`agentscope.request.rejected.reason`）
+
+归在「我们自己抛的固定文案」上：闸门分散在 access 与 ops 两层，统一出口只有异常处理器，
+而给十几个构造函数加依赖不值当。文案改了会掉进 `other`，由 `RequestMetricsTest` 钉住每一条。
+
+| reason | 触发 | 错误码 |
+| --- | --- | --- |
+| `rate_limit` | 分钟限流 | `QUOTA_EXCEEDED` |
+| `quota_daily` | 日请求数用光 | `QUOTA_EXCEEDED` |
+| `quota_tokens` | 日 token 用光 | `QUOTA_EXCEEDED` |
+| `quota_cost` | 日费用用光 | `QUOTA_EXCEEDED` |
+| `quota_concurrent` | 同租户并发占满 | `QUOTA_EXCEEDED` |
+| `duplicate_request` | 十分钟内同一请求号重复提交 | `CONFLICT` |
+| `session_owned` | 会话被同租户其他用户占用 | `CONFLICT` |
+| `tenant_inactive` / `tenant_user_inactive` | 租户或账号被停用 | `CONFLICT` |
+| `unauthenticated` | 没登录 | `UNAUTHORIZED` |
+| `other` | 没登记的文案——数量本身就是信号 | 各种 |
+
 ## 明确不做
 
 - **X1** 不在仓库里放 Grafana 面板 JSON 与告警规则：先让数能出来，面板按实际部署再调。
@@ -64,7 +83,8 @@ curl -s http://127.0.0.1:8094/actuator/prometheus | grep '^agentscope_'
 
 ## 残留
 
-1. **成本指标缺**：金额在管理进程由 `MysqlTokenUsageWriter` 按价算，用户进程埋点拿不到，需要另一处埋点或按 token × 单价在 Prometheus 侧算。
-2. **部署侧要放开回环抓取**：现网进程由 `nohup` 起，管理端口随进程一起监听；确认防火墙只对本机开放（默认 127.0.0.1 已足够），且 Nginx **不要**代理 8094/8101。
-3. **闸门拒绝没有单独指标**：目前靠 `http.server.requests{status}` 看；要区分「额度拒 / 并发拒 / 会话占用」得在闸门里再埋一层（下一轮）。
+1. **部署侧要放开回环抓取**：现网进程由 `nohup` 起，管理端口随进程一起监听；确认防火墙只对本机开放（默认 127.0.0.1 已足够），且 Nginx **不要**代理 8094/8101。
+2. **金额口径依赖价目表**：没有生效价目行时不算钱（也记 0 元），所以 `agentscope.model.cost` 少的那部分就是「没配价」，别当免费。
+3. **拒绝归类靠文案**：新增闸门时要同时加一句到 `RequestMetrics.REASONS` 与它的测试，否则只会在 `other` 里看到数。
 4. **流式的结局是「流终态」**：`ON_COMPLETE` 记 ok，哪怕流里带了错误事件。要精确到「这一轮成没成」得看 `agent_run.status`。
+5. **管理进程只接了 actuator**：`RequestMetrics` 在 access，管理端的拒绝目前没有单独指标（它的端点是给运维看的，量本来也小）。

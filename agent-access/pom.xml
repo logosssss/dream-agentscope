@@ -14,6 +14,11 @@
     <name>agent-access</name>
 
     <dependencies>
+        <!-- 拒绝指标只用 API（MeterRegistry），Prometheus 注册表由可部署进程引入。 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.zhu</groupId>
             <artifactId>agent-common</artifactId>
