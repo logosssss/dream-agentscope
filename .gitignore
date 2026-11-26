@@ -26,3 +26,7 @@ data/
 # 本地登录凭据与评测输出，不进仓库
 .master-login.txt
 eval/runs/
+
+# 本机 Nacos 安装包与个人工作笔记，不进仓库
+.tmp-nacos/
+.workbuddy/
