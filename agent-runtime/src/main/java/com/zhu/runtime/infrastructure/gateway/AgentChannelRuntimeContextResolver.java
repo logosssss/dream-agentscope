@@ -1,5 +1,6 @@
 package com.zhu.runtime.infrastructure.gateway;
 
+import com.zhu.runtime.domain.TurnSignals;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.harness.agent.gateway.MsgContext;
 import io.agentscope.harness.agent.gateway.channel.ChannelRuntimeContextRequest;
@@ -25,12 +26,17 @@ public final class AgentChannelRuntimeContextResolver implements ChannelRuntimeC
     /**
      * 调用方只带业务暂存，不在这里拼 userId/sessionId（由 SendOptions + Gateway 覆盖）。
      * 没有运行概念的入口（Gate 续跑、任务审计）传 null。
+     * {@code signals} 是中间件与收口共用的可变对象，必须作为同一个实例带进去。
      */
-    public static RuntimeContext staging(String tenantId, String agentId, String runId) {
+    public static RuntimeContext staging(
+            String tenantId, String agentId, String runId, TurnSignals signals) {
         RuntimeContext.Builder builder = RuntimeContext.builder();
         putIfText(builder, TENANT_ID, tenantId);
         putIfText(builder, AGENT_ID, agentId);
         putIfText(builder, RUN_ID, runId);
+        if (signals != null) {
+            builder.put(TurnSignals.class, signals);
+        }
         return builder.build();
     }
 
@@ -55,6 +61,11 @@ public final class AgentChannelRuntimeContextResolver implements ChannelRuntimeC
         putIfText(builder, TENANT_ID, stringExtra(caller, TENANT_ID));
         putIfText(builder, AGENT_ID, firstNonBlank(stringExtra(caller, AGENT_ID), msgExtra(msg, AGENT_ID)));
         putIfText(builder, RUN_ID, stringExtra(caller, RUN_ID));
+        // 共享信号要按同一个实例往下传：中间件往里写档位与人设标记，收口读同一个对象。
+        TurnSignals signals = caller == null ? null : caller.get(TurnSignals.class);
+        if (signals != null) {
+            builder.put(TurnSignals.class, signals);
+        }
         return builder.build();
     }
 

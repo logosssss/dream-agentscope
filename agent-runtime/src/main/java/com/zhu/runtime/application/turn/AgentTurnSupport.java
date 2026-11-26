@@ -12,7 +12,7 @@ import com.zhu.runtime.config.AgentRuntimeProperties;
 import com.zhu.runtime.domain.CrisisReplyGuard;
 import com.zhu.runtime.domain.ModelTextGuard;
 import com.zhu.runtime.domain.PersonaConsistencyGuard;
-import com.zhu.runtime.domain.middleware.PersonaConsistencyMiddleware;
+import com.zhu.runtime.domain.TurnSignals;
 import com.zhu.semantic.contract.safety.CrisisPrompt;
 import com.zhu.semantic.contract.product.PersonaContract;
 import com.zhu.semantic.contract.safety.RiskLevel;
@@ -68,14 +68,17 @@ public class AgentTurnSupport {
     /**
      * 身份放进框架上下文。tenantId、agentId、runId 不是框架字段，放在扩展项里。
      * runId 在调用前就固定：中间件要靠它把审计行挂到这一轮上，等执行完再取框架消息 id 就晚了。
+     * signals 是这一轮中间件与收口共用的可变对象：中间件拿的是框架那份上下文，
+     * 收口拿的是这份本地上下文，只有共享同一个对象，档位与人设标记才读得到。
      */
-    public RuntimeContext context(AgentRequest request, String runId) {
+    public RuntimeContext context(AgentRequest request, String runId, TurnSignals signals) {
         return RuntimeContext.builder()
                 .userId(request.userId())
                 .sessionId(request.sessionId())
                 .put("tenantId", request.tenantId())
                 .put("agentId", agentId(request))
                 .put("runId", runId)
+                .put(TurnSignals.class, signals == null ? new TurnSignals() : signals)
                 .build();
     }
 
@@ -134,13 +137,18 @@ public class AgentTurnSupport {
         return properties.getTimeoutSeconds();
     }
 
+    /**
+     * 中间件写在共享信号上的档位。没有信号时不当成危机，避免误换话术。
+     */
     private static boolean critical(RuntimeContext context) {
-        return context != null && context.get(RiskLevel.class) == RiskLevel.CRITICAL;
+        TurnSignals signals = context == null ? null : context.get(TurnSignals.class);
+        return signals != null && signals.risk() == RiskLevel.CRITICAL;
     }
 
+    /** 人设中间件在触发条件成立时把标记写进共享信号。 */
     private static boolean personaCheck(RuntimeContext context) {
-        return context != null
-                && context.get(PersonaConsistencyMiddleware.Flag.class) == PersonaConsistencyMiddleware.Flag.ON;
+        TurnSignals signals = context == null ? null : context.get(TurnSignals.class);
+        return signals != null && signals.personaCheck();
     }
 
     private String crisisText() {

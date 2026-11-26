@@ -39,7 +39,7 @@ class SyncAgentTurnTest {
         doThrow(new BusinessException(ErrorCode.BAD_REQUEST, "missing")).when(turns).require(request);
         AtomicBoolean sent = new AtomicBoolean();
 
-        assertThatThrownBy(() -> SyncAgentTurn.run(turns, drain, request, runId -> {
+        assertThatThrownBy(() -> SyncAgentTurn.run(turns, drain, request, (runId, signals) -> {
             sent.set(true);
             return null;
         })).isInstanceOf(BusinessException.class);
@@ -55,9 +55,9 @@ class SyncAgentTurnTest {
         ResidentAgentDrain drain = new ResidentAgentDrain();
         AgentRequest request = request();
         RuntimeContext context = RuntimeContext.builder().userId("u").sessionId("s").build();
-        when(turns.context(eq(request), any())).thenReturn(context);
+        when(turns.context(eq(request), any(), any())).thenReturn(context);
 
-        assertThatThrownBy(() -> SyncAgentTurn.run(turns, drain, request, runId -> {
+        assertThatThrownBy(() -> SyncAgentTurn.run(turns, drain, request, (runId, signals) -> {
             throw new IllegalStateException("down");
         })).isInstanceOf(IllegalStateException.class);
 
@@ -72,10 +72,10 @@ class SyncAgentTurnTest {
         ResidentAgentDrain drain = new ResidentAgentDrain();
         AgentRequest request = request();
         RuntimeContext context = RuntimeContext.builder().userId("u").sessionId("s").build();
-        when(turns.context(eq(request), any())).thenReturn(context);
+        when(turns.context(eq(request), any(), any())).thenReturn(context);
         when(turns.finish(isNull(), eq(context))).thenReturn("");
 
-        AgentResponse response = SyncAgentTurn.run(turns, drain, request, runId -> null);
+        AgentResponse response = SyncAgentTurn.run(turns, drain, request, (runId, signals) -> null);
 
         ArgumentCaptor<String> runId = ArgumentCaptor.forClass(String.class);
         verify(turns).recordUsage(eq(request), runId.capture(), isNull(), anyLong());
@@ -91,11 +91,11 @@ class SyncAgentTurnTest {
         ResidentAgentDrain drain = new ResidentAgentDrain();
         AgentRequest request = request();
         RuntimeContext context = RuntimeContext.builder().userId("u").sessionId("s").build();
-        when(turns.context(eq(request), any())).thenReturn(context);
+        when(turns.context(eq(request), any(), any())).thenReturn(context);
         when(turns.finish(isNull(), eq(context))).thenReturn("");
         AtomicReference<String> sent = new AtomicReference<>();
 
-        AgentResponse response = SyncAgentTurn.run(turns, drain, request, runId -> {
+        AgentResponse response = SyncAgentTurn.run(turns, drain, request, (runId, signals) -> {
             sent.set(runId);
             return null;
         });
@@ -113,10 +113,10 @@ class SyncAgentTurnTest {
         RuntimeContext context = RuntimeContext.builder().userId("u").sessionId("s").build();
         Msg reply = mock(Msg.class);
         when(reply.getTextContent()).thenReturn("raw");
-        when(turns.context(eq(request), any())).thenReturn(context);
+        when(turns.context(eq(request), any(), any())).thenReturn(context);
         when(turns.finish("raw", context)).thenReturn("safe");
 
-        AgentResponse response = SyncAgentTurn.run(turns, drain, request, runId -> reply);
+        AgentResponse response = SyncAgentTurn.run(turns, drain, request, (runId, signals) -> reply);
 
         assertThat(response.text()).isEqualTo("safe");
         verify(turns).recordUsage(eq(request), eq(response.runId()), eq(reply), anyLong());

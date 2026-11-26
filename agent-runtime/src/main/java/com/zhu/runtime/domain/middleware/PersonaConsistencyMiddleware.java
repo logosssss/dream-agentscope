@@ -2,6 +2,7 @@ package com.zhu.runtime.domain.middleware;
 
 import com.zhu.runtime.api.session.SessionTurnCount;
 import com.zhu.runtime.domain.CallIdentity;
+import com.zhu.runtime.domain.TurnSignals;
 import com.zhu.semantic.contract.safety.RiskLevel;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
@@ -67,6 +68,11 @@ public class PersonaConsistencyMiddleware implements MiddlewareBase {
             Function<AgentInput, Flux<AgentEvent>> next) {
         if (context != null && !critical(context) && ready(context, input)) {
             context.put(Flag.class, Flag.ON);
+            // 收口读的是另一个上下文对象，标记要同时写进这一轮的共享信号。
+            TurnSignals signals = context.get(TurnSignals.class);
+            if (signals != null) {
+                signals.personaCheck(true);
+            }
         }
         return next.apply(input);
     }

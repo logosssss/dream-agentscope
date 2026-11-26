@@ -87,7 +87,7 @@ class ChatUiAttemptTest {
     }
 
     private static SendOptions options() {
-        return ChatUiRoute.options("u", "s", "t", null, "companion-v1", "run-1");
+        return ChatUiRoute.options("u", "s", "t", null, "companion-v1", "run-1", null);
     }
 
     private static AgentRequest textRequest() {

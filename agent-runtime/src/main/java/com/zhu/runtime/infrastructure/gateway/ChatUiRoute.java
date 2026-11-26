@@ -1,5 +1,6 @@
 package com.zhu.runtime.infrastructure.gateway;
 
+import com.zhu.runtime.domain.TurnSignals;
 import io.agentscope.harness.agent.gateway.channel.chatui.SendOptions;
 
 /**
@@ -14,7 +15,8 @@ final class ChatUiRoute {
     /**
      * 空标识或等于已启动的 main 时不改路由。
      * {@code mainAgentId} 必须是懒启动之后的值。还是 null 时，非空标识会被当成显式路由。
-     * {@code runId} 进 caller 暂存，中间件靠它把审计行挂到这一轮；没有运行的入口传 null。
+     * {@code runId} 与 {@code signals} 进 caller 暂存：审计中间件靠运行号挂行，
+     * 安全与人设中间件靠共享信号把档位交回收口；没有运行的入口两个都传 null。
      */
     static SendOptions options(
             String userId,
@@ -22,9 +24,11 @@ final class ChatUiRoute {
             String tenantId,
             String agentId,
             String mainAgentId,
-            String runId) {
+            String runId,
+            TurnSignals signals) {
         SendOptions options = SendOptions.of(userId, sessionId)
-                .withRuntimeContext(AgentChannelRuntimeContextResolver.staging(tenantId, agentId, runId));
+                .withRuntimeContext(
+                        AgentChannelRuntimeContextResolver.staging(tenantId, agentId, runId, signals));
         if (agentId != null && !agentId.isBlank() && !agentId.equals(mainAgentId)) {
             options = options.withAgentId(agentId);
         }

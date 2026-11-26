@@ -31,7 +31,7 @@ class ApiChannelTargetTest {
                 "s",
                 "docs-v1",
                 "hi",
-                AgentChannelRuntimeContextResolver.staging("t", "docs-v1", "run-1"));
+                AgentChannelRuntimeContextResolver.staging("t", "docs-v1", "run-1", null));
         channel.send(target).block();
         assertDelivery(gateway, false);
         channel.sendStream(target).blockLast();

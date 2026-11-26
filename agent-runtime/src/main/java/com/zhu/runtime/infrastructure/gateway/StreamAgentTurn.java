@@ -4,6 +4,7 @@ import com.zhu.common.util.Ids;
 import com.zhu.runtime.api.agent.AgentRequest;
 import com.zhu.runtime.api.agent.AgentStreamEvent;
 import com.zhu.runtime.application.turn.AgentTurnSupport;
+import com.zhu.runtime.domain.TurnSignals;
 import io.agentscope.core.agent.RuntimeContext;
 import java.time.Duration;
 import reactor.core.publisher.Flux;
@@ -20,7 +21,7 @@ final class StreamAgentTurn {
     /**
      * 校验通过才计入在途。准备阶段抛错立刻放行；订上之后无论完成、失败还是取消，都在 finally 放行。
      * 超时包在调用方返回的整段流外面，看图降级重试不会另计一次在途。
-     * 运行号在订阅前生成：审计中间件要靠它把审计行挂到这一轮。
+     * 运行号与共享信号在订阅前生成：审计中间件要靠运行号挂行，安全/人设中间件要把档位写回同一份信号。
      */
     static Flux<AgentStreamEvent> run(
             AgentTurnSupport turns,
@@ -32,9 +33,10 @@ final class StreamAgentTurn {
         drain.beginTurn();
         try {
             String runId = Ids.newId();
-            RuntimeContext context = turns.context(request, runId);
+            TurnSignals signals = new TurnSignals();
+            RuntimeContext context = turns.context(request, runId, signals);
             long started = System.nanoTime();
-            return open.open(runId, context, started)
+            return open.open(runId, signals, context, started)
                     .timeout(timeout)
                     .doFinally(signal -> drain.endTurn());
         } catch (RuntimeException error) {
@@ -43,9 +45,11 @@ final class StreamAgentTurn {
         }
     }
 
-    /** 用已经定好的运行号打开发送流。抛错算准备失败，不另计在途。 */
+    /** 用已经定好的运行号与共享信号打开发送流。抛错算准备失败，不另计在途。 */
     @FunctionalInterface
     interface Open {
-        Flux<AgentStreamEvent> open(String runId, RuntimeContext context, long startedNanos);
+
+        /** 打开这一轮的流。 */
+        Flux<AgentStreamEvent> open(String runId, TurnSignals signals, RuntimeContext context, long startedNanos);
     }
 }

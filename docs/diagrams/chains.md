@@ -23,6 +23,8 @@ flowchart TB
 
 echo 不挂 c1～c8 产品闸；紧急 `compactionHook` **不装**（见 12）。
 
+**档位与人设标记的落点**：中间件拿到的 `RuntimeContext` 是 Gateway 合成的那份，收口（`AgentTurnSupport.finish`）拿的是调用线程上的本地那份——两个不同的对象。所以一轮的 `RiskLevel` 与人设标记写进共享的 `TurnSignals`（`SyncAgentTurn` / `StreamAgentTurn` 建，经 caller 暂存带进网关，`resolve` 按同一实例复制下去），收口读同一个实例。只往框架那份 `put` 等于没写：危机输出红线与人设一致性检查会恒不触发。
+
 ## 10. Channel Gateway + SessionTurnGate
 
 白名单 `{chatui, api}`；同 room 跨 Channel 串行靠 room 归一化闸。

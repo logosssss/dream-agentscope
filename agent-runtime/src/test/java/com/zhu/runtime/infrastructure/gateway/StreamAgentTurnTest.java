@@ -13,9 +13,11 @@ import com.zhu.common.exception.ErrorCode;
 import com.zhu.runtime.api.agent.AgentRequest;
 import com.zhu.runtime.api.agent.AgentStreamEvent;
 import com.zhu.runtime.application.turn.AgentTurnSupport;
+import com.zhu.runtime.domain.TurnSignals;
 import io.agentscope.core.agent.RuntimeContext;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 
@@ -33,10 +35,11 @@ class StreamAgentTurnTest {
         doThrow(new BusinessException(ErrorCode.BAD_REQUEST, "missing")).when(turns).require(request);
         AtomicBoolean opened = new AtomicBoolean();
 
-        assertThatThrownBy(() -> StreamAgentTurn.run(turns, drain, request, Duration.ofSeconds(1), (runId, context, started) -> {
-            opened.set(true);
-            return Flux.empty();
-        })).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> StreamAgentTurn.run(
+                        turns, drain, request, Duration.ofSeconds(1), (runId, signals, context, started) -> {
+                            opened.set(true);
+                            return Flux.empty();
+                        })).isInstanceOf(BusinessException.class);
 
         assertThat(opened).isFalse();
         assertThat(drain.inFlight()).isZero();
@@ -47,7 +50,7 @@ class StreamAgentTurnTest {
     void everyExitReleasesTheDrain() {
         ResidentAgentDrain prepared = new ResidentAgentDrain();
         assertThatThrownBy(() -> StreamAgentTurn.run(readyTurns(), prepared, request(), Duration.ofSeconds(1),
-                (runId, context, started) -> {
+                (runId, signals, context, started) -> {
                     throw new IllegalStateException("prepare");
                 })).isInstanceOf(IllegalStateException.class);
         assertThat(prepared.inFlight()).isZero();
@@ -71,21 +74,48 @@ class StreamAgentTurnTest {
     void timeoutReleasesTheDrain() {
         ResidentAgentDrain drain = new ResidentAgentDrain();
         assertThatThrownBy(() -> StreamAgentTurn.run(
-                        readyTurns(), drain, request(), Duration.ofMillis(30), (runId, context, started) -> Flux.never())
+                        readyTurns(), drain, request(), Duration.ofMillis(30),
+                        (runId, signals, context, started) -> Flux.never())
                 .blockLast())
                 .hasCauseInstanceOf(java.util.concurrent.TimeoutException.class);
         assertThat(drain.inFlight()).isZero();
     }
 
+    /**
+     * 打开发送时手里要有这一轮的共享信号：安全与人设中间件把档位写回它，
+     * 收口读同一个对象。每轮各建一个，不能跨轮复用。
+     */
+    @Test
+    void opensWithAFreshSignalPerTurn() {
+        ResidentAgentDrain drain = new ResidentAgentDrain();
+        AtomicReference<TurnSignals> first = new AtomicReference<>();
+        AtomicReference<TurnSignals> second = new AtomicReference<>();
+
+        StreamAgentTurn.run(readyTurns(), drain, request(), Duration.ofSeconds(1),
+                (runId, signals, context, started) -> {
+                    first.set(signals);
+                    return Flux.empty();
+                }).blockLast();
+        StreamAgentTurn.run(readyTurns(), drain, request(), Duration.ofSeconds(1),
+                (runId, signals, context, started) -> {
+                    second.set(signals);
+                    return Flux.empty();
+                }).blockLast();
+
+        assertThat(first.get()).isNotNull();
+        assertThat(second.get()).isNotNull().isNotSameAs(first.get());
+        assertThat(drain.inFlight()).isZero();
+    }
+
     private static Flux<AgentStreamEvent> run(ResidentAgentDrain drain, Flux<AgentStreamEvent> body) {
         return StreamAgentTurn.run(readyTurns(), drain, request(), Duration.ofSeconds(30),
-                (runId, context, started) -> body);
+                (runId, signals, context, started) -> body);
     }
 
     private static AgentTurnSupport readyTurns() {
         AgentTurnSupport turns = mock(AgentTurnSupport.class);
         RuntimeContext context = RuntimeContext.builder().userId("u").sessionId("s").build();
-        when(turns.context(eq(request()), any())).thenReturn(context);
+        when(turns.context(eq(request()), any(), any())).thenReturn(context);
         return turns;
     }
 

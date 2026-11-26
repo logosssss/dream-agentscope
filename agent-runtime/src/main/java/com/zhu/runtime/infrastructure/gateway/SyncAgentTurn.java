@@ -4,6 +4,7 @@ import com.zhu.common.util.Ids;
 import com.zhu.runtime.api.agent.AgentRequest;
 import com.zhu.runtime.api.agent.AgentResponse;
 import com.zhu.runtime.application.turn.AgentTurnSupport;
+import com.zhu.runtime.domain.TurnSignals;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.message.Msg;
 
@@ -19,8 +20,8 @@ final class SyncAgentTurn {
     /**
      * 校验通过才计入在途。发送抛错也会放行排水闸。
      * 运行号在发送前生成：审计中间件要靠它把审计行挂到这一轮，等执行完再拿框架消息 id 就晚了。
-     * 入口拿到的同一个号既要进本地上下文（finish/用量），也要进框架上下文（中间件），
-     * 只写本地那份会让审计行和运行记录对不上。
+     * 这一轮的共享信号也在这里建：中间件写档位/人设标记，收口读同一个对象。
+     * 入口拿到的同一个号与同一份信号既要进本地上下文，也要进框架上下文。
      */
     static AgentResponse run(
             AgentTurnSupport turns, ResidentAgentDrain drain, AgentRequest request, Send send) {
@@ -28,9 +29,10 @@ final class SyncAgentTurn {
         drain.beginTurn();
         try {
             String runId = Ids.newId();
-            RuntimeContext context = turns.context(request, runId);
+            TurnSignals signals = new TurnSignals();
+            RuntimeContext context = turns.context(request, runId, signals);
             long started = System.nanoTime();
-            Msg reply = send.send(runId);
+            Msg reply = send.send(runId, signals);
             String text = turns.finish(reply == null ? null : reply.getTextContent(), context);
             turns.recordUsage(request, runId, reply, started);
             return new AgentResponse(runId, text);
@@ -39,11 +41,11 @@ final class SyncAgentTurn {
         }
     }
 
-    /** 用已经定好的运行号发送。实现要把这个号放进交给框架的上下文。 */
+    /** 用已经定好的运行号与共享信号发送。实现要把两者放进交给框架的上下文。 */
     @FunctionalInterface
     interface Send {
 
         /** 发送一轮并等回复。 */
-        Msg send(String runId);
+        Msg send(String runId, TurnSignals signals);
     }
 }

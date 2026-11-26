@@ -3,6 +3,7 @@ package com.zhu.runtime.domain.middleware;
 import com.zhu.runtime.api.safety.SafetyInterventionRecorder;
 import com.zhu.runtime.domain.CallIdentity;
 import com.zhu.runtime.domain.KeywordRiskClassifier;
+import com.zhu.runtime.domain.TurnSignals;
 import com.zhu.semantic.contract.safety.CrisisPrompt;
 import com.zhu.semantic.contract.safety.RiskLevel;
 import com.zhu.semantic.contract.safety.SemanticRiskJudge;
@@ -60,6 +61,11 @@ public class SafetyGateMiddleware implements MiddlewareBase {
         Assessment assessment = assess(userText(input));
         if (context != null) {
             context.put(RiskLevel.class, assessment.level);
+            // 收口读的是另一个上下文对象，档位要同时写进这一轮的共享信号。
+            TurnSignals signals = context.get(TurnSignals.class);
+            if (signals != null) {
+                signals.risk(assessment.level);
+            }
         }
         record(context, assessment);
         return next.apply(input);

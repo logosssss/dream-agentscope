@@ -1,6 +1,7 @@
 package com.zhu.bootstrap;
 
 import com.zhu.runtime.api.safety.SafetyInterventionRecorder;
+import com.zhu.runtime.domain.TurnSignals;
 import com.zhu.runtime.domain.middleware.SafetyGateMiddleware;
 import com.zhu.semantic.contract.safety.CrisisPrompt;
 import com.zhu.semantic.contract.safety.RiskLevel;
@@ -121,6 +122,28 @@ class SafetyGateMiddlewareTest {
                 Msg.builder().role(MsgRole.USER).textContent(userText).build()));
         middleware.onAgent(mock(Agent.class), context, input, ignored -> Flux.empty()).blockLast();
         return middleware.onSystemPrompt(mock(Agent.class), context, current).block();
+    }
+
+    /**
+     * 档位要同时写进这一轮的共享信号：收口读的是另一个上下文对象，
+     * 只往上下文 put，危机输出红线与人设检查在真实链路上读不到。
+     */
+    @Test
+    void writesLevelIntoSharedSignals() {
+        SafetyGateMiddleware middleware = gate(() -> "危机话术", text -> RiskLevel.ELEVATED, new ArrayList<>());
+        TurnSignals signals = new TurnSignals();
+        RuntimeContext context = RuntimeContext.builder()
+                .userId("u")
+                .sessionId("s")
+                .put("tenantId", "t")
+                .put(TurnSignals.class, signals)
+                .build();
+        AgentInput input = new AgentInput(List.of(
+                Msg.builder().role(MsgRole.USER).textContent("我有点难受").build()));
+
+        middleware.onAgent(mock(Agent.class), context, input, ignored -> Flux.empty()).blockLast();
+
+        assertThat(signals.risk()).isEqualTo(RiskLevel.ELEVATED);
     }
 
     /** 测试里的判定器和记录器都不连网。 */

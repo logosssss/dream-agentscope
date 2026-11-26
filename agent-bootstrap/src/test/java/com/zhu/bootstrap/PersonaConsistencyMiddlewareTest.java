@@ -3,6 +3,7 @@ package com.zhu.bootstrap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import com.zhu.runtime.domain.TurnSignals;
 import com.zhu.runtime.domain.middleware.PersonaConsistencyMiddleware;
 import com.zhu.semantic.contract.safety.RiskLevel;
 import io.agentscope.core.agent.Agent;
@@ -78,6 +79,45 @@ class PersonaConsistencyMiddlewareTest {
                 });
         middleware.onAgent(mock(Agent.class), context(RiskLevel.NORMAL), input("hi"), ignored -> Flux.empty()).blockLast();
         assertThat(seen).hasValue(1);
+    }
+
+    /**
+     * 打开标记时也要写进这一轮的共享信号：收口读的是另一个上下文对象，
+     * 只往上下文 put，人设检查在真实链路上永远不触发。
+     */
+    @Test
+    void writesFlagIntoSharedSignals() {
+        PersonaConsistencyMiddleware middleware = new PersonaConsistencyMiddleware((tenant, user, session) -> 20);
+        TurnSignals signals = new TurnSignals();
+        RuntimeContext context = RuntimeContext.builder()
+                .userId("u")
+                .sessionId("s")
+                .put("tenantId", "t")
+                .put(RiskLevel.class, RiskLevel.NORMAL)
+                .put(TurnSignals.class, signals)
+                .build();
+
+        middleware.onAgent(mock(Agent.class), context, input("hi"), ignored -> Flux.empty()).blockLast();
+
+        assertThat(signals.personaCheck()).isTrue();
+    }
+
+    /** 不触发时共享信号保持关闭，不猜。 */
+    @Test
+    void leavesSharedSignalsOffWhenNotTriggered() {
+        PersonaConsistencyMiddleware middleware = new PersonaConsistencyMiddleware((tenant, user, session) -> 3);
+        TurnSignals signals = new TurnSignals();
+        RuntimeContext context = RuntimeContext.builder()
+                .userId("u")
+                .sessionId("s")
+                .put("tenantId", "t")
+                .put(RiskLevel.class, RiskLevel.NORMAL)
+                .put(TurnSignals.class, signals)
+                .build();
+
+        middleware.onAgent(mock(Agent.class), context, input("今天天气不错"), ignored -> Flux.empty()).blockLast();
+
+        assertThat(signals.personaCheck()).isFalse();
     }
 
     private static RuntimeContext run(int succeeded, RiskLevel level, String userText) {
