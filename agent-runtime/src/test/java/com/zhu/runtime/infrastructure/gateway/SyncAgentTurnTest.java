@@ -21,6 +21,7 @@ import com.zhu.runtime.application.turn.AgentTurnSupport;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.message.Msg;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -38,7 +39,7 @@ class SyncAgentTurnTest {
         doThrow(new BusinessException(ErrorCode.BAD_REQUEST, "missing")).when(turns).require(request);
         AtomicBoolean sent = new AtomicBoolean();
 
-        assertThatThrownBy(() -> SyncAgentTurn.run(turns, drain, request, () -> {
+        assertThatThrownBy(() -> SyncAgentTurn.run(turns, drain, request, runId -> {
             sent.set(true);
             return null;
         })).isInstanceOf(BusinessException.class);
@@ -56,7 +57,7 @@ class SyncAgentTurnTest {
         RuntimeContext context = RuntimeContext.builder().userId("u").sessionId("s").build();
         when(turns.context(eq(request), any())).thenReturn(context);
 
-        assertThatThrownBy(() -> SyncAgentTurn.run(turns, drain, request, () -> {
+        assertThatThrownBy(() -> SyncAgentTurn.run(turns, drain, request, runId -> {
             throw new IllegalStateException("down");
         })).isInstanceOf(IllegalStateException.class);
 
@@ -74,12 +75,32 @@ class SyncAgentTurnTest {
         when(turns.context(eq(request), any())).thenReturn(context);
         when(turns.finish(isNull(), eq(context))).thenReturn("");
 
-        AgentResponse response = SyncAgentTurn.run(turns, drain, request, () -> null);
+        AgentResponse response = SyncAgentTurn.run(turns, drain, request, runId -> null);
 
         ArgumentCaptor<String> runId = ArgumentCaptor.forClass(String.class);
         verify(turns).recordUsage(eq(request), runId.capture(), isNull(), anyLong());
         assertThat(response.runId()).isEqualTo(runId.getValue());
         assertThat(response.text()).isEmpty();
+        assertThat(drain.inFlight()).isZero();
+    }
+
+    /** 发送拿到的就是同一个运行号：中间件靠它挂审计行，两处不一致就白记。 */
+    @Test
+    void sendReceivesTheSameRunId() {
+        AgentTurnSupport turns = mock(AgentTurnSupport.class);
+        ResidentAgentDrain drain = new ResidentAgentDrain();
+        AgentRequest request = request();
+        RuntimeContext context = RuntimeContext.builder().userId("u").sessionId("s").build();
+        when(turns.context(eq(request), any())).thenReturn(context);
+        when(turns.finish(isNull(), eq(context))).thenReturn("");
+        AtomicReference<String> sent = new AtomicReference<>();
+
+        AgentResponse response = SyncAgentTurn.run(turns, drain, request, runId -> {
+            sent.set(runId);
+            return null;
+        });
+
+        assertThat(sent.get()).isEqualTo(response.runId());
         assertThat(drain.inFlight()).isZero();
     }
 
@@ -95,7 +116,7 @@ class SyncAgentTurnTest {
         when(turns.context(eq(request), any())).thenReturn(context);
         when(turns.finish("raw", context)).thenReturn("safe");
 
-        AgentResponse response = SyncAgentTurn.run(turns, drain, request, () -> reply);
+        AgentResponse response = SyncAgentTurn.run(turns, drain, request, runId -> reply);
 
         assertThat(response.text()).isEqualTo("safe");
         verify(turns).recordUsage(eq(request), eq(response.runId()), eq(reply), anyLong());

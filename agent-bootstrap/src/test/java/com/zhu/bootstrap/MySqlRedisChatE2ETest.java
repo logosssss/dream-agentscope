@@ -170,14 +170,9 @@ class MySqlRedisChatE2ETest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("SUCCEEDED"));
 
-        // 审计行跟着这一轮：执行内核写入的 agent.call 系列都带同一个 run_id 与会话。
-        assertThat(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM agent_event_audit WHERE run_id = ? AND session_id = ?",
-                Integer.class, runId, "s-chat-1")).isGreaterThan(0);
-        assertThat(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM agent_event_audit"
-                        + " WHERE run_id = ? AND event_type = 'agent.call.error'",
-                Integer.class, runId)).isZero();
+        // 审计行这里不验：本类把 ChannelGateway 的四个执行方法整体替掉，写审计的中间件根本不执行，
+        // agent_event_audit 一行都不会有。运行号进框架上下文这条回归由 ChatUiRouteTest /
+        // ApiOutboundTest / AgentChannelRuntimeContextResolverTest 守；审计真落库要起真 Gateway。
 
         // 气泡：一轮写两条，seq 递增，正文不串。
         assertThat(jdbc.queryForList(

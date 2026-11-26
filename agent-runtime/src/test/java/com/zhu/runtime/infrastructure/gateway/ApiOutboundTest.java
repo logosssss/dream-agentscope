@@ -21,12 +21,12 @@ class ApiOutboundTest {
         ApiOutbound.Target main = ApiOutbound.open(request("  "), "  ", id -> {
             checks.incrementAndGet();
             return true;
-        });
+        }, null);
         assertThat(main.agentId()).isNull();
         assertThat(main.text()).isEqualTo("hi");
         assertThat(checks.get()).isZero();
 
-        ApiOutbound.Target known = ApiOutbound.open(request("docs-v1"), "docs-v1", "docs-v1"::equals);
+        ApiOutbound.Target known = ApiOutbound.open(request("docs-v1"), "docs-v1", "docs-v1"::equals, null);
         assertThat(known.agentId()).isEqualTo("docs-v1");
         assertThat(known.userId()).isEqualTo("u");
         assertThat(known.sessionId()).isEqualTo("s");
@@ -37,10 +37,20 @@ class ApiOutboundTest {
     /** 未注册的标识在发送前拒绝。 */
     @Test
     void unknownAgentIsRejected() {
-        assertThatThrownBy(() -> ApiOutbound.open(request("missing"), "missing", id -> false))
+        assertThatThrownBy(() -> ApiOutbound.open(request("missing"), "missing", id -> false, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).errorCode())
                 .isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
+    /**
+     * 运行号要进 caller 暂存：API 通道的审计行也只有读了框架上下文才挂得上这一轮。
+     */
+    @Test
+    void carriesRunIdIntoCallerStaging() {
+        ApiOutbound.Target target = ApiOutbound.open(request("docs-v1"), "docs-v1", "docs-v1"::equals, "run-9");
+        assertThat(target.context().get(AgentChannelRuntimeContextResolver.RUN_ID, String.class))
+                .isEqualTo("run-9");
     }
 
     private static AgentRequest request(String agentId) {

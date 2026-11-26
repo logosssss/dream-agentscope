@@ -109,13 +109,13 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     }
 
     /**
-     * WEB 同步一轮（ChatUi）。进 Gateway 的是业务暂存；护栏收口仍用本地完整上下文。
+     * WEB 同步一轮（ChatUi）。发送参数要带上这一轮的运行号，审计中间件才挂得住行。
      * 带图时先发多模态 Msg；失败则降级纯文本重试，不自动换模。
      * 请求里的 agentId 为空或等于 main 时不改路由；WEB 入口在接入层就把 agentId 清空。
      */
     @Override
     public AgentResponse execute(AgentRequest request) {
-        return SyncAgentTurn.run(turns, drain, request, () -> sendChatUi(request));
+        return SyncAgentTurn.run(turns, drain, request, runId -> sendChatUi(request, runId));
     }
 
     /**
@@ -123,8 +123,10 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
      */
     @Override
     public AgentResponse executeApi(AgentRequest request) {
-        return SyncAgentTurn.run(turns, drain, request, () -> {
-            return apiChannel().send(apiTarget(request)).block(Duration.ofSeconds(turns.timeoutSeconds()));
+        return SyncAgentTurn.run(turns, drain, request, runId -> {
+            return apiChannel()
+                    .send(apiTarget(request, runId))
+                    .block(Duration.ofSeconds(turns.timeoutSeconds()));
         });
     }
 
@@ -137,7 +139,7 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     public Flux<AgentStreamEvent> stream(AgentRequest request) {
         return StreamAgentTurn.run(turns, drain, request, Duration.ofSeconds(turns.timeoutSeconds()),
                 (runId, context, started) -> {
-                    ChatUiAttempt attempt = ChatUiAttempt.open(options(request), request);
+                    ChatUiAttempt attempt = ChatUiAttempt.open(options(request, runId), request);
                     return attempt.stream(
                             (opts, msg) -> watch(
                                     channel().sendStream(opts, msg), request, runId, started, context),
@@ -147,10 +149,10 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     }
 
     /**
-     * ChatUi 同步发送；有图失败则降级纯文本。
+     * ChatUi 同步发送；有图失败则降级纯文本。运行号由 {@link SyncAgentTurn} 定好传进来。
      */
-    private Msg sendChatUi(AgentRequest request) {
-        ChatUiAttempt attempt = ChatUiAttempt.open(options(request), request);
+    private Msg sendChatUi(AgentRequest request, String runId) {
+        ChatUiAttempt attempt = ChatUiAttempt.open(options(request, runId), request);
         return attempt.send(
                 (opts, msg) -> channel().send(opts, msg).block(Duration.ofSeconds(turns.timeoutSeconds())),
                 error -> log.warning(() -> "vision send failed, degrade to text: "
@@ -165,7 +167,7 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
         return StreamAgentTurn.run(turns, drain, request, Duration.ofSeconds(turns.timeoutSeconds()),
                 (runId, context, started) -> {
                     return watch(
-                            apiChannel().sendStream(apiTarget(request)),
+                            apiChannel().sendStream(apiTarget(request, runId)),
                             request,
                             runId,
                             started,
@@ -210,10 +212,10 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     }
 
     /**
-     * 标识先按运行配置补上默认值，再要求这个产品已经注册。
+     * 标识先按运行配置补上默认值，再要求这个产品已经注册。运行号进 caller 暂存。
      */
-    private ApiOutbound.Target apiTarget(AgentRequest request) {
-        return ApiOutbound.open(request, turns.agentId(request), id -> products.find(id) != null);
+    private ApiOutbound.Target apiTarget(AgentRequest request, String runId) {
+        return ApiOutbound.open(request, turns.agentId(request), id -> products.find(id) != null, runId);
     }
 
     /**
@@ -244,7 +246,8 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
                     .build();
             // 先懒启动再比 main，避免续跑时 mainAgentId 还是 null。
             ChatUiChannel open = channel();
-            SendOptions options = ChatUiRoute.options(userId, sessionId, tenantId, agentId, mainAgentId);
+            // 续跑是 Gate 的下半段，不写 agent_run；没有运行行就不给审计编一个对不上的号。
+            SendOptions options = ChatUiRoute.options(userId, sessionId, tenantId, agentId, mainAgentId, null);
             open.send(options, confirm).block(Duration.ofSeconds(turns.timeoutSeconds()));
         } finally {
             drain.endTurn();
@@ -454,17 +457,18 @@ public class ChannelGateway implements AgentExecutor, ResidentAgentReloader {
     }
 
     /**
-     * 会话用请求里的 sessionId；caller 只带 tenantId/agentId 暂存。
+     * 会话用请求里的 sessionId；caller 带 tenantId/agentId/runId 暂存。
      * 先懒启动，再比 main。agentId 空或等于 main 时不改路由。
      */
-    private SendOptions options(AgentRequest request) {
+    private SendOptions options(AgentRequest request, String runId) {
         channel();
         return ChatUiRoute.options(
                 request.userId(),
                 request.sessionId(),
                 request.tenantId(),
                 turns.agentId(request),
-                mainAgentId);
+                mainAgentId,
+                runId);
     }
 
     private static void closeQuietly(HarnessAgent agent) {

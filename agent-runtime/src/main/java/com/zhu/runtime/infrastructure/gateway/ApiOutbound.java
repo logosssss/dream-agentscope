@@ -17,8 +17,9 @@ final class ApiOutbound {
 
     /**
      * 空标识表示 main，不改路由。非空标识必须已注册，否则按找不到拒绝。
+     * {@code runId} 进 caller 暂存，审计中间件要靠它把行挂到这一轮。
      */
-    static Target open(AgentRequest request, String agentId, Predicate<String> registered) {
+    static Target open(AgentRequest request, String agentId, Predicate<String> registered, String runId) {
         String id = blankToNull(agentId);
         if (id != null && !registered.test(id)) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "unknown agentId: " + id);
@@ -28,7 +29,7 @@ final class ApiOutbound {
                 request.sessionId(),
                 id,
                 request.userText(),
-                AgentChannelRuntimeContextResolver.staging(request.tenantId(), id));
+                AgentChannelRuntimeContextResolver.staging(request.tenantId(), id, runId));
     }
 
     /** 空白不当成路由标识。 */

@@ -14,11 +14,17 @@ final class ChatUiRoute {
     /**
      * 空标识或等于已启动的 main 时不改路由。
      * {@code mainAgentId} 必须是懒启动之后的值。还是 null 时，非空标识会被当成显式路由。
+     * {@code runId} 进 caller 暂存，中间件靠它把审计行挂到这一轮；没有运行的入口传 null。
      */
     static SendOptions options(
-            String userId, String sessionId, String tenantId, String agentId, String mainAgentId) {
+            String userId,
+            String sessionId,
+            String tenantId,
+            String agentId,
+            String mainAgentId,
+            String runId) {
         SendOptions options = SendOptions.of(userId, sessionId)
-                .withRuntimeContext(AgentChannelRuntimeContextResolver.staging(tenantId, agentId));
+                .withRuntimeContext(AgentChannelRuntimeContextResolver.staging(tenantId, agentId, runId));
         if (agentId != null && !agentId.isBlank() && !agentId.equals(mainAgentId)) {
             options = options.withAgentId(agentId);
         }

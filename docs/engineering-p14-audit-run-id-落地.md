@@ -63,3 +63,26 @@
 
 - 审计查询接口（按 `run_id` / 用户 / 时间过滤）与管理端详情页串联，把 P13 的请求号、P14 的运行号、`agent_run` 串成一条链。——查询接口见 [P15](./engineering-p15-audit-query-落地.md)；运行详情页仍待做。
 - 真有按运行号回查的需求时再加 `KEY idx_run (run_id, created_at)`。——P15 已加。
+
+## 回归与修复（2026-11-26）
+
+**现象**：`agent_event_audit.run_id` 在真实链路上仍然是空的。上面「验收」里那条端到端断言只在测试替身上「成立」。
+
+**根因**：运行号只进了 `AgentTurnSupport.context(...)` 造的那份**本地**上下文（给 `finish` 与用量），
+而中间件拿到的是 Gateway 侧合成的**另一份**：`staging(...)` 只带 `tenantId` / `agentId`，
+`resolve(...)` 重新 `build()` 时也不会把扩展字段带过来。所以「别等执行完再取框架消息 id」改对了，
+但「调用前把号放进**框架**那份上下文」这一步没接上。
+
+**同时暴露**：`MySqlRedisChatE2ETest` 用 `@MockitoSpyBean` 把 `ChannelGateway` 的四个执行方法整体替身，
+写审计的中间件根本不执行，那条 `agent_event_audit` 断言不可能成立——它在 CI 上要么红，要么从未真跑过。
+
+**修复**：
+1. `AgentChannelRuntimeContextResolver.staging(tenantId, agentId, runId)` 写入 `runId`；`resolve(...)` 显式复制三个业务键（扩展字段不会被 `builder(caller)` 带过来）。
+2. `ChatUiRoute.options(...)` 与 `ApiOutbound.open(...)` 增加 `runId`；`SyncAgentTurn` 的发送参数从 `Supplier<Msg>` 改成 `Send.send(String runId)`，同步入口拿到的就是同一个号。
+3. `ChannelGateway` 四个入口把运行号一路带进 `SendOptions` / `ApiOutbound.Target`；Gate 续跑没有 `agent_run` 行，传 `null`，不编一个对不上的号。
+4. `MySqlRedisChatE2ETest` 删掉那条不可能成立的断言，改注释指向新的回归点。
+
+**回归护栏**：`ChatUiRouteTest` / `ApiOutboundTest` / `AgentChannelRuntimeContextResolverTest` 断言运行号进了 caller 暂存、且能活过 `resolve(...)`；`SyncAgentTurnTest` 断言发送拿到的号与 `AgentResponse.runId` 相同。
+
+**验收（2026-11-26 本机 JDK 21）**：`agent-runtime` 21 例、`agent-bootstrap` 8 例（含 16 条 ArchUnit）、`agent-db` 4 例全绿。
+`MySqlRedisChatE2ETest` 与 `DataLifecycleE2ETest` 要 Docker，本机仍跳过，由 CI 跑。

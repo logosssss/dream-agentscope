@@ -10,7 +10,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * 接入层 resolver：caller 暂存写出 tenantId/agentId，空白键不落，身份字段不在这里拼。
+ * 接入层 resolver：caller 暂存写出 tenantId/agentId/runId，空白键不落，身份字段不在这里拼。
  */
 class AgentChannelRuntimeContextResolverTest {
 
@@ -19,19 +19,21 @@ class AgentChannelRuntimeContextResolverTest {
     /** staging 只带非空白业务键，不含 userId/sessionId。 */
     @Test
     void stagingKeepsBusinessKeysOnly() {
-        RuntimeContext staging = AgentChannelRuntimeContextResolver.staging("demo", "echo-v1");
+        RuntimeContext staging = AgentChannelRuntimeContextResolver.staging("demo", "echo-v1", "run-1");
         assertThat(staging.get("tenantId", String.class)).isEqualTo("demo");
         assertThat(staging.get("agentId", String.class)).isEqualTo("echo-v1");
+        assertThat(staging.get("runId", String.class)).isEqualTo("run-1");
         assertThat(staging.getUserId()).isNull();
         assertThat(staging.getSessionId()).isNull();
     }
 
-    /** 空白租户和 Agent 不写入暂存。 */
+    /** 空白租户、Agent 和运行号不写入暂存。 */
     @Test
     void stagingSkipsBlank() {
-        RuntimeContext staging = AgentChannelRuntimeContextResolver.staging("  ", null);
+        RuntimeContext staging = AgentChannelRuntimeContextResolver.staging("  ", null, "");
         assertThat(staging.get("tenantId", String.class)).isNull();
         assertThat(staging.get("agentId", String.class)).isNull();
+        assertThat(staging.get("runId", String.class)).isNull();
     }
 
     /** resolve 从 caller 暂存取出业务键，仍不写 userId/sessionId。 */
@@ -42,11 +44,26 @@ class AgentChannelRuntimeContextResolverTest {
                 null,
                 null,
                 null,
-                AgentChannelRuntimeContextResolver.staging("tenant-a", "companion-v1")));
+                AgentChannelRuntimeContextResolver.staging("tenant-a", "companion-v1", null)));
         assertThat(resolved.get("tenantId", String.class)).isEqualTo("tenant-a");
         assertThat(resolved.get("agentId", String.class)).isEqualTo("companion-v1");
         assertThat(resolved.getUserId()).isNull();
         assertThat(resolved.getSessionId()).isNull();
+    }
+
+    /**
+     * 运行号必须活过 resolve：中间件读的是 resolve 之后的上下文。
+     * 扩展字段不会被 builder(caller) 带过来，所以这里显式写一遍，漏了就是审计行 run_id 恒空。
+     */
+    @Test
+    void resolveKeepsRunId() {
+        RuntimeContext resolved = resolver.resolve(new ChannelRuntimeContextRequest(
+                "chatui",
+                null,
+                null,
+                null,
+                AgentChannelRuntimeContextResolver.staging("demo", "companion-v1", "run-7")));
+        assertThat(resolved.get("runId", String.class)).isEqualTo("run-7");
     }
 
     /** request 为空时仍返回可用上下文，不抛。 */
@@ -55,6 +72,7 @@ class AgentChannelRuntimeContextResolverTest {
         RuntimeContext resolved = resolver.resolve(null);
         assertThat(resolved.get("tenantId", String.class)).isNull();
         assertThat(resolved.get("agentId", String.class)).isNull();
+        assertThat(resolved.get("runId", String.class)).isNull();
     }
 
     /** caller 没有 agentId 时，可从 MsgContext.extra 补上。 */
@@ -66,7 +84,7 @@ class AgentChannelRuntimeContextResolverTest {
                 null,
                 msg,
                 null,
-                AgentChannelRuntimeContextResolver.staging("demo", null)));
+                AgentChannelRuntimeContextResolver.staging("demo", null, null)));
         assertThat(resolved.get("tenantId", String.class)).isEqualTo("demo");
         assertThat(resolved.get("agentId", String.class)).isEqualTo("echo-v1");
     }
