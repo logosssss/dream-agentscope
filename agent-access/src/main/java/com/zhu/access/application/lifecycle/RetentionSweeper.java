@@ -1,5 +1,6 @@
 package com.zhu.access.application.lifecycle;
 
+import com.zhu.common.util.UtcTimes;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
@@ -76,7 +77,7 @@ public class RetentionSweeper {
                 continue;
             }
             String scope = text(policy, "scope");
-            LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusDays(days);
+            LocalDateTime cutoff = UtcTimes.now().minusDays(days);
             boolean scoped = target.tenantScoped() && scope != null && !scope.isBlank() && !scope.equals("*");
             String sql = "DELETE FROM " + target.table()
                     + " WHERE " + target.timeColumn() + " < ?"

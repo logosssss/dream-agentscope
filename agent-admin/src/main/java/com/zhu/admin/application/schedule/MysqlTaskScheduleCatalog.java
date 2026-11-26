@@ -1,5 +1,6 @@
 package com.zhu.admin.application.schedule;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.admin.api.schedule.TaskScheduleCatalog;
 import com.zhu.admin.api.schedule.TaskScheduleSummary;
 import com.zhu.common.exception.BusinessException;
@@ -9,9 +10,11 @@ import com.zhu.ops.support.QueryLimits;
 import com.zhu.readmodel.entity.schedule.AgentTaskSchedule;
 import com.zhu.readmodel.persistence.schedule.AgentTaskScheduleMapper;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -42,9 +45,15 @@ public class MysqlTaskScheduleCatalog implements TaskScheduleCatalog {
 
     private final AgentTaskScheduleMapper schedules;
 
-    /** 同一标识由唯一键拒绝。 */
-    public MysqlTaskScheduleCatalog(AgentTaskScheduleMapper schedules) {
+    /** cron 按哪个时区解释。库里存 UTC，运维的「每天 03:00」不跟着机器时区漂。 */
+    private final ZoneId zone;
+
+    /** 同一标识由唯一键拒绝。cron 时区空时用进程默认（与改造前一致）。 */
+    public MysqlTaskScheduleCatalog(
+            AgentTaskScheduleMapper schedules,
+            @Value("${agentscope.schedule.zone:}") String zone) {
         this.schedules = schedules;
+        this.zone = ScheduleTimes.zone(zone);
     }
 
     /**
@@ -68,7 +77,7 @@ public class MysqlTaskScheduleCatalog implements TaskScheduleCatalog {
                 || (agentId != null && !agentId.isBlank() && agentId.length() > AGENT_LIMIT)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "task schedule is invalid");
         }
-        LocalDateTime nextFireAt = ScheduleTimes.nextFireAt(cron, hasDelay ? delaySeconds : null, LocalDateTime.now());
+        LocalDateTime nextFireAt = ScheduleTimes.nextFireAt(cron, hasDelay ? delaySeconds : null, UtcTimes.now(), zone);
         AgentTaskSchedule row = new AgentTaskSchedule();
         row.setScheduleId(scheduleId);
         row.setTaskType(taskType);
@@ -118,7 +127,7 @@ public class MysqlTaskScheduleCatalog implements TaskScheduleCatalog {
             throw new BusinessException(ErrorCode.CONFLICT, "task schedule has no user");
         }
         LocalDateTime nextFireAt = ScheduleTimes.nextFireAt(
-                existing.getCronExpr(), existing.getDelaySeconds(), LocalDateTime.now());
+                existing.getCronExpr(), existing.getDelaySeconds(), UtcTimes.now(), zone);
         int updated = schedules.restoreDisabledWithNext(scheduleId, nextFireAt);
         if (updated != 1) {
             throw new BusinessException(ErrorCode.CONFLICT, "task schedule is already enabled");

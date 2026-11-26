@@ -1,5 +1,6 @@
 package com.zhu.state.infrastructure.persistence;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import com.zhu.state.api.knowledge.KnowledgeBaseItem;
@@ -71,7 +72,7 @@ public class MysqlKnowledgeRepository implements KnowledgeRepository {
         row.setUserId(userId);
         row.setAgentId(agentId);
         row.setName(name.trim());
-        LocalDateTime created = LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+        LocalDateTime created = UtcTimes.now().truncatedTo(ChronoUnit.MILLIS);
         row.setCreatedAt(created);
         bases.insert(row);
         return new KnowledgeBaseItem(kbId, tenant, userId, agentId, row.getName(), created);

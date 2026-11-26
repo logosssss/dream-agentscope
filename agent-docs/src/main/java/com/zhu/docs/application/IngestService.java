@@ -1,5 +1,6 @@
 package com.zhu.docs.application;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.docs.api.DocsEmbedder;
 import com.zhu.docs.api.DocsIngest;
 import com.zhu.docs.api.DocsSyncStatus;
@@ -233,7 +234,7 @@ public class IngestService implements DocsIngest {
                 repo,
                 hash,
                 markdown,
-                LocalDateTime.now(),
+                UtcTimes.now(),
                 false,
                 List.of());
         List<CatalogChunk> stored = new ArrayList<>();

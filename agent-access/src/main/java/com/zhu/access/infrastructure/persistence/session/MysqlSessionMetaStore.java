@@ -1,5 +1,6 @@
 package com.zhu.access.infrastructure.persistence.session;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.access.api.dto.chat.SessionDetail;
 import com.zhu.access.api.dto.chat.SessionSummary;
 import com.zhu.access.application.chat.session.SessionMetaStore;
@@ -39,7 +40,7 @@ public class MysqlSessionMetaStore implements SessionMetaStore {
         row.setSessionId(sessionId);
         row.setChannel(channel == null || channel.isBlank() ? "WEB" : channel);
         row.setTitle(title == null ? "" : title);
-        row.setLastActiveAt(LocalDateTime.now(ZoneOffset.UTC));
+        row.setLastActiveAt(UtcTimes.now());
         sessions.touch(row);
     }
 

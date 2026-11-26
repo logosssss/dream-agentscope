@@ -1,5 +1,6 @@
 package com.zhu.access.application.schedule;
 
+import com.zhu.common.util.UtcTimes;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.zhu.access.config.ScheduleProperties;
@@ -19,7 +20,7 @@ class TaskScheduleFirerTest {
     /** 到期的 cron 调度发布一条任务，下次触发推进，结果写回。 */
     @Test
     void firesDueScheduleAndAdvancesNextFire() {
-        LocalDateTime due = LocalDateTime.now().minusMinutes(1);
+        LocalDateTime due = UtcTimes.now().minusMinutes(1);
         AgentTaskSchedule row = row(7L, "sch-a", "REPORT", "0 0 * * * *", null, due);
         FakeQueue queue = new FakeQueue(List.of(row));
         List<AgentTask> published = new ArrayList<>();
@@ -36,14 +37,14 @@ class TaskScheduleFirerTest {
             assertThat(task.taskId()).startsWith("sched-sch-a@");
         });
         assertThat(queue.advanced).isEqualTo(1);
-        assertThat(queue.nextFireAt).isAfter(LocalDateTime.now());
+        assertThat(queue.nextFireAt).isAfter(UtcTimes.now());
         assertThat(queue.markedStatus).containsExactly("SUCCEEDED");
     }
 
     /** 发布失败不抛，只把状态记成 FAILED；下次触发已经推进，不会每轮重试到死。 */
     @Test
     void recordsFailureWhenPublishThrows() {
-        AgentTaskSchedule row = row(8L, "sch-b", "BATCH", null, 60, LocalDateTime.now().minusSeconds(5));
+        AgentTaskSchedule row = row(8L, "sch-b", "BATCH", null, 60, UtcTimes.now().minusSeconds(5));
         FakeQueue queue = new FakeQueue(List.of(row));
 
         AgentTaskPublisher failing = task -> {
@@ -59,7 +60,7 @@ class TaskScheduleFirerTest {
     /** 抢不到（别的进程先推进了）就不发布、不记触发。 */
     @Test
     void skipsWhenAnotherProcessWonTheRace() {
-        AgentTaskSchedule row = row(9L, "sch-c", "REPORT", "0 0 * * * *", null, LocalDateTime.now().minusMinutes(1));
+        AgentTaskSchedule row = row(9L, "sch-c", "REPORT", "0 0 * * * *", null, UtcTimes.now().minusMinutes(1));
         FakeQueue queue = new FakeQueue(List.of(row));
         queue.advanceWins = false;
         List<AgentTask> published = new ArrayList<>();
@@ -82,7 +83,7 @@ class TaskScheduleFirerTest {
     /** cron 被改坏时留痕为 FAILED，不发布也不抛。 */
     @Test
     void recordsFailureWhenScheduleCannotComputeNext() {
-        AgentTaskSchedule row = row(10L, "sch-d", "REPORT", "not a cron", null, LocalDateTime.now().minusMinutes(1));
+        AgentTaskSchedule row = row(10L, "sch-d", "REPORT", "not a cron", null, UtcTimes.now().minusMinutes(1));
         FakeQueue queue = new FakeQueue(List.of(row));
         List<AgentTask> published = new ArrayList<>();
 

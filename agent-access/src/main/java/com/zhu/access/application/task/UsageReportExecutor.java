@@ -1,5 +1,6 @@
 package com.zhu.access.application.task;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.runtime.api.event.AuditRecorder;
 import com.zhu.runtime.task.AgentTask;
 import com.zhu.runtime.task.handle.AgentTaskExecutor;
@@ -67,7 +68,7 @@ public class UsageReportExecutor implements AgentTaskExecutor {
         String tenantId = task.tenantId() == null ? "" : task.tenantId();
         String userId = task.userId();
         int days = TaskPayload.bounded(task.payload(), "days", DEFAULT_DAYS, 1, MAX_DAYS);
-        LocalDateTime since = LocalDateTime.now(ZoneOffset.UTC).minusDays(days);
+        LocalDateTime since = UtcTimes.now().minusDays(days);
         long tokens = number(TOKEN_SUM_SQL, tenantId, userId, since).longValue();
         BigDecimal cost = decimal(COST_SUM_SQL, tenantId, userId, since);
         long runs = number(RUN_COUNT_SQL, tenantId, userId, since).longValue();

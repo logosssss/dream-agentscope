@@ -1,5 +1,6 @@
 package com.zhu.admin.application.eval;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.admin.api.eval.EvalRunCatalog;
 import com.zhu.admin.api.eval.EvalRunSummary;
 import com.zhu.admin.infrastructure.persistence.eval.EvalCaseMapper;
@@ -75,7 +76,7 @@ public class MysqlEvalRunCatalog implements EvalRunCatalog {
         row.setTotalCases((int) total);
         row.setPassedCases(0);
         row.setStatus(RUNNING);
-        row.setStartedAt(LocalDateTime.now(ZoneOffset.UTC));
+        row.setStartedAt(UtcTimes.now());
         runs.insert(row);
         return new EvalRunSummary(row.getEvalRunId(), datasetId, VERSION, (int) total, 0, RUNNING);
     }
@@ -104,7 +105,7 @@ public class MysqlEvalRunCatalog implements EvalRunCatalog {
         BigDecimal rate = total == 0
                 ? BigDecimal.ZERO.setScale(4)
                 : BigDecimal.valueOf(passedCases).divide(BigDecimal.valueOf(total), 4, RoundingMode.HALF_UP);
-        int updated = runs.scoreRunning(evalRunId, passedCases, rate, LocalDateTime.now(ZoneOffset.UTC));
+        int updated = runs.scoreRunning(evalRunId, passedCases, rate, UtcTimes.now());
         if (updated != 1) {
             throw new BusinessException(ErrorCode.CONFLICT, "eval run is already scored");
         }

@@ -1,5 +1,6 @@
 package com.zhu.access.application.schedule;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.access.config.ScheduleProperties;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.ops.schedule.ScheduleTimes;
@@ -79,7 +80,7 @@ public class TaskScheduleFirer {
      * <p>公开是给测试和运维脚本用的；正常路径由 {@link #scheduled()} 调用。
      */
     public int runOnce() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = UtcTimes.now();
         List<AgentTaskSchedule> due = schedules.due(now, properties.getBatchSize());
         if (due == null || due.isEmpty()) {
             return 0;
@@ -98,7 +99,8 @@ public class TaskScheduleFirer {
         LocalDateTime expected = row.getNextFireAt();
         LocalDateTime next;
         try {
-            next = ScheduleTimes.nextFireAt(row.getCronExpr(), row.getDelaySeconds(), now);
+            next = ScheduleTimes.nextFireAt(
+                    row.getCronExpr(), row.getDelaySeconds(), now, ScheduleTimes.zone(properties.getZone()));
         } catch (BusinessException ex) {
             // 登记时校验过，运行时仍可能因为表达式被改坏而算不出来：留痕并停在这里，不再重试。
             schedules.markFired(row.getId(), now, "FAILED");
@@ -135,6 +137,6 @@ public class TaskScheduleFirer {
                 row.getAgentId(),
                 null,
                 Map.of("scheduleId", row.getScheduleId()),
-                Instant.now());
+                UtcTimes.instant());
     }
 }

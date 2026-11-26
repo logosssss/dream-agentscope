@@ -70,6 +70,8 @@ agentscope:
     interval-millis: 30000
     initial-delay-millis: 20000
     batch-size: 20
+    # cron 按哪个时区解释；库里存 UTC。留空按进程默认时区（换台机器就漂）。
+    zone: Asia/Shanghai
   wx:
     mini:
       login-page: pages/login-confirm/index

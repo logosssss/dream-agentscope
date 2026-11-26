@@ -28,6 +28,8 @@ business:
     - agentscope.schedule.interval-millis
     - agentscope.schedule.initial-delay-millis
     - agentscope.schedule.batch-size
+    # cron 按哪个时区解释（例如 Asia/Shanghai）；空白用进程默认。库里存 UTC。
+    - agentscope.schedule.zone
   prefixes:
     - agentscope.permission.rules
     # MCP 服务器清单（map）；密钥用 ${ENV} 占位，不进明文。见 docs/mcp-落地.md。

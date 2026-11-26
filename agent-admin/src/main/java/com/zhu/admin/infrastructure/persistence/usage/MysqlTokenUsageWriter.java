@@ -1,5 +1,6 @@
 package com.zhu.admin.infrastructure.persistence.usage;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.admin.api.usage.DailyCostAccumulator;
 import com.zhu.admin.api.usage.TokenUsageWriter;
 import com.zhu.admin.domain.ModelCosting;
@@ -87,7 +88,7 @@ public class MysqlTokenUsageWriter implements TokenUsageWriter {
      */
     private ModelPrice currentPrice(String model) {
         try {
-            return prices.selectCurrent(model, LocalDateTime.now(ZoneOffset.UTC));
+            return prices.selectCurrent(model, UtcTimes.now());
         } catch (RuntimeException ex) {
             log.warning("model price lookup failed: " + ex.getMessage());
             return null;

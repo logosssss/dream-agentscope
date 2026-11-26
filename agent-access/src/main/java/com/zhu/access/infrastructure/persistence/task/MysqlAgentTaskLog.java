@@ -1,5 +1,6 @@
 package com.zhu.access.infrastructure.persistence.task;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.access.infrastructure.persistence.entity.task.AgentTaskRow;
 import com.zhu.runtime.task.AgentTask;
 import com.zhu.runtime.task.log.AgentTaskLog;
@@ -37,7 +38,7 @@ public class MysqlAgentTaskLog implements AgentTaskLog {
         row.setSessionId(task.sessionId() == null || task.sessionId().isBlank() ? null : limit(task.sessionId(), 128));
         row.setTaskType(limit(task.type(), TYPE_LIMIT));
         row.setStatus("RUNNING");
-        row.setStartedAt(LocalDateTime.now());
+        row.setStartedAt(UtcTimes.now());
         tasks.insert(row);
     }
 
@@ -47,7 +48,7 @@ public class MysqlAgentTaskLog implements AgentTaskLog {
     @Override
     public void finish(String taskId, String status, String errorCode) {
         String error = errorCode == null || errorCode.isBlank() ? null : limit(errorCode, ERROR_LIMIT);
-        tasks.finish(taskId, status, error, LocalDateTime.now());
+        tasks.finish(taskId, status, error, UtcTimes.now());
     }
 
     /** 按列宽截断，避免超长字段把整行写失败。 */

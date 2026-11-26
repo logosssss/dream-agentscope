@@ -1,5 +1,6 @@
 package com.zhu.access.infrastructure.persistence.run;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.access.application.chat.run.RunLog;
 import com.zhu.access.application.chat.run.RunStep;
 import com.zhu.readmodel.entity.run.AgentRun;
@@ -76,7 +77,7 @@ public class MysqlRunLog implements RunLog {
             return;
         }
         long duration = Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000L);
-        LocalDateTime finished = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime finished = UtcTimes.now();
         AgentRun row = new AgentRun();
         row.setRunId(runId == null || runId.isBlank() ? Ids.newId() : runId);
         row.setTenantId(tenantId == null ? "" : tenantId);

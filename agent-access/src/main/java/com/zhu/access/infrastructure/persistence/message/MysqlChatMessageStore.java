@@ -1,5 +1,6 @@
 package com.zhu.access.infrastructure.persistence.message;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.access.api.dto.chat.ChatMessageAttachmentItem;
 import com.zhu.access.api.dto.chat.ChatMessageItem;
 import com.zhu.access.application.chat.ChatAttachmentSupport;
@@ -52,7 +53,7 @@ public class MysqlChatMessageStore implements ChatMessageStore {
         }
         String tenant = tenantId == null ? "" : tenantId;
         long next = messages.maxSeq(tenant, userId, sessionId) + 1L;
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime now = UtcTimes.now();
         messages.insertMessage(row(tenant, userId, sessionId, next, "user", userText, runId, now));
         messages.insertMessage(row(tenant, userId, sessionId, next + 1L, "assistant", assistantText, runId, now));
         return next;

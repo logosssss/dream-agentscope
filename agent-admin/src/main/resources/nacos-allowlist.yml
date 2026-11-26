@@ -1,8 +1,11 @@
 # 管理进程 Nacos 白名单。改这里即可扩键。
-# business.exact 为空：启动仍要求 agent-admin.yaml 非空，但不合并任何业务键。
+# business.exact 只有 cron 时区一项：管理端登记调度时按同一口径算下次触发。
+# 启动仍要求 agent-admin.yaml 非空；没写的键不合并，按本地默认。
 
 business:
-  exact: []
+  exact:
+    # cron 按哪个时区解释；与用户进程同一口径。库里存 UTC。
+    - agentscope.schedule.zone
   prefixes: []
 
 infra:

@@ -1,5 +1,6 @@
 package com.zhu.admin;
 
+import com.zhu.common.util.UtcTimes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,7 +29,7 @@ class TaskScheduleCatalogTest {
     @Test
     void registerAcceptsCronOrDelay() {
         AgentTaskScheduleMapper schedules = mock(AgentTaskScheduleMapper.class);
-        MysqlTaskScheduleCatalog catalog = new MysqlTaskScheduleCatalog(schedules);
+        MysqlTaskScheduleCatalog catalog = new MysqlTaskScheduleCatalog(schedules, "UTC");
 
         assertThat(catalog.register("sch-a", "REPORT", "demo", "u-1", null, "0 0 * * *", null))
                 .satisfies(saved -> {
@@ -46,7 +47,7 @@ class TaskScheduleCatalogTest {
         ArgumentCaptor<AgentTaskSchedule> cron = ArgumentCaptor.forClass(AgentTaskSchedule.class);
         verify(schedules).insert(cron.capture());
         assertThat(cron.getValue().getEnabled()).isEqualTo(1);
-        assertThat(cron.getValue().getNextFireAt()).isAfter(LocalDateTime.now());
+        assertThat(cron.getValue().getNextFireAt()).isAfter(UtcTimes.now());
         assertThat(cron.getValue().getFireCount()).isZero();
         assertThat(cron.getValue().getAgentId()).isNull();
 
@@ -77,7 +78,7 @@ class TaskScheduleCatalogTest {
     @Test
     void disableAndRestoreToggleEnabled() {
         AgentTaskScheduleMapper schedules = mock(AgentTaskScheduleMapper.class);
-        MysqlTaskScheduleCatalog catalog = new MysqlTaskScheduleCatalog(schedules);
+        MysqlTaskScheduleCatalog catalog = new MysqlTaskScheduleCatalog(schedules, "UTC");
 
         AgentTaskSchedule enabled = row("sch-a", 1, "0 0 * * *", null);
         when(schedules.findByScheduleId("sch-a")).thenReturn(enabled);
@@ -118,7 +119,7 @@ class TaskScheduleCatalogTest {
     @Test
     void recentListsRegisteredSchedules() {
         AgentTaskScheduleMapper schedules = mock(AgentTaskScheduleMapper.class);
-        MysqlTaskScheduleCatalog catalog = new MysqlTaskScheduleCatalog(schedules);
+        MysqlTaskScheduleCatalog catalog = new MysqlTaskScheduleCatalog(schedules, "UTC");
         when(schedules.recent(50)).thenReturn(List.of());
         assertThat(catalog.recent(50)).isEmpty();
 

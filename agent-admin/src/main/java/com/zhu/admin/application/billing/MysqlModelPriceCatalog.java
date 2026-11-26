@@ -1,5 +1,6 @@
 package com.zhu.admin.application.billing;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.ops.support.QueryLimits;
 
 import com.zhu.admin.api.billing.ModelPriceCatalog;
@@ -70,7 +71,7 @@ public class MysqlModelPriceCatalog implements ModelPriceCatalog {
         if (inputPer1m == null || outputPer1m == null || inputPer1m.signum() < 0 || outputPer1m.signum() < 0) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "model price is invalid");
         }
-        LocalDateTime from = effectiveFrom == null ? LocalDateTime.now(ZoneOffset.UTC) : effectiveFrom;
+        LocalDateTime from = effectiveFrom == null ? UtcTimes.now() : effectiveFrom;
         if (effectiveTo != null && !effectiveTo.isAfter(from)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "model price is invalid");
         }

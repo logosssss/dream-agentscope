@@ -1,5 +1,6 @@
 package com.zhu.access.application.task;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.runtime.api.event.AuditRecorder;
 import com.zhu.runtime.task.AgentTask;
 import com.zhu.runtime.task.handle.AgentTaskExecutor;
@@ -121,7 +122,7 @@ public class KnowledgeBackfillExecutor implements AgentTaskExecutor {
                 doc.agentId(),
                 null,
                 Map.of("docId", doc.docId(), "version", doc.version()),
-                Instant.now());
+                UtcTimes.instant());
         try {
             documents.execute(index);
             return true;

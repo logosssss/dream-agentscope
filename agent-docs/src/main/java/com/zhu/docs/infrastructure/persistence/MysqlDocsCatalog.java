@@ -1,5 +1,6 @@
 package com.zhu.docs.infrastructure.persistence;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.docs.api.DocsSyncStatus;
 import com.zhu.docs.application.CatalogChunk;
 import com.zhu.docs.application.CatalogDocument;
@@ -44,7 +45,7 @@ public class MysqlDocsCatalog implements DocsCatalog, DocsSearchIndex {
     @Override
     public long openRun() {
         DocsSyncRunRow row = new DocsSyncRunRow();
-        row.setStartedAt(LocalDateTime.now());
+        row.setStartedAt(UtcTimes.now());
         row.setScanned(0);
         row.setAdded(0);
         row.setUpdated(0);
@@ -59,7 +60,7 @@ public class MysqlDocsCatalog implements DocsCatalog, DocsSearchIndex {
     public void closeRun(long id, int scanned, int added, int updated, int removed, String status, String note) {
         DocsSyncRunRow row = new DocsSyncRunRow();
         row.setId(id);
-        row.setFinishedAt(LocalDateTime.now());
+        row.setFinishedAt(UtcTimes.now());
         row.setScanned(scanned);
         row.setAdded(added);
         row.setUpdated(updated);
@@ -272,7 +273,7 @@ public class MysqlDocsCatalog implements DocsCatalog, DocsSearchIndex {
         row.setSource(document.source());
         row.setContentHash(document.contentHash());
         row.setMarkdown(document.markdown() == null ? "" : document.markdown());
-        row.setIndexedAt(document.indexedAt() == null ? LocalDateTime.now() : document.indexedAt());
+        row.setIndexedAt(document.indexedAt() == null ? UtcTimes.now() : document.indexedAt());
         row.setDeleted(document.deleted() ? 1 : 0);
         return row;
     }

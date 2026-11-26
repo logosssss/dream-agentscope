@@ -1,5 +1,6 @@
 package com.zhu.bootstrap;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.access.application.schedule.TaskScheduleFirer;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -82,7 +83,7 @@ class TaskScheduleFiringE2ETest {
                              enabled, next_fire_at, fire_count)
                         VALUES (?, 'REPORT', ?, 'u-schedule', 'companion-v1', '0 * * * * *', 1, ?, 0)
                         """,
-                SCHEDULE_ID, TENANT, LocalDateTime.now().minusMinutes(1));
+                SCHEDULE_ID, TENANT, UtcTimes.now().minusMinutes(1));
     }
 
     @Test

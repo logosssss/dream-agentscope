@@ -1,5 +1,6 @@
 package com.zhu.access.application.knowledge;
 
+import com.zhu.common.util.UtcTimes;
 import com.zhu.common.util.Ids;
 import com.zhu.runtime.task.AgentTask;
 import com.zhu.runtime.task.publish.AgentTaskPublisher;
@@ -42,7 +43,7 @@ public class KnowledgeIndexLauncher {
                     agentId,
                     null,
                     Map.of("docId", docId, "version", version),
-                    Instant.now()));
+                    UtcTimes.instant()));
         } catch (RuntimeException ex) {
             log.warning("knowledge index enqueue failed");
             knowledge.updateDocumentStatus(
