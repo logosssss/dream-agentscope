@@ -76,3 +76,26 @@ P0–P5 之后还有一个明显的说不过去的地方：**用户点「删除�
 剩下的「可登记不执行」只剩**调度真消费**（`agent_task_schedule`）；另外 P5 残留的「对话链路端到端」可以用进程内假模型补上。
 
 工程侧后续见 [P7 `agent-ops` 抽取](./engineering-p7-ops-落地.md)。
+
+## 回归与修复（2026-11-26）
+
+**现象**：`dataType=ALL` 的删除请求必然失败——前半（会话/消息/运行/附件）已经删掉，
+后半（知识库、待办、反馈、登录凭据、整段审计脱敏、`tenant_user` 标记）一条都不执行，请求落 `FAILED`，
+重试继续半删。`dry-run` 同样失败，因为它也要先数行数。
+
+**根因**：`UserDataPurger` 是在 V40 / V41 硬删审批表与情景/画像表**之后**写的，仍照着旧清单删：
+`step("episodic_memory", …)`、`step("user_profile", …)` 在数行数时就抛 `BadSqlGrammar`；
+脱敏清单里的 `approval_record` 也早已不存在。
+
+**修复**：删掉两张幽灵表的两个步骤；脱敏清单改成常量 `ANONYMIZE_TABLES` 并去掉 `approval_record`；
+类注释与「硬删 / 脱敏保留」两段口径同步。步骤顺序与语义未变。
+
+**回归护栏**：新增 `agent-db/src/test/java/com/zhu/db/PurgeTableReferenceTest.java`——不连库，
+直接读 `UserDataPurger` 源码里的 SQL 字面量与脱敏清单，与迁移推演出的表集合对照；
+引用到已删表当场红并报出表名（已用「把 `episodic_memory` 临时塞回去」验证过它会红）。
+
+**顺带修**：`SchemaContractTest` 的建表正则原来只认 `) ENGINE`，V1（`) DEFAULT CHARSET`）与
+V48（`);`）一共 6 张表根本没进 schema 模型，任何漂移都查不出来。现在按语句取最后一个右括号，
+五种结尾写法都能解析。
+
+**验收（2026-11-26 本机 JDK 21）**：`agent-db` 4 例全绿；`DataLifecycleE2ETest` 要 Docker，仍由 CI 跑。

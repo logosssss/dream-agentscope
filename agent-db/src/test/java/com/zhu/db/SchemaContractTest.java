@@ -49,8 +49,18 @@ class SchemaContractTest {
             Map.entry("agent_run", "AgentRunMapper.xml"),
             Map.entry("agent_run_step", "AgentRunStepMapper.xml"));
 
+    /**
+     * 表体 + 结尾。老版本只认 {@code ) ENGINE}，于是 V1 的 {@code ) DEFAULT CHARSET}
+     * 和 V48 的 {@code );} 一共 6 张表根本没进 schema 模型，漂移查不出来。
+     *
+     * <p>结尾写法有五种（ENGINE / DEFAULT CHARSET / 只有分号 / 换行后的 COMMENT），
+     * 所以不列举结尾，改成「取本语句里最后一个右括号」：列定义里的
+     * {@code VARCHAR(64)}、{@code CURRENT_TIMESTAMP(3)} 不是语句里最后一个括号。
+     * 表体与结尾都不许跨分号，否则一个文件里的多条 CREATE 会被并成一条、只登记第一张表；
+     * 迁移里没有字符串常量带分号，所以按语句切是安全的。
+     */
     private static final Pattern CREATE_TABLE = Pattern.compile(
-            "(?is)CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?`?([a-z0-9_]+)`?\\s*\\((.*?)\\)\\s*ENGINE");
+            "(?is)CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?`?([a-z0-9_]+)`?\\s*\\(([^;]*)\\)[^;]*;");
 
     /** 一条 ALTER 语句带上它的所有子句：ADD / CHANGE / DROP 可能一次写多条。 */
     private static final Pattern ALTER_TABLE = Pattern.compile(
@@ -140,8 +150,8 @@ class SchemaContractTest {
         assertThat(duplicates).as("shared table mappers must live only in agent-readmodel").isEmpty();
     }
 
-    /** 仓库根：agent-db 模块目录的上一级。 */
-    private static Path repoRoot() {
+    /** 仓库根：agent-db 模块目录的上一级。同包的其它契约测共用。 */
+    static Path repoRoot() {
         Path cwd = Path.of("").toAbsolutePath().normalize();
         if (cwd.getFileName() != null && "agent-db".equals(cwd.getFileName().toString())) {
             return cwd.getParent();
@@ -155,8 +165,9 @@ class SchemaContractTest {
 
     /**
      * 按迁移顺序推演表结构。只处理本仓库常见的 CREATE / ADD / CHANGE / DROP。
+     * 同包的其它契约测共用。
      */
-    private static Map<String, Set<String>> loadSchema(Path migrationDir) throws IOException {
+    static Map<String, Set<String>> loadSchema(Path migrationDir) throws IOException {
         Map<String, Set<String>> schema = new LinkedHashMap<>();
         List<Path> scripts;
         try (Stream<Path> stream = Files.list(migrationDir)) {

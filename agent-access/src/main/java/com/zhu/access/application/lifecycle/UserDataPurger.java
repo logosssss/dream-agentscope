@@ -26,9 +26,9 @@ import org.springframework.stereotype.Service;
  * <p>两类动作：
  * <ul>
  *   <li>硬删：会话、消息、运行记录、附件（含对象存储里的字节）、知识库（含向量）、
- *       情景记忆与画像、待办与反馈、登录凭据。</li>
- *   <li>脱敏保留：审计、安全干预、审批记录、token 用量、配额流水 —— 合规与计费要留行，
- *       只把 {@code user_id} 换成 {@code deleted:<摘要>}。</li>
+ *       待办与反馈、登录凭据。情景记忆与画像表已硬删，不再有行可删。</li>
+ *   <li>脱敏保留：审计、安全干预、token 用量、配额流水 —— 合规与计费要留行，
+ *       只把 {@code user_id} 换成 {@code deleted:<摘要>}。审批表已硬删，不在保留集合里。</li>
  * </ul>
  *
  * <p>{@code dry-run} 打开时只数行数不删，报告里带 {@code dryRun=true}。
@@ -165,14 +165,6 @@ public class UserDataPurger {
                     tenantWhere("SELECT COUNT(*) FROM kb_knowledge_base", scoped),
                     tenantWhere("DELETE FROM kb_knowledge_base", scoped),
                     identityArgs(tenant, userId, scoped));
-            step("episodic_memory", deleted, skipped,
-                    tenantWhere("SELECT COUNT(*) FROM episodic_memory", scoped),
-                    tenantWhere("DELETE FROM episodic_memory", scoped),
-                    identityArgs(tenant, userId, scoped));
-            step("user_profile", deleted, skipped,
-                    tenantWhere("SELECT COUNT(*) FROM user_profile", scoped),
-                    tenantWhere("DELETE FROM user_profile", scoped),
-                    identityArgs(tenant, userId, scoped));
             step("user_todo", deleted, skipped,
                     "SELECT COUNT(*) FROM user_todo WHERE user_id = ?",
                     "DELETE FROM user_todo WHERE user_id = ?",
@@ -187,7 +179,7 @@ public class UserDataPurger {
                     identityArgs(tenant, userId, scoped));
 
             String anonymized = ANONYMIZED_PREFIX + anonymizedSuffix(userId);
-            for (String table : anonymizeTables()) {
+            for (String table : ANONYMIZE_TABLES) {
                 anonymize(table, anonymized, tenant, userId, scoped, deleted, skipped);
             }
             markTenantUserDeleted(tenant, userId, scoped, deleted, skipped);
@@ -260,11 +252,13 @@ public class UserDataPurger {
         }
     }
 
-    /** 需要脱敏保留的表。 */
-    private static List<String> anonymizeTables() {
-        return List.of("agent_event_audit", "safety_intervention", "approval_record",
-                "quota_usage_log", "token_usage");
-    }
+    /**
+     * 需要脱敏保留的表：合规与计费要留行，只把 {@code user_id} 换成 {@code deleted:<摘要>}。
+     * 每个表名都必须能在 Flyway 的迁移里找到当前表——审批表、情景记忆与画像表都已硬删，
+     * 不能再列在这里，否则一次删除请求会在中途抛 SQL 错误、把后半段全跳过。
+     */
+    static final List<String> ANONYMIZE_TABLES = List.of(
+            "agent_event_audit", "safety_intervention", "quota_usage_log", "token_usage");
 
     /** 审计类表把 user_id 换掉，其余列不动。 */
     private void anonymize(
