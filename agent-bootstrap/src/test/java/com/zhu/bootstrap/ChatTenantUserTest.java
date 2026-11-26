@@ -43,7 +43,7 @@ class ChatTenantUserTest {
                 new ConcurrentRunGuard(new FakeCacheFacade(), 120),
                 (tenant, user, session, channel, text) -> {
                 },
-                (tenant, user, session, trigger, status, runId, requestId, input, output, error, steps, started) -> {
+                (tenant, user, session, trigger, status, runId, requestId, clientIp, input, output, error, steps, started) -> {
                 },
                 tenantId -> {
                 },

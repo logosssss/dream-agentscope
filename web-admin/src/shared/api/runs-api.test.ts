@@ -28,4 +28,10 @@ describe('listRuns', () => {
 
     expect(apiJson).toHaveBeenCalledWith('/api/admin/runs?limit=50')
   })
+
+  it('租户和用户一起放进查询串', async () => {
+    await listRuns({ tenantId: 'demo', userId: 'u-1' })
+
+    expect(apiJson).toHaveBeenCalledWith('/api/admin/runs?limit=50&tenantId=demo&userId=u-1')
+  })
 })

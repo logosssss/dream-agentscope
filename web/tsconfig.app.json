@@ -16,5 +16,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  // 读磁盘的入口脚本测试走 node 工程。DOM 工程只带 vite 类型，编 node:fs 会让生产构建失败。
+  "exclude": ["src/agents/companion/dshCompanionAddon.test.ts"]
 }

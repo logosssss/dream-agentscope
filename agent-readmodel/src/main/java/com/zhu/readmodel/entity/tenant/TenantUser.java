@@ -3,6 +3,7 @@ package com.zhu.readmodel.entity.tenant;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.time.LocalDateTime;
 
 /**
  * tenant_user 的一行。登记后默认可用。角色不在这次写入。
@@ -25,6 +26,12 @@ public class TenantUser {
 
     /** ACTIVE 或 DISABLED。停用和恢复只改状态，不删行。 */
     private String status;
+
+    /** 登记时间。对话鉴权不读。 */
+    private LocalDateTime createdAt;
+
+    /** 最近一次改动时间。对话鉴权不读。 */
+    private LocalDateTime updatedAt;
 
     /** 主键。 */
     public Long getId() {
@@ -74,5 +81,25 @@ public class TenantUser {
     /** 写入状态。 */
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    /** 登记时间。 */
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    /** 写入登记时间。插入交给库默认值。 */
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    /** 最近一次改动时间。 */
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    /** 写入最近一次改动时间。更新交给库的 ON UPDATE。 */
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

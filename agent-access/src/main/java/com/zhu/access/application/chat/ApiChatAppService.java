@@ -9,6 +9,7 @@ import com.zhu.access.application.chat.run.RunStep;
 import com.zhu.access.application.chat.session.SessionIndex;
 import com.zhu.access.application.chat.session.SessionOwnerGate;
 import com.zhu.access.domain.channel.AccessChannel;
+import com.zhu.access.infrastructure.security.ClientIp;
 import com.zhu.ops.tenant.TenantGate;
 import com.zhu.ops.tenant.TenantUserGate;
 import com.zhu.common.context.UserContext;
@@ -89,6 +90,7 @@ public class ApiChatAppService {
      * 同步 API 对话。身份只来自登录会话；通道固定记为 API。
      */
     public AgentResponse chat(ChatRequest request) {
+        String clientIp = ClientIp.capture();
         ChatRequest apiRequest = forceApi(request);
         AgentRequest agentRequest = toRequest(apiRequest);
         return GatedChat.sync(
@@ -101,13 +103,14 @@ public class ApiChatAppService {
                 () -> remember(apiRequest, agentRequest),
                 () -> gateway.executeApi(agentRequest),
                 (status, runId, output, errorCode, requestId, started, steps) -> finish(
-                        apiRequest, agentRequest, status, runId, output, errorCode, requestId, started, steps));
+                        apiRequest, agentRequest, status, runId, output, errorCode, requestId, clientIp, started, steps));
     }
 
     /**
-     * 流式 API 对话。额度动作码仍为 chat-stream。
+     * 流式 API 对话。来源地址在返回 Flux 之前抄走。额度动作码仍为 chat-stream。
      */
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
+        String clientIp = ClientIp.capture();
         ChatRequest apiRequest = forceApi(request);
         AgentRequest agentRequest = toRequest(apiRequest);
         return GatedChat.stream(
@@ -120,7 +123,7 @@ public class ApiChatAppService {
                 () -> remember(apiRequest, agentRequest),
                 () -> gateway.streamApi(agentRequest),
                 (status, runId, output, errorCode, requestId, started, steps) -> finish(
-                        apiRequest, agentRequest, status, runId, output, errorCode, requestId, started, steps));
+                        apiRequest, agentRequest, status, runId, output, errorCode, requestId, clientIp, started, steps));
     }
 
     /**
@@ -164,6 +167,7 @@ public class ApiChatAppService {
             String output,
             String errorCode,
             String requestId,
+            String clientIp,
             long startedNanos,
             List<RunStep> steps) {
         SessionTurn.finish(
@@ -176,6 +180,7 @@ public class ApiChatAppService {
                 status,
                 runId,
                 requestId,
+                clientIp,
                 request.text(),
                 output,
                 errorCode,

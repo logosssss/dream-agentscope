@@ -10,11 +10,12 @@
         <result column="operation" property="operation"/>
         <result column="object_type" property="objectType"/>
         <result column="object_id" property="objectId"/>
+        <result column="created_at" property="createdAt"/>
     </resultMap>
 
-    <!-- 不带前后快照。创建时间只用于排序。 -->
+    <!-- 不带前后快照。时间列给管理端看谁什么时候做的。 -->
     <select id="recent" resultMap="ListResultMap">
-        SELECT id, operator_id, tenant_id, operation, object_type, object_id
+        SELECT id, operator_id, tenant_id, operation, object_type, object_id, created_at
         FROM operation_audit
         ORDER BY created_at DESC, id DESC
         LIMIT #{limit}

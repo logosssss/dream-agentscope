@@ -159,6 +159,7 @@ onMounted(() => {
       <table class="w-full text-sm text-left">
         <thead class="bg-slate-50 text-[var(--color-text-muted)]">
           <tr>
+            <th class="px-3 py-2 font-medium">时间</th>
             <th class="px-3 py-2 font-medium">操作人</th>
             <th class="px-3 py-2 font-medium">租户</th>
             <th class="px-3 py-2 font-medium">操作</th>
@@ -168,13 +169,14 @@ onMounted(() => {
         </thead>
         <tbody>
           <tr v-if="!loading && operationRows.length === 0">
-            <td colspan="5" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无记录</td>
+            <td colspan="6" class="px-3 py-6 text-center text-[var(--color-text-muted)]">暂无记录</td>
           </tr>
           <tr
             v-for="(row, index) in operationRows"
             :key="`${row.operatorId}:${row.objectId}:${index}`"
             class="border-t border-slate-100"
           >
+            <td class="px-3 py-2 font-mono text-xs whitespace-nowrap">{{ time(row.createdAt) }}</td>
             <td class="px-3 py-2 font-mono text-xs">{{ row.operatorId }}</td>
             <td class="px-3 py-2 font-mono text-xs">{{ row.tenantId || '—' }}</td>
             <td class="px-3 py-2">{{ row.operation }}</td>

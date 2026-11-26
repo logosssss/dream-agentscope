@@ -8,11 +8,13 @@ package com.zhu.admin.api.event;
  * @param operation  动作
  * @param objectType 对象类型
  * @param objectId   对象标识，没有时为空
+ * @param createdAt  写入时间，ISO 字符串。登记响应还没回读库时为空串
  */
 public record OperationAuditSummary(
         String operatorId,
         String tenantId,
         String operation,
         String objectType,
-        String objectId) {
+        String objectId,
+        String createdAt) {
 }

@@ -8,16 +8,18 @@ import java.util.List;
 public interface AdminRunQuery {
 
     /**
-     * 按请求号、用户、会话、状态回查运行。四个条件都可选，条数由实现收口。
+     * 按请求号、租户、用户、会话、状态回查运行。五个条件都可选，条数由实现收口。
+     * 租户和用户同时给出时一起收，避免同名用户串租户。
      *
      * @param requestId 调用方请求号。空表示不按请求号收
+     * @param tenantId  租户。空表示不按租户收
      * @param userId    用户
      * @param sessionId 会话
      * @param status    SUCCEEDED / FAILED / CANCELLED
      * @param limit     条数
      * @return 最近的运行，没有给空列表
      */
-    List<RunRow> runs(String requestId, String userId, String sessionId, String status, int limit);
+    List<RunRow> runs(String requestId, String tenantId, String userId, String sessionId, String status, int limit);
 
     /**
      * 按运行号取一次运行，带步骤。

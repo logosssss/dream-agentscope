@@ -3,6 +3,7 @@ package com.zhu.admin.infrastructure.persistence.entity.event;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.time.LocalDateTime;
 
 /**
  * operation_audit 的一行。只记人在后台做了什么，不记 Agent 事件。
@@ -28,6 +29,9 @@ public class OperationAudit {
 
     /** 对象标识。没有时留空。 */
     private String objectId;
+
+    /** 写入时间。库默认当前时间，登记时不手填。 */
+    private LocalDateTime createdAt;
 
     /** 主键。 */
     public Long getId() {
@@ -87,5 +91,15 @@ public class OperationAudit {
     /** 写入对象标识。 */
     public void setObjectId(String objectId) {
         this.objectId = objectId;
+    }
+
+    /** 写入时间。 */
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    /** 写入时间。列表查询回填，登记插入不手填。 */
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

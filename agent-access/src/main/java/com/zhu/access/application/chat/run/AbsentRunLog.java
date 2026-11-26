@@ -24,6 +24,7 @@ public class AbsentRunLog implements RunLog {
             String status,
             String runId,
             String requestId,
+            String clientIp,
             String inputSummary,
             String outputSummary,
             String errorCode,

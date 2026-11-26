@@ -8,6 +8,8 @@ import com.zhu.admin.infrastructure.persistence.event.OperationAuditMapper;
 import com.zhu.admin.infrastructure.persistence.entity.event.OperationAudit;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -30,6 +32,8 @@ public class MysqlOperationAuditCatalog implements OperationAuditCatalog {
 
     private static final int OBJECT_LIMIT = 128;
 
+    private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
     private final OperationAuditMapper audits;
 
     /** 插入和列表共用 Mapper。校验失败不写库。 */
@@ -39,7 +43,7 @@ public class MysqlOperationAuditCatalog implements OperationAuditCatalog {
 
     /**
      * 空白租户按空串。对象标识空白留空。不截断超长字段。
-     * 不存 before/after、IP 和 UA。
+     * 不存 before/after、IP 和 UA。登记响应的时间是空串，列表再从库里读。
      */
     @Override
     public OperationAuditSummary record(
@@ -64,7 +68,7 @@ public class MysqlOperationAuditCatalog implements OperationAuditCatalog {
         row.setObjectType(objectType);
         row.setObjectId(savedObject);
         audits.insert(row);
-        return new OperationAuditSummary(operatorId, savedTenant, operation, objectType, savedObject);
+        return new OperationAuditSummary(operatorId, savedTenant, operation, objectType, savedObject, "");
     }
 
     /** 条数和审计查询用同一套上限。空结果返回空列表。 */
@@ -81,8 +85,14 @@ public class MysqlOperationAuditCatalog implements OperationAuditCatalog {
                     row.getTenantId(),
                     row.getOperation(),
                     row.getObjectType(),
-                    row.getObjectId()));
+                    row.getObjectId(),
+                    time(row.getCreatedAt())));
         }
         return List.copyOf(entries);
+    }
+
+    /** 空时间给空串，页面不用判 null。精度跟库里的 DATETIME(3) 走。 */
+    private static String time(LocalDateTime value) {
+        return value == null ? "" : value.format(ISO);
     }
 }

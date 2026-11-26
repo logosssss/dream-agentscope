@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
  * 租户额度：请求 / token / 费用微单位 / 同时运行。列表、登记、改上限。
+ * 选定租户后另看已通过的流水，不读剩余额度。
  */
-import { listQuotas, registerQuota, updateQuota } from '@/shared/api/quota-api'
+import { listQuotaUsage, listQuotas, registerQuota, updateQuota } from '@/shared/api/quota-api'
 import { listTenants } from '@/shared/api/tenant-api'
 import { hasAdminToken } from '@/shared/auth/operator'
-import type { QuotaKind, TenantQuotaSummary, TenantSummary } from '@/shared/types/api.types'
+import type { QuotaKind, QuotaUsageRow, TenantQuotaSummary, TenantSummary } from '@/shared/types/api.types'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 const TABS: { kind: QuotaKind; label: string; hint: string }[] = [
@@ -22,13 +23,43 @@ const loading = ref(false)
 const error = ref('')
 const submitting = ref(false)
 const tenantId = ref('')
+const usageTenantId = ref('')
+const usageRows = ref<QuotaUsageRow[]>([])
+const usageLoading = ref(false)
 const newLimit = ref('0')
 /** 行内编辑中的上限草稿，键为 tenantId */
 const drafts = reactive<Record<string, string>>({})
 
 const activeTab = computed(() => TABS.find((t) => t.kind === kind.value)!)
 
-/** 拉列表并灌草稿。 */
+/** 时间只到秒。空值显示破折号。 */
+function time(raw: string | null): string {
+  if (!raw) {
+    return '—'
+  }
+  const cut = raw.replace('T', ' ')
+  return cut.length > 19 ? cut.slice(0, 19) : cut
+}
+
+/** 选定租户才拉流水。没选时清空，不打接口。 */
+async function refreshUsage() {
+  const id = usageTenantId.value.trim()
+  if (!hasAdminToken() || !id) {
+    usageRows.value = []
+    return
+  }
+  usageLoading.value = true
+  try {
+    usageRows.value = await listQuotaUsage(id)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '流水加载失败'
+    usageRows.value = []
+  } finally {
+    usageLoading.value = false
+  }
+}
+
+/** 拉列表并灌草稿。已选流水租户时一并刷新。 */
 async function refresh() {
   if (!hasAdminToken()) {
     return
@@ -45,6 +76,7 @@ async function refresh() {
   } finally {
     loading.value = false
   }
+  await refreshUsage()
 }
 
 /** 登记新额度。 */
@@ -89,6 +121,10 @@ async function onSave(row: TenantQuotaSummary) {
 
 watch(kind, () => {
   void refresh()
+})
+
+watch(usageTenantId, () => {
+  void refreshUsage()
 })
 
 onMounted(async () => {
@@ -211,5 +247,55 @@ onMounted(async () => {
         </tbody>
       </table>
     </div>
+
+    <section class="space-y-2">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 class="text-sm font-semibold">最近流水</h3>
+          <p class="mt-1 text-xs text-[var(--color-text-muted)]">
+            已通过的额度流水，按返回的类型显示。不是剩余额度。
+          </p>
+        </div>
+        <label class="text-sm space-y-1">
+          <span class="text-[var(--color-text-muted)]">租户</span>
+          <select
+            v-model="usageTenantId"
+            class="block w-56 rounded-md border border-slate-300 px-2 py-1.5"
+          >
+            <option value="">请选择</option>
+            <option v-for="t in tenants" :key="t.tenantId" :value="t.tenantId">
+              {{ t.tenantId }}（{{ t.name }}）
+            </option>
+          </select>
+        </label>
+      </div>
+      <p v-if="!usageTenantId" class="text-sm text-[var(--color-text-muted)]">先选择租户。</p>
+      <p v-else-if="usageLoading" class="text-sm text-[var(--color-text-muted)]">流水加载中…</p>
+      <div v-else class="overflow-x-auto bg-white border border-slate-200 rounded-lg">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-50 text-[var(--color-text-muted)]">
+            <tr>
+              <th class="px-3 py-2 font-medium">时间</th>
+              <th class="px-3 py-2 font-medium">用户</th>
+              <th class="px-3 py-2 font-medium">类型</th>
+              <th class="px-3 py-2 font-medium">数量</th>
+              <th class="px-3 py-2 font-medium">入口</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="usageRows.length === 0">
+              <td colspan="5" class="px-3 py-6 text-center text-[var(--color-text-muted)]">该租户暂无流水</td>
+            </tr>
+            <tr v-for="row in usageRows" :key="row.id" class="border-t border-slate-100">
+              <td class="px-3 py-2 font-mono text-xs whitespace-nowrap">{{ time(row.createdAt) }}</td>
+              <td class="px-3 py-2 font-mono text-xs">{{ row.userId || '—' }}</td>
+              <td class="px-3 py-2">{{ row.quotaType }}</td>
+              <td class="px-3 py-2">{{ row.amount }}</td>
+              <td class="px-3 py-2">{{ row.reason || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 </template>

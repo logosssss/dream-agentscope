@@ -209,10 +209,14 @@ class TenantUserCatalogTest {
         disabled.setUserId("u");
         disabled.setDisplayName("示例");
         disabled.setStatus("DISABLED");
+        disabled.setCreatedAt(java.time.LocalDateTime.of(2026, 11, 25, 12, 0, 1));
+        disabled.setUpdatedAt(java.time.LocalDateTime.of(2026, 11, 25, 12, 4, 5));
         when(users.recent("t", 50)).thenReturn(List.of(disabled));
         assertThat(catalog.recent("t", 0)).singleElement().satisfies(saved -> {
             assertThat(saved.userId()).isEqualTo("u");
             assertThat(saved.status()).isEqualTo("DISABLED");
+            assertThat(saved.createdAt()).isEqualTo("2026-11-25T12:00:01");
+            assertThat(saved.updatedAt()).isEqualTo("2026-11-25T12:04:05");
         });
     }
 }

@@ -1,4 +1,4 @@
-# 上传 web/dist：打成单包 scp，再远端执行 remote-apply-web-dist.sh（整目录替换）。
+﻿# 上传 web/dist：打成单包 scp，再远端执行 remote-apply-web-dist.sh（整目录替换）。
 # 多文件 scp -r 易被现网 SSH 掐断；单包更稳。
 param(
     [string]$Server = "root@47.119.115.162",

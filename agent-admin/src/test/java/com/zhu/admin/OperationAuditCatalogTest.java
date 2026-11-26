@@ -8,6 +8,7 @@ import com.zhu.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,6 +37,7 @@ class OperationAuditCatalogTest {
             assertThat(saved.tenantId()).isEmpty();
             assertThat(saved.objectId()).isNull();
             assertThat(saved.operation()).isEqualTo("CREATE");
+            assertThat(saved.createdAt()).isEmpty();
         });
         ArgumentCaptor<OperationAudit> saved = ArgumentCaptor.forClass(OperationAudit.class);
         verify(audits).insert(saved.capture());
@@ -44,5 +46,18 @@ class OperationAuditCatalogTest {
 
         when(audits.recent(50)).thenReturn(List.of());
         assertThat(catalog.recent(50)).isEmpty();
+
+        OperationAudit row = new OperationAudit();
+        row.setOperatorId("op-a");
+        row.setTenantId("t");
+        row.setOperation("UPDATE");
+        row.setObjectType("tenant");
+        row.setObjectId("demo");
+        row.setCreatedAt(LocalDateTime.of(2026, 11, 25, 12, 0, 1, 250_000_000));
+        when(audits.recent(50)).thenReturn(List.of(row));
+        assertThat(catalog.recent(50)).singleElement().satisfies(listed -> {
+            assertThat(listed.createdAt()).isEqualTo("2026-11-25T12:00:01.25");
+            assertThat(listed.operatorId()).isEqualTo("op-a");
+        });
     }
 }

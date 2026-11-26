@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 /**
  * 从 MySQL 读运行记录。只在存储开关打开时创建。
  *
- * <p>管理端看的是「别人的失败」，所以这里不按用户或租户收口——权限由 Admin Token 把住。
+ * <p>管理端看的是「别人的失败」。列表可以按租户和用户一起收，详情仍只按运行号。权限由 Admin Token 把住。
  */
 @Service
 @ConditionalOnProperty(name = "agentscope.distributed.mysql.enabled", havingValue = "true")
@@ -42,11 +42,13 @@ public class MybatisAdminRunQuery implements AdminRunQuery {
         this.usages = usages;
     }
 
-    /** 条数先收口，再交给 XML 里带条件的查询。空白请求号不当成要匹配的空串。 */
+    /** 条数先收口，再交给 XML 里带条件的查询。空白条件不当成要匹配的空串。 */
     @Override
-    public List<RunRow> runs(String requestId, String userId, String sessionId, String status, int limit) {
+    public List<RunRow> runs(
+            String requestId, String tenantId, String userId, String sessionId, String status, int limit) {
         List<AgentRun> rows = runs.search(
                 blankToNull(requestId),
+                blankToNull(tenantId),
                 blankToNull(userId),
                 blankToNull(sessionId),
                 blankToNull(status),
@@ -78,6 +80,7 @@ public class MybatisAdminRunQuery implements AdminRunQuery {
                 row.getUserId(),
                 row.getSessionId(),
                 row.getRequestId() == null ? "" : row.getRequestId(),
+                row.getClientIp() == null ? "" : row.getClientIp(),
                 row.getTriggerType(),
                 row.getStatus(),
                 row.getModel(),

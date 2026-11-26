@@ -1,6 +1,9 @@
 package com.zhu.admin;
 
 import com.zhu.admin.api.event.AuditQuery;
+import com.zhu.ops.quota.TenantQuotaCatalog;
+import com.zhu.ops.tenant.TenantCatalog;
+import com.zhu.ops.tenant.TenantUserCatalog;
 import com.zhu.readmodel.persistence.event.AgentEventAuditMapper;
 import com.zhu.readmodel.persistence.run.AgentRunMapper;
 import org.junit.jupiter.api.Test;
@@ -40,5 +43,13 @@ class AdminMySqlWiringTest {
         assertThat(context.getBeansOfType(AgentEventAuditMapper.class)).hasSize(1);
         assertThat(context.getBeansOfType(AgentRunMapper.class)).hasSize(1);
         assertThat(context.getBeansOfType(AuditQuery.class)).hasSize(1);
+    }
+
+    /** 租户、租户用户和额度目录在 ops，删掉 AdminApplication 上的导入就会缺 Bean。 */
+    @Test
+    void opsCatalogsAreImported() {
+        assertThat(context.getBeansOfType(TenantCatalog.class)).hasSize(1);
+        assertThat(context.getBeansOfType(TenantUserCatalog.class)).hasSize(1);
+        assertThat(context.getBeansOfType(TenantQuotaCatalog.class)).hasSize(1);
     }
 }

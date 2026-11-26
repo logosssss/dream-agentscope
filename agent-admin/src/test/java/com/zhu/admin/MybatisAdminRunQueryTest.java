@@ -37,26 +37,27 @@ class MybatisAdminRunQueryTest {
     @Test
     void runsPassesFiltersClampsLimitAndMapsRows() {
         AgentRun row = run("run-1", null);
-        when(runs.search("req-1", "u-1", "s-1", "FAILED", 100)).thenReturn(List.of(row));
+        when(runs.search("req-1", "demo", "u-1", "s-1", "FAILED", 100)).thenReturn(List.of(row));
 
-        List<RunRow> result = query.runs("req-1", "u-1", "s-1", "FAILED", 500);
+        List<RunRow> result = query.runs("req-1", "demo", "u-1", "s-1", "FAILED", 500);
 
         assertThat(result).hasSize(1);
         RunRow mapped = result.get(0);
         assertThat(mapped.runId()).isEqualTo("run-1");
         assertThat(mapped.status()).isEqualTo("FAILED");
         assertThat(mapped.requestId()).isEmpty();
+        assertThat(mapped.clientIp()).isEmpty();
         assertThat(mapped.startedAt()).isEqualTo("2026-11-23T12:00:00");
         assertThat(mapped.durationMs()).isEqualTo(1200L);
     }
 
     @Test
     void blankFiltersBecomeNullSoTheSqlDoesNotMatchEmptyStrings() {
-        when(runs.search(isNull(), isNull(), isNull(), isNull(), eq(50))).thenReturn(List.of());
+        when(runs.search(isNull(), isNull(), isNull(), isNull(), isNull(), eq(50))).thenReturn(List.of());
 
-        query.runs("  ", "  ", "", null, 0);
+        query.runs("  ", " ", "  ", "", null, 0);
 
-        verify(runs).search(isNull(), isNull(), isNull(), isNull(), eq(50));
+        verify(runs).search(isNull(), isNull(), isNull(), isNull(), isNull(), eq(50));
     }
 
     @Test
@@ -74,6 +75,7 @@ class MybatisAdminRunQueryTest {
 
         assertThat(detail).isNotNull();
         assertThat(detail.requestId()).isEqualTo("req-2");
+        assertThat(detail.clientIp()).isEmpty();
         assertThat(detail.steps()).hasSize(1);
         assertThat(detail.steps().get(0).toolId()).isEqualTo("knowledge_search");
         assertThat(detail.usage().recorded()).isFalse();

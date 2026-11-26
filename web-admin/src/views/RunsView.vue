@@ -9,8 +9,11 @@ import { getRun, listRuns } from '@/shared/api/runs-api'
 import { listAuditEvents } from '@/shared/api/audit-api'
 import type { AuditEventRow, RunDetail, RunRow } from '@/shared/types/api.types'
 import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
+const route = useRoute()
 const requestId = ref('')
+const tenantId = ref('')
 const userId = ref('')
 const sessionId = ref('')
 const status = ref('')
@@ -62,6 +65,7 @@ async function refresh() {
   try {
     runs.value = await listRuns({
       requestId: requestId.value,
+      tenantId: tenantId.value,
       userId: userId.value,
       sessionId: sessionId.value,
       status: status.value,
@@ -109,13 +113,24 @@ function closeDetail() {
 /** 清空筛选并按当前输入重查。 */
 async function clearFilters() {
   requestId.value = ''
+  tenantId.value = ''
   userId.value = ''
   sessionId.value = ''
   status.value = ''
   await refresh()
 }
 
-onMounted(refresh)
+onMounted(() => {
+  const tenant = route.query.tenantId
+  const user = route.query.userId
+  if (typeof tenant === 'string') {
+    tenantId.value = tenant
+  }
+  if (typeof user === 'string') {
+    userId.value = user
+  }
+  void refresh()
+})
 </script>
 
 <template>
@@ -134,6 +149,14 @@ onMounted(refresh)
             v-model="requestId"
             class="w-48 rounded-md border border-slate-300 px-2 py-1 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             placeholder="X-Request-Id，可空"
+          />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-[var(--color-text-muted)]">租户</span>
+          <input
+            v-model="tenantId"
+            class="w-40 rounded-md border border-slate-300 px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            placeholder="可空"
           />
         </label>
         <label class="flex flex-col gap-1">
@@ -202,6 +225,7 @@ onMounted(refresh)
             <th class="px-3 py-2 font-medium">运行号</th>
             <th class="px-3 py-2 font-medium">请求号</th>
             <th class="px-3 py-2 font-medium">用户</th>
+            <th class="px-3 py-2 font-medium">来源</th>
             <th class="px-3 py-2 font-medium">会话</th>
             <th class="px-3 py-2 font-medium">耗时</th>
             <th class="px-3 py-2 font-medium">输入</th>
@@ -209,7 +233,7 @@ onMounted(refresh)
         </thead>
         <tbody>
           <tr v-if="!runs.length">
-            <td class="px-3 py-6 text-center text-[var(--color-text-muted)]" colspan="8">没有符合条件的运行。</td>
+            <td class="px-3 py-6 text-center text-[var(--color-text-muted)]" colspan="9">没有符合条件的运行。</td>
           </tr>
           <tr
             v-for="row in runs"
@@ -222,6 +246,7 @@ onMounted(refresh)
             <td class="px-3 py-2 font-mono text-xs">{{ row.runId }}</td>
             <td class="px-3 py-2 font-mono text-xs">{{ row.requestId || '—' }}</td>
             <td class="px-3 py-2">{{ row.userId }}</td>
+            <td class="px-3 py-2 font-mono text-xs">{{ row.clientIp || '—' }}</td>
             <td class="px-3 py-2 font-mono text-xs">{{ row.sessionId }}</td>
             <td class="px-3 py-2 whitespace-nowrap">{{ duration(row.durationMs) }}</td>
             <td class="max-w-[16rem] truncate px-3 py-2" :title="row.inputSummary">{{ row.inputSummary }}</td>
@@ -260,6 +285,10 @@ onMounted(refresh)
         <div>
           <dt class="text-[var(--color-text-muted)]">请求号</dt>
           <dd class="font-mono text-xs">{{ selected.requestId || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-[var(--color-text-muted)]">来源</dt>
+          <dd class="font-mono text-xs">{{ selected.clientIp || '—' }}</dd>
         </div>
         <div>
           <dt class="text-[var(--color-text-muted)]">耗时</dt>

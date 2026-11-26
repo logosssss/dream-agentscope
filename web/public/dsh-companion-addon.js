@@ -5,6 +5,7 @@
  */
 (function () {
   var BTN_CLASS = 'dsh-harness-entry-btn'
+  var NOTICE_ID = 'dsh-harness-notice'
   var AS_TOKEN = 'agentscope.loginToken'
   var AS_USER = 'agentscope.userId'
   var FALLBACK_TOKENS = ['saas_user_token', 'access_token', 'token']
@@ -43,6 +44,52 @@
     return null
   }
 
+  /**
+   * 白名单拒绝给对话用户看，不使用浏览器 alert。
+   * 不写服务器路径：打开这个页面的人改不了那台机器上的名单。
+   */
+  function showNotAllowed(userId) {
+    var old = document.getElementById(NOTICE_ID)
+    if (old) old.remove()
+    var box = document.createElement('div')
+    box.id = NOTICE_ID
+    box.setAttribute('role', 'status')
+    box.style.cssText =
+      'position:fixed;top:64px;right:16px;z-index:10000;width:min(320px,calc(100vw - 32px));' +
+      'background:#fff;border:1px solid #e5e7eb;border-radius:12px;' +
+      'box-shadow:0 8px 24px rgba(15,23,42,.12);padding:16px;font-size:14px;' +
+      'color:#1f2937;line-height:1.55;font-family:inherit;'
+    var title = document.createElement('div')
+    title.textContent = '还没有开通'
+    title.style.cssText = 'font-weight:600;margin-bottom:6px;'
+    var text = document.createElement('p')
+    text.style.cssText = 'margin:0 0 10px;'
+    text.textContent = userId
+      ? '当前账号还不能进入 DeepSeek Harness。把下面的用户编号发给管理员，开通后即可使用。'
+      : '当前账号还不能进入 DeepSeek Harness。请重新登录后再试。'
+    box.appendChild(title)
+    box.appendChild(text)
+    if (userId) {
+      var idLine = document.createElement('p')
+      idLine.style.cssText =
+        'margin:0 0 12px;padding:8px 10px;border-radius:8px;background:#f8fafc;' +
+        'font-family:ui-monospace,monospace;font-size:12px;word-break:break-all;'
+      idLine.textContent = userId
+      box.appendChild(idLine)
+    }
+    var close = document.createElement('button')
+    close.type = 'button'
+    close.textContent = '知道了'
+    close.style.cssText =
+      'float:right;border:0;border-radius:8px;padding:6px 12px;cursor:pointer;' +
+      'background:#c2410c;color:#fff;font-size:13px;'
+    close.addEventListener('click', function () {
+      box.remove()
+    })
+    box.appendChild(close)
+    document.body.appendChild(box)
+  }
+
   async function openDsh() {
     var sess = getSession()
     if (!sess.token) {
@@ -69,11 +116,7 @@
         body = await res.json()
       } catch (e) {}
       if (res.status === 403) {
-        alert(
-          '当前账号不在 DSH 白名单。\nuserId=' +
-            (sess.userId || '(空)') +
-            '\n请把该 userId 写入 /etc/dsh/allowlist.env',
-        )
+        showNotAllowed(sess.userId || '')
         return
       }
       if (!res.ok) {

@@ -1,5 +1,5 @@
 import { apiJson } from '@/shared/api/http'
-import type { QuotaKind, TenantQuotaSummary } from '@/shared/types/api.types'
+import type { QuotaKind, QuotaUsageRow, TenantQuotaSummary } from '@/shared/types/api.types'
 
 /**
  * 四类租户额度目录。不带回已用量 / 当前占位。
@@ -28,6 +28,19 @@ export function registerQuota(
     method: 'POST',
     body: JSON.stringify({ tenantId, limit }),
   })
+}
+
+/**
+ * 某个租户最近的额度流水。空白租户不发请求。
+ * 返回的是已通过的流水，不是 Redis 里的剩余额度。
+ */
+export function listQuotaUsage(tenantId: string, limit = 50): Promise<QuotaUsageRow[]> {
+  const id = tenantId.trim()
+  if (!id) {
+    return Promise.resolve([])
+  }
+  const q = new URLSearchParams({ tenantId: id, limit: String(limit) })
+  return apiJson<QuotaUsageRow[]>(`/api/admin/quota-usage?${q}`)
 }
 
 /** 改已有上限。没有行返回找不到。 */

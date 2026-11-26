@@ -54,7 +54,7 @@ public class MysqlRunLog implements RunLog {
 
     /**
      * 结束时间取当前 UTC。开始时间按耗时回推。标识为空时现生成一个。
-     * 用户或会话为空时不写，避免违反非空约束。
+     * 用户或会话为空时不写，避免违反非空约束。来源地址为空时写成 null，老行和没抄到的行一样。
      * 步骤在运行行之后写入。没有步骤时不插第二张表。
      */
     @Override
@@ -66,6 +66,7 @@ public class MysqlRunLog implements RunLog {
             String status,
             String runId,
             String requestId,
+            String clientIp,
             String inputSummary,
             String outputSummary,
             String errorCode,
@@ -82,6 +83,7 @@ public class MysqlRunLog implements RunLog {
         row.setUserId(userId);
         row.setSessionId(sessionId);
         row.setRequestId(limit(requestId, REQUEST_ID_LIMIT));
+        row.setClientIp(clientIp == null || clientIp.isBlank() ? null : limit(clientIp, 45));
         row.setTriggerType(trigger == null || trigger.isBlank() ? "USER" : trigger);
         row.setStatus(status == null || status.isBlank() ? FAILED : status);
         row.setModel(limit(modelName(tenantId), MODEL_LIMIT));

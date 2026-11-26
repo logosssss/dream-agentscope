@@ -8,6 +8,7 @@ package com.zhu.admin.api.run;
  * @param userId        用户
  * @param sessionId     会话
  * @param requestId     调用方请求号，可能为空串
+ * @param clientIp      来源地址，没有时为空串
  * @param triggerType   USER 或 API
  * @param status        SUCCEEDED、FAILED 或 CANCELLED
  * @param model         模型坐标
@@ -24,6 +25,7 @@ public record RunRow(
         String userId,
         String sessionId,
         String requestId,
+        String clientIp,
         String triggerType,
         String status,
         String model,
@@ -42,6 +44,7 @@ public record RunRow(
                 row.getUserId(),
                 row.getSessionId(),
                 row.getRequestId() == null ? "" : row.getRequestId(),
+                row.getClientIp() == null ? "" : row.getClientIp(),
                 row.getTriggerType(),
                 row.getStatus(),
                 row.getModel(),

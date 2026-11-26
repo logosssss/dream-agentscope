@@ -18,12 +18,14 @@ export interface TenantSummary {
   status: string
 }
 
-/** GET /api/admin/tenant-users 一行。 */
+/** GET /api/admin/tenant-users 一行。时间为空串表示这次响应没带回库里的列。 */
 export interface TenantUserSummary {
   tenantId: string
   userId: string
   displayName: string | null
   status: string
+  createdAt: string
+  updatedAt: string
 }
 
 /**
@@ -39,6 +41,17 @@ export interface TenantQuotaSummary {
 
 /** 额度种类，对应四套管理接口。 */
 export type QuotaKind = 'requests' | 'tokens' | 'cost' | 'concurrent'
+
+/** GET /api/admin/quota-usage 一行。不是剩余额度。 */
+export interface QuotaUsageRow {
+  id: number
+  tenantId: string
+  userId: string | null
+  quotaType: string
+  amount: number
+  reason: string | null
+  createdAt: string
+}
 
 /** GET /api/admin/model-configs 一行。不含参数 JSON。 */
 export interface ModelConfigSummary {
@@ -71,13 +84,14 @@ export interface SafetyInterventionSummary {
   summary: string
 }
 
-/** GET /api/admin/operation-audits 一行。不含前后快照。 */
+/** GET /api/admin/operation-audits 一行。不含前后快照。createdAt 为空串表示登记响应还没回读。 */
 export interface OperationAuditSummary {
   operatorId: string
   tenantId: string
   operation: string
   objectType: string
   objectId: string
+  createdAt: string
 }
 
 /**
@@ -105,6 +119,8 @@ export interface RunRow {
   userId: string
   sessionId: string
   requestId: string
+  /** 来源地址。老运行和没抄到地址时是空串。 */
+  clientIp: string
   triggerType: string
   status: string
   model: string

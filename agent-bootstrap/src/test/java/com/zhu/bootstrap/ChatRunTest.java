@@ -110,7 +110,7 @@ class ChatRunTest {
     void recordFailureDoesNotHideReply() {
         AgentExecutor executor = mock(AgentExecutor.class);
         when(executor.execute(any())).thenReturn(new AgentResponse("run-2", "ok"));
-        RunLog runs = (tenant, user, session, trigger, status, runId, requestId, input, output, error, steps, started) -> {
+        RunLog runs = (tenant, user, session, trigger, status, runId, requestId, clientIp, input, output, error, steps, started) -> {
             throw new IllegalStateException("db down");
         };
         ChatAppService chats = service(executor, runs, (tenant, user, session, channel, text) -> {
@@ -232,6 +232,7 @@ class ChatRunTest {
                 String status,
                 String runId,
                 String requestId,
+                String clientIp,
                 String inputSummary,
                 String outputSummary,
                 String errorCode,

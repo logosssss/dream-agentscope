@@ -21,6 +21,7 @@ public interface RunLog {
      * 实现不得把异常原文或工具参数写入表。写失败由调用方吞掉，不改变回复。
      *
      * @param requestId 调用方请求号，可能为空
+     * @param clientIp 来源地址，可能为空。调用方在请求线程上已经抄好
      * @param steps 这次看到的步骤。空列表表示没有步骤
      * @param startedNanos 调用开始时的 {@code System.nanoTime()}
      */
@@ -32,6 +33,7 @@ public interface RunLog {
             String status,
             String runId,
             String requestId,
+            String clientIp,
             String inputSummary,
             String outputSummary,
             String errorCode,

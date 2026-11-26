@@ -19,5 +19,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  // 入口脚本测试读本地文件，和 vite 配置一起用 node 类型检查。
+  "include": ["vite.config.ts", "src/agents/companion/dshCompanionAddon.test.ts"]
 }

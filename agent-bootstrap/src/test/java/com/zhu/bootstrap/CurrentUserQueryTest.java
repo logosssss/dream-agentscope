@@ -55,7 +55,7 @@ class CurrentUserQueryTest {
         assertThat(withoutLookup.current()).isEqualTo(new CurrentUser("t", "u", null, null));
 
         TenantUserLookup lookup = mock(TenantUserLookup.class);
-        when(lookup.find("t", "u")).thenReturn(new TenantUserSummary("t", "u", "示例", "ACTIVE"));
+        when(lookup.find("t", "u")).thenReturn(new TenantUserSummary("t", "u", "示例", "ACTIVE", "", ""));
         CurrentUserQuery withLookup = new CurrentUserQuery(open, lookups(lookup));
         assertThat(withLookup.current()).isEqualTo(new CurrentUser("t", "u", "示例", "ACTIVE"));
     }

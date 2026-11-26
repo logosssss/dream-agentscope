@@ -12,6 +12,7 @@ import com.zhu.access.api.dto.chat.ChatRequest;
 import com.zhu.ops.tenant.TenantGate;
 import com.zhu.ops.tenant.TenantUserGate;
 import com.zhu.access.domain.channel.AccessChannel;
+import com.zhu.access.infrastructure.security.ClientIp;
 import com.zhu.common.context.UserContext;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
@@ -101,6 +102,7 @@ public class ChatAppService {
      */
     public AgentResponse chat(ChatRequest request) {
         rejectExplicitApiChannel(request);
+        String clientIp = ClientIp.capture();
         PreparedTurn prepared = prepare(request);
         AgentRequest agentRequest = prepared.agentRequest();
         return GatedChat.sync(
@@ -113,16 +115,17 @@ public class ChatAppService {
                 () -> remember(request, prepared),
                 () -> executor.execute(agentRequest),
                 (status, runId, output, errorCode, requestId, started, steps) -> finish(
-                        request, prepared, status, runId, output, errorCode, requestId, started, steps));
+                        request, prepared, status, runId, output, errorCode, requestId, clientIp, started, steps));
     }
 
     /**
-     * 流式执行（WEB / 默认通道）。身份在返回 Flux 之前就抄进 AgentRequest，避免过滤器清掉线程上下文后流才开始读。
+     * 流式执行（WEB / 默认通道）。身份和来源地址在返回 Flux 之前就抄走，避免过滤器清掉线程上下文后流才开始读。
      * 会话锁和并发占位在流结束时释放。调用方不要 block。
      * 显式 {@code channel=API} 须改走 {@code /api/agent/chat/stream}。
      */
     public Flux<AgentStreamEvent> stream(ChatRequest request) {
         rejectExplicitApiChannel(request);
+        String clientIp = ClientIp.capture();
         PreparedTurn prepared = prepare(request);
         AgentRequest agentRequest = prepared.agentRequest();
         return GatedChat.stream(
@@ -135,7 +138,7 @@ public class ChatAppService {
                 () -> remember(request, prepared),
                 () -> executor.stream(agentRequest),
                 (status, runId, output, errorCode, requestId, started, steps) -> finish(
-                        request, prepared, status, runId, output, errorCode, requestId, started, steps));
+                        request, prepared, status, runId, output, errorCode, requestId, clientIp, started, steps));
     }
 
     /**
@@ -163,6 +166,7 @@ public class ChatAppService {
             String output,
             String errorCode,
             String requestId,
+            String clientIp,
             long startedNanos,
             List<RunStep> steps) {
         AgentRequest agentRequest = prepared.agentRequest();
@@ -176,6 +180,7 @@ public class ChatAppService {
                 status,
                 runId,
                 requestId,
+                clientIp,
                 prepared.displayText(),
                 output,
                 errorCode,

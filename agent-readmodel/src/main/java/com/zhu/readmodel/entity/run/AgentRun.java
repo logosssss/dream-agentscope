@@ -30,6 +30,9 @@ public class AgentRun {
     /** 调用方请求号。跟着 X-Request-Id 走，空表示调用方没带。 */
     private String requestId;
 
+    /** 来源地址。页面对话和 API 对话结束时写入，没有则为空。 */
+    private String clientIp;
+
     /** USER 或 API。 */
     private String triggerType;
 
@@ -115,6 +118,16 @@ public class AgentRun {
     /** 写入请求号。 */
     public void setRequestId(String requestId) {
         this.requestId = requestId;
+    }
+
+    /** 来源地址。 */
+    public String getClientIp() {
+        return clientIp;
+    }
+
+    /** 写入来源地址。空表示这次没有抄到。 */
+    public void setClientIp(String clientIp) {
+        this.clientIp = clientIp;
     }
 
     /** 触发方式。 */

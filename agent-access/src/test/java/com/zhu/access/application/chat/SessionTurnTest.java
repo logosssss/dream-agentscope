@@ -37,6 +37,7 @@ class SessionTurnTest {
                 RunLog.SUCCEEDED,
                 "run-1",
                 "req",
+                "203.0.113.8",
                 "shown",
                 "ok",
                 null,
@@ -50,6 +51,7 @@ class SessionTurnTest {
         assertThat(sessions.text).isEqualTo("shown");
         assertThat(runs.tenantId).isEqualTo("tenant-a");
         assertThat(runs.trigger).isEqualTo("USER");
+        assertThat(runs.clientIp).isEqualTo("203.0.113.8");
         assertThat(messages.tenantId).isEqualTo("tenant-a");
         assertThat(messages.userText).isEqualTo("shown");
         assertThat(linked.get()).isEqualTo(4);
@@ -78,6 +80,7 @@ class SessionTurnTest {
     private static final class RecordingRuns implements RunLog {
         private String tenantId;
         private String trigger;
+        private String clientIp;
 
         /** 只留租户和触发来源，摘要截断由 TurnRecorder 自己测。 */
         @Override
@@ -89,6 +92,7 @@ class SessionTurnTest {
                 String status,
                 String runId,
                 String requestId,
+                String clientIp,
                 String inputSummary,
                 String outputSummary,
                 String errorCode,
@@ -96,6 +100,7 @@ class SessionTurnTest {
                 long startedNanos) {
             this.tenantId = tenantId;
             this.trigger = trigger;
+            this.clientIp = clientIp;
         }
     }
 

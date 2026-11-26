@@ -10,6 +10,7 @@ import java.util.List;
  * @param userId        用户
  * @param sessionId     会话
  * @param requestId     调用方请求号，可能为空串
+ * @param clientIp      来源地址，没有时为空串
  * @param triggerType   USER 或 API
  * @param status        SUCCEEDED、FAILED 或 CANCELLED
  * @param model         模型坐标
@@ -28,6 +29,7 @@ public record RunDetail(
         String userId,
         String sessionId,
         String requestId,
+        String clientIp,
         String triggerType,
         String status,
         String model,

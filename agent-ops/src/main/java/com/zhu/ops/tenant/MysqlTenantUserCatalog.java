@@ -10,6 +10,8 @@ import com.zhu.cache.api.CacheKeys;
 import com.zhu.common.exception.BusinessException;
 import com.zhu.common.exception.ErrorCode;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -88,7 +90,7 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user already exists");
         }
         readCache.delete(activeKey(tenantId, userId));
-        return new TenantUserSummary(tenantId, userId, name, ACTIVE);
+        return new TenantUserSummary(tenantId, userId, name, ACTIVE, "", "");
     }
 
     /**
@@ -127,7 +129,7 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
         if (row == null) {
             return null;
         }
-        return new TenantUserSummary(row.getTenantId(), row.getUserId(), row.getDisplayName(), row.getStatus());
+        return summary(row, row.getStatus());
     }
 
     /**
@@ -152,7 +154,7 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user is not active");
         }
         readCache.delete(activeKey(tenantId, userId));
-        return new TenantUserSummary(existing.getTenantId(), existing.getUserId(), existing.getDisplayName(), DISABLED);
+        return summary(existing, DISABLED);
     }
 
     /**
@@ -177,7 +179,7 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
             throw new BusinessException(ErrorCode.CONFLICT, "tenant user is already active");
         }
         readCache.delete(activeKey(tenantId, userId));
-        return new TenantUserSummary(existing.getTenantId(), existing.getUserId(), existing.getDisplayName(), ACTIVE);
+        return summary(existing, ACTIVE);
     }
 
     /**
@@ -196,13 +198,23 @@ public class MysqlTenantUserCatalog implements TenantUserCatalog, TenantUserGate
         if (rows == null || rows.isEmpty()) {
             return List.of();
         }
-        return rows.stream()
-                .map(row -> new TenantUserSummary(
-                        row.getTenantId(),
-                        row.getUserId(),
-                        row.getDisplayName(),
-                        row.getStatus()))
-                .toList();
+        return rows.stream().map(row -> summary(row, row.getStatus())).toList();
+    }
+
+    /** 对话鉴权没读时间时两列是空串。列表查询才会带上库里的值。 */
+    private static TenantUserSummary summary(TenantUser row, String status) {
+        return new TenantUserSummary(
+                row.getTenantId(),
+                row.getUserId(),
+                row.getDisplayName(),
+                status,
+                time(row.getCreatedAt()),
+                time(row.getUpdatedAt()));
+    }
+
+    /** 空时间给空串，页面不用判 null。 */
+    private static String time(LocalDateTime value) {
+        return value == null ? "" : value.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
     }
 
     private static String activeKey(String tenantId, String userId) {

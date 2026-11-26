@@ -29,7 +29,7 @@ final class SessionTurn {
 
     /**
      * 结束时写运行记录和气泡。身份取已解析的请求，不回读请求体里的租户和用户。
-     * 附件挂钩只在需要时传入，不需要时传 null。
+     * 来源地址由调用方在请求线程上抄好再传入。附件挂钩只在需要时传入，不需要时传 null。
      */
     static void finish(
             Logger log,
@@ -41,6 +41,7 @@ final class SessionTurn {
             String status,
             String runId,
             String requestId,
+            String clientIp,
             String inputText,
             String output,
             String errorCode,
@@ -59,6 +60,7 @@ final class SessionTurn {
                 status,
                 runId,
                 requestId,
+                clientIp,
                 inputText,
                 output,
                 errorCode,

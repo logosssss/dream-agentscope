@@ -119,6 +119,15 @@ watch(
   },
 )
 
+/** 时间只到秒。空串显示破折号。 */
+function time(raw: string): string {
+  if (!raw) {
+    return '—'
+  }
+  const cut = raw.replace('T', ' ')
+  return cut.length > 19 ? cut.slice(0, 19) : cut
+}
+
 onMounted(async () => {
   const fromQuery = typeof route.query.tenantId === 'string' ? route.query.tenantId : ''
   tenantId.value = fromQuery
@@ -195,19 +204,29 @@ onMounted(async () => {
             <th class="px-3 py-2 font-medium">用户 ID</th>
             <th class="px-3 py-2 font-medium">显示名</th>
             <th class="px-3 py-2 font-medium">状态</th>
+            <th class="px-3 py-2 font-medium">登记</th>
+            <th class="px-3 py-2 font-medium">更新</th>
             <th class="px-3 py-2 font-medium">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!loading && rows.length === 0">
-            <td colspan="4" class="px-3 py-6 text-center text-[var(--color-text-muted)]">该租户暂无用户</td>
+            <td colspan="6" class="px-3 py-6 text-center text-[var(--color-text-muted)]">该租户暂无用户</td>
           </tr>
           <tr v-for="row in rows" :key="`${row.tenantId}:${row.userId}`" class="border-t border-slate-100">
             <td class="px-3 py-2 font-mono text-xs">{{ row.userId }}</td>
             <td class="px-3 py-2">{{ row.displayName || '—' }}</td>
             <td class="px-3 py-2">{{ row.status }}</td>
+            <td class="px-3 py-2 font-mono text-xs whitespace-nowrap">{{ time(row.createdAt) }}</td>
+            <td class="px-3 py-2 font-mono text-xs whitespace-nowrap">{{ time(row.updatedAt) }}</td>
             <td class="px-3 py-2">
               <div class="flex flex-wrap gap-1.5">
+                <RouterLink
+                  class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50"
+                  :to="{ name: 'runs', query: { tenantId: row.tenantId, userId: row.userId } }"
+                >
+                  运行
+                </RouterLink>
                 <button
                   v-if="row.status === 'ACTIVE'"
                   type="button"
