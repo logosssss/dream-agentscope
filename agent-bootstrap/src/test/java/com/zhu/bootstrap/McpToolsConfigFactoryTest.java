@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,15 +51,14 @@ class McpToolsConfigFactoryTest {
         mcp.setServers(Map.of("demo", server));
 
         // 注入假环境，不读真实 getenv。
-        Map<String, McpServerConfig> resolved = McpToolsConfigFactory.toServers(
-                mcp,
-                key -> switch (key) {
-                    case "MCP_CMD" -> "npx";
-                    case "MCP_PKG" -> "@scope/pkg";
-                    case "MCP_TOKEN" -> "secret";
-                    case "MCP_PATH" -> "mcp";
-                    default -> null;
-                });
+        UnaryOperator<String> env = key -> switch (key) {
+            case "MCP_CMD" -> "npx";
+            case "MCP_PKG" -> "@scope/pkg";
+            case "MCP_TOKEN" -> "secret";
+            case "MCP_PATH" -> "mcp";
+            default -> null;
+        };
+        Map<String, McpServerConfig> resolved = McpToolsConfigFactory.toServers(mcp, env);
         assertThat(resolved).containsOnlyKeys("demo");
         McpServerConfig cfg = resolved.get("demo");
         assertThat(cfg.getTransport()).isEqualTo("stdio");
@@ -69,7 +69,8 @@ class McpToolsConfigFactoryTest {
         assertThat(cfg.isRequired()).isTrue();
         assertThat(cfg.isPrefixToolNames()).isTrue();
 
-        ToolsConfig tools = McpToolsConfigFactory.createOrNull(mcp);
+        // 组装也走同一份假环境：占位符解析不到时 stdio server 会被跳过，返回 null。
+        ToolsConfig tools = McpToolsConfigFactory.createOrNull(mcp, env);
         assertThat(tools).isNotNull();
         assertThat(tools.getMcpServers()).containsOnlyKeys("demo");
     }

@@ -30,7 +30,15 @@ public final class McpToolsConfigFactory {
      * 默认工具过滤保持框架默认（defaultToolsEnabled=true），只挂 mcpServers。
      */
     public static ToolsConfig createOrNull(AgentRuntimeProperties.Mcp mcp) {
-        Map<String, McpServerConfig> servers = toServers(mcp, McpToolsConfigFactory::lookupEnv);
+        return createOrNull(mcp, McpToolsConfigFactory::lookupEnv);
+    }
+
+    /**
+     * 同上，但环境变量解析可注入：占位符解析不到时 server 会被跳过，
+     * 参数列表只出现在环境里的用例就没法断言结果。生产走真实环境，单测传假表。
+     */
+    public static ToolsConfig createOrNull(AgentRuntimeProperties.Mcp mcp, UnaryOperator<String> envLookup) {
+        Map<String, McpServerConfig> servers = toServers(mcp, envLookup);
         if (servers.isEmpty()) {
             return null;
         }
