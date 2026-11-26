@@ -10,6 +10,8 @@ import com.zhu.runtime.infrastructure.agent.CompanionMiddlewareChain;
 import com.zhu.runtime.infrastructure.agent.CompanionSandboxFilesystem;
 import com.zhu.runtime.infrastructure.agent.McpToolsConfigFactory;
 import com.zhu.runtime.infrastructure.agent.WorkspaceFilesystem;
+import com.zhu.semantic.api.prompt.PlatformPrompt;
+import com.zhu.semantic.api.prompt.PromptService;
 import com.zhu.semantic.api.tool.ToolCatalogService;
 import com.zhu.semantic.contract.product.CompletionCriteria;
 import com.zhu.semantic.contract.tool.ProductTool;
@@ -23,6 +25,7 @@ import io.agentscope.harness.agent.tools.McpServerRegistrationListener;
 import io.agentscope.harness.agent.tools.McpServerRegistrationResult;
 import io.agentscope.harness.agent.tools.ToolsConfig;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Primary;
@@ -65,6 +68,8 @@ public class CompanionResidentAgentBinding implements ProductModule {
 
     private final List<ProductTool> productTools;
 
+    private final PromptService prompts;
+
     private final CatalogToolRegistrar toolRegistrar = new CatalogToolRegistrar();
 
     /**
@@ -76,6 +81,7 @@ public class CompanionResidentAgentBinding implements ProductModule {
      * @param stores                分布式存储，可缺席
      * @param companionMiddlewares  产品中间件链
      * @param productTools          产品自带工具
+     * @param prompts               平台提示词读取口（Nacos → 兜底）
      */
     public CompanionResidentAgentBinding(
             AgentRuntimeProperties properties,
@@ -83,13 +89,15 @@ public class CompanionResidentAgentBinding implements ProductModule {
             ToolCatalogService catalog,
             ObjectProvider<DistributedStore> stores,
             CompanionMiddlewareChain companionMiddlewares,
-            List<ProductTool> productTools) {
+            List<ProductTool> productTools,
+            PromptService prompts) {
         this.properties = properties;
         this.chatModel = chatModel;
         this.semantics = new CompanionSemantics(properties.getAgentId(), properties.getMaxIters(), catalog);
         this.stores = stores;
         this.companionMiddlewares = companionMiddlewares;
         this.productTools = productTools == null ? List.of() : List.copyOf(productTools);
+        this.prompts = prompts;
     }
 
     @Override
@@ -118,6 +126,22 @@ public class CompanionResidentAgentBinding implements ProductModule {
     }
 
     /**
+     * 长驻 Agent 的系统提示词：平台键先问外部来源（Nacos），取不到才用产品兜底。
+     *
+     * <p>早先这里直接取 {@link #promptFallback}，于是 Nacos 提示词热更、模板校验与发布
+     * 对线上人格零效果——改的是接入层那份只用于校验的字符串。外部来源读失败时
+     * {@link PromptService} 自己会退回兜底，不会把空串交给模型。
+     *
+     * <p>外部模板在 Agent 装配时读一次：改完要重建（`rebuildAll`）或重启才生效。
+     */
+    public String systemPrompt() {
+        if (prompts == null) {
+            return promptFallback(PlatformPrompt.SYSTEM_KEY);
+        }
+        return prompts.get(PlatformPrompt.SYSTEM_KEY, Map.of(), promptFallback(PlatformPrompt.SYSTEM_KEY));
+    }
+
+    /**
      * 搭子差异：标识、模型、提示词、轮数、产品中间件与工作区路径。
      * 挂静态探针；MCP / Sandbox / Web 工具仅 companion。
      * web-tools.enabled=false（默认）时关内置 web_search/web_fetch；Shell 仍由公共项关闭。
@@ -131,7 +155,7 @@ public class CompanionResidentAgentBinding implements ProductModule {
         builder.name(properties.getName())
                 .agentId(id)
                 .model(chatModel.resolve(null))
-                .sysPrompt(promptFallback(null))
+                .sysPrompt(systemPrompt())
                 .maxIters(completion().maxIterations());
         if (properties.getWorkspace() != null && !properties.getWorkspace().isBlank()) {
             builder.workspace(properties.getWorkspace());

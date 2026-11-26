@@ -56,6 +56,7 @@
 | [README 拆条 D1](./readme-debt-d1-落地.md) | 「还没有」清单拆条 |
 | [图册整理](./diagrams-落地.md) | 图册从散落到 `docs/diagrams/` |
 | [文档站](./docs-site-落地.md) | 用户进程 `/docs`：公开阅读、搜索，登录后单篇提问 |
+| [产品提示词外部化](./prompt-source-落地.md) | 长驻 Agent 的系统提示词装配时读 Nacos，取不到用产品兜底 |
 
 ## 门禁
 
